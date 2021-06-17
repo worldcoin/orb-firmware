@@ -15,51 +15,51 @@ SDK_ROOT = ../../../..
 
 # C sources
 C_SOURCES =  \
-$(SDK_ROOT)/orbs/app/errors.c \
-$(SDK_ROOT)/orbs/app/main.c \
-$(SDK_ROOT)/orbs/app/freertos.c \
-$(SDK_ROOT)/orbs/app/stm32f3xx_it.c \
-$(SDK_ROOT)/orbs/app/stm32f3xx_hal_msp.c \
-$(SDK_ROOT)/orbs/app/stm32f3xx_hal_timebase_tim.c \
-$(SDK_ROOT)/orbs/app/system_stm32f3xx.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_adc.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_adc_ex.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc_ex.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_gpio.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_dma.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_cortex.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr_ex.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_flash.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_flash_ex.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2c.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2c_ex.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_exti.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2s.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2s_ex.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_spi.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_spi_ex.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tim.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tim_ex.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tsc.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_uart.c \
-$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_uart_ex.c \
-$(SDK_ROOT)/components/Middlewares/Third_Party/FreeRTOS/Source/croutine.c \
-$(SDK_ROOT)/components/Middlewares/Third_Party/FreeRTOS/Source/event_groups.c \
-$(SDK_ROOT)/components/Middlewares/Third_Party/FreeRTOS/Source/list.c \
-$(SDK_ROOT)/components/Middlewares/Third_Party/FreeRTOS/Source/queue.c \
-$(SDK_ROOT)/components/Middlewares/Third_Party/FreeRTOS/Source/stream_buffer.c \
-$(SDK_ROOT)/components/Middlewares/Third_Party/FreeRTOS/Source/tasks.c \
-$(SDK_ROOT)/components/Middlewares/Third_Party/FreeRTOS/Source/timers.c \
-$(SDK_ROOT)/components/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.c \
-$(SDK_ROOT)/components/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c \
-$(SDK_ROOT)/components/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c
+${SDK_ROOT}/orbs/app/errors.c \
+${SDK_ROOT}/orbs/app/main.c \
+${SDK_ROOT}/orbs/app/freertos.c \
+${SDK_ROOT}/orbs/app/stm32f3xx_it.c \
+${SDK_ROOT}/orbs/app/stm32f3xx_hal_msp.c \
+${SDK_ROOT}/orbs/app/stm32f3xx_hal_timebase_tim.c \
+${SDK_ROOT}/orbs/app/system_stm32f3xx.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_adc.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_adc_ex.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc_ex.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_gpio.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_dma.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_cortex.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr_ex.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_flash.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_flash_ex.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2c.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2c_ex.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_exti.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2s.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2s_ex.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_spi.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_spi_ex.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tim.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tim_ex.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tsc.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_uart.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_uart_ex.c \
+${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/croutine.c \
+${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/event_groups.c \
+${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/list.c \
+${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/queue.c \
+${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/stream_buffer.c \
+${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/tasks.c \
+${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/timers.c \
+${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.c \
+${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c \
+${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c
 
 # ASM sources
 ASM_SOURCES =  \
-$(SDK_ROOT)/orbs/app/startup_stm32f302xc.s
+${SDK_ROOT}/orbs/app/startup_stm32f302xc.s
 
 
 PREFIX = arm-none-eabi-
@@ -99,20 +99,20 @@ C_DEFS =  \
 
 # AS includes
 AS_INCLUDES =  \
--I$(SDK_ROOT)/orbs/app/include
+-I${SDK_ROOT}/orbs/app/include
 
 # C includes
 C_INCLUDES =  \
--I$(SDK_ROOT)/orbs/app/include \
--I$(SDK_ROOT)/orbs/app/boards/orbs_v1/config \
--I$(SDK_ROOT)/orbs/common/include \
--I$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Inc \
--I$(SDK_ROOT)/components/Drivers/STM32F3xx_HAL_Driver/Inc/Legacy \
--I$(SDK_ROOT)/components/Middlewares/Third_Party/FreeRTOS/Source/include \
--I$(SDK_ROOT)/components/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS \
--I$(SDK_ROOT)/components/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F \
--I$(SDK_ROOT)/components/Drivers/CMSIS/Device/ST/STM32F3xx/Include \
--I$(SDK_ROOT)/components/Drivers/CMSIS/Include
+-I${SDK_ROOT}/orbs/app/include \
+-I${SDK_ROOT}/orbs/app/boards/orbs_v1/config \
+-I${SDK_ROOT}/orbs/common/include \
+-I${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Inc \
+-I${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Inc/Legacy \
+-I${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/include \
+-I${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS \
+-I${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F \
+-I${SDK_ROOT}/components/Drivers/CMSIS/Device/ST/STM32F3xx/Include \
+-I${SDK_ROOT}/components/Drivers/CMSIS/Include
 
 # compile gcc flags
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
