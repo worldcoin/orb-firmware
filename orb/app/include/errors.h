@@ -2,8 +2,8 @@
 // Created by Cyril on 17/06/2021.
 //
 
-#ifndef FIRMWARE_ORBS_APP_INCLUDE_ERRORS_H
-#define FIRMWARE_ORBS_APP_INCLUDE_ERRORS_H
+#ifndef FIRMWARE_ORB_APP_INCLUDE_ERRORS_H
+#define FIRMWARE_ORB_APP_INCLUDE_ERRORS_H
 
 #include "stdint.h"
 
@@ -60,4 +60,4 @@ app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_
     } while (0)
 
 
-#endif //FIRMWARE_ORBS_APP_INCLUDE_ERRORS_H
+#endif //FIRMWARE_ORB_APP_INCLUDE_ERRORS_H

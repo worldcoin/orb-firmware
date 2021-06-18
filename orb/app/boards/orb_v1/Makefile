@@ -2,7 +2,7 @@
 # Application Makefile (based on gcc)
 # ------------------------------------------------
 
-TARGET = orbs_app
+TARGET = orb_app
 
 # debug build?
 DEBUG = 1
@@ -15,9 +15,9 @@ SDK_ROOT = ../../../..
 
 # C sources
 C_SOURCES =  \
-${SDK_ROOT}/orbs/app/errors.c \
-${SDK_ROOT}/orbs/app/main.c \
-${SDK_ROOT}/orbs/app/freertos.c \
+${SDK_ROOT}/orb/app/errors.c \
+${SDK_ROOT}/orb/app/main.c \
+${SDK_ROOT}/orb/app/freertos.c \
 ./platform/stm32f3xx_it.c \
 ./platform/stm32f3xx_hal_msp.c \
 ./platform/stm32f3xx_hal_timebase_tim.c \
@@ -99,13 +99,13 @@ C_DEFS =  \
 
 # AS includes
 AS_INCLUDES =  \
--I${SDK_ROOT}/orbs/app/include
+-I${SDK_ROOT}/orb/app/include
 
 # C includes
 C_INCLUDES =  \
--I${SDK_ROOT}/orbs/app/include \
--I${SDK_ROOT}/orbs/app/boards/orbs_v1/config \
--I${SDK_ROOT}/orbs/common/include \
+-I${SDK_ROOT}/orb/app/include \
+-I${SDK_ROOT}/orb/app/boards/orb_v1/config \
+-I${SDK_ROOT}/orb/common/include \
 -I${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Inc \
 -I${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Inc/Legacy \
 -I${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/include \

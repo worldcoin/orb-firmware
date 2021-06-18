@@ -1,4 +1,4 @@
-set(PROJECT_NAME "orbs_app")
+set(PROJECT_NAME "orb_app")
 
 # uncomment to mitigate c++17 absolute addresses warnings
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register")
@@ -23,9 +23,9 @@ set(HAL_DIRECTORY STM32F3xx_HAL_Driver)
 set(MCU_LINE stm32f3xx)
 
 set(SOURCES
-        ${SDK_ROOT}/orbs/app/errors.c
-        ${SDK_ROOT}/orbs/app/main.c
-        ${SDK_ROOT}/orbs/app/freertos.c
+        ${SDK_ROOT}/orb/app/errors.c
+        ${SDK_ROOT}/orb/app/main.c
+        ${SDK_ROOT}/orb/app/freertos.c
         ./platform/${MCU_LINE}_it.c
         ./platform/${MCU_LINE}_hal_msp.c
         ./platform/${MCU_LINE}_hal_timebase_tim.c
@@ -69,9 +69,9 @@ set(SOURCES
 set_source_files_properties(./platform/startup_stm32f302xc.s PROPERTIES COMPILE_FLAGS "-x assembler-with-cpp")
 
 set(INC_DIRS
-        ${SDK_ROOT}/orbs/app/include
+        ${SDK_ROOT}/orb/app/include
         ./config
-        ${SDK_ROOT}/orbs/common/include
+        ${SDK_ROOT}/orb/common/include
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Inc
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Inc/Legacy
         ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/include

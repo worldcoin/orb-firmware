@@ -14,7 +14,7 @@ Code for the main microcontroller
 │   ├── Drivers         # HAL drivers
 │   ├── Middlewares     # Middlewares such as FreeRTOS
 │   └── ...             
-├── orbs                # our source code
+├── orb                # our source code
 │   ├── app             # main application firmware
 │   ├── bootloader      # bootloader firmware
 │   ├── common          # common to any module in this directory

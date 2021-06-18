@@ -5,4 +5,4 @@ cmake_minimum_required(VERSION 3.19)
 include(utils/cmake/utils.cmake)
 
 # Application
-add_subdirectory(orbs/app/boards/orbs_v1)
+add_subdirectory(orb/app/boards/orb_v1)
