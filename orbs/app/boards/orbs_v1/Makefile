@@ -173,6 +173,7 @@ current := $(shell cut -c6- $(SDK_ROOT)/.git/HEAD)
 
 prepare_version: ./config/version.h
 
+app_debug: -DCONFIG_LOG_LEVEL=4
 app_debug: prepare_version $(BUILD_DIR)/$(TARGET).hex
 
 clean:

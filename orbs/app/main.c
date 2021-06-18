@@ -1,6 +1,8 @@
+#include <logging.h>
 #include "main.h"
 #include "cmsis_os.h"
 #include "errors.h"
+#include "version.h"
 
 /**
   * @brief System Clock Configuration
@@ -64,6 +66,12 @@ main(void)
 
     /* Configure the system clock */
     SystemClock_Config();
+
+    LOG_INFO("Firmware v%u.%u.%u, hw:%u",
+             FIRMWARE_VERSION_MAJOR,
+             FIRMWARE_VERSION_MINOR,
+             FIRMWARE_VERSION_PATCH,
+             HARDWARE_REV);
 
     /* Start scheduler */
     osKernelStart();
