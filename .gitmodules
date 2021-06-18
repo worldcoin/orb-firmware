@@ -1,0 +1,3 @@
+[submodule "external/nanopb"]
+	path = external/nanopb
+	url = https://github.com/nanopb/nanopb
