@@ -1,5 +1,5 @@
 #include <logging.h>
-#include "main.h"
+#include "board.h"
 #include "cmsis_os.h"
 #include "errors.h"
 #include "version.h"

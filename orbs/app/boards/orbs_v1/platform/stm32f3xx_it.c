@@ -19,7 +19,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+#include "board.h"
 #include "stm32f3xx_it.h"
 
 ADC_HandleTypeDef hadc1;

@@ -21,7 +21,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include <errors.h>
-#include "main.h"
+#include "board.h"
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
