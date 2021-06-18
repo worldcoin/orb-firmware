@@ -2,7 +2,7 @@
 # Application Makefile (based on gcc)
 # ------------------------------------------------
 
-TARGET = firmware
+TARGET = orbs_app
 
 # debug build?
 DEBUG = 1
@@ -164,7 +164,19 @@ $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 $(BUILD_DIR):
 	mkdir $@		
 
+# Get the file in the branch referencing the commit SHA
+current := $(shell cut -c6- $(SDK_ROOT)/.git/HEAD)
+# version.h regenerated only if new commit or version.ini has changed.
+./config/version.h: $(SDK_ROOT)/.git/${current} ./version.ini
+	@echo Preparing version $(app_version_script)
+	python $(SDK_ROOT)/utils/version/gen_version.py -f ./version.ini -i ./config/version.h
+
+prepare_version: ./config/version.h
+
+app_debug: prepare_version $(BUILD_DIR)/$(TARGET).hex
+
 clean:
+	-rm ./config/version.h
 	-rm -fR $(BUILD_DIR)
 
 # dependencies
