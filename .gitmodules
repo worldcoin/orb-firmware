@@ -1,3 +1,6 @@
 [submodule "external/nanopb"]
 	path = external/nanopb
 	url = https://github.com/nanopb/nanopb
+[submodule "external/microcontroller-messaging-proto"]
+	path = external/microcontroller-messaging-proto
+	url = git@gitlab.com:worldcoin/orb/microcontroller/microcontroller-messaging-proto.git
