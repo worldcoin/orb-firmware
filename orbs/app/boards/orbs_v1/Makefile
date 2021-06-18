@@ -18,10 +18,10 @@ C_SOURCES =  \
 ${SDK_ROOT}/orbs/app/errors.c \
 ${SDK_ROOT}/orbs/app/main.c \
 ${SDK_ROOT}/orbs/app/freertos.c \
-${SDK_ROOT}/orbs/app/stm32f3xx_it.c \
-${SDK_ROOT}/orbs/app/stm32f3xx_hal_msp.c \
-${SDK_ROOT}/orbs/app/stm32f3xx_hal_timebase_tim.c \
-${SDK_ROOT}/orbs/app/system_stm32f3xx.c \
+./platform/stm32f3xx_it.c \
+./platform/stm32f3xx_hal_msp.c \
+./platform/stm32f3xx_hal_timebase_tim.c \
+./platform/system_stm32f3xx.c \
 ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_adc.c \
 ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_adc_ex.c \
 ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal.c \
@@ -59,7 +59,7 @@ ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_
 
 # ASM sources
 ASM_SOURCES =  \
-${SDK_ROOT}/orbs/app/startup_stm32f302xc.s
+./platform/startup_stm32f302xc.s
 
 
 PREFIX = arm-none-eabi-
