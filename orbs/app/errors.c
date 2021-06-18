@@ -35,11 +35,12 @@ app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
+  *         Only when USE_FULL_ASSERT is defined
   * @param  file: pointer to the source file name
   * @param  line: assert_param error line source number
   * @retval None
   */
 void assert_failed(uint8_t *file, uint32_t line)
 {
-    // todo print file and line
+    LOG_ERROR("Optional assert failed: %s:%lu", file, line);
 }
