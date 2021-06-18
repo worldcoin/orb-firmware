@@ -1,5 +1,4 @@
 set(PROJECT_NAME "orbs_app")
-project(${PROJECT_NAME})
 
 # uncomment to mitigate c++17 absolute addresses warnings
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register")
@@ -20,39 +19,40 @@ else ()
 endif ()
 
 set(SDK_ROOT ../../../..)
+set(HAL_DIRECTORY STM32F3xx_HAL_Driver)
+set(MCU_LINE stm32f3xx)
 
 set(SOURCES
         ${SDK_ROOT}/orbs/app/errors.c
         ${SDK_ROOT}/orbs/app/main.c
         ${SDK_ROOT}/orbs/app/freertos.c
-        ${SDK_ROOT}/orbs/app/stm32f3xx_it.c
-        ${SDK_ROOT}/orbs/app/stm32f3xx_hal_msp.c
-        ${SDK_ROOT}/orbs/app/stm32f3xx_hal_timebase_tim.c
-        ${SDK_ROOT}/orbs/app/system_stm32f3xx.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_adc.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_adc_ex.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc_ex.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_gpio.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_dma.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_cortex.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pwr_ex.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_flash.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_flash_ex.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2c.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2c_ex.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_exti.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2s.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_i2s_ex.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_spi.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_spi_ex.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tim.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tim_ex.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tsc.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_uart.c
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_uart_ex.c
+        ./platform/${MCU_LINE}_it.c
+        ./platform/${MCU_LINE}_hal_msp.c
+        ./platform/${MCU_LINE}_hal_timebase_tim.c
+        ./platform/system_${MCU_LINE}.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_adc.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_adc_ex.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_rcc.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_rcc_ex.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_gpio.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_dma.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_cortex.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_pwr.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_pwr_ex.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_flash.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_flash_ex.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_i2c.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_i2c_ex.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_exti.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_i2s.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_i2s_ex.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_spi.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_tim.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_tim_ex.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_tsc.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_uart.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_uart_ex.c
         ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/croutine.c
         ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/event_groups.c
         ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/list.c
@@ -63,20 +63,25 @@ set(SOURCES
         ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.c
         ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c
         ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c
+        ./platform/startup_stm32f302xc.s
         )
+
+set_source_files_properties(./platform/startup_stm32f302xc.s PROPERTIES COMPILE_FLAGS "-x assembler-with-cpp")
 
 set(INC_DIRS
         ${SDK_ROOT}/orbs/app/include
-        ${SDK_ROOT}/orbs/app/boards/orbs_v1/config
+        ./config
         ${SDK_ROOT}/orbs/common/include
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Inc
-        ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Inc/Legacy
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Inc
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Inc/Legacy
         ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/include
         ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS
         ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F
         ${SDK_ROOT}/components/Drivers/CMSIS/Device/ST/STM32F3xx/Include
         ${SDK_ROOT}/components/Drivers/CMSIS/Include
         )
+
+project(${PROJECT_NAME} C ASM)
 
 include_directories(${INC_DIRS})
 

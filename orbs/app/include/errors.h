@@ -5,6 +5,8 @@
 #ifndef FIRMWARE_ORBS_APP_INCLUDE_ERRORS_H
 #define FIRMWARE_ORBS_APP_INCLUDE_ERRORS_H
 
+#include "stdint.h"
+
 /**@brief Structure containing info about an error of the type @ref NRF_FAULT_ID_SDK_ERROR.
  */
 typedef struct
