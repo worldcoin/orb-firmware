@@ -2,6 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/external/microcontroller-messaging-proto" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/external/nanopb" vcs="Git" />
   </component>
 </project>
