@@ -1,3 +1,6 @@
+#include "FreeRTOS.h"
+#include <task.h>
+#include <logs.h>
 #include "stdint.h"
 #include "errors.h"
 #include "compilers.h"
@@ -18,6 +21,11 @@ app_error_fault_handler(uint32_t id, uint32_t pc, long info)
               ((error_info_t *) info)->err_code,
               ((error_info_t *) info)->p_file_name,
               ((error_info_t *) info)->line_num);
+
+    logs_final_flush();
+
+    vTaskEndScheduler();
+
     // software breakpoint
     __builtin_trap();
 }

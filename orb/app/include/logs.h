@@ -7,6 +7,9 @@
 
 #include <stdint.h>
 
+void
+logs_final_flush(void);
+
 uint32_t
 logs_init(void);
 

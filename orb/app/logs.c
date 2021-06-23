@@ -197,6 +197,31 @@ logs_further_init(UART_HandleTypeDef *huart)
     __HAL_LINKDMA(huart, hdmatx, m_dma_uart_tx);
 }
 
+void
+logs_final_flush(void)
+{
+    HAL_StatusTypeDef err_code;
+
+    while (m_rd_index != m_wr_index)
+    {
+        if (m_wr_index < m_rd_index)
+        {
+            m_chunk_size = DEBUG_UART_TX_BUFFER_SIZE - m_rd_index;
+        }
+        else
+        {
+            m_chunk_size = m_wr_index - m_rd_index;
+        }
+
+        err_code = HAL_UART_Transmit(&m_uart_handle, (uint8_t *) &m_tx_buffer[m_rd_index], m_chunk_size, 1000);
+
+        if (err_code == HAL_OK)
+        {
+            m_rd_index = (m_rd_index + m_chunk_size) % DEBUG_UART_TX_BUFFER_SIZE;
+        }
+    }
+}
+
 uint32_t
 logs_init(void)
 {
