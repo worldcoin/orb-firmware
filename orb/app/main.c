@@ -1,3 +1,4 @@
+#include <logs.h>
 #include <logging.h>
 #include "board.h"
 #include "cmsis_os.h"
@@ -67,6 +68,10 @@ main(void)
     /* Configure the system clock */
     SystemClock_Config();
 
+#ifdef DEBUG
+    logs_init();
+#endif
+
     LOG_INFO("Firmware v%u.%u.%u, hw:%u",
              FIRMWARE_VERSION_MAJOR,
              FIRMWARE_VERSION_MINOR,
@@ -74,7 +79,7 @@ main(void)
              HARDWARE_REV);
 
     /* Start scheduler */
-    osKernelStart();
+    vTaskStartScheduler();
 
     /* We should never get here as control is now taken by the scheduler */
     while (1)

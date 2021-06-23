@@ -1,4 +1,4 @@
-set(PROJECT_NAME "orb_app")
+set(PROJECT_NAME "orb_app_discovery")
 
 # uncomment to mitigate c++17 absolute addresses warnings
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register")
@@ -6,16 +6,25 @@ set(PROJECT_NAME "orb_app")
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
     message(STATUS "Maximum optimization for speed")
     add_compile_options(-Ofast)
+
+    # remove debug logs
+    add_compile_definitions(CONFIG_LOG_LEVEL=0)
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
     message(STATUS "Maximum optimization for speed, debug info included")
     add_compile_options(-Ofast -g)
+
+    # remove debug logs
+    add_compile_definitions(CONFIG_LOG_LEVEL=0)
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "MinSizeRel")
     message(STATUS "Maximum optimization for size")
     add_compile_options(-Os)
+
+    # remove debug logs
+    add_compile_definitions(CONFIG_LOG_LEVEL=0)
 else ()
-    message(STATUS "Minimal optimization, debug info included")
+    message(STATUS "Minimal optimization, debug info included, logging")
     add_compile_options(-Og -g)
-    add_compile_definitions(CONFIG_LOG_LEVEL=4)
+    add_compile_definitions(DEBUG CONFIG_LOG_LEVEL=4)
 endif ()
 
 set(SDK_ROOT ../../../..)
@@ -64,10 +73,10 @@ set(SOURCES
         ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.c
         ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c
         ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c
-        ./platform/startup_stm32f302xc.s
+        ./platform/startup_stm32f303xc.s
         )
 
-set_source_files_properties(./platform/startup_stm32f302xc.s PROPERTIES COMPILE_FLAGS "-x assembler-with-cpp")
+set_source_files_properties(./platform/startup_stm32f303xc.s PROPERTIES COMPILE_FLAGS "-x assembler-with-cpp")
 
 set(INC_DIRS
         ${SDK_ROOT}/orb/app/include
@@ -86,9 +95,9 @@ project(${PROJECT_NAME} C ASM)
 
 include_directories(${INC_DIRS})
 
-add_definitions(-DDEBUG -DUSE_HAL_DRIVER -DSTM32F302xC)
+add_definitions(-DUSE_HAL_DRIVER -DSTM32F303xC)
 
-set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/STM32F302VBTX_FLASH.ld)
+set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/STM32F303VCTx_FLASH.ld)
 
 # hardware floating point
 add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING)
