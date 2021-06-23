@@ -182,13 +182,6 @@
 #define  USE_HAL_TSC_REGISTER_CALLBACKS         0U /* TSC register callback disabled       */
 #define  USE_HAL_PCD_REGISTER_CALLBACKS         0U /* PCD register callback disabled       */
 
-/* ########################## Assert Selection ############################## */
-/**
-  * @brief Uncomment the line below to expanse the "assert_param" macro in the
-  *        HAL drivers code
-  */
- #define USE_FULL_ASSERT    1U
-
 /* Includes ------------------------------------------------------------------*/
 /**
   * @brief Include module's header file

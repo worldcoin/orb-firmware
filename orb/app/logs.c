@@ -1,16 +1,18 @@
+#include <logs.h>
 #include <board.h>
 #include <errors.h>
 #include <FreeRTOS.h>
 #include <task.h>
+#include <stm32f3xx_it.h>
 
 static UART_HandleTypeDef m_uart_handle;
 static DMA_HandleTypeDef m_dma_uart_tx;
 static DMA_HandleTypeDef m_dma_uart_rx;
 
 static uint8_t m_tx_buffer[DEBUG_UART_TX_BUFFER_SIZE] = {0};
-static size_t m_wr_index = 0;
-static size_t m_rd_index = 0;
-static size_t m_chunk_size = 0;
+static uint16_t m_wr_index = 0;
+static uint16_t m_rd_index = 0;
+static uint16_t m_chunk_size = 0;
 
 TaskHandle_t m_logs_task = NULL;
 
@@ -97,6 +99,9 @@ flush_tx(void *params)
 
 #if defined(__GNUC__)
 int
+_write(int fd, char *ptr, int len);
+
+int
 _write(int fd, char *ptr, int len)
 {
     // fill tx buffer up to read index
@@ -105,7 +110,7 @@ _write(int fd, char *ptr, int len)
     for (; i < len; ++i)
     {
         m_tx_buffer[m_wr_index] = *(ptr + i);
-        m_wr_index = (m_wr_index + 1) % DEBUG_UART_TX_BUFFER_SIZE;
+        m_wr_index = (uint16_t) (m_wr_index + (uint16_t) 1) % DEBUG_UART_TX_BUFFER_SIZE;
 
         if (m_wr_index == m_rd_index)
         {
@@ -193,7 +198,7 @@ logs_further_init(UART_HandleTypeDef *huart)
 }
 
 uint32_t
-logs_init()
+logs_init(void)
 {
     /* DMA controller clock enable */
     __HAL_RCC_DMA1_CLK_ENABLE();

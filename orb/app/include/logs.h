@@ -8,6 +8,6 @@
 #include <stdint.h>
 
 uint32_t
-logs_init();
+logs_init(void);
 
 #endif //WORLDCOIN_FIRMWARE_ORB_APP_INCLUDE_LOGS_H

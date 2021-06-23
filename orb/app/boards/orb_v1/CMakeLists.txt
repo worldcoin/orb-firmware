@@ -6,23 +6,32 @@ set(PROJECT_NAME "orb_app")
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
     message(STATUS "Maximum optimization for speed")
     add_compile_options(-Ofast)
+
+    # remove debug logs
+    add_compile_definitions(CONFIG_LOG_LEVEL=0)
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
     message(STATUS "Maximum optimization for speed, debug info included")
     add_compile_options(-Ofast -g)
+
+    # remove debug logs
+    add_compile_definitions(CONFIG_LOG_LEVEL=0)
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "MinSizeRel")
     message(STATUS "Maximum optimization for size")
     add_compile_options(-Os)
+
+    # remove debug logs
+    add_compile_definitions(CONFIG_LOG_LEVEL=0)
 else ()
-    message(STATUS "Minimal optimization, debug info included")
+    message(STATUS "Minimal optimization, debug info included, logging enabled")
     add_compile_options(-Og -g)
-    add_compile_definitions(CONFIG_LOG_LEVEL=4)
+    add_compile_definitions(DEBUG;CONFIG_LOG_LEVEL=4;USE_FULL_ASSERT)
 endif ()
 
 set(SDK_ROOT ../../../..)
 set(HAL_DIRECTORY STM32F3xx_HAL_Driver)
 set(MCU_LINE stm32f3xx)
 
-set(SOURCES
+set(ORB_SOURCES
         ${SDK_ROOT}/orb/app/errors.c
         ${SDK_ROOT}/orb/app/freertos.c
         ${SDK_ROOT}/orb/app/main.c
@@ -31,6 +40,10 @@ set(SOURCES
         ./platform/${MCU_LINE}_hal_msp.c
         ./platform/${MCU_LINE}_hal_timebase_tim.c
         ./platform/system_${MCU_LINE}.c
+        )
+
+set(SOURCES
+        ${ORB_SOURCES}
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_adc.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_adc_ex.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal.c
@@ -68,6 +81,7 @@ set(SOURCES
         )
 
 set_source_files_properties(./platform/startup_stm32f302xc.s PROPERTIES COMPILE_FLAGS "-x assembler-with-cpp")
+set_source_files_properties(${ORB_SOURCES} PROPERTIES COMPILE_FLAGS "-Wall -Werror -Wstrict-prototypes -Wwrite-strings -Wshadow -Winit-self -Wformat=2 -Wmissing-prototypes -Wstrict-overflow=2 -Wc++-compat -Wundef -Wconversion -Wno-missing-braces")
 
 set(INC_DIRS
         ${SDK_ROOT}/orb/app/include

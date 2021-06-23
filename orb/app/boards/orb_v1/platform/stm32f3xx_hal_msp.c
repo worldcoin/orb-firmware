@@ -29,8 +29,6 @@ extern DMA_HandleTypeDef hdma_adc1;
 
 extern DMA_HandleTypeDef hdma_adc2;
 
-extern DMA_HandleTypeDef m_dma_uart_tx;
-
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN TD */
 
@@ -890,46 +888,7 @@ HAL_UART_MspInit(UART_HandleTypeDef *huart)
     }
     else if (huart->Instance == USART1)
     {
-        /* USER CODE BEGIN USART1_MspInit 0 */
-
-        /* USER CODE END USART1_MspInit 0 */
-        /* Peripheral clock enable */
-        __HAL_RCC_USART1_CLK_ENABLE();
-
-        __HAL_RCC_GPIOB_CLK_ENABLE();
-        /**USART1 GPIO Configuration
-        PB6     ------> USART1_TX
-        PB7     ------> USART1_RX
-        */
-        GPIO_InitStruct.Pin = USART_STM32_TO_JETSON_Pin | USART_JETSON_TO_STM32_Pin;
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-        GPIO_InitStruct.Pull = GPIO_NOPULL;
-        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-        GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
-        HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-        /* USART1 DMA Init */
-        /* USART1_TX Init */
-        m_dma_uart_tx.Instance = DMA1_Channel4;
-        m_dma_uart_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
-        m_dma_uart_tx.Init.PeriphInc = DMA_PINC_DISABLE;
-        m_dma_uart_tx.Init.MemInc = DMA_MINC_ENABLE;
-        m_dma_uart_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-        m_dma_uart_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-        m_dma_uart_tx.Init.Mode = DMA_NORMAL;
-        m_dma_uart_tx.Init.Priority = DMA_PRIORITY_LOW;
-
-        uint32_t err_code = HAL_DMA_Init(&m_dma_uart_tx);
-        ASSERT(err_code);
-
-        __HAL_LINKDMA(huart, hdmatx, m_dma_uart_tx);
-
-        /* USART1 interrupt Init */
-        HAL_NVIC_SetPriority(USART1_IRQn, 5, 0);
-        HAL_NVIC_EnableIRQ(USART1_IRQn);
-        /* USER CODE BEGIN USART1_MspInit 1 */
-
-        /* USER CODE END USART1_MspInit 1 */
+        // done in serial.c
     }
     else if (huart->Instance == USART2)
     {
