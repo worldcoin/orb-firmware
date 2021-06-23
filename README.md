@@ -28,7 +28,7 @@ Code for the main microcontroller
 
 ### Conda
 
-You can use Conda to get all the dependencies in an isolated environment. Checkout the available [environment](utils/environment.yml).
+You can use Conda to get all the dependencies in an isolated environment. Checkout the available [environment](utils/env/environment.yml).
 
 #### Conda installation
 
@@ -46,7 +46,7 @@ $ bash Miniconda3-latest-*-x86_64.sh
 To install the environment:
 
 ```shell
-conda env create -f utils/environment.yml
+conda env create -f utils/env/environment.yml
 ```
 
 Then activate:
