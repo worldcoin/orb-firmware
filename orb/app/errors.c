@@ -24,10 +24,7 @@ app_error_fault_handler(uint32_t id, uint32_t pc, long info)
 
     logs_final_flush();
 
-    vTaskEndScheduler();
-
-    // software breakpoint
-    __builtin_trap();
+    HAL_NVIC_SystemReset();
 }
 
 void
