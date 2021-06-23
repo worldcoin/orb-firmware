@@ -3,6 +3,8 @@ stages:
 
 build_all:
   stage: build
+  only:
+    - tags
   except:
     - branches
   image: gitlab/dind
