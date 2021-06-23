@@ -3,7 +3,7 @@
   <component name="CMakeWorkspace" PROJECT_DIR="$PROJECT_DIR$" />
   <component name="CidrRootsConfiguration">
     <excludeRoots>
-      <file path="$PROJECT_DIR$/orb/app/boards/orbs_v1/build" />
+      <file path="$PROJECT_DIR$/orb/app/boards/orb_v1/build" />
     </excludeRoots>
   </component>
 </project>
