@@ -1,0 +1,9 @@
+name: worldcoin
+channels:
+  - conda-forge
+dependencies:
+  - make
+  - python=3.9
+  - conda-forge::cmake
+  - pyserial
+  - ccache
