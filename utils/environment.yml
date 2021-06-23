@@ -1,9 +1,11 @@
 name: worldcoin
 channels:
   - conda-forge
+  - memfault
 dependencies:
   - make
   - python=3.9
   - conda-forge::cmake
   - pyserial
   - ccache
+  - gcc-arm-none-eabi=8.2019.q3.update
