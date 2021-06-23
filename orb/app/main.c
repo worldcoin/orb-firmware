@@ -55,6 +55,23 @@ SystemClock_Config(void)
     ASSERT(err_code);
 }
 
+TaskHandle_t m_test_task_handle = NULL;
+
+__unused static void
+test_task(void * t)
+{
+    vTaskDelay(500);
+
+    LOG_INFO("Testing task..");
+
+    vTaskDelay(500);
+
+    // ASSERT(2);
+
+    // task delete itself
+    vTaskDelete(NULL);
+}
+
 /**
   * @brief  The application entry point.
   * @retval int
@@ -72,17 +89,18 @@ main(void)
     logs_init();
 #endif
 
+    LOG_INFO("🤖");
     LOG_INFO("Firmware v%u.%u.%u, hw:%u",
              FIRMWARE_VERSION_MAJOR,
              FIRMWARE_VERSION_MINOR,
              FIRMWARE_VERSION_PATCH,
              HARDWARE_REV);
 
+    xTaskCreate(test_task, "test", 128, NULL, (tskIDLE_PRIORITY + 1), &m_test_task_handle);
+
     /* Start scheduler */
     vTaskStartScheduler();
 
     /* We should never get here as control is now taken by the scheduler */
-    while (1)
-    {
-    }
+    HAL_NVIC_SystemReset();
 }
