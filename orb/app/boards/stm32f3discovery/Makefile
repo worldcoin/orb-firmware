@@ -105,7 +105,7 @@ AS_INCLUDES =  \
 # C includes
 C_INCLUDES =  \
 -I${SDK_ROOT}/orb/app/include \
--I${SDK_ROOT}/orb/app/boards/orb_v1/config \
+-I./config \
 -I${SDK_ROOT}/orb/common/include \
 -I${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Inc \
 -I${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Inc/Legacy \
@@ -170,6 +170,15 @@ $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 $(BUILD_DIR):
 	mkdir $@		
 
+# if running from Docker, make sure we always regenerated version.h
+ifeq ($(DOCKER_RUN),1)
+
+prepare_version:
+	@echo Preparing version from Docker
+	python $(SDK_ROOT)/utils/version/gen_version.py -f ./version.ini -i ./config/version.h
+
+else
+
 # Get the file in the branch referencing the commit SHA
 current := $(shell cut -c6- $(SDK_ROOT)/.git/HEAD)
 # version.h regenerated only if new commit or version.ini has changed.
@@ -178,6 +187,8 @@ current := $(shell cut -c6- $(SDK_ROOT)/.git/HEAD)
 	python $(SDK_ROOT)/utils/version/gen_version.py -f ./version.ini -i ./config/version.h
 
 prepare_version: ./config/version.h
+
+endif # DOCKER_RUN
 
 app_debug: -DCONFIG_LOG_LEVEL=4 -DDEBUG
 app_debug: prepare_version $(BUILD_DIR)/$(TARGET).hex

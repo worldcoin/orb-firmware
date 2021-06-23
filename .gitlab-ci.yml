@@ -1,0 +1,15 @@
+stages:
+  - build
+
+build_all:
+  stage: build
+  except:
+    - branches
+  image: gitlab/dind
+  services:
+    - docker:dind
+  script:
+    # build the Docker image
+    - docker build utils/env -t worldcoin
+    # run firmware build
+    - docker run --rm -w=/home/project/firmware -v `pwd`:/home/project/firmware worldcoin make all
