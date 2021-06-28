@@ -43,6 +43,10 @@ USART1_IRQHandler(void)
     HAL_UART_IRQHandler(&m_uart_handle);
 }
 
+///
+/// 💥 ISR context
+///
+/// \param huart
 static void
 rx_done_cb(UART_HandleTypeDef *huart)
 {
@@ -51,6 +55,7 @@ rx_done_cb(UART_HandleTypeDef *huart)
 
 /// Callback when UART TX transfer has completed
 /// Notify sending task if new bytes are ready to be sent
+/// 💥 ISR context
 /// \param huart UART handle
 static void
 tx_done_cb(UART_HandleTypeDef *huart)
@@ -60,7 +65,14 @@ tx_done_cb(UART_HandleTypeDef *huart)
 
     if (m_rd_index != m_wr_index)
     {
-        xTaskNotifyGive(m_logs_task);
+        BaseType_t switch_to_higher_priority_task = pdFALSE;
+        vTaskNotifyGiveFromISR(m_logs_task, &switch_to_higher_priority_task);
+
+        // If switch_to_higher_priority_task is now set to pdTRUE then a context switch
+        // should be performed to ensure the interrupt returns directly to the highest
+        // priority task.  The macro used for this purpose is dependent on the port in
+        // use and may be called portEND_SWITCHING_ISR().
+        portYIELD_FROM_ISR(switch_to_higher_priority_task);
     }
 }
 
@@ -95,7 +107,9 @@ flush_tx(void *params)
                 m_chunk_size = m_wr_index - m_rd_index;
             }
 
-            HAL_UART_Transmit_DMA(&m_uart_handle, (uint8_t *) &m_tx_buffer[m_rd_index], m_chunk_size);
+            HAL_UART_Transmit_DMA(&m_uart_handle,
+                                  (uint8_t *) &m_tx_buffer[m_rd_index],
+                                  m_chunk_size);
         }
     }
 }
@@ -216,7 +230,10 @@ logs_final_flush(void)
             m_chunk_size = m_wr_index - m_rd_index;
         }
 
-        err_code = HAL_UART_Transmit(&m_uart_handle, (uint8_t *) &m_tx_buffer[m_rd_index], m_chunk_size, 1000);
+        err_code = HAL_UART_Transmit(&m_uart_handle,
+                                     (uint8_t *) &m_tx_buffer[m_rd_index],
+                                     m_chunk_size,
+                                     1000);
 
         if (err_code == HAL_OK)
         {

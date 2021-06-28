@@ -1,7 +1,11 @@
 #include <logs.h>
 #include <logging.h>
+#include <com.h>
+#include <FreeRTOS.h>
+#include <task.h>
+#include <data_provider.h>
+#include <mcu_messaging.pb.h>
 #include "board.h"
-#include "cmsis_os.h"
 #include "errors.h"
 #include "version.h"
 
@@ -57,16 +61,27 @@ SystemClock_Config(void)
 
 TaskHandle_t m_test_task_handle = NULL;
 
-__unused static void
+_Noreturn __unused static void
 test_task(void * t)
 {
+    PowerButton button = {.pressed = OnOff_OFF};
+    BatteryVoltage bat = {.battery_mvolts = 3700};
     vTaskDelay(500);
 
-    LOG_INFO("Testing task..");
+    while(1)
+    {
+        vTaskDelay(1000);
 
-    vTaskDelay(500);
+        LOG_INFO("Sending");
 
-    // ASSERT(2);
+        data_set_payload(McuToJetson_power_button_tag, &button);
+        button.pressed = (1-button.pressed);
+
+        vTaskDelay(1000);
+
+        data_set_payload(McuToJetson_battery_voltage_tag, &bat);
+        bat.battery_mvolts += 1;
+    }
 
     // task delete itself
     vTaskDelete(NULL);
@@ -96,7 +111,9 @@ main(void)
              FIRMWARE_VERSION_PATCH,
              HARDWARE_REV);
 
-    xTaskCreate(test_task, "test", 128, NULL, (tskIDLE_PRIORITY + 1), &m_test_task_handle);
+    com_init();
+
+    xTaskCreate(test_task, "test", 150, NULL, (tskIDLE_PRIORITY + 1), &m_test_task_handle);
 
     /* Start scheduler */
     vTaskStartScheduler();

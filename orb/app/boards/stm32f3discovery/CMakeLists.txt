@@ -30,12 +30,15 @@ endif ()
 set(SDK_ROOT ../../../..)
 set(HAL_DIRECTORY STM32F3xx_HAL_Driver)
 set(MCU_LINE stm32f3xx)
-
+set(FREERTOS_DIR ${SDK_ROOT}/external/freertos)
 set(ORB_SOURCES
+        ${SDK_ROOT}/orb/app/com.c
+        ${SDK_ROOT}/orb/app/data_provider.c
         ${SDK_ROOT}/orb/app/errors.c
         ${SDK_ROOT}/orb/app/freertos.c
         ${SDK_ROOT}/orb/app/main.c
         ${SDK_ROOT}/orb/app/logs.c
+        ${SDK_ROOT}/orb/app/serde.c
         ./platform/${MCU_LINE}_it.c
         ./platform/${MCU_LINE}_hal_msp.c
         ./platform/${MCU_LINE}_hal_timebase_tim.c
@@ -68,21 +71,24 @@ set(SOURCES
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_tsc.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_uart.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_uart_ex.c
-        ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/croutine.c
-        ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/event_groups.c
-        ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/list.c
-        ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/queue.c
-        ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/stream_buffer.c
-        ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/tasks.c
-        ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/timers.c
-        ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.c
-        ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c
-        ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c
+        ${FREERTOS_DIR}/croutine.c
+        ${FREERTOS_DIR}/event_groups.c
+        ${FREERTOS_DIR}/list.c
+        ${FREERTOS_DIR}/queue.c
+        ${FREERTOS_DIR}/stream_buffer.c
+        ${FREERTOS_DIR}/tasks.c
+        ${FREERTOS_DIR}/timers.c
+        ${FREERTOS_DIR}/portable/MemMang/heap_4.c
+        ${FREERTOS_DIR}/portable/GCC/ARM_CM4F/port.c
+        ${SDK_ROOT}/external/microcontroller-messaging-proto/c/mcu_messaging.pb.c
+        ${SDK_ROOT}/external/nanopb/pb_common.c
+        ${SDK_ROOT}/external/nanopb/pb_decode.c
+        ${SDK_ROOT}/external/nanopb/pb_encode.c
         )
 
 set_source_files_properties(./platform/startup_stm32f303xc.s PROPERTIES COMPILE_FLAGS "-x assembler-with-cpp")
 
-set_source_files_properties(${ORB_SOURCES} PROPERTIES COMPILE_FLAGS "-Wall -Werror -Wstrict-prototypes -Wwrite-strings -Wshadow -Winit-self -Wformat=2 -Wmissing-prototypes -Wstrict-overflow=2 -Wc++-compat -Wundef -Wconversion -Wno-missing-braces")
+set_source_files_properties(${ORB_SOURCES} PROPERTIES COMPILE_FLAGS "-Wall -Werror -Wstrict-prototypes -Wwrite-strings -Wshadow -Winit-self -Wformat=2 -Wmissing-prototypes -Wstrict-overflow=2 -Wundef -Wconversion -Wno-missing-braces")
 
 set(INC_DIRS
         ${SDK_ROOT}/orb/app/include
@@ -90,11 +96,12 @@ set(INC_DIRS
         ${SDK_ROOT}/orb/common/include
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Inc
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Inc/Legacy
-        ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/include
-        ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS
-        ${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F
+        ${FREERTOS_DIR}/include
+        ${FREERTOS_DIR}/portable/GCC/ARM_CM4F
         ${SDK_ROOT}/components/Drivers/CMSIS/Device/ST/STM32F3xx/Include
         ${SDK_ROOT}/components/Drivers/CMSIS/Include
+        ${SDK_ROOT}/external/microcontroller-messaging-proto/c
+        ${SDK_ROOT}/external/nanopb
         )
 
 project(${PROJECT_NAME} C ASM)
