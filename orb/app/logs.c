@@ -69,11 +69,14 @@ tx_done_cb(UART_HandleTypeDef *huart)
 _Noreturn static void
 flush_tx(void *params)
 {
-    const TickType_t xBlockTime = pdMS_TO_TICKS(500);
+    // we could wait indefinitely but that's not possible with the FreeRTOS API
+    // so we set the wait time to 1 second
+    const TickType_t xBlockTime = pdMS_TO_TICKS(1000);
 
     while (1)
     {
         // take notifications and clear all if several waiting
+        // task will be set to blocked state while waiting for a new notification
         uint32_t notifications = ulTaskNotifyTake(pdTRUE, xBlockTime);
 
         // transmit buffered data from the circular buffer
