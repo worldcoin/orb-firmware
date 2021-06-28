@@ -4,3 +4,6 @@
 [submodule "external/microcontroller-messaging-proto"]
 	path = external/microcontroller-messaging-proto
 	url = ../../microcontroller/microcontroller-messaging-proto.git
+[submodule "external/freertos"]
+	path = external/freertos
+	url = https://github.com/FreeRTOS/FreeRTOS-Kernel.git
