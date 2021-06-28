@@ -68,11 +68,11 @@ test_task(void * t)
     BatteryVoltage bat = {.battery_mvolts = 3700};
     vTaskDelay(500);
 
+    LOG_DEBUG("Setting new data from test_task");
+
     while(1)
     {
         vTaskDelay(1000);
-
-        LOG_INFO("Sending");
 
         data_set_payload(McuToJetson_power_button_tag, &button);
         button.pressed = (1-button.pressed);

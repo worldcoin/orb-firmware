@@ -44,8 +44,6 @@ com_tx_task(void *t)
 
         if (err_code && notifications)
         {
-            LOG_INFO("notif: %lu", notifications);
-
             for (int i = 0; i < sizeof(PAYLOAD_TAGS_PRIO_ORDER)/sizeof(uint16_t); ++i)
             {
                 uint32_t len = 0;
