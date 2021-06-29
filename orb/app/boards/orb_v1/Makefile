@@ -12,12 +12,17 @@ OPT = -Og
 # Build path
 BUILD_DIR = build
 SDK_ROOT = ../../../..
+FREERTOS_DIR = ${SDK_ROOT}/external/freertos
 
 # C sources
 C_SOURCES =  \
-${SDK_ROOT}/orb/app/errors.c \
-${SDK_ROOT}/orb/app/main.c \
+${SDK_ROOT}/orb/app/com.c \
+${SDK_ROOT}/orb/app/data_provider.c \
 ${SDK_ROOT}/orb/app/freertos.c \
+${SDK_ROOT}/orb/app/main.c \
+${SDK_ROOT}/orb/app/logs.c \
+${SDK_ROOT}/orb/app/serializer.c \
+${SDK_ROOT}/orb/common/errors.c \
 ./platform/stm32f3xx_it.c \
 ./platform/stm32f3xx_hal_msp.c \
 ./platform/stm32f3xx_hal_timebase_tim.c \
@@ -46,16 +51,19 @@ ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tim_ex.c \
 ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tsc.c \
 ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_uart.c \
 ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_uart_ex.c \
-${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/croutine.c \
-${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/event_groups.c \
-${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/list.c \
-${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/queue.c \
-${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/stream_buffer.c \
-${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/tasks.c \
-${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/timers.c \
-${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.c \
-${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c \
-${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c
+${FREERTOS_DIR}/croutine.c \
+${FREERTOS_DIR}/event_groups.c \
+${FREERTOS_DIR}/list.c \
+${FREERTOS_DIR}/queue.c \
+${FREERTOS_DIR}/stream_buffer.c \
+${FREERTOS_DIR}/tasks.c \
+${FREERTOS_DIR}/timers.c \
+${FREERTOS_DIR}/portable/MemMang/heap_4.c \
+${FREERTOS_DIR}/portable/GCC/ARM_CM4F/port.c \
+${SDK_ROOT}/external/microcontroller-messaging-proto/c/mcu_messaging.pb.c \
+${SDK_ROOT}/external/nanopb/pb_common.c \
+${SDK_ROOT}/external/nanopb/pb_decode.c \
+${SDK_ROOT}/external/nanopb/pb_encode.c
 
 # ASM sources
 ASM_SOURCES =  \
@@ -108,11 +116,12 @@ C_INCLUDES =  \
 -I${SDK_ROOT}/orb/common/include \
 -I${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Inc \
 -I${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Inc/Legacy \
--I${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/include \
--I${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS \
--I${SDK_ROOT}/components/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F \
+-I${FREERTOS_DIR}/include \
+-I${FREERTOS_DIR}/portable/GCC/ARM_CM4F \
 -I${SDK_ROOT}/components/Drivers/CMSIS/Device/ST/STM32F3xx/Include \
--I${SDK_ROOT}/components/Drivers/CMSIS/Include
+-I${SDK_ROOT}/components/Drivers/CMSIS/Include \
+-I${SDK_ROOT}/external/microcontroller-messaging-proto/c \
+-I${SDK_ROOT}/external/nanopb
 
 # compile gcc flags
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
@@ -188,6 +197,8 @@ current := $(shell cut -c6- $(SDK_ROOT)/.git/HEAD)
 prepare_version: ./config/version.h
 
 endif # DOCKER_RUN
+
+.DEFAULT_GOAL := app_debug
 
 app_debug: -DCONFIG_LOG_LEVEL=4
 app_debug: prepare_version $(BUILD_DIR)/$(TARGET).hex
