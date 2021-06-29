@@ -35,6 +35,12 @@ encode(pb_ostream_t *stream, DataHeader *pb_struct)
     return stream->bytes_written;
 }
 
+bool
+serializer_data_waiting(void)
+{
+    return (m_rd_idx != m_wr_idx);
+}
+
 uint32_t
 serializer_pack_waiting(uint8_t * buffer, size_t len)
 {
