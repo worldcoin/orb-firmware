@@ -32,10 +32,10 @@ set(HAL_DIRECTORY STM32F3xx_HAL_Driver)
 set(MCU_LINE stm32f3xx)
 
 set(ORB_SOURCES
-        ${SDK_ROOT}/orb/app/errors.c
         ${SDK_ROOT}/orb/app/freertos.c
         ${SDK_ROOT}/orb/app/main.c
         ${SDK_ROOT}/orb/app/logs.c
+        ${SDK_ROOT}/orb/common/errors.c
         ./platform/${MCU_LINE}_it.c
         ./platform/${MCU_LINE}_hal_msp.c
         ./platform/${MCU_LINE}_hal_timebase_tim.c

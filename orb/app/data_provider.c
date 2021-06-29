@@ -3,15 +3,26 @@
 //
 
 #include <mcu_messaging.pb.h>
-#include <com.h>
+#include <serializer.h>
+#include <errors.h>
+#include <logging.h>
 #include "data_provider.h"
 
-static DataHeader m_data = DataHeader_init_zero;
-
+/// Set data that should be communicated:
+///   - \c DataHeader.message.m_message.payload
+/// \param tag Data type to be set (payload), \see mcu_messaging.pb.h
+/// \param data Pointer to structure using the type defined in \see mcu_messaging.pb.h
+/// \return
+/// * \c RET_SUCCESS on success,
+/// * \c RET_ERROR_NO_MEM when the queue keeping new data is full
+/// * \c RET_ERROR_INVALID_PARAM when \param tag is unknown
 uint32_t
 data_set_payload(uint16_t tag, void *data)
 {
-    bool new_data_event = true;
+    uint32_t err_code = RET_SUCCESS;
+
+    bool new_data_event = false;
+    DataHeader data_to_serialize = DataHeader_init_zero;
 
     switch (tag)
     {
@@ -19,9 +30,9 @@ data_set_payload(uint16_t tag, void *data)
         {
             PowerButton button = *(PowerButton *) data;
 
-            if (m_data.message.m_message.payload.power_button.pressed != button.pressed)
+            if (data_to_serialize.message.m_message.payload.power_button.pressed != button.pressed)
             {
-                m_data.message.m_message.payload.power_button.pressed = button.pressed;
+                data_to_serialize.message.m_message.payload.power_button.pressed = button.pressed;
                 new_data_event = true;
             }
         }
@@ -30,28 +41,27 @@ data_set_payload(uint16_t tag, void *data)
         case McuToJetson_battery_voltage_tag:
         {
             BatteryVoltage * battery = (BatteryVoltage *) data;
-            if (m_data.message.m_message.payload.battery_voltage.battery_mvolts != battery->battery_mvolts)
+            if (data_to_serialize.message.m_message.payload.battery_voltage.battery_mvolts != battery->battery_mvolts)
             {
-                m_data.message.m_message.payload.battery_voltage.battery_mvolts = battery->battery_mvolts;
+                data_to_serialize.message.m_message.payload.battery_voltage.battery_mvolts = battery->battery_mvolts;
                 new_data_event = true;
             }
         }
             break;
 
-        default:break;
-
+        default:
+        {
+            LOG_ERROR("Unhandled: %u", tag);
+            err_code = RET_ERROR_INVALID_PARAM;
+        }
+            break;
     }
 
     if (new_data_event)
     {
-        com_data_changed(tag);
+        data_to_serialize.message.m_message.which_payload = tag;
+        err_code = serializer_push(&data_to_serialize);
     }
 
-    return 0;
-}
-
-DataHeader *
-data_get(void)
-{
-    return &m_data;
+    return err_code;
 }

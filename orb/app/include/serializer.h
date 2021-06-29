@@ -7,10 +7,12 @@
 
 #include <stdint.h>
 #include <stddef.h>
-
-#define MAXIMUM_PACKED_SIZED_BYTES  128
+#include <mcu_messaging.pb.h>
 
 uint32_t
-serde_pack_payload_tag(uint16_t tag, uint8_t *buffer, size_t length);
+serializer_push(DataHeader* data);
+
+uint32_t
+serializer_pack_waiting(uint8_t * buffer, size_t len);
 
 #endif //WORLDCOIN_FIRMWARE_ORB_APP_PACK_H
