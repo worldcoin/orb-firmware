@@ -51,6 +51,8 @@ set(SOURCES
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_adc.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_adc_ex.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_crc.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_crc_ex.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_rcc.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_rcc_ex.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_gpio.c

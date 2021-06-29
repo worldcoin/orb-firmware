@@ -16,6 +16,8 @@ static UART_HandleTypeDef m_uart_handle;
 static DMA_HandleTypeDef m_dma_uart_tx;
 static DMA_HandleTypeDef m_dma_uart_rx;
 
+static CRC_HandleTypeDef m_crc_handle = {0};
+
 TaskHandle_t m_com_tx_task_handle = NULL;
 
 static uint8_t m_tx_buffer[256] = {0};
@@ -80,6 +82,7 @@ tx_done_cb(UART_HandleTypeDef *huart)
 /// The goal of that task is to:
 /// - get the awaiting data to be sent
 /// - pack the data (protobuf)
+/// - encapsulate the data by appending a CRC16
 /// - send it over the UART link
 /// @param t unused at that point
 _Noreturn static void
@@ -99,10 +102,14 @@ com_tx_task(void *t)
             uint32_t length = serializer_pack_waiting(m_tx_buffer,
                                                       sizeof m_tx_buffer);
 
-            // append CRC16
-
             if (length != 0)
             {
+                // append CRC32
+                // 💬 CRC16 is probably better to save two bytes
+                uint32_t crc32 = HAL_CRC_Calculate(&m_crc_handle, (uint32_t *) m_tx_buffer, length);
+                memcpy(&m_tx_buffer[length], (uint8_t *) &crc32, sizeof crc32);
+                length += 4;
+
                 LOG_INFO("Sending: l %luB", length);
 
                 HAL_StatusTypeDef err_code = HAL_UART_Transmit_DMA(&m_uart_handle,
@@ -215,6 +222,17 @@ com_init(void)
     /* USART2 interrupt Init */
     HAL_NVIC_SetPriority(USART2_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(USART2_IRQn);
+
+    // CRC init
+    __HAL_RCC_CRC_CLK_ENABLE();
+    m_crc_handle.Instance = CRC;
+    m_crc_handle.Init.DefaultPolynomialUse = DEFAULT_POLYNOMIAL_ENABLE;
+    m_crc_handle.Init.DefaultInitValueUse = DEFAULT_INIT_VALUE_ENABLE;
+    m_crc_handle.Init.InputDataInversionMode = CRC_INPUTDATA_INVERSION_NONE;
+    m_crc_handle.Init.OutputDataInversionMode = CRC_OUTPUTDATA_INVERSION_DISABLE;
+    m_crc_handle.InputDataFormat = CRC_INPUTDATA_FORMAT_BYTES;
+    err_code = HAL_CRC_Init(&m_crc_handle);
+    ASSERT(err_code);
 
     BaseType_t freertos_err_code = xTaskCreate(com_tx_task,
                                                "com_tx",

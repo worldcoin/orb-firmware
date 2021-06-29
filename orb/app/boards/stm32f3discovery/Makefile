@@ -30,6 +30,8 @@ ${SDK_ROOT}/orb/common/errors.c \
 ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_adc.c \
 ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_adc_ex.c \
 ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_crc.c \
+${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_crc_ex.c \
 ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc.c \
 ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc_ex.c \
 ${SDK_ROOT}/components/Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_gpio.c \
