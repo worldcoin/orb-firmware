@@ -9,10 +9,10 @@ Code for the main microcontroller
 ├── CMakeLists.txt      # root CMakeLists
 ├── external            # external libraries
 │   ├── nanopb          # Protobuf support
+│   ├── freertos        # FreeRTOS from mainline repository
 │   └── ...
 ├── components          # STM32 SDK
 │   ├── Drivers         # HAL drivers
-│   ├── Middlewares     # Middlewares such as FreeRTOS
 │   └── ...             
 ├── orb                # our source code
 │   ├── app             # main application firmware
