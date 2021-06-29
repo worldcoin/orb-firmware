@@ -7,6 +7,19 @@
 
 #include "stdint.h"
 
+typedef enum
+{
+    RET_SUCCESS = 0,
+    RET_ERROR_INTERNAL,
+    RET_ERROR_NO_MEM,
+    RET_ERROR_NOT_FOUND,
+    RET_ERROR_INVALID_PARAM,
+    RET_ERROR_INVALID_STATE,
+    RET_ERROR_INVALID_ADDR,
+    RET_ERROR_OFFLINE,
+    RET_ERROR_ASSERT_FAILS,
+} ret_code_t;
+
 /**@brief Structure containing info about an error of the type @ref NRF_FAULT_ID_SDK_ERROR.
  */
 typedef struct
@@ -31,7 +44,7 @@ app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_
         app_error_handler((ERR_CODE), __LINE__, (const uint8_t*) __FILE__);  \
     } while (0)
 
-/**@brief Macro for calling error handler function if supplied error code any other than VTC_SUCCESS.
+/**@brief Macro for calling error handler function if supplied error code any other than RET_SUCCESS.
  *
  * @param[in] ERR_CODE Error code supplied to the error handler.
  */
