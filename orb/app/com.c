@@ -19,8 +19,6 @@ static DMA_HandleTypeDef m_dma_uart_rx;
 TaskHandle_t m_com_tx_task_handle = NULL;
 
 static uint8_t m_tx_buffer[256] = {0};
-//static size_t m_wr_idx = {0};
-static volatile bool m_new_data_waiting = false;
 
 /**
   * @brief This function handles DMA1 channel4 global interrupt.
