@@ -45,18 +45,23 @@ def main(argv):
 
         # next 2 bytes are the payload size
         size = int.from_bytes(ser.read(2), byteorder='little', signed=False)
+
+        # read payload
         payload = ser.read(size)
 
-        print('New frame, size: {}\tpayload: {}'.format(size, payload))
-
+        # compute CRC over payload
         computed_crc = 0xffff
         computed_crc = crc16.crc16xmodem(payload, computed_crc)
 
+        # read CRC from frame
         read_crc = int.from_bytes(ser.read(2), byteorder='little', signed=False)
 
+        # parse payload if CRCs match
         if read_crc != computed_crc:
-            print("Error: CRC miscmatch")
+            print("Error: CRC mismatch, rejecting frame")
         else:
+            print('New frame, size: {}\tCRC ✅\t\tpayload: {}'.format(size, payload))
+
             # parse payload
             data.ParseFromString(payload)
             print("{}".format(data))
