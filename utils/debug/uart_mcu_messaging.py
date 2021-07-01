@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 import getopt
+
+from mcu_messaging_pb2.mcu_messaging_pb2 import DataHeader
 from serial import Serial
 import sys
 import crc16
@@ -32,6 +34,8 @@ def main(argv):
     ser = Serial(port, 115200)
     print("🎧 Listening UART (8N1 {}) on {}".format(baud_rate, port))
 
+    data = DataHeader()
+
     while 1:
         data_bytes = bytearray([0x00, 0x00])
 
@@ -54,7 +58,8 @@ def main(argv):
             print("Error: CRC miscmatch")
         else:
             # parse payload
-            print("Parsing...")
+            data.ParseFromString(payload)
+            print("{}".format(data))
 
 if __name__ == '__main__':
     main(sys.argv)
