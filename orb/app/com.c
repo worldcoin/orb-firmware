@@ -22,6 +22,12 @@ TaskHandle_t m_com_tx_task_handle = NULL;
 
 static uint8_t m_tx_buffer[256] = {0};
 
+#define FRAME_PROTOCOL_MAGIC        (0xdead)
+#define FRAME_PROTOCOL_MAGIC_SIZE   2
+#define FRAME_PROTOCOL_LENGTH_SIZE  2
+#define FRAME_PROTOCOL_HEADER_SIZE  (FRAME_PROTOCOL_MAGIC_SIZE + FRAME_PROTOCOL_LENGTH_SIZE)
+#define FRAME_PROTOCOL_FOOTER_SIZE  2 // crc16
+
 /**
   * @brief This function handles DMA1 channel4 global interrupt.
   */
@@ -59,7 +65,7 @@ rx_done_cb(UART_HandleTypeDef *huart)
 
 }
 
-/// Callback when UART TX transfer has completed
+/// Callback when UART TX transfer has completed: UART is in READY state
 /// Notify sending task if new bytes are ready to be sent
 /// 💥 ISR context
 /// \param huart UART handle
@@ -99,25 +105,33 @@ com_tx_task(void *t)
         if (notifications || serializer_data_waiting())
         {
             // pack new waiting data
-            uint32_t length = serializer_pack_waiting(m_tx_buffer,
-                                                      sizeof m_tx_buffer);
+            uint16_t length =
+                (uint16_t) serializer_pack_waiting(&m_tx_buffer[FRAME_PROTOCOL_HEADER_SIZE],
+                                                   sizeof m_tx_buffer - FRAME_PROTOCOL_HEADER_SIZE);
 
             if (length != 0)
             {
-                // append CRC32
-                // 💬 CRC16 is probably better to save two bytes
-                uint32_t crc32 = HAL_CRC_Calculate(&m_crc_handle, (uint32_t *) m_tx_buffer, length);
-                memcpy(&m_tx_buffer[length], (uint8_t *) &crc32, sizeof crc32);
-                length += 4;
+                // prepend magic and frame length
+                *(uint16_t *) m_tx_buffer = FRAME_PROTOCOL_MAGIC;
+                *(uint16_t *) &m_tx_buffer[FRAME_PROTOCOL_MAGIC_SIZE] = length;
 
-                LOG_INFO("Sending: l %luB", length);
+                // append CRC16 (CRC-CCITT (XMODEM))
+                uint16_t crc16 =
+                    (uint16_t) HAL_CRC_Calculate(&m_crc_handle, (uint32_t *) &m_tx_buffer[FRAME_PROTOCOL_HEADER_SIZE], length);
+
+                memcpy(&m_tx_buffer[length + FRAME_PROTOCOL_HEADER_SIZE],
+                       (uint8_t *) &crc16,
+                       sizeof crc16);
+                length += FRAME_PROTOCOL_HEADER_SIZE + FRAME_PROTOCOL_FOOTER_SIZE;
+
+                LOG_INFO("Sending: l %uB", length);
 
                 HAL_StatusTypeDef err_code = HAL_UART_Transmit_DMA(&m_uart_handle,
                                                                    (uint8_t *) m_tx_buffer,
                                                                    (uint16_t) length);
                 if (err_code == HAL_OK)
                 {
-                    // free serializer waiting list
+                    // TODO free serializer waiting list only when UART is transmitting
                 }
             }
         }
@@ -226,8 +240,10 @@ com_init(void)
     // CRC init
     __HAL_RCC_CRC_CLK_ENABLE();
     m_crc_handle.Instance = CRC;
-    m_crc_handle.Init.DefaultPolynomialUse = DEFAULT_POLYNOMIAL_ENABLE;
     m_crc_handle.Init.DefaultInitValueUse = DEFAULT_INIT_VALUE_ENABLE;
+    m_crc_handle.Init.DefaultPolynomialUse = DEFAULT_POLYNOMIAL_DISABLE;
+    m_crc_handle.Init.GeneratingPolynomial = 0x1021;
+    m_crc_handle.Init.CRCLength = CRC_POLYLENGTH_16B;
     m_crc_handle.Init.InputDataInversionMode = CRC_INPUTDATA_INVERSION_NONE;
     m_crc_handle.Init.OutputDataInversionMode = CRC_OUTPUTDATA_INVERSION_DISABLE;
     m_crc_handle.InputDataFormat = CRC_INPUTDATA_FORMAT_BYTES;
