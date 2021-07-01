@@ -8,4 +8,5 @@ dependencies:
   - conda-forge::cmake
   - pyserial
   - ccache
+  - protobuf
   - gcc-arm-none-eabi=8.2019.q3.update
