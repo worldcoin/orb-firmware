@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <mcu_messaging.pb.h>
+#include "errors.h"
 
 ret_code_t
 deserializer_pop_blocking(DataHeader *data);
