@@ -18,7 +18,4 @@
 uint32_t
 data_queue_message_payload(uint16_t tag, void * data);
 
-DataHeader *
-data_get(void);
-
 #endif //WORLDCOIN_FIRMWARE_ORB_APP_DATA_PROVIDER_H
