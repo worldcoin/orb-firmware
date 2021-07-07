@@ -10,11 +10,12 @@
 #include <pb_decode.h>
 #include <com.h>
 #include <errors.h>
+#include <FreeRTOS.h>
+#include <queue.h>
 
 #define DATA_WAITING_LIST_SIZE 8
-static DataHeader m_waiting_list[DATA_WAITING_LIST_SIZE] = {0};
-static size_t m_wr_idx = 0;
-static size_t m_rd_idx = 0;
+
+QueueHandle_t m_queue_handle = 0;
 
 static void
 init_stream(DataHeader *pb_struct)
@@ -34,52 +35,50 @@ encode(pb_ostream_t *stream, DataHeader *pb_struct)
     return stream->bytes_written;
 }
 
-bool
-serializer_data_waiting(void)
-{
-    return (m_rd_idx != m_wr_idx);
-}
-
 uint32_t
-serializer_pack_next(uint8_t *buffer, size_t len)
+serializer_pack_next_blocking(uint8_t *buffer, size_t len)
 {
+    ASSERT_BOOL(m_queue_handle != 0);
+
     pb_ostream_t stream = pb_ostream_from_buffer(buffer, len);
 
-    // check if waiting list is empty
-    if (m_rd_idx != m_wr_idx)
-    {
-        init_stream(&m_waiting_list[m_rd_idx]);
-        uint32_t size = encode(&stream, &m_waiting_list[m_rd_idx]);
+    DataHeader data = {0};
 
-        // push read index
-        m_rd_idx = (m_rd_idx + 1) % DATA_WAITING_LIST_SIZE;
-
-        return size;
-    }
-    else
+    if (xQueueReceive(m_queue_handle, &data, portMAX_DELAY) != pdTRUE)
     {
         LOG_WARNING("Fetching data in empty waiting list");
+        return 0;
     }
 
-    return 0;
+    // data ready
+    init_stream(&data);
+    uint32_t size = encode(&stream, &data);
+
+    return size;
 }
 
-uint32_t
+ret_code_t
 serializer_push(DataHeader *data)
 {
-    if ((m_wr_idx + 1) % DATA_WAITING_LIST_SIZE != m_rd_idx)
+    ASSERT_BOOL(m_queue_handle != 0);
+
+    if (xQueueSendToBack(m_queue_handle, data, 0) != pdTRUE)
     {
-        memcpy(&m_waiting_list[m_wr_idx], data, sizeof(DataHeader));
-        m_wr_idx = (m_wr_idx + 1) % DATA_WAITING_LIST_SIZE;
-
-        com_new_data();
-
-        return RET_SUCCESS;
-    }
-    else
-    {
-        LOG_ERROR("Waiting list full");
-
         return RET_ERROR_NO_MEM;
     }
+
+    return RET_SUCCESS;
+}
+
+ret_code_t
+serializer_init(void)
+{
+    if (m_queue_handle != 0)
+    {
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    m_queue_handle = xQueueCreate(DATA_WAITING_LIST_SIZE, sizeof(DataHeader));
+
+    return RET_SUCCESS;
 }

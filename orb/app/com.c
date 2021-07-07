@@ -66,23 +66,19 @@ rx_done_cb(UART_HandleTypeDef *huart)
 }
 
 /// Callback when UART TX transfer has completed: UART is in READY state
-/// Notify sending task if new bytes are ready to be sent
 /// 💥 ISR context
 /// \param huart UART handle
 static void
 tx_done_cb(UART_HandleTypeDef *huart)
 {
-    if (serializer_data_waiting())
-    {
-        BaseType_t switch_to_higher_priority_task = pdFALSE;
-        vTaskNotifyGiveFromISR(m_com_tx_task_handle, &switch_to_higher_priority_task);
+    BaseType_t switch_to_higher_priority_task = pdFALSE;
+    vTaskNotifyGiveFromISR(m_com_tx_task_handle, &switch_to_higher_priority_task);
 
-        // If switch_to_higher_priority_task is now set to pdTRUE then a context switch
-        // should be performed to ensure the interrupt returns directly to the highest
-        // priority task.  The macro used for this purpose is dependent on the port in
-        // use and may be called portEND_SWITCHING_ISR().
-        portYIELD_FROM_ISR(switch_to_higher_priority_task);
-    }
+    // If switch_to_higher_priority_task is now set to pdTRUE then a context switch
+    // should be performed to ensure the interrupt returns directly to the highest
+    // priority task.  The macro used for this purpose is dependent on the port in
+    // use and may be called portEND_SWITCHING_ISR().
+    portYIELD_FROM_ISR(switch_to_higher_priority_task);
 }
 
 /// The goal of that task is to:
@@ -90,24 +86,35 @@ tx_done_cb(UART_HandleTypeDef *huart)
 /// - pack the data (protobuf)
 /// - encapsulate the data by appending a CRC16
 /// - send it over the UART link
+/// Task notifications are being used to put the task into blocking state while waiting for UART peripheral to be ready
 /// @param t unused at that point
 _Noreturn static void
 com_tx_task(void *t)
 {
     uint32_t notifications = 0;
 
+    // wait for UART peripheral to be ready
+    while (m_uart_handle.gState != HAL_UART_STATE_READY)
+    {
+        portYIELD();
+    }
+
+    // init notification, as UART is now ready
+    xTaskNotifyGive(m_com_tx_task_handle);
+
     while (1)
     {
-        // get pending notifications
-        // block task while waiting
+        // block task while waiting for UART to be ready
         notifications = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000));
 
-        if (notifications || serializer_data_waiting())
+        if (notifications)
         {
-            // pack new waiting data
+            // wait for new data and pack it instantly
+            // task will be put in blocking state until data is ready to be packed
             uint16_t length =
-                (uint16_t) serializer_pack_next(&m_tx_buffer[FRAME_PROTOCOL_HEADER_SIZE],
-                                                sizeof m_tx_buffer - FRAME_PROTOCOL_HEADER_SIZE);
+                (uint16_t) serializer_pack_next_blocking(&m_tx_buffer[FRAME_PROTOCOL_HEADER_SIZE],
+                                                         sizeof m_tx_buffer
+                                                             - FRAME_PROTOCOL_HEADER_SIZE);
 
             if (length != 0)
             {
@@ -117,7 +124,9 @@ com_tx_task(void *t)
 
                 // append CRC16 (CRC-CCITT (XMODEM))
                 uint16_t crc16 =
-                    (uint16_t) HAL_CRC_Calculate(&m_crc_handle, (uint32_t *) &m_tx_buffer[FRAME_PROTOCOL_HEADER_SIZE], length);
+                    (uint16_t) HAL_CRC_Calculate(&m_crc_handle,
+                                                 (uint32_t *) &m_tx_buffer[FRAME_PROTOCOL_HEADER_SIZE],
+                                                 length);
 
                 memcpy(&m_tx_buffer[length + FRAME_PROTOCOL_HEADER_SIZE],
                        (uint8_t *) &crc16,
@@ -135,17 +144,6 @@ com_tx_task(void *t)
                 }
             }
         }
-    }
-}
-
-void
-com_new_data()
-{
-    // if UART not being used, emit new notification to TX task
-    // otherwise, the notification will be sent from TX callback
-    if (m_uart_handle.gState == HAL_UART_STATE_READY)
-    {
-        xTaskNotifyGive(m_com_tx_task_handle);
     }
 }
 
@@ -249,6 +247,9 @@ com_init(void)
     m_crc_handle.InputDataFormat = CRC_INPUTDATA_FORMAT_BYTES;
     err_code = HAL_CRC_Init(&m_crc_handle);
     ASSERT(err_code);
+
+    // init serializer
+    serializer_init();
 
     BaseType_t freertos_err_code = xTaskCreate(com_tx_task,
                                                "com_tx",
