@@ -19,8 +19,8 @@ static DMA_HandleTypeDef m_dma_uart_rx;
 
 static CRC_HandleTypeDef m_crc_handle = {0};
 
-TaskHandle_t m_com_tx_task_handle = NULL;
-TaskHandle_t m_com_rx_task_handle = NULL;
+static TaskHandle_t m_com_tx_task_handle = NULL;
+static TaskHandle_t m_com_rx_task_handle = NULL;
 
 static uint8_t m_tx_buffer[256] = {0};
 static uint8_t m_rx_buffer[256] = {0};
@@ -150,7 +150,7 @@ com_rx_task(void *t)
                                                      (index-4));
                     if (received_crc16 == crc16)
                     {
-                        deserializer_unpack(&m_rx_buffer[4], (index-4));
+                        deserializer_unpack_push(&m_rx_buffer[4], (index - 4));
                     }
                     else
                     {
@@ -300,7 +300,7 @@ com_further_init(UART_HandleTypeDef *huart)
     __HAL_LINKDMA(huart, hdmatx, m_dma_uart_tx);
 }
 
-uint32_t
+void
 com_init(void)
 {
     uint32_t err_code;
@@ -349,9 +349,6 @@ com_init(void)
     err_code = HAL_CRC_Init(&m_crc_handle);
     ASSERT(err_code);
 
-    // init serializer
-    serializer_init();
-
     BaseType_t freertos_err_code = xTaskCreate(com_tx_task,
                                                "com_tx",
                                                150,
@@ -367,6 +364,4 @@ com_init(void)
                                     (tskIDLE_PRIORITY + 2),
                                     &m_com_rx_task_handle);
     ASSERT_BOOL(freertos_err_code == pdTRUE);
-
-    return 0;
 }

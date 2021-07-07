@@ -5,6 +5,9 @@
 #include <task.h>
 #include <data_provider.h>
 #include <mcu_messaging.pb.h>
+#include <control.h>
+#include <deserializer.h>
+#include <serializer.h>
 #include "board.h"
 #include "errors.h"
 #include "version.h"
@@ -62,7 +65,7 @@ SystemClock_Config(void)
 TaskHandle_t m_test_task_handle = NULL;
 
 _Noreturn __unused static void
-test_task(void * t)
+test_task(void *t)
 {
     PowerButton button = {.pressed = OnOff_OFF};
     BatteryVoltage bat = {.battery_mvolts = 3700};
@@ -70,12 +73,12 @@ test_task(void * t)
 
     LOG_DEBUG("Setting new data from test_task");
 
-    while(1)
+    while (1)
     {
         vTaskDelay(1000);
 
         data_queue_message_payload(McuToJetson_power_button_tag, &button);
-        button.pressed = (1-button.pressed);
+        button.pressed = (1 - button.pressed);
 
         vTaskDelay(1000);
 
@@ -111,9 +114,17 @@ main(void)
              FIRMWARE_VERSION_PATCH,
              HARDWARE_REV);
 
+    serializer_init();
+    deserializer_init();
     com_init();
+    control_init();
 
-    xTaskCreate(test_task, "test", 150, NULL, (tskIDLE_PRIORITY + 1), &m_test_task_handle);
+    BaseType_t freertos_err_code = xTaskCreate(test_task, "test",
+                150,
+                NULL,
+                (tskIDLE_PRIORITY + 1),
+                &m_test_task_handle);
+    ASSERT_BOOL(freertos_err_code == pdTRUE);
 
     /* Start scheduler */
     vTaskStartScheduler();

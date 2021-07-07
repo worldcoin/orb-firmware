@@ -7,19 +7,57 @@
 #include <mcu_messaging.pb.h>
 #include <errors.h>
 #include <logging.h>
+#include <FreeRTOS.h>
+#include <queue.h>
 #include "deserializer.h"
 
-uint32_t
-deserializer_unpack(uint8_t *buffer, size_t length)
+#define DATA_WAITING_LIST_SIZE 8
+
+static QueueHandle_t m_queue_handle = 0;
+
+ret_code_t
+deserializer_pop_blocking(DataHeader *data)
 {
+    ASSERT_BOOL(m_queue_handle != 0);
+
+    if (xQueueReceive(m_queue_handle, data, portMAX_DELAY) != pdTRUE)
+    {
+        LOG_WARNING("Fetching data in empty waiting list");
+        return RET_ERROR_NOT_FOUND;
+    }
+
+    return RET_SUCCESS;
+}
+
+uint32_t
+deserializer_unpack_push(uint8_t *buffer, size_t length)
+{
+    ASSERT_BOOL(m_queue_handle != 0);
+
     pb_istream_t stream = pb_istream_from_buffer(buffer, length);
     DataHeader data = {0};
 
     bool status = pb_decode(&stream, DataHeader_fields, &data);
     if (status)
     {
-        LOG_INFO("Data: %lu", data.message.j_message.payload.brightness_front_leds.white_leds);
+        if (xQueueSendToBack(m_queue_handle, &data, 0) != pdTRUE)
+        {
+            return RET_ERROR_NO_MEM;
+        }
     }
+
+    return RET_SUCCESS;
+}
+
+ret_code_t
+deserializer_init(void)
+{
+    if (m_queue_handle != 0)
+    {
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    m_queue_handle = xQueueCreate(DATA_WAITING_LIST_SIZE, sizeof(DataHeader));
 
     return RET_SUCCESS;
 }

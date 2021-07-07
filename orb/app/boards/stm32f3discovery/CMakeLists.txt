@@ -32,6 +32,7 @@ set(HAL_DIRECTORY STM32F3xx_HAL_Driver)
 set(MCU_LINE stm32f3xx)
 set(FREERTOS_DIR ${SDK_ROOT}/external/freertos)
 set(ORB_SOURCES
+        ${SDK_ROOT}/orb/app/control.c
         ${SDK_ROOT}/orb/app/com.c
         ${SDK_ROOT}/orb/app/data_provider.c
         ${SDK_ROOT}/orb/app/deserializer.c

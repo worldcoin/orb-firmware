@@ -13,7 +13,7 @@
 void
 com_new_data(void);
 
-uint32_t
+void
 com_init(void);
 
 #endif //WORLDCOIN_FIRMWARE_ORB_APP_COM_H

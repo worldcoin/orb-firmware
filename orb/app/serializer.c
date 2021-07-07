@@ -15,7 +15,7 @@
 
 #define DATA_WAITING_LIST_SIZE 8
 
-QueueHandle_t m_queue_handle = 0;
+static QueueHandle_t m_queue_handle = 0;
 
 static void
 init_stream(DataHeader *pb_struct)
