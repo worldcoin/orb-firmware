@@ -15,10 +15,10 @@
 /// ⚠️ This function will block the calling task
 /// \see serializer_push to add data to the serializer
 /// \param buffer Pointer to buffer where the data is to be copied
-/// \param len Maximum length of the \c buffer passed
+/// \param length Maximum length of the \c buffer passed
 /// \return size of used bytes into the buffer. 0 if there is no data to pack.
 uint32_t
-serializer_pack_next_blocking(uint8_t *buffer, size_t len);
+serializer_pack_next_blocking(uint8_t *buffer, size_t length);
 
 /// Push new structure into the serializer to be sent when possible
 /// - Thread-safe

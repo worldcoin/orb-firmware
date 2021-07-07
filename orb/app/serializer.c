@@ -36,11 +36,11 @@ encode(pb_ostream_t *stream, DataHeader *pb_struct)
 }
 
 uint32_t
-serializer_pack_next_blocking(uint8_t *buffer, size_t len)
+serializer_pack_next_blocking(uint8_t *buffer, size_t length)
 {
     ASSERT_BOOL(m_queue_handle != 0);
 
-    pb_ostream_t stream = pb_ostream_from_buffer(buffer, len);
+    pb_ostream_t stream = pb_ostream_from_buffer(buffer, length);
 
     DataHeader data = {0};
 
