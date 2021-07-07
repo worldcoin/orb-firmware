@@ -19,8 +19,10 @@ static DMA_HandleTypeDef m_dma_uart_rx;
 static CRC_HandleTypeDef m_crc_handle = {0};
 
 TaskHandle_t m_com_tx_task_handle = NULL;
+TaskHandle_t m_com_rx_task_handle = NULL;
 
 static uint8_t m_tx_buffer[256] = {0};
+static uint8_t m_rx_buffer[256] = {0};
 
 #define FRAME_PROTOCOL_MAGIC        (0xdead)
 #define FRAME_PROTOCOL_MAGIC_SIZE   2
@@ -62,7 +64,105 @@ USART2_IRQHandler(void)
 static void
 rx_done_cb(UART_HandleTypeDef *huart)
 {
+    BaseType_t switch_to_higher_priority_task = pdFALSE;
+    vTaskNotifyGiveFromISR(m_com_rx_task_handle, &switch_to_higher_priority_task);
 
+    // If switch_to_higher_priority_task is now set to pdTRUE then a context switch
+    // should be performed to ensure the interrupt returns directly to the highest
+    // priority task.  The macro used for this purpose is dependent on the port in
+    // use and may be called portEND_SWITCHING_ISR().
+    portYIELD_FROM_ISR(switch_to_higher_priority_task);
+}
+
+_Noreturn static void
+com_rx_task(void *t)
+{
+    uint32_t notifications = 0;
+    uint16_t count = 1;
+    uint32_t index = 0;
+    uint16_t received_crc16 = 0;
+
+    while (1)
+    {
+        // Receiving UART using DMA and wait for RX callback to notify the task about completion
+        HAL_UART_Receive_DMA(&m_uart_handle, &m_rx_buffer[index], count);
+        notifications = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000));
+
+        if (notifications)
+        {
+            switch (index)
+            {
+                case 0:
+                {
+                    if (m_rx_buffer[index] == 0xad)
+                    {
+                        index = 1;
+                        count = 1;
+                    }
+                }
+                    break;
+
+                case 1:
+                {
+                    if (m_rx_buffer[index] == 0xde)
+                    {
+                        // magic word detected!
+                        index = 2;
+                        count = 2;
+                    }
+                    else
+                    {
+                        // magic word not detected yet, reset index
+                        index = 0;
+                        count = 1;
+                    }
+                }
+                    break;
+
+                case 2:
+                {
+                    // let's receive the payload
+                    count = *(uint16_t *) &m_rx_buffer[index];
+                    index = 4;
+                }
+                    break;
+
+                case 4:
+                {
+                    // push index using previously used `count`
+                    index += count;
+
+                    // now reading CRC16
+                    count = 2;
+                }
+                    break;
+
+                default:
+                {
+                    // we just read the CRC16
+                    received_crc16 = *(uint16_t *) &m_rx_buffer[index];
+
+                    // fixme add mutex over m_crc_handle usage
+                    uint16_t crc16 =
+                        (uint16_t) HAL_CRC_Calculate(&m_crc_handle,
+                                                     (uint32_t *) &m_rx_buffer[4],
+                                                     (index-4));
+                    if (received_crc16 == crc16)
+                    {
+
+                    }
+                    else
+                    {
+                        LOG_WARNING("Wrong CRC, dismissing received frame");
+                    }
+
+                    // we can reset the index for next message to be read
+                    index = 0;
+                    count = 1;
+                }
+            }
+        }
+    }
 }
 
 /// Callback when UART TX transfer has completed: UART is in READY state
@@ -257,6 +357,14 @@ com_init(void)
                                                NULL,
                                                (tskIDLE_PRIORITY + 2),
                                                &m_com_tx_task_handle);
+    ASSERT_BOOL(freertos_err_code == pdTRUE);
+
+    freertos_err_code = xTaskCreate(com_rx_task,
+                                    "com_rx",
+                                    150,
+                                    NULL,
+                                    (tskIDLE_PRIORITY + 2),
+                                    &m_com_rx_task_handle);
     ASSERT_BOOL(freertos_err_code == pdTRUE);
 
     return 0;

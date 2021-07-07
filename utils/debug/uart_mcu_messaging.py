@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import getopt
 
-from mcu_messaging_pb2.mcu_messaging_pb2 import DataHeader
+from mcu_messaging_pb2.mcu_messaging_pb2 import DataHeader, Version, JetsonToMcu
 from serial import Serial
 import sys
 import crc16
@@ -35,6 +35,17 @@ def main(argv):
     print("🎧 Listening UART (8N1 {}) on {}".format(baud_rate, port))
 
     data = DataHeader()
+    output_data = DataHeader()
+    output_data.version = Version.VERSION_0
+    output_data.j_message.brightness_front_leds.white_leds = 33
+
+    bytes_to_send = output_data.SerializeToString()
+    computed_crc = 0xffff
+    computed_crc = crc16.crc16xmodem(bytes_to_send, computed_crc)
+    size = len(bytes_to_send)
+    bytes_to_send = bytearray(b'\x07\x00') + bytes_to_send
+    bytes_to_send = bytearray(b'\xad\xde') + bytes_to_send
+    bytes_to_send = bytes_to_send + computed_crc.to_bytes(2, 'little')
 
     while 1:
         data_bytes = bytearray([0x00, 0x00])
@@ -65,6 +76,8 @@ def main(argv):
             # parse payload
             data.ParseFromString(payload)
             print("{}".format(data))
+
+        ser.write(bytes_to_send)
 
 if __name__ == '__main__':
     main(sys.argv)
