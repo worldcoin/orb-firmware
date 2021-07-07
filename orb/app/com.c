@@ -11,6 +11,7 @@
 #include "task.h"
 #include "com.h"
 #include <stm32f3xx_it.h>
+#include <deserializer.h>
 
 static UART_HandleTypeDef m_uart_handle;
 static DMA_HandleTypeDef m_dma_uart_tx;
@@ -149,7 +150,7 @@ com_rx_task(void *t)
                                                      (index-4));
                     if (received_crc16 == crc16)
                     {
-
+                        deserializer_unpack(&m_rx_buffer[4], (index-4));
                     }
                     else
                     {
@@ -361,7 +362,7 @@ com_init(void)
 
     freertos_err_code = xTaskCreate(com_rx_task,
                                     "com_rx",
-                                    150,
+                                    210,
                                     NULL,
                                     (tskIDLE_PRIORITY + 2),
                                     &m_com_rx_task_handle);
