@@ -8,16 +8,9 @@
 #include <logging.h>
 #include "data_provider.h"
 
-/// Set data that should be communicated:
-///   - \c DataHeader.message.m_message.payload
-/// \param tag Data type to be set (payload), \see mcu_messaging.pb.h
-/// \param data Pointer to structure using the type defined in \see mcu_messaging.pb.h
-/// \return
-/// * \c RET_SUCCESS on success,
-/// * \c RET_ERROR_NO_MEM when the queue keeping new data is full
-/// * \c RET_ERROR_INVALID_PARAM when \param tag is unknown
+
 uint32_t
-data_set_payload(uint16_t tag, void *data)
+data_queue_message_payload(uint16_t tag, void *data)
 {
     uint32_t err_code = RET_SUCCESS;
 

@@ -106,8 +106,8 @@ com_tx_task(void *t)
         {
             // pack new waiting data
             uint16_t length =
-                (uint16_t) serializer_pack_waiting(&m_tx_buffer[FRAME_PROTOCOL_HEADER_SIZE],
-                                                   sizeof m_tx_buffer - FRAME_PROTOCOL_HEADER_SIZE);
+                (uint16_t) serializer_pack_next(&m_tx_buffer[FRAME_PROTOCOL_HEADER_SIZE],
+                                                sizeof m_tx_buffer - FRAME_PROTOCOL_HEADER_SIZE);
 
             if (length != 0)
             {

@@ -74,12 +74,12 @@ test_task(void * t)
     {
         vTaskDelay(1000);
 
-        data_set_payload(McuToJetson_power_button_tag, &button);
+        data_queue_message_payload(McuToJetson_power_button_tag, &button);
         button.pressed = (1-button.pressed);
 
         vTaskDelay(1000);
 
-        data_set_payload(McuToJetson_battery_voltage_tag, &bat);
+        data_queue_message_payload(McuToJetson_battery_voltage_tag, &bat);
         bat.battery_mvolts += 1;
     }
 

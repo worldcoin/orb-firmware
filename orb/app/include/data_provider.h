@@ -7,13 +7,16 @@
 
 #include "mcu_messaging.pb.h"
 
-/// Update newly updated data to be sent to Jetson
-/// If data changes, the communication module will be warned that new data has to be sent
-/// \param tag
-/// \param data
+/// Set data that should be communicated:
+///   - \c DataHeader.message.m_message.payload
+/// \param tag Data type to be set (payload), \see mcu_messaging.pb.h
+/// \param data Pointer to structure using the type defined in \see mcu_messaging.pb.h
 /// \return
+/// * \c RET_SUCCESS on success,
+/// * \c RET_ERROR_NO_MEM when the queue keeping new data is full
+/// * \c RET_ERROR_INVALID_PARAM when \param tag is unknown
 uint32_t
-data_set_payload(uint16_t tag, void * data);
+data_queue_message_payload(uint16_t tag, void * data);
 
 DataHeader *
 data_get(void);

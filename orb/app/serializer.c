@@ -8,7 +8,6 @@
 #include <mcu_messaging.pb.h>
 #include <logging.h>
 #include <pb_decode.h>
-#include <data_provider.h>
 #include <com.h>
 #include <errors.h>
 
@@ -42,7 +41,7 @@ serializer_data_waiting(void)
 }
 
 uint32_t
-serializer_pack_waiting(uint8_t * buffer, size_t len)
+serializer_pack_next(uint8_t *buffer, size_t len)
 {
     pb_ostream_t stream = pb_ostream_from_buffer(buffer, len);
 
@@ -66,7 +65,7 @@ serializer_pack_waiting(uint8_t * buffer, size_t len)
 }
 
 uint32_t
-serializer_push(DataHeader* data)
+serializer_push(DataHeader *data)
 {
     if ((m_wr_idx + 1) % DATA_WAITING_LIST_SIZE != m_rd_idx)
     {
