@@ -86,6 +86,8 @@ com_rx_task(void *t)
 
     while (1)
     {
+        ASSERT_BOOL((index + count) < COM_RX_BUFFER_SIZE);
+
         // Receiving UART using DMA and wait for RX callback to notify the task about completion
         HAL_UART_Receive_DMA(&m_uart_handle, &m_rx_buffer[index], count);
         notifications = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000));
@@ -151,7 +153,8 @@ com_rx_task(void *t)
                                                      (index-4));
                     if (received_crc16 == crc16)
                     {
-                        deserializer_unpack_push(&m_rx_buffer[4], (index - 4));
+                        ret_code_t err_code = deserializer_unpack_push(&m_rx_buffer[4], (index - 4));
+                        ASSERT(err_code); // consider increasing DESERIALIZER_QUEUE_SIZE
                     }
                     else
                     {
