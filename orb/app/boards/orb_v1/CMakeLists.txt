@@ -128,8 +128,13 @@ add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${PROJECT_BINARY_DIR
 add_link_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork)
 add_link_options(-T ${LINKER_SCRIPT})
 
+add_custom_command(OUTPUT config/version.h
+        COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/${SDK_ROOT}/utils/version/gen_version.py -f ${CMAKE_CURRENT_SOURCE_DIR}/version.ini -i ${CMAKE_CURRENT_SOURCE_DIR}/config/version.h
+        DEPENDS version.ini
+        COMMENT "Generating version"
+        )
 
-add_executable(${PROJECT_NAME}.elf ${SOURCES} ${LINKER_SCRIPT})
+add_executable(${PROJECT_NAME}.elf ${SOURCES} ${LINKER_SCRIPT} config/version.h)
 
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
 set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
@@ -139,3 +144,4 @@ add_custom_command(TARGET ${PROJECT_NAME}.elf POST_BUILD
         COMMAND ${CMAKE_OBJCOPY} -Obinary $<TARGET_FILE:${PROJECT_NAME}.elf> ${BIN_FILE}
         COMMENT "Building ${HEX_FILE}
 Building ${BIN_FILE}")
+
