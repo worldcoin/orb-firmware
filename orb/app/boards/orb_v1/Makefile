@@ -17,7 +17,9 @@ FREERTOS_DIR = ${SDK_ROOT}/external/freertos
 # C sources
 C_SOURCES =  \
 ${SDK_ROOT}/orb/app/com.c \
+${SDK_ROOT}/orb/app/control.c \
 ${SDK_ROOT}/orb/app/data_provider.c \
+${SDK_ROOT}/orb/app/deserializer.c \
 ${SDK_ROOT}/orb/app/freertos.c \
 ${SDK_ROOT}/orb/app/main.c \
 ${SDK_ROOT}/orb/app/logs.c \
