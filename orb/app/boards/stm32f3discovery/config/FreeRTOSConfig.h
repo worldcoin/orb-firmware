@@ -69,6 +69,11 @@
 #define configQUEUE_REGISTRY_SIZE                8
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION  1
 
+#ifndef configCHECK_FOR_STACK_OVERFLOW
+  // configure stack overflow when building target (Debug)
+#define configCHECK_FOR_STACK_OVERFLOW           0
+#endif
+
 /* Co-routine definitions. */
 #define configUSE_CO_ROUTINES                    0
 #define configMAX_CO_ROUTINE_PRIORITIES          ( 2 )

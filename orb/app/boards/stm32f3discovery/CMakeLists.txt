@@ -24,7 +24,7 @@ elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "MinSizeRel")
 else ()
     message(STATUS "Minimal optimization, debug info included, logging enabled")
     add_compile_options(-Og -g)
-    add_compile_definitions(DEBUG;CONFIG_LOG_LEVEL=4;USE_FULL_ASSERT)
+    add_compile_definitions(DEBUG;CONFIG_LOG_LEVEL=4;USE_FULL_ASSERT;configCHECK_FOR_STACK_OVERFLOW=2)
 endif ()
 
 set(SDK_ROOT ../../../..)
