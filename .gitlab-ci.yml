@@ -23,6 +23,6 @@ build_all:
     - docker run --rm -w=/home/project/firmware -v `pwd`:/home/project/firmware worldcoin make all
   artifacts:
     paths:
-      - orb/app/boards/orb_v1/build/*.elf
-      - orb/app/boards/stm32f3discovery/build/*.elf
+      - build/orb/app/boards/orb_v1/*.elf
+      - build/orb/app/boards/stm32f3discovery/*.elf
     expire_in: 1 yrs
