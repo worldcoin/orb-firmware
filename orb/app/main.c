@@ -8,9 +8,16 @@
 #include <control.h>
 #include <deserializer.h>
 #include <serializer.h>
+#include <watchdog.h>
+#include <app_config.h>
 #include "board.h"
 #include "errors.h"
 #include "version.h"
+
+static TaskHandle_t m_test_task_handle = NULL;
+
+void
+vApplicationIdleHook(void);
 
 /**
   * @brief System Clock Configuration
@@ -62,7 +69,11 @@ SystemClock_Config(void)
     ASSERT(err_code);
 }
 
-TaskHandle_t m_test_task_handle = NULL;
+void
+vApplicationIdleHook(void)
+{
+    watchdog_reload();
+}
 
 _Noreturn __unused static void
 test_task(void *t)
@@ -103,6 +114,8 @@ main(void)
     /* Configure the system clock */
     SystemClock_Config();
 
+    watchdog_init(WATCHDOG_TIMEOUT_MS);
+
 #ifdef DEBUG
     logs_init();
 #endif
@@ -120,10 +133,10 @@ main(void)
     control_init();
 
     BaseType_t freertos_err_code = xTaskCreate(test_task, "test",
-                150,
-                NULL,
-                (tskIDLE_PRIORITY + 1),
-                &m_test_task_handle);
+                                               150,
+                                               NULL,
+                                               (tskIDLE_PRIORITY + 1),
+                                               &m_test_task_handle);
     ASSERT_BOOL(freertos_err_code == pdTRUE);
 
     /* Start scheduler */
