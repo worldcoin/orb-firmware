@@ -90,7 +90,7 @@ def main(argv):
                                                                        firmware_patch, bl_version, hw_rev))
         # write major, minor, patch and bl version to version.ini
         ini_file.writelines(
-            "[version]" + "\nmajor=" + firmware_major + "\nminor=" + firmware_minor + "\npatch=" + firmware_patch + "\nbl=" + bl_version + "\nhw=" + hw_rev)
+            "[version]" + "\nmajor=" + firmware_major + "\nminor=" + firmware_minor + "\npatch=" + firmware_patch + "\nbl=" + bl_version + "\nhw=" + hw_rev+ "\n")
         ini_file.close()
 
     if path_version_h == '' and (increment_patch or increment_minor):
