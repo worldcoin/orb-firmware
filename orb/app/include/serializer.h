@@ -27,7 +27,7 @@ serializer_pack_next_blocking(uint8_t *buffer, size_t length);
 /// \param data Pointer to structure to be serialized, will be copied into internal buffer
 /// \return \c RET_SUCCESS on success, \c RET_ERROR_NO_MEM if serializer is full and data cannot be pushed.
 ret_code_t
-serializer_push(DataHeader *data);
+serializer_push(McuMessage *data);
 
 /// Init serializer: create empty queue for message passing between producers and consumer
 /// \return \c RET_SUCCESS on success, \c RET_ERROR_INVALID_STATE if already initialized,

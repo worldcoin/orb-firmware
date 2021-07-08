@@ -2,13 +2,13 @@
 import getopt
 import random
 
-from mcu_messaging_pb2.mcu_messaging_pb2 import DataHeader, Version, JetsonToMcu
+from mcu_messaging_pb2.mcu_messaging_pb2 import McuMessage, Version, JetsonToMcu
 from serial import Serial
 import sys
 import crc16
 
 def send_data(ser):
-    output_data = DataHeader()
+    output_data = McuMessage()
     output_data.version = Version.VERSION_0
 
     value = random.randrange(255)
@@ -52,7 +52,7 @@ def main(argv):
     ser = Serial(port, 115200)
     print("🎧 Listening UART (8N1 {}) on {}".format(baud_rate, port))
 
-    data = DataHeader()
+    data = McuMessage()
 
 
 

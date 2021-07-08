@@ -8,7 +8,7 @@
 #include "mcu_messaging.pb.h"
 
 /// Set data that should be communicated:
-///   - \c DataHeader.message.m_message.payload
+///   - \c McuMessage.message.m_message.payload
 /// \param tag Data type to be set (payload), \see mcu_messaging.pb.h
 /// \param data Pointer to structure using the type defined in \see mcu_messaging.pb.h
 /// \return

@@ -13,7 +13,7 @@ TaskHandle_t m_control_task_handle = NULL;
 _Noreturn static void
 control_task(void *t)
 {
-    DataHeader data = {0};
+    McuMessage data = {0};
 
     while (1)
     {

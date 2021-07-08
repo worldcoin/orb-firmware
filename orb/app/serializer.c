@@ -17,16 +17,16 @@
 static QueueHandle_t m_queue_handle = 0;
 
 static void
-init_stream(DataHeader *pb_struct)
+init_stream(McuMessage *pb_struct)
 {
     pb_struct->version = Version_VERSION_0;
-    pb_struct->which_message = DataHeader_m_message_tag;
+    pb_struct->which_message = McuMessage_m_message_tag;
 }
 
 static uint32_t
-encode(pb_ostream_t *stream, DataHeader *pb_struct)
+encode(pb_ostream_t *stream, McuMessage *pb_struct)
 {
-    if (!pb_encode(stream, DataHeader_fields, pb_struct))
+    if (!pb_encode(stream, McuMessage_fields, pb_struct))
     {
         LOG_ERROR("Unable to encode data");
         return 0;
@@ -41,7 +41,7 @@ serializer_pack_next_blocking(uint8_t *buffer, size_t length)
 
     pb_ostream_t stream = pb_ostream_from_buffer(buffer, length);
 
-    DataHeader data = {0};
+    McuMessage data = {0};
 
     if (xQueueReceive(m_queue_handle, &data, portMAX_DELAY) != pdTRUE)
     {
@@ -57,7 +57,7 @@ serializer_pack_next_blocking(uint8_t *buffer, size_t length)
 }
 
 ret_code_t
-serializer_push(DataHeader *data)
+serializer_push(McuMessage *data)
 {
     ASSERT_BOOL(m_queue_handle != 0);
 
@@ -77,7 +77,7 @@ serializer_init(void)
         return RET_ERROR_INVALID_STATE;
     }
 
-    m_queue_handle = xQueueCreate(SERIALIZER_QUEUE_SIZE, sizeof(DataHeader));
+    m_queue_handle = xQueueCreate(SERIALIZER_QUEUE_SIZE, sizeof(McuMessage));
 
     return RET_SUCCESS;
 }

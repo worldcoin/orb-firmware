@@ -15,7 +15,7 @@ data_queue_message_payload(uint16_t tag, void *data)
     uint32_t err_code = RET_SUCCESS;
 
     bool new_data_event = false;
-    DataHeader data_to_serialize = DataHeader_init_zero;
+    McuMessage data_to_serialize = McuMessage_init_zero;
 
     switch (tag)
     {
