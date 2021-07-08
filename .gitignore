@@ -4,3 +4,5 @@ cmake-build-*/
 
 build/
 *.egg-info/
+
+version.h

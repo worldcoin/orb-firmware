@@ -2,9 +2,9 @@
 #define VERSION_H__
 
 /* clang-format off */
-#define     FIRMWARE_BRANCH_NAME_SIZE   4
-#define     FIRMWARE_BRANCH_NAME        "b'main'"
-#define     FIRMWARE_BRANCH_SHA         0xb'e2e4ba83'
+#define     FIRMWARE_BRANCH_NAME_SIZE   14
+#define     FIRMWARE_BRANCH_NAME        "b'f/com_protobuf'"
+#define     FIRMWARE_BRANCH_SHA         0xb'3c9ce7c2'
 
 #define     FIRMWARE_TYPE_DEV           0xFF
 #define     FIRMWARE_TYPE_PROD          0x00
