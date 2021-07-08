@@ -1,6 +1,10 @@
 stages:
   - build
 
+before_script:
+  - git submodule sync --recursive
+  - git submodule update --init --recursive
+
 build_all:
   stage: build
   only:
@@ -10,6 +14,8 @@ build_all:
   image: gitlab/dind
   services:
     - docker:dind
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
   script:
     # build the Docker image
     - docker build utils/env -t worldcoin
