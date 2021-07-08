@@ -99,7 +99,7 @@ def main(argv):
 
     if path_version_h == '':
         print("ERROR: version.h path is missing")
-        print(help);
+        print(help)
         sys.exit()
     else:
         header_file = open(path_version_h, 'w')
