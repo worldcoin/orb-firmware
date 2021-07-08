@@ -7,20 +7,20 @@ include(utils/cmake/utils.cmake)
 string(LENGTH "${CMAKE_SOURCE_DIR}/" SOURCE_PATH_SIZE)
 add_definitions("-DSOURCE_PATH_SIZE=${SOURCE_PATH_SIZE}")
 
-# Application, when compiler is arm-none-eabi-gcc
+# Firmware compiled with arm-none-eabi-gcc
 if(CMAKE_C_COMPILER MATCHES "arm-none-eabi-gcc$")
     include(${CMAKE_TOOLCHAIN_FILE})
+    message(STATUS "Building for ARM microcontroller")
 
-    message(STATUS "Building for ARM Cortex")
-    message(STATUS "Compiler: ${CMAKE_C_COMPILER}")
     add_subdirectory(orb/app/boards/orb_v1)
     add_subdirectory(orb/app/boards/stm32f3discovery)
 endif()
 
-# Tests
+# Tests compiled with host compiler
 # run `cmake -D UNIT_TESTING=1`
 if (UNIT_TESTING)
-    message(STATUS "Importing Unit Testing libs")
+    message(STATUS "Building for Unit Tests")
+
     add_subdirectory(external/googletest)
     add_subdirectory(tests)
 endif()
