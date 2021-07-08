@@ -139,7 +139,17 @@ _write(int fd, char *ptr, int len)
     // notify sending task if at least one byte have been queued
     if (i && m_uart_handle.gState == HAL_UART_STATE_READY)
     {
-        xTaskNotifyGive(m_logs_task);
+        // check if running from interrupt
+        if (SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk)
+        {
+            BaseType_t switch_to_higher_priority_task = pdFALSE;
+            vTaskNotifyGiveFromISR(m_logs_task, &switch_to_higher_priority_task);
+            portYIELD_FROM_ISR(switch_to_higher_priority_task);
+        }
+        else
+        {
+            xTaskNotifyGive(m_logs_task);
+        }
     }
 
     return i;
@@ -218,6 +228,9 @@ void
 logs_final_flush(void)
 {
     HAL_StatusTypeDef err_code;
+
+    // abort any ongoing task using UART to force print
+    HAL_UART_Abort(&m_uart_handle);
 
     while (m_rd_index != m_wr_index)
     {
