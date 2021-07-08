@@ -10,8 +10,7 @@
 #include <FreeRTOS.h>
 #include <queue.h>
 #include "deserializer.h"
-
-#define DATA_WAITING_LIST_SIZE 8
+#include "app_config.h"
 
 static QueueHandle_t m_queue_handle = 0;
 
@@ -57,7 +56,7 @@ deserializer_init(void)
         return RET_ERROR_INVALID_STATE;
     }
 
-    m_queue_handle = xQueueCreate(DATA_WAITING_LIST_SIZE, sizeof(DataHeader));
+    m_queue_handle = xQueueCreate(DESERIALIZER_QUEUE_SIZE, sizeof(DataHeader));
 
     return RET_SUCCESS;
 }

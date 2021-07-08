@@ -10,6 +10,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "com.h"
+#include "app_config.h"
 #include <stm32f3xx_it.h>
 #include <deserializer.h>
 
@@ -22,8 +23,8 @@ static CRC_HandleTypeDef m_crc_handle = {0};
 static TaskHandle_t m_com_tx_task_handle = NULL;
 static TaskHandle_t m_com_rx_task_handle = NULL;
 
-static uint8_t m_tx_buffer[256] = {0};
-static uint8_t m_rx_buffer[256] = {0};
+static uint8_t m_tx_buffer[COM_TX_BUFFER_SIZE] = {0};
+static uint8_t m_rx_buffer[COM_RX_BUFFER_SIZE] = {0};
 
 #define FRAME_PROTOCOL_MAGIC        (0xdead)
 #define FRAME_PROTOCOL_MAGIC_SIZE   2

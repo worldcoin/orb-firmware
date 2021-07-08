@@ -12,8 +12,7 @@
 #include <errors.h>
 #include <FreeRTOS.h>
 #include <queue.h>
-
-#define DATA_WAITING_LIST_SIZE 8
+#include <app_config.h>
 
 static QueueHandle_t m_queue_handle = 0;
 
@@ -78,7 +77,7 @@ serializer_init(void)
         return RET_ERROR_INVALID_STATE;
     }
 
-    m_queue_handle = xQueueCreate(DATA_WAITING_LIST_SIZE, sizeof(DataHeader));
+    m_queue_handle = xQueueCreate(SERIALIZER_QUEUE_SIZE, sizeof(DataHeader));
 
     return RET_SUCCESS;
 }
