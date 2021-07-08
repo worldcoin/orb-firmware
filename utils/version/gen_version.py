@@ -69,7 +69,7 @@ def main(argv):
             firmware_patch = str(int(firmware_patch) + 1 )
 
         if not increment_minor and not increment_patch:
-            print("Version not changed in ini file.")
+            print("Provided .ini file has been left untouched")
 
     else:
         # Parse app version
