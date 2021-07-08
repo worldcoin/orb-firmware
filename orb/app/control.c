@@ -59,7 +59,7 @@ control_init(void)
 {
     BaseType_t freertos_err_code = xTaskCreate(control_task,
                                                "control",
-                                               150,
+                                               250,
                                                NULL,
                                                (tskIDLE_PRIORITY + 2),
                                                &m_control_task_handle);
