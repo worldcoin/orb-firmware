@@ -2,7 +2,7 @@
 # Application Makefile (based on gcc)
 # ------------------------------------------------
 
-TARGET = orb_app
+TARGET = discovery_app
 
 # debug build?
 DEBUG = 1
