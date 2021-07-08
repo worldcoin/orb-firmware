@@ -57,7 +57,7 @@ void assert_failed(uint8_t *file, uint32_t line)
 void vApplicationStackOverflowHook( TaskHandle_t xTask,
                                     char * pcTaskName )
 {
-    LOG_ERROR("StackOverlow from task: %s", pcTaskName);
+    LOG_ERROR("StackOverflow from task: %s", pcTaskName);
     logs_final_flush();
 
     __BKPT(0);
