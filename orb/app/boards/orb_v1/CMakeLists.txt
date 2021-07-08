@@ -41,6 +41,7 @@ set(ORB_SOURCES
         ${SDK_ROOT}/orb/app/main.c
         ${SDK_ROOT}/orb/app/logs.c
         ${SDK_ROOT}/orb/app/serializer.c
+        ${SDK_ROOT}/orb/app/watchdog.c
         ${SDK_ROOT}/orb/common/errors.c
         ./platform/${MCU_LINE}_it.c
         ./platform/${MCU_LINE}_hal_msp.c
@@ -66,6 +67,7 @@ set(SOURCES
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_flash_ex.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_i2c.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_i2c_ex.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_iwdg.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_exti.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_i2s.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_i2s_ex.c
