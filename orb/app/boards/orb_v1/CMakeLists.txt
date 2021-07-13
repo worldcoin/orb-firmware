@@ -141,9 +141,6 @@ add_executable(${PROJECT_NAME}.elf ${SOURCES} ${LINKER_SCRIPT} config/version.h)
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
 set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
 
-add_custom_command(TARGET ${PROJECT_NAME}.elf POST_BUILD
-        COMMAND ${CMAKE_OBJCOPY} -Oihex $<TARGET_FILE:${PROJECT_NAME}.elf> ${HEX_FILE}
-        COMMAND ${CMAKE_OBJCOPY} -Obinary $<TARGET_FILE:${PROJECT_NAME}.elf> ${BIN_FILE}
-        COMMENT "Building ${HEX_FILE}
-Building ${BIN_FILE}")
-
+firmware_size(${PROJECT_NAME}.elf)
+generate_object(${PROJECT_NAME}.elf .hex ihex)
+generate_object(${PROJECT_NAME}.elf .bin binary)
