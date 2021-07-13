@@ -30,5 +30,7 @@ unit_tests: clean build/
 	cmake --build build
 	./build/tests/template_test/template_test --gtest_filter=* --gtest_color=yes
 
+all: apps unit_tests
+
 clean:
 	rm -rf build
