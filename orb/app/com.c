@@ -236,7 +236,7 @@ com_tx_task(void *t)
                 memcpy(&m_tx_buffer[length + FRAME_PROTOCOL_HEADER_SIZE],
                        (uint8_t *) &crc16,
                        sizeof crc16);
-                length += FRAME_PROTOCOL_HEADER_SIZE + FRAME_PROTOCOL_FOOTER_SIZE;
+                length += (uint16_t) (FRAME_PROTOCOL_HEADER_SIZE + FRAME_PROTOCOL_FOOTER_SIZE);
 
                 LOG_INFO("Sending: l %uB", length);
 
