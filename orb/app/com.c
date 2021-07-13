@@ -27,10 +27,10 @@ static uint8_t m_tx_buffer[COM_TX_BUFFER_SIZE] = {0};
 static uint8_t m_rx_buffer[COM_RX_BUFFER_SIZE] = {0};
 
 #define FRAME_PROTOCOL_MAGIC        (0xdead)
-#define FRAME_PROTOCOL_MAGIC_SIZE   2
-#define FRAME_PROTOCOL_LENGTH_SIZE  2
+#define FRAME_PROTOCOL_MAGIC_SIZE   ((uint16_t) 2)
+#define FRAME_PROTOCOL_LENGTH_SIZE  ((uint16_t) 2)
 #define FRAME_PROTOCOL_HEADER_SIZE  (FRAME_PROTOCOL_MAGIC_SIZE + FRAME_PROTOCOL_LENGTH_SIZE)
-#define FRAME_PROTOCOL_FOOTER_SIZE  2 // crc16
+#define FRAME_PROTOCOL_FOOTER_SIZE  ((uint16_t) 2) // crc16
 
 /**
   * @brief This function handles DMA1 channel4 global interrupt.
@@ -150,10 +150,11 @@ com_rx_task(void *t)
                     uint16_t crc16 =
                         (uint16_t) HAL_CRC_Calculate(&m_crc_handle,
                                                      (uint32_t *) &m_rx_buffer[4],
-                                                     (index-4));
+                                                     (index - 4));
                     if (received_crc16 == crc16)
                     {
-                        ret_code_t err_code = deserializer_unpack_push(&m_rx_buffer[4], (index - 4));
+                        ret_code_t
+                            err_code = deserializer_unpack_push(&m_rx_buffer[4], (index - 4));
                         ASSERT(err_code); // consider increasing DESERIALIZER_QUEUE_SIZE
                     }
                     else
