@@ -27,10 +27,10 @@ static uint8_t m_tx_buffer[COM_TX_BUFFER_SIZE] = {0};
 static uint8_t m_rx_buffer[COM_RX_BUFFER_SIZE] = {0};
 
 #define FRAME_PROTOCOL_MAGIC        (0xdead)
-#define FRAME_PROTOCOL_MAGIC_SIZE   ((uint16_t) 2)
-#define FRAME_PROTOCOL_LENGTH_SIZE  ((uint16_t) 2)
+#define FRAME_PROTOCOL_MAGIC_SIZE   (2u)
+#define FRAME_PROTOCOL_LENGTH_SIZE  (2u)
 #define FRAME_PROTOCOL_HEADER_SIZE  (FRAME_PROTOCOL_MAGIC_SIZE + FRAME_PROTOCOL_LENGTH_SIZE)
-#define FRAME_PROTOCOL_FOOTER_SIZE  ((uint16_t) 2) // crc16
+#define FRAME_PROTOCOL_FOOTER_SIZE  (2u) // crc16
 
 /**
   * @brief This function handles DMA1 channel4 global interrupt.
@@ -237,7 +237,7 @@ com_tx_task(void *t)
                 memcpy(&m_tx_buffer[length + FRAME_PROTOCOL_HEADER_SIZE],
                        (uint8_t *) &crc16,
                        sizeof crc16);
-                length += (uint16_t) (FRAME_PROTOCOL_HEADER_SIZE + FRAME_PROTOCOL_FOOTER_SIZE);
+                length = (uint16_t) (length + (FRAME_PROTOCOL_HEADER_SIZE + FRAME_PROTOCOL_FOOTER_SIZE));
 
                 LOG_INFO("Sending: l %uB", length);
 

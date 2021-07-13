@@ -100,11 +100,11 @@ flush_tx(void *params)
             // otherwise transmit full buffer between read and write index
             if (m_wr_index < m_rd_index)
             {
-                m_chunk_size = DEBUG_UART_TX_BUFFER_SIZE - m_rd_index;
+                m_chunk_size = (uint16_t) (DEBUG_UART_TX_BUFFER_SIZE - m_rd_index);
             }
             else
             {
-                m_chunk_size = m_wr_index - m_rd_index;
+                m_chunk_size = (uint16_t) (m_wr_index - m_rd_index);
             }
 
             HAL_UART_Transmit_DMA(&m_uart_handle,
@@ -236,11 +236,11 @@ logs_final_flush(void)
     {
         if (m_wr_index < m_rd_index)
         {
-            m_chunk_size = DEBUG_UART_TX_BUFFER_SIZE - m_rd_index;
+            m_chunk_size = (uint16_t) (DEBUG_UART_TX_BUFFER_SIZE - m_rd_index);
         }
         else
         {
-            m_chunk_size = m_wr_index - m_rd_index;
+            m_chunk_size = (uint16_t) (m_wr_index - m_rd_index);
         }
 
         err_code = HAL_UART_Transmit(&m_uart_handle,
