@@ -356,7 +356,7 @@ com_init(void)
 
     BaseType_t freertos_err_code = xTaskCreate(com_tx_task,
                                                "com_tx",
-                                               150,
+                                               160,
                                                NULL,
                                                (tskIDLE_PRIORITY + 2),
                                                &m_com_tx_task_handle);
