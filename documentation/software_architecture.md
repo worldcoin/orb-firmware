@@ -12,7 +12,7 @@
 - [x] Errors, assertions with debug message
 - [x] Building from Gitlab Pipelines
   - [x] Keep `elf` artifacts
-  - [ ] Set up Unit Tests
+  - [x] Set up Unit Tests framework
 - [x] Communication module for communication between Jetson and Microcontroller: TX & RX over UART, uses DMA
 - [x] Serializer/Deserializer to pack/unpack data using Protobuf, thread-safe
 - [x] Control module to parse incoming commands
