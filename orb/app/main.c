@@ -10,6 +10,7 @@
 #include <serializer.h>
 #include <watchdog.h>
 #include <app_config.h>
+#include <imu.h>
 #include "board.h"
 #include "errors.h"
 #include "version.h"
@@ -131,6 +132,7 @@ main(void)
     deserializer_init();
     com_init();
     control_init();
+    imu_init();
 
     BaseType_t freertos_err_code = xTaskCreate(test_task, "test",
                                                150,

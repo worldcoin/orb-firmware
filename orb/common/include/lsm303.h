@@ -1,0 +1,11 @@
+//
+// Created by Cyril on 14/07/2021.
+//
+
+#ifndef WORLDCOIN_FIRMWARE_ORB_COMMON_LSM303_H
+#define WORLDCOIN_FIRMWARE_ORB_COMMON_LSM303_H
+
+void
+lsm303_init(void);
+
+#endif //WORLDCOIN_FIRMWARE_ORB_COMMON_LSM303_H

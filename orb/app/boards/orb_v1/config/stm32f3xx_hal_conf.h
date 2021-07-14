@@ -168,7 +168,7 @@
 #define  USE_HAL_NOR_REGISTER_CALLBACKS         0U /* NOR register callback disabled       */
 #define  USE_HAL_PCCARD_REGISTER_CALLBACKS      0U /* PCCARD register callback disabled    */
 #define  USE_HAL_HRTIM_REGISTER_CALLBACKS       0U /* HRTIM register callback disabled     */
-#define  USE_HAL_I2C_REGISTER_CALLBACKS         0U /* I2C register callback disabled       */
+#define  USE_HAL_I2C_REGISTER_CALLBACKS         1U /* I2C register callback disabled       */
 #define  USE_HAL_UART_REGISTER_CALLBACKS        1U /* UART register callback disabled      */
 #define  USE_HAL_USART_REGISTER_CALLBACKS       0U /* USART register callback disabled     */
 #define  USE_HAL_IRDA_REGISTER_CALLBACKS        0U /* IRDA register callback disabled      */
