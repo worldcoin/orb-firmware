@@ -33,28 +33,28 @@ static uint8_t m_rx_buffer[COM_RX_BUFFER_SIZE] = {0};
 #define FRAME_PROTOCOL_FOOTER_SIZE  (2u) // crc16
 
 /**
-  * @brief This function handles DMA1 channel4 global interrupt.
+  * @brief This function handles DMA global interrupt.
   */
 void
-DMA1_Channel6_IRQHandler(void)
+DMA2_Channel3_IRQHandler(void)
 {
     HAL_DMA_IRQHandler(&m_dma_uart_rx);
 }
 
 /**
-  * @brief This function handles DMA1 channel5 global interrupt.
+  * @brief This function handles DMA global interrupt.
   */
 void
-DMA1_Channel7_IRQHandler(void)
+DMA2_Channel5_IRQHandler(void)
 {
     HAL_DMA_IRQHandler(&m_dma_uart_tx);
 }
 
 /**
-  * @brief This function handles USART2 global interrupt / USART2 wake-up interrupt through EXTI line 25.
+  * @brief This function handles UART4 global interrupt
   */
 void
-USART2_IRQHandler(void)
+UART4_IRQHandler(void)
 {
     HAL_UART_IRQHandler(&m_uart_handle);
 }
@@ -237,7 +237,8 @@ com_tx_task(void *t)
                 memcpy(&m_tx_buffer[length + FRAME_PROTOCOL_HEADER_SIZE],
                        (uint8_t *) &crc16,
                        sizeof crc16);
-                length = (uint16_t) (length + (FRAME_PROTOCOL_HEADER_SIZE + FRAME_PROTOCOL_FOOTER_SIZE));
+                length =
+                    (uint16_t) (length + (FRAME_PROTOCOL_HEADER_SIZE + FRAME_PROTOCOL_FOOTER_SIZE));
 
                 LOG_INFO("Sending: l %uB", length);
 
@@ -257,25 +258,25 @@ static void
 com_further_init(UART_HandleTypeDef *huart)
 {
     GPIO_InitTypeDef init = {0};
+    HAL_StatusTypeDef err_code;
 
     /* Peripheral clock enable */
-    __HAL_RCC_USART2_CLK_ENABLE();
+    __HAL_RCC_UART4_CLK_ENABLE();
 
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    /**USART2 GPIO Configuration
-    PA2     ------> USART2_TX
-    PA3     ------> USART2_RX
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    /**UART4 GPIO Configuration
+    PC10     ------> UART4_TX
+    PC11     ------> UART4_RX
     */
-    init.Pin = GPIO_PIN_2 | GPIO_PIN_3;
+    init.Pin = GPIO_PIN_10 | GPIO_PIN_11;
     init.Mode = GPIO_MODE_AF_PP;
     init.Pull = GPIO_NOPULL;
     init.Speed = GPIO_SPEED_FREQ_HIGH;
-    init.Alternate = GPIO_AF7_USART2;
-    HAL_GPIO_Init(GPIOA, &init);
+    init.Alternate = GPIO_AF5_UART4;
+    HAL_GPIO_Init(GPIOC, &init);
 
-    /* USART2 DMA Init */
-    /* USART2_RX Init */
-    m_dma_uart_rx.Instance = DMA1_Channel6;
+    /* UART DMA Init */
+    m_dma_uart_rx.Instance = DMA2_Channel3;
     m_dma_uart_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
     m_dma_uart_rx.Init.PeriphInc = DMA_PINC_DISABLE;
     m_dma_uart_rx.Init.MemInc = DMA_MINC_ENABLE;
@@ -284,13 +285,12 @@ com_further_init(UART_HandleTypeDef *huart)
     m_dma_uart_rx.Init.Mode = DMA_NORMAL;
     m_dma_uart_rx.Init.Priority = DMA_PRIORITY_LOW;
 
-    HAL_StatusTypeDef err_code = HAL_DMA_Init(&m_dma_uart_rx);
+    err_code = HAL_DMA_Init(&m_dma_uart_rx);
     ASSERT(err_code);
 
     __HAL_LINKDMA(huart, hdmarx, m_dma_uart_rx);
 
-    /* USART2_TX Init */
-    m_dma_uart_tx.Instance = DMA1_Channel7;
+    m_dma_uart_tx.Instance = DMA2_Channel5;
     m_dma_uart_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
     m_dma_uart_tx.Init.PeriphInc = DMA_PINC_DISABLE;
     m_dma_uart_tx.Init.MemInc = DMA_MINC_ENABLE;
@@ -311,16 +311,16 @@ com_init(void)
     uint32_t err_code;
 
     /* DMA controller clock enable */
-    __HAL_RCC_DMA1_CLK_ENABLE();
+    __HAL_RCC_DMA2_CLK_ENABLE();
 
-    /* DMA1_Channel6_IRQn interrupt configuration */
-    HAL_NVIC_SetPriority(DMA1_Channel6_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(DMA1_Channel6_IRQn);
-    /* DMA1_Channel7_IRQn interrupt configuration */
-    HAL_NVIC_SetPriority(DMA1_Channel7_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(DMA1_Channel7_IRQn);
+    /* DMA interrupt configuration */
+    HAL_NVIC_SetPriority(DMA2_Channel3_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(DMA2_Channel3_IRQn);
+    HAL_NVIC_SetPriority(DMA2_Channel5_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(DMA2_Channel5_IRQn);
 
-    m_uart_handle.Instance = USART2;
+    /* UART peripheral init */
+    m_uart_handle.Instance = UART4;
     m_uart_handle.Init.BaudRate = 115200;
     m_uart_handle.Init.WordLength = UART_WORDLENGTH_8B;
     m_uart_handle.Init.StopBits = UART_STOPBITS_1;
@@ -337,9 +337,9 @@ com_init(void)
     HAL_UART_RegisterCallback(&m_uart_handle, HAL_UART_TX_COMPLETE_CB_ID, tx_done_cb);
     HAL_UART_RegisterCallback(&m_uart_handle, HAL_UART_RX_COMPLETE_CB_ID, rx_done_cb);
 
-    /* USART2 interrupt Init */
-    HAL_NVIC_SetPriority(USART2_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(USART2_IRQn);
+    /* UART interrupt Init */
+    HAL_NVIC_SetPriority(UART4_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(UART4_IRQn);
 
     // CRC init
     __HAL_RCC_CRC_CLK_ENABLE();
