@@ -88,7 +88,7 @@ void
 HardFault_Handler(void)
 {
     // TODO stack dump
-
+    __BKPT(0);
 
     // reset target
     HAL_NVIC_SystemReset();
