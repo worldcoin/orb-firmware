@@ -275,7 +275,9 @@ com_further_init(UART_HandleTypeDef *huart)
     init.Alternate = GPIO_AF5_UART4;
     HAL_GPIO_Init(GPIOC, &init);
 
-    /* UART DMA Init */
+    /* UART DMA init */
+    __HAL_RCC_DMA2_CLK_ENABLE();
+
     m_dma_uart_rx.Instance = DMA2_Channel3;
     m_dma_uart_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
     m_dma_uart_rx.Init.PeriphInc = DMA_PINC_DISABLE;
@@ -305,13 +307,27 @@ com_further_init(UART_HandleTypeDef *huart)
     __HAL_LINKDMA(huart, hdmatx, m_dma_uart_tx);
 }
 
+static void
+crc_init(void)
+{
+    // CRC init
+    __HAL_RCC_CRC_CLK_ENABLE();
+    m_crc_handle.Instance = CRC;
+    m_crc_handle.Init.DefaultInitValueUse = DEFAULT_INIT_VALUE_ENABLE;
+    m_crc_handle.Init.DefaultPolynomialUse = DEFAULT_POLYNOMIAL_DISABLE;
+    m_crc_handle.Init.GeneratingPolynomial = 0x1021;
+    m_crc_handle.Init.CRCLength = CRC_POLYLENGTH_16B;
+    m_crc_handle.Init.InputDataInversionMode = CRC_INPUTDATA_INVERSION_NONE;
+    m_crc_handle.Init.OutputDataInversionMode = CRC_OUTPUTDATA_INVERSION_DISABLE;
+    m_crc_handle.InputDataFormat = CRC_INPUTDATA_FORMAT_BYTES;
+    uint32_t err_code = HAL_CRC_Init(&m_crc_handle);
+    ASSERT(err_code);
+}
+
 void
 com_init(void)
 {
     uint32_t err_code;
-
-    /* DMA controller clock enable */
-    __HAL_RCC_DMA2_CLK_ENABLE();
 
     /* DMA interrupt configuration */
     HAL_NVIC_SetPriority(DMA2_Channel3_IRQn, 5, 0);
@@ -341,22 +357,12 @@ com_init(void)
     HAL_NVIC_SetPriority(UART4_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(UART4_IRQn);
 
-    // CRC init
-    __HAL_RCC_CRC_CLK_ENABLE();
-    m_crc_handle.Instance = CRC;
-    m_crc_handle.Init.DefaultInitValueUse = DEFAULT_INIT_VALUE_ENABLE;
-    m_crc_handle.Init.DefaultPolynomialUse = DEFAULT_POLYNOMIAL_DISABLE;
-    m_crc_handle.Init.GeneratingPolynomial = 0x1021;
-    m_crc_handle.Init.CRCLength = CRC_POLYLENGTH_16B;
-    m_crc_handle.Init.InputDataInversionMode = CRC_INPUTDATA_INVERSION_NONE;
-    m_crc_handle.Init.OutputDataInversionMode = CRC_OUTPUTDATA_INVERSION_DISABLE;
-    m_crc_handle.InputDataFormat = CRC_INPUTDATA_FORMAT_BYTES;
-    err_code = HAL_CRC_Init(&m_crc_handle);
-    ASSERT(err_code);
+    crc_init();
 
+    // create TX & RX tasks
     BaseType_t freertos_err_code = xTaskCreate(com_tx_task,
                                                "com_tx",
-                                               160,
+                                               256,
                                                NULL,
                                                (tskIDLE_PRIORITY + 2),
                                                &m_com_tx_task_handle);
@@ -364,7 +370,7 @@ com_init(void)
 
     freertos_err_code = xTaskCreate(com_rx_task,
                                     "com_rx",
-                                    210,
+                                    256,
                                     NULL,
                                     (tskIDLE_PRIORITY + 2),
                                     &m_com_rx_task_handle);
