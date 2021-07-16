@@ -34,9 +34,10 @@ SystemClock_Config(void)
     /** Initializes the RCC Oscillators according to the specified parameters
     * in the RCC_OscInitTypeDef structure.
     */
-    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI | RCC_OSCILLATORTYPE_LSI;
     RCC_OscInitStruct.HSIState = RCC_HSI_ON;
     RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+    RCC_OscInitStruct.LSIState = RCC_LSI_ON;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
     RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL16;
@@ -56,14 +57,12 @@ SystemClock_Config(void)
     err_code = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2);
     ASSERT(err_code);
 
-    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1 | RCC_PERIPHCLK_USART2
-        | RCC_PERIPHCLK_USART3 | RCC_PERIPHCLK_UART4
-        | RCC_PERIPHCLK_I2C2 | RCC_PERIPHCLK_TIM1;
+    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1 | RCC_PERIPHCLK_UART4
+        | RCC_PERIPHCLK_I2C1 | RCC_PERIPHCLK_TIM1;
     PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
-    PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
     PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
     PeriphClkInit.Uart4ClockSelection = RCC_UART4CLKSOURCE_PCLK1;
-    PeriphClkInit.I2c2ClockSelection = RCC_I2C2CLKSOURCE_HSI;
+    PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
     PeriphClkInit.Tim1ClockSelection = RCC_TIM1CLK_HCLK;
 
     err_code = HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit);
@@ -133,9 +132,10 @@ main(void)
     com_init();
     control_init();
     imu_init();
+    imu_start();
 
     BaseType_t freertos_err_code = xTaskCreate(test_task, "test",
-                                               150,
+                                               512,
                                                NULL,
                                                (tskIDLE_PRIORITY + 1),
                                                &m_test_task_handle);

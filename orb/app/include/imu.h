@@ -7,6 +7,9 @@
 
 #include <errors.h>
 
+void
+imu_start(void);
+
 ret_code_t
 imu_init(void);
 
