@@ -1,6 +1,6 @@
 
 cmake_minimum_required(VERSION 3.19)
-project("Worldcoin firmware")
+project("Orb firmware")
 
 include(utils/cmake/utils.cmake)
 
