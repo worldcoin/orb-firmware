@@ -19,5 +19,5 @@
   - [ ] Implement handlers for all the commands
   - [ ] Take into account application state
 - [x] Data provider to push data to be sent from any other module/task
-  - [ ] Accelerometer data to Jetson, event-based
+  - [x] Accelerometer data to Jetson, event-based
   - [ ] Gyroscope data to Jetson, event-based
