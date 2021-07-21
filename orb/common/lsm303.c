@@ -40,7 +40,6 @@ DMA1_Channel6_IRQHandler(void)
     HAL_DMA_IRQHandler(&m_dma_i2c1_tx);
 }
 
-
 void
 DMA1_Channel7_IRQHandler(void)
 {
@@ -184,7 +183,7 @@ lsm303_read(uint8_t *buffer, size_t length, void (*data_ready_cb)(void))
                                     LSM303DLHC_OUT_X_L_A | 0x80,
                                     1,
                                     buffer,
-                                    size*6);
+                                    size * 6);
     ASSERT(err_code);
 
     // now waiting for interrupt callback to be called on completion (i2c_rx_done_cb)
@@ -203,17 +202,17 @@ lsm303_start(void (*fifo_full_cb)(void))
 
     // set acquisition configuration
     data[0] = LSM303DLHC_CTRL_REG1_A;
-    data[1] = LSM303DLHC_NORMAL_MODE | LSM303DLHC_ODR_50_HZ | LSM303DLHC_AXES_ENABLE;
+    data[1] = LSM303DLHC_NORMAL_MODE | LSM303DLHC_ODR_10_HZ | LSM303DLHC_AXES_ENABLE;
     ret = HAL_I2C_Master_Transmit(&m_i2c_handle, ACC_I2C_ADDRESS, data, 2, 10);
     ASSERT(ret);
 
     data[0] = LSM303DLHC_CTRL_REG4_A;
-    data[1] = LSM303DLHC_BlockUpdate_Continuous | LSM303DLHC_BLE_LSB | LSM303DLHC_FULLSCALE_4G
+    data[1] = LSM303DLHC_BlockUpdate_Continuous | LSM303DLHC_BLE_LSB | LSM303DLHC_FULLSCALE_2G
         | LSM303DLHC_HR_ENABLE;
     ret = HAL_I2C_Master_Transmit(&m_i2c_handle, ACC_I2C_ADDRESS, data, 2, 10);
     ASSERT(ret);
 
-    // setup FIFO
+    /// setup FIFO
     // reset FIFO
     data[0] = LSM303DLHC_FIFO_CTRL_REG_A;
     data[1] = 0;
@@ -222,19 +221,19 @@ lsm303_start(void (*fifo_full_cb)(void))
 
     // set FIFO mode, trigger INT1, size of 16 samples
     data[0] = LSM303DLHC_FIFO_CTRL_REG_A;
-    data[1] = 0xC0 | 0x20 | 0x10;
+    data[1] = 0xC0 | 0x20 | (16 - 1);
+    ret = HAL_I2C_Master_Transmit(&m_i2c_handle, ACC_I2C_ADDRESS, data, 2, 10);
+    ASSERT(ret);
+
+    // interrupt on FIFO watermark
+    data[0] = LSM303DLHC_CTRL_REG3_A;
+    data[1] = LSM303DLHC_IT1_WTM;
     ret = HAL_I2C_Master_Transmit(&m_i2c_handle, ACC_I2C_ADDRESS, data, 2, 10);
     ASSERT(ret);
 
     // enable FIFO TODO: read LSM303DLHC_CTRL_REG5_A before in order to prevent overwriting values
     data[0] = LSM303DLHC_CTRL_REG5_A;
     data[1] = 0x40;
-    ret = HAL_I2C_Master_Transmit(&m_i2c_handle, ACC_I2C_ADDRESS, data, 2, 10);
-    ASSERT(ret);
-
-    // interrupt on FIFO watermark
-    data[0] = LSM303DLHC_CTRL_REG3_A;
-    data[1] = 0x02;
     ret = HAL_I2C_Master_Transmit(&m_i2c_handle, ACC_I2C_ADDRESS, data, 2, 10);
     ASSERT(ret);
 
