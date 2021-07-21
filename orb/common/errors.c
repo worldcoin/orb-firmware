@@ -24,6 +24,8 @@ app_error_fault_handler(uint32_t id, uint32_t pc, long info)
 
     logs_final_flush();
 
+    __BKPT(0);
+
     HAL_NVIC_SystemReset();
 }
 
