@@ -30,8 +30,10 @@ if(NOT ARM_TOOLCHAIN_DIR)
 else()
     # Use ARM_TOOLCHAIN_DIR to get the compiler path
     set(CMAKE_C_COMPILER ${ARM_TOOLCHAIN_DIR}/${TOOLCHAIN_PREFIX}gcc)
-    set(CMAKE_CXX_COMPILER ${ARM_TOOLCHAIN_DIR}/${TOOLCHAIN_PREFIX}g++)
 endif()
+
+# Set C++ compiler
+set(CMAKE_CXX_COMPILER ${ARM_TOOLCHAIN_DIR}/${TOOLCHAIN_PREFIX}g++)
 
 message(STATUS "Compiler: ${CMAKE_C_COMPILER}")
 
