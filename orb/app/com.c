@@ -128,6 +128,17 @@ com_rx_task(void *t)
                     // let's receive the payload
                     count = *(uint16_t *) &m_rx_buffer[index];
                     index = 4;
+
+                    if (count + index > COM_RX_BUFFER_SIZE)
+                    {
+                        // Error when reading Length
+                        // either payload is too long or Length received is not correct
+                        // reset index and wait for another packet
+                        LOG_ERROR("Payload is too long? (increase COM_RX_BUFFER_SIZE)");
+
+                        index = 0;
+                        count = 1;
+                    }
                 }
                     break;
 
