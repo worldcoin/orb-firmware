@@ -6,6 +6,9 @@
 #include <lsm303.h>
 #include <l3g.h>
 #include <logging.h>
+#include <app_config.h>
+#include <mcu_messaging.pb.h>
+#include <data_provider.h>
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -43,8 +46,9 @@ data_ready_handler(void)
 _Noreturn static void
 imu_task(void *t)
 {
+    ret_code_t err_code;
     uint32_t notifications = 0;
-    uint8_t buffer[6*32] = {0};
+    uint8_t buffer[6*ACCEL_FIFO_SAMPLES_COUNT] = {0};
 
     lsm303_start(fifo_full_handler);
 
@@ -63,11 +67,28 @@ imu_task(void *t)
             {
                 if (notifications)
                 {
-                    LOG_INFO("Parsing IMU data: %i", *(int16_t*) &buffer[180]);
+                    // parsing buffer and computing average
+                    IMUData imu = {0};
+
+                    for (int i = 0; i < ACCEL_FIFO_SAMPLES_COUNT; ++i)
+                    {
+                        imu.accel_x += *(int16_t*) &buffer[0+6*i];
+                        imu.accel_y += *(int16_t*) &buffer[2+6*i];
+                        imu.accel_z += *(int16_t*) &buffer[4+6*i];
+                    }
+
+                    imu.accel_x /= ACCEL_FIFO_SAMPLES_COUNT;
+                    imu.accel_y /= ACCEL_FIFO_SAMPLES_COUNT;
+                    imu.accel_z /= ACCEL_FIFO_SAMPLES_COUNT;
+
+                    LOG_INFO("IMU data: (%li, %li, %li)", imu.accel_x, imu.accel_y, imu.accel_z);
+
+                    err_code = data_queue_message_payload(McuToJetson_imu_data_tag, &imu, sizeof(imu));
+                    ASSERT(err_code);
                 }
                 else
                 {
-                    LOG_WARNING("Timeout reading IMU data");
+                    LOG_ERROR("Timeout reading IMU data");
                 }
 
                 notifications = 0;

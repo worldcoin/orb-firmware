@@ -8,6 +8,11 @@
 #include <errors.h>
 #include <logging.h>
 #include <string.h>
+#include <app_config.h>
+
+#ifndef ACCEL_FIFO_SAMPLES_COUNT
+#define ACCEL_FIFO_SAMPLES_COUNT 16
+#endif
 
 static I2C_HandleTypeDef m_i2c_handle;
 static DMA_HandleTypeDef m_dma_i2c1_rx;
@@ -221,7 +226,7 @@ lsm303_start(void (*fifo_full_cb)(void))
 
     // set FIFO mode, trigger INT1, size of 16 samples
     data[0] = LSM303DLHC_FIFO_CTRL_REG_A;
-    data[1] = 0xC0 | 0x20 | (16 - 1);
+    data[1] = 0xC0 | 0x20 | (ACCEL_FIFO_SAMPLES_COUNT - 1);
     ret = HAL_I2C_Master_Transmit(&m_i2c_handle, ACC_I2C_ADDRESS, data, 2, 10);
     ASSERT(ret);
 
