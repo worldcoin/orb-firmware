@@ -11,11 +11,12 @@
 ///   - \c McuMessage.message.m_message.payload
 /// \param tag Data type to be set (payload), \see mcu_messaging.pb.h
 /// \param data Pointer to structure using the type defined in \see mcu_messaging.pb.h
+/// \param size Size of pointed \c data
 /// \return
 /// * \c RET_SUCCESS on success,
 /// * \c RET_ERROR_NO_MEM when the queue keeping new data is full
 /// * \c RET_ERROR_INVALID_PARAM when \param tag is unknown
-uint32_t
-data_queue_message_payload(uint16_t tag, void * data);
+ret_code_t
+data_queue_message_payload(uint16_t tag, void * data, size_t size);
 
 #endif //WORLDCOIN_FIRMWARE_ORB_APP_DATA_PROVIDER_H

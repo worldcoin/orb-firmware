@@ -78,6 +78,7 @@ vApplicationIdleHook(void)
 _Noreturn __unused static void
 test_task(void *t)
 {
+    ret_code_t err_code;
     PowerButton button = {.pressed = OnOff_OFF};
     BatteryVoltage bat = {.battery_mvolts = 3700};
     vTaskDelay(500);
@@ -88,12 +89,16 @@ test_task(void *t)
     {
         vTaskDelay(1000);
 
-        data_queue_message_payload(McuToJetson_power_button_tag, &button);
+        err_code = data_queue_message_payload(McuToJetson_power_button_tag, &button, sizeof(button));
+        ASSERT(err_code);
+
         button.pressed = (1 - button.pressed);
 
         vTaskDelay(1000);
 
-        data_queue_message_payload(McuToJetson_battery_voltage_tag, &bat);
+        err_code = data_queue_message_payload(McuToJetson_battery_voltage_tag, &bat, sizeof(bat));
+        ASSERT(err_code);
+
         bat.battery_mvolts += 1;
     }
 
