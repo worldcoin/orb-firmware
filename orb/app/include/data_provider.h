@@ -6,6 +6,7 @@
 #define WORLDCOIN_FIRMWARE_ORB_APP_DATA_PROVIDER_H
 
 #include "mcu_messaging.pb.h"
+#include "errors.h"
 
 /// Set data that should be communicated:
 ///   - \c McuMessage.message.m_message.payload

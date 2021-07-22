@@ -19,7 +19,7 @@ static TaskHandle_t m_imu_task_handle = NULL;
 
 /// Notify IMU task that FIFO is full, ready to be flushed
 /// 💥 ISR context
-static void
+__attribute__((unused)) static void
 fifo_full_handler(void)
 {
     BaseType_t switch_to_higher_priority_task = pdFALSE;
@@ -30,7 +30,7 @@ fifo_full_handler(void)
 
 /// Notify IMU task that data is ready to be parsed
 /// 💥 ISR context
-static void
+__attribute__((unused)) static void
 data_ready_handler(void)
 {
     BaseType_t switch_to_higher_priority_task = pdFALSE;
@@ -50,7 +50,9 @@ imu_task(void *t)
     uint32_t notifications = 0;
     uint8_t buffer[6*ACCEL_FIFO_SAMPLES_COUNT] = {0};
 
+#ifdef STM32F3_DISCOVERY
     lsm303_start(fifo_full_handler);
+#endif
 
     while (1)
     {
@@ -59,9 +61,10 @@ imu_task(void *t)
 
         if (notifications)
         {
+#ifdef STM32F3_DISCOVERY
             // Read lsm303 data, non-blocking
             lsm303_read(buffer, sizeof(buffer), data_ready_handler);
-
+#endif
             // waiting for data to be flushed so that we can parse the new samples
             notifications = ulTaskNotifyTakeIndexed(IMU_TASK_NOTIF_DATA_READY, pdTRUE, pdMS_TO_TICKS(700));
             {
@@ -114,7 +117,9 @@ imu_start(void)
 ret_code_t
 imu_init(void)
 {
+#ifdef STM32F3_DISCOVERY
     lsm303_init();
+#endif
     // l3g_init();
 
     return RET_SUCCESS;
