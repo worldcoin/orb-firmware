@@ -43,6 +43,7 @@ set(ORB_SOURCES
         ${SDK_ROOT}/orb/app/serializer.c
         ${SDK_ROOT}/orb/app/watchdog.c
         ${SDK_ROOT}/orb/common/errors.c
+        ${SDK_ROOT}/orb/common/hardfault.c
         ${SDK_ROOT}/orb/common/lsm303.c
         ./platform/${MCU_LINE}_it.c
         ./platform/${MCU_LINE}_hal_msp.c

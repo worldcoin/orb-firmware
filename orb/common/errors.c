@@ -24,7 +24,7 @@ app_error_fault_handler(uint32_t id, uint32_t pc, long info)
 
     logs_final_flush();
 
-    __BKPT(0);
+    HALT_IF_DEBUGGING();
 
     HAL_NVIC_SystemReset();
 }
@@ -62,7 +62,7 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask,
     LOG_ERROR("%s: stack overflow", pcTaskName);
     logs_final_flush();
 
-    __BKPT(0);
+    HALT_IF_DEBUGGING();
 
     while(1);
 }
