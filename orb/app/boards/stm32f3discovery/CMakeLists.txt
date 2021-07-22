@@ -23,7 +23,7 @@ elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "MinSizeRel")
     add_compile_definitions(CONFIG_LOG_LEVEL=0)
 else ()
     message(STATUS "Minimal optimization, debug info included, logging enabled")
-    add_compile_options(-Og -g)
+    add_compile_options(-Og -g -fsanitize=undefined -fsanitize-undefined-trap-on-error)
     add_compile_definitions(DEBUG;CONFIG_LOG_LEVEL=4;USE_FULL_ASSERT;configCHECK_FOR_STACK_OVERFLOW=2)
 endif ()
 

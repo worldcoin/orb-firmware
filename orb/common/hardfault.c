@@ -27,10 +27,6 @@ __attribute__((optimize("O0")))
 void
 hardfault_handler_c(context_state_frame_t *frame)
 {
-    // If and only if a debugger is attached, execute a breakpoint
-    // instruction so we can take a look at what triggered the fault
-    HALT_IF_DEBUGGING();
-
     volatile uint32_t *cfsr = (volatile uint32_t *) 0xE000ED28;
     const uint32_t usage_fault_mask = 0xffff0000;
     const bool non_usage_fault_occurred =
@@ -42,7 +38,19 @@ hardfault_handler_c(context_state_frame_t *frame)
 
     if (faulted_from_exception || non_usage_fault_occurred)
     {
+        // If and only if a debugger is attached, execute a breakpoint
+        // instruction so we can take a look at what triggered the fault
+        HALT_IF_DEBUGGING();
+
         NVIC_SystemReset();
+    }
+
+    // Checking Usage fault
+    // if UNDEFINSTR bit set, undefined behavior -> probably due to sanitizer
+    // Analyze the stack to get the error origin
+    if (SCB->CFSR & SCB_CFSR_UNDEFINSTR_Msk)
+    {
+        HALT_IF_DEBUGGING();
     }
 
     // Clear any logged faults from the CFSR

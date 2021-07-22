@@ -154,8 +154,14 @@ com_rx_task(void *t)
 
                 default:
                 {
-                    // we just read the CRC16
-                    received_crc16 = *(uint16_t *) &m_rx_buffer[index];
+                    // Let's read the CRC and compute one over the payload for comparison
+
+                    // /!\ sanitizer fails if reading using:
+                    //     received_crc16 = *(uint16_t *) (m_rx_buffer + index);
+                    //
+                    // OR'ing with `received_crc16` itself to prevent GCC from firing `Wconversion` warning
+                    received_crc16 = 0;
+                    received_crc16 = (uint16_t) (received_crc16 | m_rx_buffer[index+1] << 8 | m_rx_buffer[index]);
 
                     // fixme add mutex over m_crc_handle usage
                     uint16_t crc16 =
