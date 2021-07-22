@@ -29,7 +29,7 @@ hardfault_handler_c(context_state_frame_t *frame)
 {
     // If and only if a debugger is attached, execute a breakpoint
     // instruction so we can take a look at what triggered the fault
-    // HALT_IF_DEBUGGING();
+    HALT_IF_DEBUGGING();
 
     volatile uint32_t *cfsr = (volatile uint32_t *) 0xE000ED28;
     const uint32_t usage_fault_mask = 0xffff0000;
