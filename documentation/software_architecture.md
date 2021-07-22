@@ -6,9 +6,14 @@
 
 **[2021-07-08]** Not tagged for release:
 
-- [x] Compilation based on CMake & Makefile
+- [x] Compilation based on CMake ~~& Makefile~~ (Makefile support removed)
 - [x] Debug using SWD, ST-Link
 - [x] Logging over UART, uses DMA
+- [x] Diagnostic
+    - [x] Fault handling: reason parsed while debugging
+    - [x] Display reset reason
+    - [ ] Tools to debug from GDB
+    - [ ] Store/Push diagnostics (Memfault)
 - [x] Errors, assertions with debug message
 - [x] Building from Gitlab Pipelines
   - [x] Keep `elf` artifacts
