@@ -11,6 +11,7 @@
 #include <watchdog.h>
 #include <app_config.h>
 #include <imu.h>
+#include <diag.h>
 #include "board.h"
 #include "errors.h"
 #include "version.h"
@@ -89,7 +90,8 @@ test_task(void *t)
     {
         vTaskDelay(1000);
 
-        err_code = data_queue_message_payload(McuToJetson_power_button_tag, &button, sizeof(button));
+        err_code =
+            data_queue_message_payload(McuToJetson_power_button_tag, &button, sizeof(button));
         ASSERT(err_code);
 
         button.pressed = (1 - button.pressed);
@@ -119,11 +121,12 @@ main(void)
     /* Configure the system clock */
     SystemClock_Config();
 
+    diag_reset_cause_t reset_cause = reset_cause_get();
+
     watchdog_init(WATCHDOG_TIMEOUT_MS);
 
 #ifdef DEBUG
     logs_init();
-#endif
 
     LOG_INFO("🤖");
     LOG_INFO("Firmware v%u.%u.%u, hw:%u",
@@ -131,6 +134,8 @@ main(void)
              FIRMWARE_VERSION_MINOR,
              FIRMWARE_VERSION_PATCH,
              HARDWARE_REV);
+    LOG_INFO("Reset reason: %s", diag_reset_cause_get_name(reset_cause));
+#endif
 
     serializer_init();
     deserializer_init();

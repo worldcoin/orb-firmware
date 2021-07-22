@@ -42,6 +42,7 @@ set(ORB_SOURCES
         ${SDK_ROOT}/orb/app/logs.c
         ${SDK_ROOT}/orb/app/serializer.c
         ${SDK_ROOT}/orb/app/watchdog.c
+        ${SDK_ROOT}/orb/common/diag.c
         ${SDK_ROOT}/orb/common/errors.c
         ${SDK_ROOT}/orb/common/hardfault.c
         ${SDK_ROOT}/orb/common/lsm303.c
