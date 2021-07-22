@@ -13,24 +13,31 @@ set(TOOLCHAIN_PREFIX arm-none-eabi-)
 # Without that flag CMake is not able to pass test compilation check
 set(CMAKE_EXE_LINKER_FLAGS_INIT "--specs=nosys.specs")
 
-if(NOT ARM_TOOLCHAIN_DIR)
+# if CMAKE_C_COMPILER is not already defined
+# & if path to C compiler ARM_TOOLCHAIN_DIR is not given
+# we get the compiler by asking the environment path
+if (NOT ARM_TOOLCHAIN_DIR AND NOT CMAKE_C_COMPILER)
     # Get full path to compiler from current environment
     execute_process(
             COMMAND which ${TOOLCHAIN_PREFIX}gcc
             OUTPUT_VARIABLE CMAKE_C_COMPILER
             OUTPUT_STRIP_TRAILING_WHITESPACE
     )
+endif ()
 
+if (NOT ARM_TOOLCHAIN_DIR AND CMAKE_C_COMPILER)
     # Get compiler directory
     execute_process(
             COMMAND dirname ${CMAKE_C_COMPILER}
             OUTPUT_VARIABLE ARM_TOOLCHAIN_DIR
             OUTPUT_STRIP_TRAILING_WHITESPACE
     )
-else()
+endif ()
+
+if (ARM_TOOLCHAIN_DIR AND NOT CMAKE_C_COMPILER)
     # Use ARM_TOOLCHAIN_DIR to get the compiler path
     set(CMAKE_C_COMPILER ${ARM_TOOLCHAIN_DIR}/${TOOLCHAIN_PREFIX}gcc)
-endif()
+endif ()
 
 # Set C++ compiler
 set(CMAKE_CXX_COMPILER ${ARM_TOOLCHAIN_DIR}/${TOOLCHAIN_PREFIX}g++)
