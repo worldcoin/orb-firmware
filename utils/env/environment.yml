@@ -1,7 +1,8 @@
 name: worldcoin
 channels:
-  - conda-forge
+  - fouge
   - memfault
+  - conda-forge
 dependencies:
   - make
   - python=3.9
@@ -9,5 +10,5 @@ dependencies:
   - pyserial
   - ccache
   - protobuf
-  - gcc-arm-none-eabi=8.2019.q3.update
+  - gcc-arm-none-eabi
   - pthread-stubs
