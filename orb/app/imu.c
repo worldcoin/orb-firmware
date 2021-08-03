@@ -4,7 +4,6 @@
 
 #include "imu.h"
 #include <lsm303.h>
-#include <l3g.h>
 #include <logging.h>
 #include <app_config.h>
 #include <mcu_messaging.pb.h>
