@@ -8,6 +8,7 @@
 /// Board pin-mapping
 
 #include "stm32f3xx_hal.h"
+#include <stm32f3xx_it.h>
 
 #define UC_TSC_CAP_Pin GPIO_PIN_2
 #define UC_TSC_CAP_GPIO_Port GPIOE

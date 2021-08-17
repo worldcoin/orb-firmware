@@ -11,7 +11,6 @@
 #include "task.h"
 #include "com.h"
 #include "app_config.h"
-#include <stm32f3xx_it.h>
 #include <deserializer.h>
 
 static UART_HandleTypeDef m_uart_handle;

@@ -4,7 +4,7 @@
 
 #include <compilers.h>
 #include <stdbool.h>
-#include <stm32f303xc.h>
+#include <board.h>
 #include <core_cm4.h>
 #include <FreeRTOS.h>
 #include <task.h>

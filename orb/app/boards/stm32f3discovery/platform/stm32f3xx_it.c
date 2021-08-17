@@ -22,7 +22,6 @@
 #include <compilers.h>
 #include "board.h"
 #include "stm32f3xx_it.h"
-
 #include "hardfault.h"
 
 /* Private includes ----------------------------------------------------------*/

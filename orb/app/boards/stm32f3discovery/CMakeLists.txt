@@ -1,4 +1,4 @@
-set(PROJECT_NAME "orb_app_discovery")
+set(PROJECT_NAME "orb_app_stm32f3discovery")
 
 # uncomment to mitigate c++17 absolute addresses warnings
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register")
@@ -49,6 +49,7 @@ set(ORB_SOURCES
         ./platform/${MCU_LINE}_it.c
         ./platform/${MCU_LINE}_hal_msp.c
         ./platform/${MCU_LINE}_hal_timebase_tim.c
+        ./platform/${MCU_LINE}_clocks.c
         ./platform/system_${MCU_LINE}.c
         ./platform/startup_stm32f303xc.s
         )

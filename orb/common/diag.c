@@ -33,20 +33,24 @@ reset_cause_get(void)
         reset_cause =
             RESET_CAUSE_SOFTWARE_RESET; // This reset is induced by calling the ARM CMSIS `NVIC_SystemReset()` function!
     }
+#ifdef RCC_FLAG_PORRST
     else if (__HAL_RCC_GET_FLAG(RCC_FLAG_PORRST))
     {
         reset_cause = RESET_CAUSE_POWER_ON_POWER_DOWN_RESET;
     }
+#endif
     else if (__HAL_RCC_GET_FLAG(RCC_FLAG_PINRST))
     {
         reset_cause = RESET_CAUSE_EXTERNAL_RESET_PIN_RESET;
     }
+#ifdef RCC_FLAG_BORRST
 //         Needs to come *after* checking the `RCC_FLAG_PORRST` flag in order to ensure first that the reset cause is
 //         NOT a POR/PDR reset. See note below.
-//    else if (__HAL_RCC_GET_FLAG(RCC_FLAG_BORRST))
-//    {
-//        reset_cause = RESET_CAUSE_BROWNOUT_RESET;
-//    }
+    else if (__HAL_RCC_GET_FLAG(RCC_FLAG_BORRST))
+    {
+        reset_cause = RESET_CAUSE_BROWNOUT_RESET;
+    }
+#endif
     else
     {
         reset_cause = RESET_CAUSE_UNKNOWN;

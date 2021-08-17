@@ -3,7 +3,6 @@
 #include <errors.h>
 #include <FreeRTOS.h>
 #include <task.h>
-#include <stm32f3xx_it.h>
 
 static UART_HandleTypeDef m_uart_handle;
 static DMA_HandleTypeDef m_dma_uart_tx;
@@ -17,19 +16,19 @@ static uint16_t m_chunk_size = 0;
 TaskHandle_t m_logs_task = NULL;
 
 /**
-  * @brief This function handles DMA1 channel5 global interrupt.
+  * @brief This function handles DMA for UART RX global interrupt
   */
 void
-DMA1_Channel5_IRQHandler(void)
+dma_rx_handler(void)
 {
     HAL_DMA_IRQHandler(&m_dma_uart_rx);
 }
 
 /**
-  * @brief This function handles DMA1 channel4 global interrupt.
+  * @brief This function handles DMA for UART TX global interrupt
   */
 void
-DMA1_Channel4_IRQHandler(void)
+dma_tx_handler(void)
 {
     HAL_DMA_IRQHandler(&m_dma_uart_tx);
 }
@@ -38,7 +37,7 @@ DMA1_Channel4_IRQHandler(void)
   * @brief This function handles USART1 global interrupt / USART1 wake-up interrupt through EXTI line 25.
   */
 void
-USART1_IRQHandler(void)
+usart_handler(void)
 {
     HAL_UART_IRQHandler(&m_uart_handle);
 }
