@@ -30,9 +30,7 @@ vApplicationIdleHook(void)
 _Noreturn __unused static void
 test_task(void *t)
 {
-    ret_code_t err_code;
-    PowerButton button = {.pressed = OnOff_OFF};
-    BatteryVoltage bat = {.battery_mvolts = 3700};
+
     vTaskDelay(500);
 
     LOG_DEBUG("Setting new data from test_task");
@@ -40,6 +38,11 @@ test_task(void *t)
     while (1)
     {
         vTaskDelay(1000);
+
+#ifdef STM32F3_DISCOVERY
+        ret_code_t err_code;
+        PowerButton button = {.pressed = OnOff_OFF};
+        BatteryVoltage bat = {.battery_mvolts = 3700};
 
         err_code =
             data_queue_message_payload(McuToJetson_power_button_tag, &button, sizeof(button));
@@ -53,6 +56,10 @@ test_task(void *t)
         ASSERT(err_code);
 
         bat.battery_mvolts += 1;
+#else
+        LOG_WARNING("Not sending data to Jetson");
+        vTaskDelay(9000);
+#endif
     }
 
     // task delete itself
