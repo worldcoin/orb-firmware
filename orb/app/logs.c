@@ -3,6 +3,15 @@
 #include <errors.h>
 #include <FreeRTOS.h>
 #include <task.h>
+#include <string.h>
+
+#define dma_rx_handler  dma_rx(_IRQHandler)
+#define dma_tx_handler  dma_tx(_IRQHandler)
+#define usart_handler   usart(_IRQHandler)
+
+#define dma_rx_irqn  dma_rx(_IRQn)
+#define dma_tx_irqn  dma_tx(_IRQn)
+#define usart_irqn   usart(_IRQn)
 
 static UART_HandleTypeDef m_uart_handle;
 static DMA_HandleTypeDef m_dma_uart_tx;
@@ -172,7 +181,7 @@ int fputc(int ch, FILE *f)
 #endif
 
 static void
-logs_further_init(UART_HandleTypeDef *huart)
+logs_msp_init(UART_HandleTypeDef *huart)
 {
     GPIO_InitTypeDef init = {0};
 
@@ -193,7 +202,10 @@ logs_further_init(UART_HandleTypeDef *huart)
 
     /* USART1 DMA Init */
     /* USART1_RX Init */
-    m_dma_uart_rx.Instance = DMA1_Channel5;
+    m_dma_uart_rx.Instance = dma_rx();
+#ifdef STM32G4
+    m_dma_uart_rx.Init.Request = DMA_REQUEST_USART1_RX;
+#endif
     m_dma_uart_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
     m_dma_uart_rx.Init.PeriphInc = DMA_PINC_DISABLE;
     m_dma_uart_rx.Init.MemInc = DMA_MINC_ENABLE;
@@ -208,7 +220,10 @@ logs_further_init(UART_HandleTypeDef *huart)
     __HAL_LINKDMA(huart, hdmarx, m_dma_uart_rx);
 
     /* USART1_TX Init */
-    m_dma_uart_tx.Instance = DMA1_Channel4;
+    m_dma_uart_tx.Instance = dma_tx();
+#ifdef STM32G4
+    m_dma_uart_tx.Init.Request = DMA_REQUEST_USART1_TX;
+#endif
     m_dma_uart_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
     m_dma_uart_tx.Init.PeriphInc = DMA_PINC_DISABLE;
     m_dma_uart_tx.Init.MemInc = DMA_MINC_ENABLE;
@@ -258,18 +273,23 @@ uint32_t
 logs_init(void)
 {
     /* DMA controller clock enable */
+#ifdef STM32G4
+    __HAL_RCC_DMAMUX1_CLK_ENABLE();
+#endif
     __HAL_RCC_DMA1_CLK_ENABLE();
 
     /* DMA interrupt init */
     /* DMA1_Channel4_IRQn interrupt configuration */
-    HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
+    HAL_NVIC_SetPriority(dma_rx_irqn, 5, 0);
+    HAL_NVIC_EnableIRQ(dma_rx_irqn);
     /* DMA1_Channel5_IRQn interrupt configuration */
-    HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
+    HAL_NVIC_SetPriority(dma_tx_irqn, 5, 0);
+    HAL_NVIC_EnableIRQ(dma_tx_irqn);
+
+    memset(&m_uart_handle, 0, sizeof m_uart_handle);
 
     /* USART 1 init */
-    m_uart_handle.Instance = USART1;
+    m_uart_handle.Instance = usart();
     m_uart_handle.Init.BaudRate = 115200;
     m_uart_handle.Init.WordLength = UART_WORDLENGTH_8B;
     m_uart_handle.Init.StopBits = UART_STOPBITS_1;
@@ -278,18 +298,30 @@ logs_init(void)
     m_uart_handle.Init.HwFlowCtl = UART_HWCONTROL_NONE;
     m_uart_handle.Init.OverSampling = UART_OVERSAMPLING_16;
     m_uart_handle.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+    // m_uart_handle.Init.ClockPrescaler = UART_PRESCALER_DIV1;
     m_uart_handle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-    m_uart_handle.MspInitCallback = logs_further_init;
+    m_uart_handle.MspInitCallback = logs_msp_init;
 
     HAL_StatusTypeDef err_code = HAL_UART_Init(&m_uart_handle);
     ASSERT(err_code);
 
+#if 0
+    err_code = HAL_UARTEx_SetTxFifoThreshold(&m_uart_handle, UART_TXFIFO_THRESHOLD_1_8);
+    ASSERT(err_code);
+
+    err_code = HAL_UARTEx_SetRxFifoThreshold(&m_uart_handle, UART_RXFIFO_THRESHOLD_1_8);
+    ASSERT(err_code);
+
+    err_code =  HAL_UARTEx_DisableFifoMode(&m_uart_handle);
+    ASSERT(err_code);
+#endif
+
     HAL_UART_RegisterCallback(&m_uart_handle, HAL_UART_TX_COMPLETE_CB_ID, tx_done_cb);
     HAL_UART_RegisterCallback(&m_uart_handle, HAL_UART_RX_COMPLETE_CB_ID, rx_done_cb);
 
-    /* USART1 interrupt Init */
-    HAL_NVIC_SetPriority(USART1_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(USART1_IRQn);
+    /* USART interrupt Init */
+    HAL_NVIC_SetPriority(usart_irqn, 5, 0);
+    HAL_NVIC_EnableIRQ(usart_irqn);
 
     xTaskCreate(flush_tx, "logs", 128, NULL, (tskIDLE_PRIORITY + 1), &m_logs_task);
 
