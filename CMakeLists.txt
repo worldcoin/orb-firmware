@@ -12,7 +12,6 @@ if(CMAKE_C_COMPILER MATCHES "arm-none-eabi-gcc$")
     include(${CMAKE_TOOLCHAIN_FILE})
     message(STATUS "Building for ARM microcontroller")
 
-    add_subdirectory(orb/app/boards/orb_v1)
     add_subdirectory(orb/app/boards/stm32f3discovery)
     add_subdirectory(orb/app/boards/stm32g4discovery)
 endif()
