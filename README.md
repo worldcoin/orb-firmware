@@ -49,8 +49,32 @@ To install the environment:
 conda env create -f utils/env/environment.yml
 ```
 
+In case you need to update to latest environment:
+
+```shell
+conda env update -f utils/env/environment.yml
+```
+
 Then activate:
 
 ```shell
 conda activate worldcoin
+```
+
+### Flash target
+
+```shell
+make flash stm32g4discovery
+```
+
+### Debug
+
+> 💡 [More details](utils/debug/README.md).
+
+#### Printing logs
+
+Pass the port to listen to instead of `/dev/tty.usbmodem22203` in the line below:
+
+```shell
+make logs /dev/tty.usbmodem22203
 ```

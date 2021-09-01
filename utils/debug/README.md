@@ -25,3 +25,4 @@ $ python uart_dump.py -p /dev/tty.usbmodem22203 -b 115200
 
 ## OpenOCD
 
+A [config file for the STM32G4-discovery board](stm32g4discovery.cfg) is ready to be used with OpenOCD v0.11.0.
