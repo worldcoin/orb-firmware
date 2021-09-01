@@ -75,7 +75,7 @@ void
 EXTI15_10_IRQHandler(void);
 
 void
-USART1_IRQHandler(void);
+USART3_IRQHandler(void);
 
 /* USER CODE BEGIN EFP */
 

@@ -186,25 +186,25 @@ logs_msp_init(UART_HandleTypeDef *huart)
     GPIO_InitTypeDef init = {0};
 
     /* Peripheral clock enable */
-    __HAL_RCC_USART1_CLK_ENABLE();
+    __HAL_RCC_USART3_CLK_ENABLE();
 
     __HAL_RCC_GPIOC_CLK_ENABLE();
-    /**USART1 GPIO Configuration
-    PC4     ------> USART1_TX
-    PC5     ------> USART1_RX
+    /**USART GPIO Configuration
+    PC10     ------> USART TX
+    PC11     ------> USART RX
     */
-    init.Pin = GPIO_PIN_4 | GPIO_PIN_5;
+    init.Pin = GPIO_PIN_10 | GPIO_PIN_11;
     init.Mode = GPIO_MODE_AF_PP;
     init.Pull = GPIO_NOPULL;
     init.Speed = GPIO_SPEED_FREQ_HIGH;
-    init.Alternate = GPIO_AF7_USART1;
+    init.Alternate = GPIO_AF7_USART3;
     HAL_GPIO_Init(GPIOC, &init);
 
-    /* USART1 DMA Init */
-    /* USART1_RX Init */
+    /* USART DMA Init */
+    /* USART RX Init */
     m_dma_uart_rx.Instance = dma_rx();
 #ifdef STM32G4
-    m_dma_uart_rx.Init.Request = DMA_REQUEST_USART1_RX;
+    m_dma_uart_rx.Init.Request = DMA_REQUEST_USART3_RX;
 #endif
     m_dma_uart_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
     m_dma_uart_rx.Init.PeriphInc = DMA_PINC_DISABLE;
@@ -219,10 +219,10 @@ logs_msp_init(UART_HandleTypeDef *huart)
 
     __HAL_LINKDMA(huart, hdmarx, m_dma_uart_rx);
 
-    /* USART1_TX Init */
+    /* USART TX Init */
     m_dma_uart_tx.Instance = dma_tx();
 #ifdef STM32G4
-    m_dma_uart_tx.Init.Request = DMA_REQUEST_USART1_TX;
+    m_dma_uart_tx.Init.Request = DMA_REQUEST_USART3_TX;
 #endif
     m_dma_uart_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
     m_dma_uart_tx.Init.PeriphInc = DMA_PINC_DISABLE;

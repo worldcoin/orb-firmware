@@ -13,7 +13,7 @@
 
 #define dma_rx(x)             DMA1_Channel1 ## x
 #define dma_tx(x)             DMA1_Channel2 ## x
-#define usart(x)              USART1 ## x
+#define usart(x)              USART3 ## x
 
 #ifndef DEBUG_UART_TX_BUFFER_SIZE
 #define DEBUG_UART_TX_BUFFER_SIZE   ((uint16_t) 512)
