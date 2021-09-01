@@ -1,6 +1,7 @@
 name: worldcoin
 channels:
   - fouge
+  - litex-hub
   - memfault
   - conda-forge
 dependencies:
@@ -12,3 +13,4 @@ dependencies:
   - protobuf
   - gcc-arm-none-eabi
   - pthread-stubs
+  - openocd
