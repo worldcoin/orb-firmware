@@ -16,10 +16,6 @@ stm32g4discovery: build/
 	cmake $(CMAKE_ARM_GCC) . -B build
 	cmake --build build --target orb_app_$@.elf
 
-stm32f3discovery: build/
-	cmake $(CMAKE_ARM_GCC) . -B build
-	cmake --build build --target orb_app_$@.elf
-
 # you can use `flash` along with another target from above
 # for example:
 #   make flash stm32g4discovery
