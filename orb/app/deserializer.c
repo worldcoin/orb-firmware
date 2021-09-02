@@ -44,6 +44,10 @@ deserializer_unpack_push(uint8_t *buffer, size_t length)
             return RET_ERROR_NO_MEM;
         }
     }
+    else
+    {
+        return RET_ERROR_INTERNAL;
+    }
 
     return RET_SUCCESS;
 }

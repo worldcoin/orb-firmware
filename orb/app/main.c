@@ -38,7 +38,7 @@ test_task(void *t)
 
     while (1)
     {
-        vTaskDelay(1000);
+        vTaskDelay(3000);
 
         ret_code_t err_code;
         PowerButton button = {.pressed = OnOff_OFF};
@@ -50,7 +50,7 @@ test_task(void *t)
 
         button.pressed = (1 - button.pressed);
 
-        vTaskDelay(1000);
+        vTaskDelay(3000);
 
         err_code = data_queue_message_payload(McuToJetson_battery_voltage_tag, &bat, sizeof(bat));
         ASSERT(err_code);

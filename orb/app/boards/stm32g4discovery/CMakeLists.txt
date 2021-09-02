@@ -37,7 +37,6 @@ set(ORB_SOURCES
         ${SDK_ROOT}/orb/app/data_provider.c
         ${SDK_ROOT}/orb/app/deserializer.c
         ${SDK_ROOT}/orb/app/freertos.c
-#        ${SDK_ROOT}/orb/app/imu.c
         ${SDK_ROOT}/orb/app/main.c
         ${SDK_ROOT}/orb/app/logs.c
         ${SDK_ROOT}/orb/app/serializer.c
@@ -93,6 +92,7 @@ set(SOURCES
         ${SDK_ROOT}/external/nanopb/pb_common.c
         ${SDK_ROOT}/external/nanopb/pb_decode.c
         ${SDK_ROOT}/external/nanopb/pb_encode.c
+        ${SDK_ROOT}/external/isotp-c/isotp.c
         )
 
 set_source_files_properties(./platform/startup_stm32g474xx.s PROPERTIES COMPILE_FLAGS "-x assembler-with-cpp")
@@ -111,6 +111,7 @@ set(INC_DIRS
         ${SDK_ROOT}/components/Drivers/CMSIS/Include
         ${SDK_ROOT}/external/microcontroller-messaging-proto/c
         ${SDK_ROOT}/external/nanopb
+        ${SDK_ROOT}/external/isotp-c
         )
 
 project(${PROJECT_NAME} C ASM)
