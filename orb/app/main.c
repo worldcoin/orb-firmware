@@ -12,6 +12,7 @@
 #include <app_config.h>
 #include <imu.h>
 #include <diag.h>
+#include <can_bus.h>
 #include "board.h"
 #include "errors.h"
 #include "version.h"
@@ -39,7 +40,6 @@ test_task(void *t)
     {
         vTaskDelay(1000);
 
-#ifdef STM32F3_DISCOVERY
         ret_code_t err_code;
         PowerButton button = {.pressed = OnOff_OFF};
         BatteryVoltage bat = {.battery_mvolts = 3700};
@@ -56,10 +56,6 @@ test_task(void *t)
         ASSERT(err_code);
 
         bat.battery_mvolts += 1;
-#else
-        LOG_WARNING("Not sending data to Jetson");
-        vTaskDelay(9000);
-#endif
     }
 
     // task delete itself
@@ -105,6 +101,7 @@ main(void)
     imu_init();
     imu_start();
 #endif
+    can_init();
 
     control_init();
 

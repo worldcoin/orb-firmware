@@ -77,6 +77,10 @@ EXTI15_10_IRQHandler(void);
 void
 USART3_IRQHandler(void);
 
+// CAN module
+void
+FDCAN1_IT0_IRQHandler(void);;
+
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */

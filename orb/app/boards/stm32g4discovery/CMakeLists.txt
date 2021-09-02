@@ -33,7 +33,7 @@ set(MCU_LINE stm32g4xx)
 set(FREERTOS_DIR ${SDK_ROOT}/external/freertos)
 set(ORB_SOURCES
         ${SDK_ROOT}/orb/app/control.c
-#        ${SDK_ROOT}/orb/app/com.c
+        ${SDK_ROOT}/orb/app/can_bus.c
         ${SDK_ROOT}/orb/app/data_provider.c
         ${SDK_ROOT}/orb/app/deserializer.c
         ${SDK_ROOT}/orb/app/freertos.c
@@ -68,6 +68,7 @@ set(SOURCES
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_pwr.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_pwr_ex.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_exti.c
+        ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_fdcan.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_flash.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_flash_ex.c
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Src/${MCU_LINE}_hal_i2c.c
