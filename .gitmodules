@@ -10,3 +10,6 @@
 [submodule "external/googletest"]
 	path = external/googletest
 	url = https://github.com/google/googletest
+[submodule "external/isotp-c"]
+	path = external/isotp-c
+	url = https://github.com/lishen2/isotp-c
