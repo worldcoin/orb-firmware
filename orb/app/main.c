@@ -12,7 +12,7 @@
 #include <app_config.h>
 #include <imu.h>
 #include <diag.h>
-#include <can_bus.h>
+#include <can.h>
 #include "board.h"
 #include "errors.h"
 #include "version.h"

@@ -2,19 +2,19 @@
 // Created by Cyril on 02/09/2021.
 //
 
-#include "can_bus.h"
+#include "can.h"
 #include <board.h>
 #include <errors.h>
 #include <serializer.h>
 #include <logging.h>
+#include <compilers.h>
 #include "FreeRTOS.h"
 #include "task.h"
 
-static FDCAN_HandleTypeDef m_fdcan_handle;
-static FDCAN_FilterTypeDef m_filter_fifo0_config;
+static FDCAN_HandleTypeDef m_fdcan_handle = {0};
 
-static TaskHandle_t m_com_tx_task_handle = NULL;
-static TaskHandle_t m_com_rx_task_handle = NULL;
+static TaskHandle_t m_can_tx_task_handle = NULL;
+static TaskHandle_t m_can_rx_task_handle = NULL;
 
 static uint8_t m_tx_buffer[64] = {0};
 static uint8_t m_rx_buffer[64] = {0};
@@ -32,7 +32,7 @@ static void
 tx_done_cb(FDCAN_HandleTypeDef *hfdcan, uint32_t BufferIndexes)
 {
     BaseType_t switch_to_higher_priority_task = pdFALSE;
-    vTaskNotifyGiveFromISR(m_com_tx_task_handle, &switch_to_higher_priority_task);
+    vTaskNotifyGiveFromISR(m_can_tx_task_handle, &switch_to_higher_priority_task);
 
     portYIELD_FROM_ISR(switch_to_higher_priority_task);
 }
@@ -45,7 +45,7 @@ can_tx_task(void *t)
     uint8_t message_marker = 0;
 
     // init notification as ready
-    xTaskNotifyGive(m_com_tx_task_handle);
+    xTaskNotifyGive(m_can_tx_task_handle);
 
     while (1)
     {
@@ -68,7 +68,7 @@ can_tx_task(void *t)
             {
                 FDCAN_TxHeaderTypeDef tx_header = {0};
 
-                tx_header.Identifier = 0x111;
+                tx_header.Identifier = 0x100;
                 tx_header.IdType = FDCAN_STANDARD_ID;
                 tx_header.TxFrameType = FDCAN_DATA_FRAME;
                 tx_header.DataLength = FDCAN_DLC_BYTES_64;
@@ -95,14 +95,16 @@ can_tx_task(void *t)
 
 /// 💥 ISR context
 /// \param hfdcan
-/// \param RxFifo0ITs
+/// \param rx_fifo0_it
 static void
-rx_done_cb(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
+rx_done_cb(FDCAN_HandleTypeDef *hfdcan, uint32_t rx_fifo0_it)
 {
-    if((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != 0)
+    UNUSED_PARAMETER(hfdcan);
+
+    if((rx_fifo0_it & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != 0)
     {
         BaseType_t switch_to_higher_priority_task = pdFALSE;
-        vTaskNotifyGiveFromISR(m_com_rx_task_handle, &switch_to_higher_priority_task);
+        vTaskNotifyGiveFromISR(m_can_rx_task_handle, &switch_to_higher_priority_task);
 
         // If switch_to_higher_priority_task is now set to pdTRUE then a context switch
         // should be performed to ensure the interrupt returns directly to the highest
@@ -117,7 +119,7 @@ can_rx_task(void *t)
 {
     uint32_t notifications = 0;
     uint32_t err_code;
-    FDCAN_RxHeaderTypeDef RxHeader;
+    FDCAN_RxHeaderTypeDef rx_header = {0};
 
     while (1)
     {
@@ -126,13 +128,15 @@ can_rx_task(void *t)
         if (notifications)
         {
             memset(m_rx_buffer, 0, sizeof(m_rx_buffer));
+            memset((uint8_t *) &rx_header, 0, sizeof(rx_header));
 
-            err_code = HAL_FDCAN_GetRxMessage(&m_fdcan_handle, FDCAN_RX_FIFO0, &RxHeader, m_rx_buffer);
+            err_code = HAL_FDCAN_GetRxMessage(&m_fdcan_handle, FDCAN_RX_FIFO0, &rx_header, m_rx_buffer);
             if (err_code == HAL_OK)
             {
-
                 LOG_DEBUG("Received: 0x%02x 0x%02x 0x%02x 0x%02x", m_rx_buffer[0], m_rx_buffer[1], m_rx_buffer[2], m_rx_buffer[3]);
             }
+
+
         }
     }
 }
@@ -187,23 +191,19 @@ can_init(void)
     err_code = HAL_FDCAN_Init(&m_fdcan_handle);
     ASSERT(err_code);
 
-    m_fdcan_handle.TxBufferCompleteCallback = tx_done_cb;
-    m_fdcan_handle.RxFifo0Callback = rx_done_cb;
-
-    HAL_NVIC_SetPriority(FDCAN1_IT0_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(FDCAN1_IT0_IRQn);
-
     // configure FDCAN filter for RX FIFO0
+    // Arbitration phase: priority given to lower number identifiers over higher number identifiers.
     // Filter config:
     //   - Store in Rx FIFO0 if message has standard ID that equals `FilterID1` or `FilterID2`
-    m_filter_fifo0_config.IdType = FDCAN_STANDARD_ID;
-    m_filter_fifo0_config.FilterIndex = 0;
-    m_filter_fifo0_config.FilterType = FDCAN_FILTER_DUAL;
-    m_filter_fifo0_config.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-    m_filter_fifo0_config.FilterID1 = 0x111;
-    m_filter_fifo0_config.FilterID2 = 0x222;
+    FDCAN_FilterTypeDef filter_fifo0_config = {0};
+    filter_fifo0_config.IdType = FDCAN_STANDARD_ID;
+    filter_fifo0_config.FilterIndex = 0;
+    filter_fifo0_config.FilterType = FDCAN_FILTER_DUAL;
+    filter_fifo0_config.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+    filter_fifo0_config.FilterID1 = 0x100;
+    filter_fifo0_config.FilterID2 = 0x200;
 
-    err_code = HAL_FDCAN_ConfigFilter(&m_fdcan_handle, &m_filter_fifo0_config);
+    err_code = HAL_FDCAN_ConfigFilter(&m_fdcan_handle, &filter_fifo0_config);
     ASSERT(err_code);
 
     // all non-matching frames are rejected
@@ -216,15 +216,27 @@ can_init(void)
                                             FDCAN_REJECT_REMOTE);
     ASSERT(err_code);
 
-    // enable interrupt HAL_FDCAN_TxBufferCompleteCallback
-    HAL_FDCAN_ActivateNotification(&m_fdcan_handle,
+    // register interrupt callbacks
+    err_code = HAL_FDCAN_RegisterTxBufferCompleteCallback(&m_fdcan_handle, tx_done_cb);
+    ASSERT(err_code);
+
+    err_code = HAL_FDCAN_RegisterRxFifo0Callback(&m_fdcan_handle, rx_done_cb);
+    ASSERT(err_code);
+
+    // enable interrupt line
+    HAL_NVIC_SetPriority(FDCAN1_IT0_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(FDCAN1_IT0_IRQn);
+
+    // enable interrupts
+    err_code = HAL_FDCAN_ActivateNotification(&m_fdcan_handle,
                                    FDCAN_IT_TX_COMPLETE,
                                    FDCAN_TX_BUFFER0 | FDCAN_TX_BUFFER1 | FDCAN_TX_BUFFER2);
+    ASSERT(err_code);
 
-    // enable interrupt HAL_FDCAN_RxFifo0Callback
-    HAL_FDCAN_ActivateNotification(&m_fdcan_handle,
+    err_code = HAL_FDCAN_ActivateNotification(&m_fdcan_handle,
                                    FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_RX_FIFO0_MESSAGE_LOST,
                                    0);
+    ASSERT(err_code);
 
     // start FDCAN controller, listening CAN bus
     err_code = HAL_FDCAN_Start(&m_fdcan_handle);
@@ -236,7 +248,7 @@ can_init(void)
                                                256,
                                                NULL,
                                                (tskIDLE_PRIORITY + 2),
-                                               &m_com_tx_task_handle);
+                                               &m_can_tx_task_handle);
     ASSERT_BOOL(freertos_err_code == pdTRUE);
 
     freertos_err_code = xTaskCreate(can_rx_task,
@@ -244,6 +256,6 @@ can_init(void)
                                     256,
                                     NULL,
                                     (tskIDLE_PRIORITY + 2),
-                                    &m_com_rx_task_handle);
+                                    &m_can_rx_task_handle);
     ASSERT_BOOL(freertos_err_code == pdTRUE);
 }
