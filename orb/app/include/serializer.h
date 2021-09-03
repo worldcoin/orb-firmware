@@ -18,12 +18,12 @@
 /// \param length Maximum length of the \c buffer passed
 /// \return size of used bytes into the buffer. 0 if there is no data to pack.
 uint32_t
-serializer_pack_next_blocking(uint8_t *buffer, size_t length);
+serializer_pull_next(uint8_t *buffer, size_t length);
 
 /// Push new structure into the serializer to be sent when possible
 /// - Thread-safe
 /// - Do not use from ISR
-/// - Data is copied into internal buffer, ready to be packed, \see serializer_pack_next_blocking
+/// - Data is copied into internal buffer, ready to be packed, \see serializer_pull_next
 /// \param data Pointer to structure to be serialized, will be copied into internal buffer
 /// \return \c RET_SUCCESS on success, \c RET_ERROR_NO_MEM if serializer is full and data cannot be pushed.
 ret_code_t

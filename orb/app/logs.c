@@ -4,6 +4,7 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include <string.h>
+#include <app_config.h>
 
 #define dma_rx_handler  dma_rx(_IRQHandler)
 #define dma_tx_handler  dma_tx(_IRQHandler)

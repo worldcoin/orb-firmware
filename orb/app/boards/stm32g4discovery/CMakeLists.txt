@@ -33,13 +33,14 @@ set(MCU_LINE stm32g4xx)
 set(FREERTOS_DIR ${SDK_ROOT}/external/freertos)
 set(ORB_SOURCES
         ${SDK_ROOT}/orb/app/control.c
-        ${SDK_ROOT}/orb/app/can.c
+        ${SDK_ROOT}/orb/app/can_bus.c
         ${SDK_ROOT}/orb/app/data_provider.c
         ${SDK_ROOT}/orb/app/deserializer.c
         ${SDK_ROOT}/orb/app/freertos.c
         ${SDK_ROOT}/orb/app/main.c
         ${SDK_ROOT}/orb/app/logs.c
         ${SDK_ROOT}/orb/app/serializer.c
+        ${SDK_ROOT}/orb/app/sync.c
         ${SDK_ROOT}/orb/app/watchdog.c
         ${SDK_ROOT}/orb/common/diag.c
         ${SDK_ROOT}/orb/common/errors.c

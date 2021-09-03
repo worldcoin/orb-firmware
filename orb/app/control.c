@@ -6,14 +6,24 @@
 #include <task.h>
 #include <deserializer.h>
 #include <logging.h>
+#include <can_bus.h>
 #include "control.h"
 
 TaskHandle_t m_control_task_handle = NULL;
+
+static void
+rx_complete_cb(uint8_t *data, size_t len)
+{
+    ret_code_t err_code = deserializer_unpack_push(data, len);
+    ASSERT(err_code);
+}
 
 _Noreturn static void
 control_task(void *t)
 {
     McuMessage data = {0};
+
+    can_bind(CAN_ID_JETSON_COMMANDS_PROTOBUF_FRAMES, NULL, rx_complete_cb);
 
     while (1)
     {
@@ -36,18 +46,19 @@ control_task(void *t)
                 {
 
                 }
-                break;
+                    break;
 
                 case JetsonToMcu_brightness_front_leds_tag:
                 {
-                    LOG_INFO("Brightness: %lu", data.message.j_message.payload.brightness_front_leds.white_leds);
+                    LOG_INFO("Brightness: %lu",
+                             data.message.j_message.payload.brightness_front_leds.white_leds);
                 }
-                break;
-
+                    break;
 
                 default:
                 {
-                    LOG_ERROR("Unhandled control data type: 0x%x", data.message.j_message.which_payload);
+                    LOG_ERROR("Unhandled control data type: 0x%x",
+                              data.message.j_message.which_payload);
                 }
             }
         }

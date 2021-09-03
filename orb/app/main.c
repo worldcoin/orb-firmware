@@ -13,6 +13,7 @@
 #include <imu.h>
 #include <diag.h>
 #include <can.h>
+#include <sync.h>
 #include "board.h"
 #include "errors.h"
 #include "version.h"
@@ -102,6 +103,7 @@ main(void)
     imu_start();
 #endif
     can_init();
+    sync_init();
 
     control_init();
 

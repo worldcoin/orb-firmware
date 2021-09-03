@@ -35,7 +35,7 @@ encode(pb_ostream_t *stream, McuMessage *pb_struct)
 }
 
 uint32_t
-serializer_pack_next_blocking(uint8_t *buffer, size_t length)
+serializer_pull_next(uint8_t *buffer, size_t length)
 {
     ASSERT_BOOL(m_queue_handle != 0);
 
