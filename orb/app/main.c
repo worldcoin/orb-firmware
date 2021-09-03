@@ -1,6 +1,5 @@
 #include <logs.h>
 #include <logging.h>
-#include <com.h>
 #include <FreeRTOS.h>
 #include <task.h>
 #include <data_provider.h>
@@ -10,10 +9,9 @@
 #include <serializer.h>
 #include <watchdog.h>
 #include <app_config.h>
-#include <imu.h>
 #include <diag.h>
-#include <can.h>
 #include <sync.h>
+#include <can_bus.h>
 #include "board.h"
 #include "errors.h"
 #include "version.h"

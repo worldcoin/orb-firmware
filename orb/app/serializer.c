@@ -8,7 +8,6 @@
 #include <mcu_messaging.pb.h>
 #include <logging.h>
 #include <pb_decode.h>
-#include <com.h>
 #include <errors.h>
 #include <FreeRTOS.h>
 #include <queue.h>
