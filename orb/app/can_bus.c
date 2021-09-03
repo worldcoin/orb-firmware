@@ -148,66 +148,6 @@ FDCAN1_IT0_IRQHandler(void)
     HAL_FDCAN_IRQHandler(&m_fdcan_handle);
 }
 
-/// TX transaction has been performed
-/// 💥 ISR context
-/// \param hfdcan
-/// \param BufferIndexes
-static void
-tx_done_cb(FDCAN_HandleTypeDef *hfdcan, uint32_t BufferIndexes)
-{
-    BaseType_t switch_to_higher_priority_task = pdFALSE;
-
-    // One TX transaction over, unblocking can_process_task to see if tx pending
-    vTaskNotifyGiveFromISR(m_can_process_task_handle, &switch_to_higher_priority_task);
-
-    portYIELD_FROM_ISR(switch_to_higher_priority_task);
-}
-
-void
-can_bind(can_id_t e_id,
-         void (*tx_complete_cb)(ret_code_t),
-         void (*rx_complete_cb)(uint8_t *data, size_t len))
-{
-    memset(&m_isotp[e_id], 0, sizeof(can_isotp_obj_t));
-
-    isotp_init_link(&m_isotp[e_id].isotp_handle, (e_id + CAN_ID_BASE),
-                    m_isotp[e_id].tx_buffer, sizeof(m_isotp[e_id].tx_buffer),
-                    m_isotp[e_id].rx_buffer, sizeof(m_isotp[e_id].rx_buffer));
-
-    m_isotp[e_id].tx_complete_cb = tx_complete_cb;
-    m_isotp[e_id].rx_complete_cb = rx_complete_cb;
-    m_isotp[e_id].is_init = true;
-}
-
-ret_code_t
-can_send(can_id_t e_id, uint8_t *data, uint16_t len)
-{
-    int ret;
-
-    if (!m_isotp[e_id].is_init)
-    {
-        // not binded, call can_bind
-        return RET_ERROR_INVALID_STATE;
-    }
-    else if (m_isotp[e_id].tx_busy)
-    {
-        // cannot send at the moment, busy
-        return RET_ERROR_BUSY;
-    }
-
-    ret = isotp_send_with_id(&m_isotp[e_id].isotp_handle, (e_id + CAN_ID_BASE), data, len);
-    if (ret != ISOTP_RET_OK)
-    {
-        // TODO parse error message
-    }
-    else
-    {
-        m_isotp[e_id].tx_busy = true;
-    }
-
-    return RET_SUCCESS;
-}
-
 /// 💥 ISR context
 /// \param hfdcan
 /// \param rx_fifo0_it
@@ -254,6 +194,7 @@ rx_done_cb(FDCAN_HandleTypeDef *hfdcan, uint32_t rx_fifo0_it)
 _Noreturn static void
 can_rx_task(void *t)
 {
+    UNUSED_PARAMETER(t);
     rx_message_t msg;
 
     while (1)
@@ -286,9 +227,29 @@ can_rx_task(void *t)
     }
 }
 
+/// TX transaction has been performed
+/// 💥 ISR context
+/// \param hfdcan
+/// \param BufferIndexes
+static void
+tx_done_cb(FDCAN_HandleTypeDef *hfdcan, uint32_t BufferIndexes)
+{
+    UNUSED_PARAMETER(hfdcan);
+    UNUSED_PARAMETER(BufferIndexes);
+
+    BaseType_t switch_to_higher_priority_task = pdFALSE;
+
+    // One TX transaction over, unblocking can_process_task to see if tx pending
+    vTaskNotifyGiveFromISR(m_can_process_task_handle, &switch_to_higher_priority_task);
+
+    portYIELD_FROM_ISR(switch_to_higher_priority_task);
+}
+
 _Noreturn static void
 can_process_task(void *t)
 {
+    UNUSED_PARAMETER(t);
+
     int32_t delay = ISO_TP_DEFAULT_RESPONSE_TIMEOUT;
 
     xTaskNotifyGive(m_can_process_task_handle);
@@ -332,20 +293,69 @@ can_process_task(void *t)
             {
                 LOG_ERROR("Error sending (ID 0x%03x), aborting", CAN_ID_BASE + i);
 
-                // reset structure
+                // warn user
                 if (m_isotp[i].tx_complete_cb)
                 {
                     m_isotp[i].tx_complete_cb(RET_ERROR_INTERNAL);
                 }
+
+                // reset structure
                 memset(&m_isotp[i], 0, sizeof(can_isotp_obj_t));
             }
         }
     }
 }
 
+void
+can_bind(can_id_t e_id,
+         void (*tx_complete_cb)(ret_code_t),
+         void (*rx_complete_cb)(uint8_t *, size_t))
+{
+    memset(&m_isotp[e_id], 0, sizeof(can_isotp_obj_t));
+
+    isotp_init_link(&m_isotp[e_id].isotp_handle, (e_id + CAN_ID_BASE),
+                    m_isotp[e_id].tx_buffer, sizeof(m_isotp[e_id].tx_buffer),
+                    m_isotp[e_id].rx_buffer, sizeof(m_isotp[e_id].rx_buffer));
+
+    m_isotp[e_id].tx_complete_cb = tx_complete_cb;
+    m_isotp[e_id].rx_complete_cb = rx_complete_cb;
+    m_isotp[e_id].is_init = true;
+}
+
+ret_code_t
+can_send(can_id_t e_id, uint8_t *data, uint16_t len)
+{
+    int ret;
+
+    if (!m_isotp[e_id].is_init)
+    {
+        // not bound, call can_bind
+        return RET_ERROR_INVALID_STATE;
+    }
+    else if (m_isotp[e_id].tx_busy)
+    {
+        // cannot send at the moment, busy
+        return RET_ERROR_BUSY;
+    }
+
+    ret = isotp_send_with_id(&m_isotp[e_id].isotp_handle, (e_id + CAN_ID_BASE), data, len);
+    if (ret != ISOTP_RET_OK)
+    {
+        // TODO parse error message
+    }
+    else
+    {
+        m_isotp[e_id].tx_busy = true;
+    }
+
+    return RET_SUCCESS;
+}
+
 static void
 fdcan_msp_init(FDCAN_HandleTypeDef *hfdcan)
 {
+    UNUSED_PARAMETER(hfdcan);
+
     GPIO_InitTypeDef init = {0};
 
     /* Peripheral clock enable */

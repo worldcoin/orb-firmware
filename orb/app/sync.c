@@ -9,6 +9,7 @@
 #include <board.h>
 #include <logging.h>
 #include <app_config.h>
+#include <compilers.h>
 #include "sync.h"
 
 static TaskHandle_t m_sync_task_handle = NULL;
@@ -46,7 +47,9 @@ tx_complete_cb(ret_code_t err_code)
 _Noreturn static void
 sync_task(void *t)
 {
-    uint32_t ready = 0;
+    UNUSED_PARAMETER(t);
+
+    uint32_t ready;
     ret_code_t err_code;
 
     // init as ready
