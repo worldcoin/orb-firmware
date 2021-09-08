@@ -1,15 +1,16 @@
 [submodule "external/nanopb"]
 	path = external/nanopb
 	url = https://github.com/nanopb/nanopb
-[submodule "external/microcontroller-messaging-proto"]
-	path = external/microcontroller-messaging-proto
-	url = ../../microcontroller/microcontroller-messaging-proto.git
 [submodule "external/freertos"]
 	path = external/freertos
 	url = https://github.com/FreeRTOS/FreeRTOS-Kernel.git
 [submodule "external/googletest"]
 	path = external/googletest
 	url = https://github.com/google/googletest
+[submodule "external/protobuf-definitions"]
+	path = external/protobuf-definitions
+	url = git@github.com:worldcoin/protobuf-definitions.git
 [submodule "external/isotp-c"]
 	path = external/isotp-c
 	url = https://github.com/lishen2/isotp-c
+
