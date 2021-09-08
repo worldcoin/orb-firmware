@@ -42,9 +42,7 @@ set(ORB_SOURCES
         ${SDK_ROOT}/orb/app/serializer.c
         ${SDK_ROOT}/orb/app/sync.c
         ${SDK_ROOT}/orb/app/watchdog.c
-        ${SDK_ROOT}/orb/common/diag.c
-        ${SDK_ROOT}/orb/common/errors.c
-        ${SDK_ROOT}/orb/common/hardfault.c
+
         ./platform/${MCU_LINE}_it.c
         ./platform/${MCU_LINE}_hal_msp.c
         ./platform/${MCU_LINE}_hal_timebase_tim.c
@@ -94,6 +92,9 @@ set(SOURCES
         ${SDK_ROOT}/external/nanopb/pb_decode.c
         ${SDK_ROOT}/external/nanopb/pb_encode.c
         ${SDK_ROOT}/external/isotp-c/isotp.c
+        ${SDK_ROOT}/external/mcu-libraries/diag/diag.c
+        ${SDK_ROOT}/external/mcu-libraries/diag/errors.c
+        ${SDK_ROOT}/external/mcu-libraries/diag/hardfault.c
         )
 
 set_source_files_properties(./platform/startup_stm32g474xx.s PROPERTIES COMPILE_FLAGS "-x assembler-with-cpp")
@@ -113,6 +114,8 @@ set(INC_DIRS
         ${SDK_ROOT}/external/microcontroller-messaging-proto/c
         ${SDK_ROOT}/external/nanopb
         ${SDK_ROOT}/external/isotp-c
+        ${SDK_ROOT}/external/mcu-libraries/include
+        ${SDK_ROOT}/external/mcu-libraries/diag
         )
 
 project(${PROJECT_NAME} C ASM)
