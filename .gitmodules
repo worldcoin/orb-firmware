@@ -14,3 +14,6 @@
 	path = external/isotp-c
 	url = https://github.com/lishen2/isotp-c
 
+[submodule "external/mcu-libraries"]
+	path = external/mcu-libraries
+	url = git@github.com:worldcoin/mcu-libraries.git
