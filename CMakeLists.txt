@@ -12,6 +12,9 @@ if(CMAKE_C_COMPILER MATCHES "arm-none-eabi-gcc$")
     include(${CMAKE_TOOLCHAIN_FILE})
     message(STATUS "Building for ARM microcontroller")
 
+    set(SECBOOT_ECCDSA_WITH_AES128_CBC_SHA256 ON)
+
+    add_subdirectory(orb/se_core/boards/stm32g4discovery)
     add_subdirectory(orb/app/boards/stm32g4discovery)
 endif()
 

@@ -12,7 +12,11 @@ CMAKE_COVERAGE_FLAGS := -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-m
 build/:
 	mkdir build
 
-stm32g4discovery: build/
+se_core:
+	cmake $(CMAKE_ARM_GCC) . -B build
+	cmake --build build --target se_core
+
+stm32g4discovery: build/ se_core
 	cmake $(CMAKE_ARM_GCC) . -B build
 	cmake --build build --target orb_app_$@.elf
 
