@@ -5,9 +5,16 @@ project(${PROJECT_NAME} C ASM)
 set(SDK_ROOT ${CMAKE_SOURCE_DIR})
 set(HAL_DIRECTORY STM32G4xx_HAL_Driver)
 
-message(STATUS "SDK root: ${SDK_ROOT}")
-
 set(SRC_FILES
+        ../../data_init.c
+        ../../se_key.s
+        ../../se_crypto_bootloader.c
+        ../../se_low_level.c
+
+        ${SDK_ROOT}/components/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_crc.c
+        ${SDK_ROOT}/components/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_crc_ex.c
+        ${SDK_ROOT}/components/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash.c
+        ${SDK_ROOT}/components/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash_ex.c
         ${SDK_ROOT}/components/Middlewares/STM32_Secure_Engine/Core/se_callgate.c
         ${SDK_ROOT}/components/Middlewares/STM32_Secure_Engine/Core/se_crypto_common.c
         ${SDK_ROOT}/components/Middlewares/STM32_Secure_Engine/Core/se_exception.c
@@ -15,14 +22,6 @@ set(SRC_FILES
         ${SDK_ROOT}/components/Middlewares/STM32_Secure_Engine/Core/se_startup.c
         ${SDK_ROOT}/components/Middlewares/STM32_Secure_Engine/Core/se_user_application.c
         ${SDK_ROOT}/components/Middlewares/STM32_Secure_Engine/Core/se_utils.c
-        ${SDK_ROOT}/components/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_crc.c
-        ${SDK_ROOT}/components/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_crc_ex.c
-        ${SDK_ROOT}/components/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash.c
-        ${SDK_ROOT}/components/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash_ex.c
-        ../../se_crypto_bootloader.c
-        ../../se_low_level.c
-        ../../data_init.c
-        ../../se_key.s
         )
 
 set(INC_DIRS
@@ -43,11 +42,9 @@ set_source_files_properties(../../se_key.s PROPERTIES COMPILE_FLAGS "-x assemble
 
 include_directories(${INC_DIRS})
 
-add_definitions(-DUSE_HAL_DRIVER -DSTM32G474xx)
-set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/STM32G474RETx.ld)
-
-add_compile_options(-mcpu=cortex-m4 -std=gnu11 -g3)
-
+##
+## Prebuild
+##
 set(PREPARE_IMAGE_PY ${SDK_ROOT}/components/Middlewares/STM32_Secure_Engine/Utilities/KeysAndImages/prepareimage.py)
 
 # if python doesn't find packages, make sure to have installed the environment
@@ -59,7 +56,7 @@ if (SECBOOT_ECCDSA_WITH_AES128_CBC_SHA256)
     # TODO do not regenerate if dependencies didn't change
 
     set(KEY_FILE ${SDK_ROOT}/orb/se_core/se_key.s)
-    file (WRITE ${KEY_FILE} "\t.section .SE_Key_Data,\"a\",%progbits\n\t.syntax unified\n\t.thumb\n")
+    file(WRITE ${KEY_FILE} "\t.section .SE_Key_Data,\"a\",%progbits\n\t.syntax unified\n\t.thumb\n")
 
     # TODO add Debug and Release targets in order to use a Debug and Release private key
 
@@ -72,21 +69,26 @@ if (SECBOOT_ECCDSA_WITH_AES128_CBC_SHA256)
             COMMAND echo "  .end" >> ${KEY_FILE}
             COMMENT "Pre-build")
 
-elseif(SECBOOT_AES128_GCM_AES128_GCM_AES128_GCM OR SECBOOT_ECCDSA_WITHOUT_ENCRYPT_SHA256)
+elseif (SECBOOT_AES128_GCM_AES128_GCM_AES128_GCM OR SECBOOT_ECCDSA_WITHOUT_ENCRYPT_SHA256)
 
     message(WARNING "SECBOOT_AES128_GCM_AES128_GCM_AES128_GCM and SECBOOT_ECCDSA_WITHOUT_ENCRYPT_SHA256 crypto schemes are not implemented. You can look at STM's prebuild.sh script to implement them")
 
-else()
+else ()
 
     message(WARNING "Please define crypto scheme")
 
-endif()
+endif ()
+
+add_definitions(-DUSE_HAL_DRIVER -DSTM32G474xx)
+set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/STM32G474RETx.ld)
 
 add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING;STM32G4_DISCOVERY)
 add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
 
 add_compile_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork)
+add_compile_options(-std=gnu11 -g3)
 add_compile_options(-ffunction-sections -fdata-sections -fno-common -fmessage-length=0)
+add_compile_options(-Os -Wall -Wno-strict-aliasing -fstack-usage -MMD -MP)
 add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${PROJECT_BINARY_DIR}/${PROJECT_NAME}.map)
 add_link_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork -mfloat-abi=hard -mfpu=fpv4-sp-d16)
 add_link_options(--specs=nano.specs)
@@ -107,4 +109,8 @@ add_dependencies(${PROJECT_NAME} generate_se_key)
 generate_object(${PROJECT_NAME} .bin binary)
 # print executable size
 firmware_size(${PROJECT_NAME})
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND cp ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.bin ${SDK_ROOT}/orb/secure_boot/${PROJECT_NAME}.bin
+        COMMENT "Copying binary")
 
