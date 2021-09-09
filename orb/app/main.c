@@ -12,7 +12,7 @@
 #include <diag.h>
 #include <sync.h>
 #include <can_bus.h>
-#include "board.h"
+#include "boards.h"
 #include "errors.h"
 #include "version.h"
 

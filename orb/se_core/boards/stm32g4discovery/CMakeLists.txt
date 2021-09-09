@@ -112,5 +112,4 @@ firmware_size(${PROJECT_NAME})
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND cp ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.bin ${SDK_ROOT}/orb/secure_boot/${PROJECT_NAME}.bin
-        COMMENT "Copying binary")
-
+        COMMENT "Copying SE core binary to ${SDK_ROOT}/orb/secure_boot/${PROJECT_NAME}.bin")

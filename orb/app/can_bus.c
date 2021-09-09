@@ -4,7 +4,7 @@
 
 #include "can_bus.h"
 #include <FreeRTOS.h>
-#include <board.h>
+#include <boards.h>
 #include <errors.h>
 #include <serializer.h>
 #include <logging.h>

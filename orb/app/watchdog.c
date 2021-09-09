@@ -4,7 +4,7 @@
 
 #include <errors.h>
 #include "watchdog.h"
-#include "board.h"
+#include "boards.h"
 
 #define LSI_FREQUENCY   32000
 #define COUNT_LENGTH    12

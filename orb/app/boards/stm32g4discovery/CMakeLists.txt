@@ -102,7 +102,8 @@ set_source_files_properties(./platform/startup_stm32g474xx.s PROPERTIES COMPILE_
 set_source_files_properties(${ORB_SOURCES} PROPERTIES COMPILE_FLAGS "-Wall -Werror -Wstrict-prototypes -Wwrite-strings -Wshadow -Winit-self -Wformat=2 -Wmissing-prototypes -Wstrict-overflow=2 -Wundef -Wconversion -Wno-missing-braces")
 
 set(INC_DIRS
-        ${SDK_ROOT}/orb/app/include
+        ../../include
+        ${SDK_ROOT}/orb/common/
         ./config
         ${SDK_ROOT}/orb/common/include
         ${SDK_ROOT}/components/Drivers/${HAL_DIRECTORY}/Inc
@@ -111,7 +112,7 @@ set(INC_DIRS
         ${FREERTOS_DIR}/portable/GCC/ARM_CM4F
         ${SDK_ROOT}/components/Drivers/CMSIS/Device/ST/STM32G4xx/Include
         ${SDK_ROOT}/components/Drivers/CMSIS/Include
-        ${SDK_ROOT}/external/microcontroller-messaging-proto/c
+        ${SDK_ROOT}/external/protobuf-definitions/c
         ${SDK_ROOT}/external/nanopb
         ${SDK_ROOT}/external/isotp-c
         ${SDK_ROOT}/external/mcu-libraries/include

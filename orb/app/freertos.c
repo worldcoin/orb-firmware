@@ -19,7 +19,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
-#include "board.h"
+#include "boards.h"
 
 void
 configureTimerForRunTimeStats(void);

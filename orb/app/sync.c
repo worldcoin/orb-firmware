@@ -6,7 +6,7 @@
 #include <task.h>
 #include <serializer.h>
 #include <can_bus.h>
-#include <board.h>
+#include <boards.h>
 #include <logging.h>
 #include <app_config.h>
 #include <compilers.h>

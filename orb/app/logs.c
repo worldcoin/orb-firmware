@@ -1,5 +1,5 @@
 #include <logs.h>
-#include <board.h>
+#include <boards.h>
 #include <errors.h>
 #include <FreeRTOS.h>
 #include <task.h>

@@ -36,3 +36,11 @@ function(generate_object target suffix type)
             COMMENT "Building ${target}${suffix}"
             )
 endfunction()
+
+#function(generate_object target suffix type)
+#    add_custom_command(TARGET ${target} POST_BUILD
+#            COMMAND ${CMAKE_OBJCOPY} -O${type}
+#            "${CMAKE_CURRENT_BINARY_DIR}/${target}${CMAKE_EXECUTABLE_SUFFIX}" "${CMAKE_CURRENT_BINARY_DIR}/${target}${suffix}"
+#            COMMENT "Building ${target}${suffix}"
+#            )
+#endfunction()
