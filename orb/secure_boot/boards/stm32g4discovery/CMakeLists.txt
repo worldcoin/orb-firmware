@@ -104,6 +104,7 @@ add_link_options(-T ${LINKER_SCRIPT})
 link_directories(${SDK_ROOT}/orb/common/)
 
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${LINKER_SCRIPT})
+add_dependencies(${PROJECT_NAME} se_core)
 
 # generate binary
 generate_object(${PROJECT_NAME} .bin binary)

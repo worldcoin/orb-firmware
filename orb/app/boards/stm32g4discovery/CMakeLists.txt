@@ -144,11 +144,12 @@ add_custom_command(OUTPUT config/version.h
         COMMENT "Generating version"
         )
 
-add_executable(${PROJECT_NAME}.elf ${SOURCES} ${LINKER_SCRIPT} config/version.h)
+add_executable(${PROJECT_NAME} ${SOURCES} ${LINKER_SCRIPT} config/version.h)
+add_dependencies(${PROJECT_NAME} secure_boot)
 
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
 set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
 
-firmware_size(${PROJECT_NAME}.elf)
-generate_object(${PROJECT_NAME}.elf .hex ihex)
-generate_object(${PROJECT_NAME}.elf .bin binary)
+firmware_size(${PROJECT_NAME})
+generate_object(${PROJECT_NAME} .hex ihex)
+generate_object(${PROJECT_NAME} .bin binary)
