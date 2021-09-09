@@ -385,13 +385,13 @@ static SFU_ErrorStatus SFU_BOOT_DeInit(void)
   */
 static void SFU_BOOT_BspConfiguration()
 {
-  /* LED Init*/
-  (void) BSP_LED_Init(SFU_STATUS_LED);
-
-#if (SECBOOT_LOADER == SECBOOT_USE_LOCAL_LOADER) || (SECBOOT_LOADER == SECBOOT_USE_STANDALONE_LOADER)
-  /* User Button */
-  BUTTON_INIT();
-#endif /* (SECBOOT_LOADER == SECBOOT_USE_LOCAL_LOADER) || (SECBOOT_LOADER == SECBOOT_USE_STANDALONE_LOADER) */
+//  /* LED Init*/
+//  (void) BSP_LED_Init(SFU_STATUS_LED);
+//
+//#if (SECBOOT_LOADER == SECBOOT_USE_LOCAL_LOADER) || (SECBOOT_LOADER == SECBOOT_USE_STANDALONE_LOADER)
+//  /* User Button */
+//  BUTTON_INIT();
+//#endif /* (SECBOOT_LOADER == SECBOOT_USE_LOCAL_LOADER) || (SECBOOT_LOADER == SECBOOT_USE_STANDALONE_LOADER) */
 }
 
 /**
@@ -511,15 +511,17 @@ static void SFU_BOOT_SM_CheckNewFwToDownload(void)
   {
     /* At boot-up, before checking the FW status, a local download can be forced thanks to the user button */
     TRACE("\r\n= [SBOOT] STATE: CHECK NEW FIRMWARE TO DOWNLOAD");
-    if (0U != BUTTON_PUSHED())
-    {
-      /* Download requested */
-      e_ret_status = SFU_SUCCESS;
-    }
-    else
-    {
-      e_ret_status = SFU_ERROR;
-    }
+
+    // TODO
+//    if (0U != BUTTON_PUSHED())
+//    {
+//      /* Download requested */
+//      e_ret_status = SFU_SUCCESS;
+//    }
+//    else
+//    {
+//      e_ret_status = SFU_ERROR;
+//    }
   }
   else
   {

@@ -1,12 +1,12 @@
 /**
   ******************************************************************************
-  * @file    main.h
+  * @file    SE_CORE_Bin.c
   * @author  MCD Application Team
-  * @brief   Header for main.c module
+  * @brief   Include SECoreBin binary.
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2017 STMicroelectronics.
+  * <h2><center>&copy; Copyright(c) 2017 STMicroelectronics International N.V.
   * All rights reserved.</center></h2>
   *
   * This software component is licensed by ST under Ultimate Liberty license
@@ -17,15 +17,29 @@
   ******************************************************************************
   */
 
-/* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef MAIN_H
-#define MAIN_H
-
 /* Includes ------------------------------------------------------------------*/
-#include "stm32g4xx_hal.h"
-#include "app_sfu.h"
-#include "app_hw.h"
+#include "string.h"
 
-#endif /* MAIN_H */
+#if defined (__GNUC__)
+asm(".section SE_CORE_Bin,\"a\";"
+                             ".incbin \"./../../se_core.bin\";"
+);
+#endif 
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
