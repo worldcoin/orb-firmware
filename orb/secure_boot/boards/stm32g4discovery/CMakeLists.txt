@@ -114,5 +114,5 @@ firmware_size(${PROJECT_NAME})
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_OBJCOPY} -j .SE_IF_Code ${PROJECT_NAME} se_inter.elf > /dev/null 2>>1
         COMMAND ${CMAKE_OBJCOPY} --extract-symbol se_inter.elf se_interface_app.elf
-        COMMAND ${CMAKE_OBJCOPY} -S --keep-symbols=${CMAKE_CURRENT_SOURCE_DIR}/se_interface.txt se_interface_app.elf se_interface_app.o
+        COMMAND ${CMAKE_OBJCOPY} -S --keep-symbols=${CMAKE_CURRENT_SOURCE_DIR}/se_interface.txt se_interface_app.elf ${SDK_ROOT}/orb/common/se_interface_app.o
         COMMENT "Generating object file for SE interface to application")

@@ -17,6 +17,7 @@ if(CMAKE_C_COMPILER MATCHES "arm-none-eabi-gcc$")
     add_subdirectory(orb/se_core/boards/stm32g4discovery)
     add_subdirectory(orb/secure_boot/boards/stm32g4discovery)
     add_subdirectory(orb/app/boards/stm32g4discovery)
+    add_subdirectory(orb/sbsfu_test/boards/stm32g4discovery)
 endif()
 
 # Tests compiled with host compiler
