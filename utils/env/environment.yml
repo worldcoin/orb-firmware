@@ -14,3 +14,9 @@ dependencies:
   - gcc-arm-none-eabi
   - pthread-stubs
   - openocd
+# Requirements for STM32 Secure Engine utility
+  - pycryptodome
+  - pycryptodomex
+  - ecdsa
+  - pyelftools
+  - numpy
