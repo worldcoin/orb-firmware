@@ -32,19 +32,20 @@
   * @retval None.
   */
 
-void LoopCopyDataInit(void)
+void
+LoopCopyDataInit(void)
 {
-	extern uint8_t _sidata asm("_sidata");
-	extern uint8_t _sdata asm("_sdata");
-	extern uint8_t _edata asm("_edata");
+    extern uint8_t _sidata asm("_sidata");
+    extern uint8_t _sdata asm("_sdata");
+    extern uint8_t _edata asm("_edata");
 
-	vu32* src = (vu32*) &_sidata;
-	vu32* dst = (vu32*) &_sdata;
+    vu32 *src = (vu32 *) &_sidata;
+    vu32 *dst = (vu32 *) &_sdata;
 
-	vu32 len = (&_edata - &_sdata) / 4;
+    vu32 len = (&_edata - &_sdata) / 4;
 
-	for(vu32 i=0; i < len; i++)
-		dst[i] = src[i];
+    for (vu32 i = 0; i < len; i++)
+        dst[i] = src[i];
 }
 
 /**
@@ -52,16 +53,17 @@ void LoopCopyDataInit(void)
   * @param  None.
   * @retval None.
   */
-void LoopFillZerobss(void)
+void
+LoopFillZerobss(void)
 {
-	extern uint8_t _sbss asm("_sbss");
-	extern uint8_t _ebss asm("_ebss");
+    extern uint8_t _sbss asm("_sbss");
+    extern uint8_t _ebss asm("_ebss");
 
-	vu32* dst = (vu32*) &_sbss;
-	vu32 len = (&_ebss - &_sbss) / 4;
+    vu32 *dst = (vu32 *) &_sbss;
+    vu32 len = (&_ebss - &_sbss) / 4;
 
-	for(vu32 i=0; i < len; i++)
-		dst[i] = 0;
+    for (vu32 i = 0; i < len; i++)
+        dst[i] = 0;
 }
 
 /**
@@ -69,9 +71,11 @@ void LoopFillZerobss(void)
   * @param  None.
   * @retval None.
   */
-void __gcc_data_init(void) {
-	LoopFillZerobss();
-	LoopCopyDataInit();
+void
+__gcc_data_init(void)
+{
+    LoopFillZerobss();
+    LoopCopyDataInit();
 }
 
 /**
@@ -79,15 +83,17 @@ void __gcc_data_init(void) {
   * @param  None.
   * @retval None.
   */
-void LoopCleanDataInit(void) {
-	extern uint8_t _sdata asm("_sdata");
-	extern uint8_t _edata asm("_edata");
-	vu32* dst = (vu32*) &_sdata;
+void
+LoopCleanDataInit(void)
+{
+    extern uint8_t _sdata asm("_sdata");
+    extern uint8_t _edata asm("_edata");
+    vu32 *dst = (vu32 *) &_sdata;
 
-	vu32 len = (&_edata - &_sdata) / 4;
+    vu32 len = (&_edata - &_sdata) / 4;
 
-	for(vu32 i=0; i < len; i++)
-		dst[i] = 0;
+    for (vu32 i = 0; i < len; i++)
+        dst[i] = 0;
 }
 
 /**
@@ -95,9 +101,11 @@ void LoopCleanDataInit(void) {
   * @param  None.
   * @retval None.
   */
-void __gcc_clean_data(void) {
-  LoopFillZerobss();
-  LoopCleanDataInit();
+void
+__gcc_clean_data(void)
+{
+    LoopFillZerobss();
+    LoopCleanDataInit();
 }
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
