@@ -87,7 +87,7 @@ set(SOURCES
         ${FREERTOS_DIR}/timers.c
         ${FREERTOS_DIR}/portable/MemMang/heap_4.c
         ${FREERTOS_DIR}/portable/GCC/ARM_CM4F/port.c
-        ${SDK_ROOT}/external/microcontroller-messaging-proto/c/mcu_messaging.pb.c
+        ${SDK_ROOT}/external/protobuf-definitions/c/mcu_messaging.pb.c
         ${SDK_ROOT}/external/nanopb/pb_common.c
         ${SDK_ROOT}/external/nanopb/pb_decode.c
         ${SDK_ROOT}/external/nanopb/pb_encode.c
