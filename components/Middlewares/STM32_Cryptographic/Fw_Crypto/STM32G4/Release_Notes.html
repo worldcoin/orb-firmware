@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>STM32G4 Cryptographic Libraries</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <link rel="stylesheet" href="../../_htmresc/mini-st_2020.css" />
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="icon" type="image/x-icon" href="../../_htmresc/favicon.png" />
+</head>
+<body>
+<div class="row">
+<div class="col-sm-12 col-lg-4">
+<center>
+<h1 id="release-notes-for-cryptographic-firmware-libraries-for-stm32g4-series"><strong>Release Notes for Cryptographic Firmware Libraries for STM32G4 series</strong></h1>
+<p>Copyright © 2005 STMicroelectronics<br />
+</p>
+<a href="https://www.st.com" class="logo"><img src="../../_htmresc/st_logo_2020.png" alt="ST logo" /></a>
+</center>
+<h1 id="license">License</h1>
+<p>Licensed by ST under ST license SLA0044 (the "License"); You may not use this package except in compliance with the License. You may obtain a copy of the License at:</p>
+<p><a href="http://www.st.com/SLA0044">http://www.st.com/SLA0044</a></p>
+<h1 id="purpose">Purpose</h1>
+<p>Cryptographic Firmware Libraries for STM32G4 series, based on STM32Cube architecture.</p>
+</div>
+<section id="update-history" class="col-sm-12 col-lg-8">
+<h1>Update history</h1>
+<div class="collapse">
+<input type="checkbox" id="collapse-section1" checked aria-hidden="true"> <label for="collapse-section1" aria-hidden="true"><strong>V3.1.3 / 12-February-2020</strong></label>
+<div>
+<h2 id="main-changes">Main Changes</h2>
+<ul>
+<li>First official release for STM32G4 Cryptographic Firmware Library package</li>
+</ul>
+<h2 id="components">Components</h2>
+<p><small>The components flagged by “<span class="icon-st-update"></span>” have changed since the previous release. “<span class="icon-st-add"></span>” are new.</small></p>
+<table>
+<caption>Released Libraries :<br />
+</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Name</th>
+<th style="text-align: left;">Version</th>
+<th style="text-align: left;">License</th>
+<th style="text-align: left;">Compilation option</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>IAR Embedded Workbench</strong></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">STM32Cryp…CM4_IARv8.a</td>
+<td style="text-align: left;">V3.1.3<span class="icon-st-add"></span></td>
+<td style="text-align: left;"><a href="http://www.st.com/SLA0044">SLA0044</a></td>
+<td style="text-align: left;">High size</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">STM32Cryp…CM4_IARv8_otnsc.a</td>
+<td style="text-align: left;">V3.1.3<span class="icon-st-add"></span></td>
+<td style="text-align: left;"><a href="http://www.st.com/SLA0044">SLA0044</a></td>
+<td style="text-align: left;">High speed</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Keil MDK-ARM</strong></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">STM32Cryp…CM4_KEIL_slsm1elfspf.lib</td>
+<td style="text-align: left;">V3.1.3<span class="icon-st-add"></span></td>
+<td style="text-align: left;"><a href="http://www.st.com/SLA0044">SLA0044</a></td>
+<td style="text-align: left;">High size</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">STM32Cryp…CM4_KEIL_otslsm1elfspf.lib</td>
+<td style="text-align: left;">V3.1.3<span class="icon-st-add"></span></td>
+<td style="text-align: left;"><a href="http://www.st.com/SLA0044">SLA0044</a></td>
+<td style="text-align: left;">High speed</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>GCC</strong></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">STM32Cryp…CM4_GCC.a</td>
+<td style="text-align: left;">V3.1.3<span class="icon-st-add"></span></td>
+<td style="text-align: left;"><a href="http://www.st.com/SLA0044">SLA0044</a></td>
+<td style="text-align: left;">High size</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">STM32Cryp…CM4_GCC_ot.a</td>
+<td style="text-align: left;">V3.1.3<span class="icon-st-add"></span></td>
+<td style="text-align: left;"><a href="http://www.st.com/SLA0044">SLA0044</a></td>
+<td style="text-align: left;">High speed</td>
+</tr>
+</tbody>
+</table>
+<p>Note: CRC pheripheral is used by STM32 cryptographic library.</p>
+<h2 id="known-limitations">Known Limitations</h2>
+<ul>
+<li>None</li>
+</ul>
+<h2 id="development-toolchains-and-compilers">Development Toolchains and Compilers</h2>
+<ul>
+<li><p>IAR Embedded Workbench for ARM (EWARM) toolchain V8.32.3 + ST-Link</p></li>
+<li><p>RealView Microcontroller Development Kit (MDK-ARM) toolchain V5.27.1</p></li>
+<li><p>STM32CubeIDE v1.2.0</p></li>
+</ul>
+<h2 id="backward-compatibility">Backward Compatibility</h2>
+<ul>
+<li>Not Applicable</li>
+</ul>
+<h2 id="dependencies">Dependencies</h2>
+<ul>
+<li>None</li>
+</ul>
+</div>
+</div>
+</section>
+</div>
+<footer class="sticky">
+For complete documentation on <mark>STM32 Microcontrollers</mark> , visit: <span style="font-color: blue;"><a href="http://www.st.com/STM32">www.st.com</a></span>
+</footer>
+</body>
+</html>

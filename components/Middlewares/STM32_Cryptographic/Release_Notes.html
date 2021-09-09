@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Cryptographic library for STM32 Series</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <link rel="stylesheet" href="_htmresc/mini-st_2020.css" />
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="icon" type="image/x-icon" href="_htmresc/favicon.png" />
+</head>
+<body>
+<div class="row">
+<div class="col-sm-12 col-lg-4">
+<center>
+<h1 id="release-notes-for-stm32-cryptographic-library-middleware">Release Notes for STM32 Cryptographic library middleware</h1>
+<p>Copyright © 2005 STMicroelectronics<br />
+</p>
+<a href="https://www.st.com" class="logo"><img src="_htmresc/st_logo_2020.png" alt="ST logo" /></a>
+</center>
+<h1 id="license">License</h1>
+<p>Licensed by ST under ST license SLA0044 (the "License"); You may not use this package except in compliance with the License. You may obtain a copy of the License at:</p>
+<p><a href="http://www.st.com/SLA0044">http://www.st.com/SLA0044</a></p>
+<h1 id="purpose">Purpose</h1>
+<ul>
+<li><p><strong>STM32 Crypto Firmware Library includes a set of crypto algorithms based on firmware implementation</strong> ready to use in all STM32 series.</p></li>
+<li>Cryptographic algorithms and modes supported are :
+<ul>
+<li>AES-128, AES-192, AES-256 bits :
+<ul>
+<li>FCB</li>
+<li>OFB</li>
+<li>XTS (Supports keys of 128 or 256 bits only)</li>
+</ul></li>
+<li>CHACHA20</li>
+<li>CHACHA20-POLY1305</li>
+<li>Curve25519</li>
+<li>ED25519</li>
+<li>HASH functions with HMAC support:
+<ul>
+<li>SHA-384</li>
+<li>SHA-512</li>
+</ul></li>
+<li>POLY1305</li>
+<li>RSA encryption/decryption with PKCS#1v1.5</li>
+</ul></li>
+<li><p>STM32 Crypto Firmware Library is based on modular architecture : each algorithm can be compiled with different options to manage the memory and execution speed.</p></li>
+</ul>
+<figure>
+<img src="_htmresc/architecture.PNG" alt="CryptographicArchitecture" /><figcaption>CryptographicArchitecture</figcaption>
+</figure>
+<p>For mode details about STM32 Crypto Firmware Library, please refer to <a href="https://www.st.com/resource/en/user_manual/DM00215061.pdf">UM1924</a>.</p>
+</div>
+<div class="col-sm-12 col-lg-8">
+<h1 id="main-content">Main content</h1>
+<div class="collapse">
+<input type="checkbox" id="collapse-section6" checked aria-hidden="true"> <label for="collapse-section6" aria-hidden="true"><strong>V3.1.5 / 08-January-2021</strong></label>
+<div>
+<h2 id="contents">Contents</h2>
+<ul>
+<li>New version of STM32 cryptographic libraries to fix issue concerning HASH for all libraries applicable to STM32 series with with Cortex-M0 and Cortex-M0+ architectures (STM32F0, STM32G0 and STM32WL Series)</li>
+</ul>
+<h2 id="components">Components</h2>
+<p><small>The components flagged by “<span class="icon-st-update"></span>” have changed since the previous release. “<span class="icon-st-add"></span>” are new.</small></p>
+<table>
+<caption><strong>Libraries</strong></caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Name</th>
+<th style="text-align: left;">Version</th>
+<th style="text-align: left;">License</th>
+<th style="text-align: left;">Release note</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">STM32F4 library package</td>
+<td style="text-align: left;">V3.1.1</td>
+<td style="text-align: left;"><a href="http://www.st.com/SLA0044">SLA0044</a></td>
+<td style="text-align: left;"><a href="Fw_Crypto/STM32F4/Release_Notes.html">release notes</a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">STM32F7 library package</td>
+<td style="text-align: left;">V3.1.1</td>
+<td style="text-align: left;"><a href="http://www.st.com/SLA0044">SLA0044</a></td>
+<td style="text-align: left;"><a href="Fw_Crypto/STM32F7/Release_Notes.html">release notes</a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">STM32G0 library package</td>
+<td style="text-align: left;">V3.1.5<span class="icon-st-update"></span></td>
+<td style="text-align: left;"><a href="http://www.st.com/SLA0044">SLA0044</a></td>
+<td style="text-align: left;"><a href="Fw_Crypto/STM32G0/Release_Notes.html">release notes</a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">STM32G4 library package</td>
+<td style="text-align: left;">V3.1.3<span class="icon-st-update"></span></td>
+<td style="text-align: left;"><a href="http://www.st.com/SLA0044">SLA0044</a></td>
+<td style="text-align: left;"><a href="Fw_Crypto/STM32G4/Release_Notes.html">release notes</a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">STM32H7 library package</td>
+<td style="text-align: left;">V3.1.1</td>
+<td style="text-align: left;"><a href="http://www.st.com/SLA0044">SLA0044</a></td>
+<td style="text-align: left;"><a href="Fw_Crypto/STM32H7/Release_Notes.html">release notes</a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">STM32L0 library package</td>
+<td style="text-align: left;">V3.1.5<span class="icon-st-update"></span></td>
+<td style="text-align: left;"><a href="http://www.st.com/SLA0044">SLA0044</a></td>
+<td style="text-align: left;"><a href="Fw_Crypto/STM32L0/Release_Notes.html">release notes</a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">STM32L1 library package</td>
+<td style="text-align: left;">V3.1.1</td>
+<td style="text-align: left;"><a href="http://www.st.com/SLA0044">SLA0044</a></td>
+<td style="text-align: left;"><a href="Fw_Crypto/STM32L1/Release_Notes.html">release notes</a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">STM32L4 library package</td>
+<td style="text-align: left;">V3.1.1</td>
+<td style="text-align: left;"><a href="http://www.st.com/SLA0044">SLA0044</a></td>
+<td style="text-align: left;"><a href="Fw_Crypto/STM32L4/Release_Notes.html">release notes</a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">STM32WB library package</td>
+<td style="text-align: left;">V3.1.3<span class="icon-st-update"></span></td>
+<td style="text-align: left;"><a href="http://www.st.com/SLA0044">SLA0044</a></td>
+<td style="text-align: left;"><a href="Fw_Crypto/STM32WB/Release_Notes.html">release notes</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="known-limitations">Known Limitations</h2>
+<ul>
+<li>None</li>
+</ul>
+<h2 id="development-toolchains-and-compilers">Development Toolchains and Compilers</h2>
+<ul>
+<li>Refer to release note of each STM32 cryptographic library package</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<footer class="sticky">
+<div class="columns">
+<p>For complete documentation on <strong>Security framework for STM32 series</strong> , visit: <a href="https://www.st.com/stm32trust">STM32 Trust</a></p>
+</div>
+</footer>
+</body>
+</html>
