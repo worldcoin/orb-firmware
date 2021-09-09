@@ -2,7 +2,6 @@ set(PROJECT_NAME se_core)
 
 project(${PROJECT_NAME} C ASM)
 
-
 set(SDK_ROOT ${CMAKE_SOURCE_DIR})
 set(HAL_DIRECTORY STM32G4xx_HAL_Driver)
 
@@ -54,19 +53,34 @@ set(PREPARE_IMAGE_PY ${SDK_ROOT}/components/Middlewares/STM32_Secure_Engine/Util
 # if python doesn't find packages, make sure to have installed the environment
 # PYTHONPATH can be set to force usage of specific packages
 
-set(KEY_FILE ${SDK_ROOT}/orb/se_core/se_key.s)
-file (WRITE ${KEY_FILE} "\t.section .SE_Key_Data,\"a\",%progbits\n\t.syntax unified\n\t.thumb\n")
-
 if (SECBOOT_ECCDSA_WITH_AES128_CBC_SHA256)
+
+    # create se_key.s file
+    # TODO do not regenerate if dependencies didn't change
+
+    set(KEY_FILE ${SDK_ROOT}/orb/se_core/se_key.s)
+    file (WRITE ${KEY_FILE} "\t.section .SE_Key_Data,\"a\",%progbits\n\t.syntax unified\n\t.thumb\n")
+
+    # TODO add Debug and Release targets in order to use a Debug and Release private key
+
     ## Prebuild target
+    ## Base on prebuild.sh provided by STM, see orb/se_core/prebuild.sh.bak
     add_custom_target(generate_se_key
             COMMAND python ${PREPARE_IMAGE_PY} conf ${SDK_ROOT}/orb/se_core/include/se_crypto_config.h > crypto.txt
             COMMAND python ${PREPARE_IMAGE_PY} trans -a GNU -k ${SDK_ROOT}/orb/se_core/key_aes_cbc.bin -f SE_ReadKey_1 -v V7M >> ${KEY_FILE}
             COMMAND python ${PREPARE_IMAGE_PY} trans -a GNU -k ${SDK_ROOT}/orb/se_core/ECCKEY1.txt -f SE_ReadKey_1_Pub -v V7M >> ${KEY_FILE}
             COMMAND echo "  .end" >> ${KEY_FILE}
             COMMENT "Pre-build")
-endif()
 
+elseif(SECBOOT_AES128_GCM_AES128_GCM_AES128_GCM OR SECBOOT_ECCDSA_WITHOUT_ENCRYPT_SHA256)
+
+    message(WARNING "SECBOOT_AES128_GCM_AES128_GCM_AES128_GCM and SECBOOT_ECCDSA_WITHOUT_ENCRYPT_SHA256 crypto schemes are not implemented. You can look at STM's prebuild.sh script to implement them")
+
+else()
+
+    message(WARNING "Please define crypto scheme")
+
+endif()
 
 add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING;STM32G4_DISCOVERY)
 add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
@@ -78,11 +92,19 @@ add_link_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork -mfloat-abi=hard -mfp
 add_link_options(--specs=nano.specs)
 add_link_options(-T ${LINKER_SCRIPT})
 
+# Several directories to be included when linking
+#   - Path to crypto lib
+#   - ${SDK_ROOT}/orb/common/ points towards linker scripts specifying the addresses shared with SE, SBSFU and application
+#     Those addresses will let SBDFU and application use the crypto functions
 link_directories(${SDK_ROOT}/components/Middlewares/STM32_Cryptographic/Fw_Crypto/STM32G4/Lib ${SDK_ROOT}/orb/common/)
+# Crypto lib linked in SE as well as libc (nano, see specs above) and libm)
 link_libraries(c m libSTM32CryptographicV3.1.3_CM4_GCC_fpu.a)
 
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${LINKER_SCRIPT})
 add_dependencies(${PROJECT_NAME} generate_se_key)
 
+# generate binary
 generate_object(${PROJECT_NAME} .bin binary)
+# print executable size
 firmware_size(${PROJECT_NAME})
+
