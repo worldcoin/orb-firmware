@@ -45,7 +45,6 @@ include_directories(${INC_DIRS})
 ##
 ## Prebuild
 ##
-set(PREPARE_IMAGE_PY ${SDK_ROOT}/components/Middlewares/STM32_Secure_Engine/Utilities/KeysAndImages/prepareimage.py)
 
 # if python doesn't find packages, make sure to have installed the environment
 # PYTHONPATH can be set to force usage of specific packages
@@ -64,8 +63,8 @@ if (SECBOOT_ECCDSA_WITH_AES128_CBC_SHA256)
     ## Base on prebuild.sh provided by STM, see orb/se_core/prebuild.sh.bak
     add_custom_target(generate_se_key
             COMMAND python ${PREPARE_IMAGE_PY} conf ${SDK_ROOT}/orb/se_core/include/se_crypto_config.h > crypto.txt
-            COMMAND python ${PREPARE_IMAGE_PY} trans -a GNU -k ${SDK_ROOT}/orb/se_core/key_aes_cbc.bin -f SE_ReadKey_1 -v V7M >> ${KEY_FILE}
-            COMMAND python ${PREPARE_IMAGE_PY} trans -a GNU -k ${SDK_ROOT}/orb/se_core/ECCKEY1.txt -f SE_ReadKey_1_Pub -v V7M >> ${KEY_FILE}
+            COMMAND python ${PREPARE_IMAGE_PY} trans -a GNU -k ${SDK_ROOT}/orb/common/key_aes_cbc.bin -f SE_ReadKey_1 -v V7M >> ${KEY_FILE}
+            COMMAND python ${PREPARE_IMAGE_PY} trans -a GNU -k ${SDK_ROOT}/orb/common/ECCKEY1.txt -f SE_ReadKey_1_Pub -v V7M >> ${KEY_FILE}
             COMMAND echo "  .end" >> ${KEY_FILE}
             COMMENT "Pre-build")
 
@@ -111,5 +110,5 @@ generate_object(${PROJECT_NAME} .bin binary)
 firmware_size(${PROJECT_NAME})
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND cp ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.bin ${SDK_ROOT}/orb/secure_boot/${PROJECT_NAME}.bin
+        COMMAND cp ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.bin ${SDK_ROOT}/orb/common/${PROJECT_NAME}.bin
         COMMENT "Copying SE core binary to ${SDK_ROOT}/orb/secure_boot/${PROJECT_NAME}.bin")

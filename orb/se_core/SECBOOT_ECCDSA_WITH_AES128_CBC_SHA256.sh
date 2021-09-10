@@ -44,7 +44,7 @@ cd $current_directory
 sbsfuelf="$SecureDir/2_Images_SBSFU/SW4STM32/NUCLEO-G474RE_2_Images_SBSFU/Debug/SBSFU.elf"
 
 current_directory=`pwd`
-cd $1/../../../../../../Middlewares/ST/STM32_Secure_Engine/Utilities/KeysAndImages
+cd $1/../../../../../components/Middlewares/STM32_Secure_Engine/Utilities/KeysAndImages
 basedir=`pwd`
 cd $current_directory
 # test if window executable usable

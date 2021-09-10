@@ -13,6 +13,7 @@ if(CMAKE_C_COMPILER MATCHES "arm-none-eabi-gcc$")
     message(STATUS "Building for ARM microcontroller")
 
     set(SECBOOT_ECCDSA_WITH_AES128_CBC_SHA256 ON)
+    set(PREPARE_IMAGE_PY ${CMAKE_CURRENT_SOURCE_DIR}/components/Middlewares/STM32_Secure_Engine/Utilities/KeysAndImages/prepareimage.py)
 
     add_subdirectory(orb/se_core/boards/stm32g4discovery)
     add_subdirectory(orb/secure_boot/boards/stm32g4discovery)
