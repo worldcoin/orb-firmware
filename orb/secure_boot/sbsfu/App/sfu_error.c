@@ -83,7 +83,7 @@ void SFU_EXCPT_SetError(SFU_EXCPT_IdTypeDef eExceptionId)
   if (eExceptionId <= SFU_EXCPT_UNKNOWN)
   {
 #ifdef SFU_DEBUG_MODE
-    TRACE("\r\n\t%s",m_aErrorStrings[(uint32_t) eExceptionId]);
+    LOG_DEBUG("\t%s",m_aErrorStrings[(uint32_t) eExceptionId]);
 #endif /* SFU_DEBUG_MODE */
   }
 }
@@ -134,7 +134,7 @@ void SFU_EXCPT_IrqExceptionHandler(SFU_EXCPT_IdTypeDef eExceptionId)
 
 void SFU_EXCPT_Security_Error(void)
 {
-  TRACE("\r\n= [SBOOT] Security issue : execution stopped !");
+  LOG_DEBUG("= [SBOOT] Security issue : execution stopped !");
   HAL_Delay(1000);
   /* While(1) by-passed by an fault injection attack ==> Reset */
   if (0U != SFU_MPU_IsUnprivileged())

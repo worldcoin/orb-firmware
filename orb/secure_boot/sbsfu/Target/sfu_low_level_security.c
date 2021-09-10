@@ -280,7 +280,7 @@ SFU_ErrorStatus SFU_LL_SECU_CheckApplyStaticProtections(void)
     /* Sanity check of the (enabled) static protections */
     if (SFU_LL_SECU_CheckFlashConfiguration(&flash_option_bytes) != SFU_SUCCESS)
     {
-      TRACE("\r\n= [SBOOT] Flash configuration failed! Product blocked.");
+      LOG_DEBUG("= [SBOOT] Flash configuration failed! Product blocked.");
       /* Security issue : execution stopped ! */
       SFU_EXCPT_Security_Error();
     }
@@ -288,7 +288,7 @@ SFU_ErrorStatus SFU_LL_SECU_CheckApplyStaticProtections(void)
 #ifdef SFU_WRP_PROTECT_ENABLE
     if (SFU_LL_SECU_CheckProtectionWRP(&flash_option_bytes) != SFU_SUCCESS)
     {
-      TRACE("\r\n= [SBOOT] System Security Configuration failed! Product blocked.");
+      LOG_DEBUG("= [SBOOT] System Security Configuration failed! Product blocked.");
       /* Security issue : execution stopped ! */
       SFU_EXCPT_Security_Error();
     }
@@ -297,7 +297,7 @@ SFU_ErrorStatus SFU_LL_SECU_CheckApplyStaticProtections(void)
 #ifdef SFU_PCROP_PROTECT_ENABLE
     if (SFU_LL_SECU_CheckProtectionPCROP(&flash_option_bytes) != SFU_SUCCESS)
     {
-      TRACE("\r\n= [SBOOT] System Security Configuration failed! Product blocked.");
+      LOG_DEBUG("= [SBOOT] System Security Configuration failed! Product blocked.");
       /* Security issue : execution stopped ! */
       SFU_EXCPT_Security_Error();
     }
@@ -306,7 +306,7 @@ SFU_ErrorStatus SFU_LL_SECU_CheckApplyStaticProtections(void)
 #ifdef SFU_SECURE_USER_PROTECT_ENABLE
     if (SFU_LL_SECU_CheckProtectionSecUser(&flash_option_bytes) != SFU_SUCCESS)
     {
-      TRACE("\r\n= [SBOOT] System Security Configuration failed! Product blocked.");
+      LOG_DEBUG("= [SBOOT] System Security Configuration failed! Product blocked.");
       /* Security issue : execution stopped ! */
       SFU_EXCPT_Security_Error();
     }
@@ -526,7 +526,7 @@ SFU_ErrorStatus SFU_LL_SECU_CheckApplyRuntimeProtections(uint8_t uStep)
 #endif /* SFU_TEMP_MNTR_PROTECT_ENABLE */
 
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-  TRACE("\r\n= [SBOOT] RuntimeProtections: %x", runtime_protection);
+  LOG_DEBUG("= [SBOOT] RuntimeProtections: %x", runtime_protection);
 #endif /* SFU_VERBOSE_DEBUG_MODE */
 
   return e_ret_status;
@@ -663,7 +663,7 @@ SFU_ErrorStatus SFU_LL_SECU_SetFlashConfiguration(FLASH_OBProgramInitTypeDef *ps
   else
   {
     /* Single Bank mode cannot be activated on the FLY : information only */
-    TRACE("\r\n= [SBOOT] Flash Configuration KO: Dual bank mode activated. STOP!");
+    LOG_DEBUG("= [SBOOT] Flash Configuration KO: Dual bank mode activated. STOP!");
     /* Security issue : execution stopped ! */
     SFU_EXCPT_Security_Error();
   }
@@ -696,9 +696,9 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionRDP(FLASH_OBProgramInitTypeDef *psFlash
   {
 #if defined(SECBOOT_OB_DEV_MODE)
 #if defined(SFU_FINAL_SECURE_LOCK_ENABLE)
-    TRACE("\r\n\t  Applying RDP-2 Level. Product locked! You might need to unplug/plug the USB cable!");
+    LOG_DEBUG("\t  Applying RDP-2 Level. Product locked! You might need to unplug/plug the USB cable!");
 #else
-    TRACE("\r\n\t  Applying RDP-1 Level. You might need to unplug/plug the USB cable!");
+    LOG_DEBUG("\t  Applying RDP-1 Level. You might need to unplug/plug the USB cable!");
 #endif /* SFU_FINAL_SECURE_LOCK_ENABLE */
     psFlashOptionBytes->OptionType      = OPTIONBYTE_RDP;
     psFlashOptionBytes->RDPLevel        = SFU_PROTECT_RDP_LEVEL;
@@ -710,7 +710,7 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionRDP(FLASH_OBProgramInitTypeDef *psFlash
       FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_RDP, FLOW_CTRL_RDP);
     }
 #else
-    TRACE("\r\n= [SBOOT] System Security Configuration failed: RDP is incorrect. STOP!");
+    LOG_DEBUG("= [SBOOT] System Security Configuration failed: RDP is incorrect. STOP!");
     /* Security issue : execution stopped ! */
     SFU_EXCPT_Security_Error();
 #endif /* SECBOOT_OB_DEV_MODE */
@@ -776,7 +776,7 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionWRP(FLASH_OBProgramInitTypeDef *psFlash
       FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_WRP, FLOW_CTRL_WRP);
     }
 #else
-    TRACE("\r\n= [SBOOT] System Security Configuration failed: WRP is incorrect. STOP!");
+    LOG_DEBUG("= [SBOOT] System Security Configuration failed: WRP is incorrect. STOP!");
     /* Security issue : execution stopped ! */
     SFU_EXCPT_Security_Error();
 #endif /* SECBOOT_OB_DEV_MODE */
@@ -837,7 +837,7 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionMPU(uint8_t uStep)
   if (uStep == SFU_INITIAL_CONFIGURATION)
   {
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-    TRACE("\r\n");
+    LOG_DEBUG("");
 #endif /* SFU_VERBOSE_DEBUG_MODE */
     /* Enables the MPU */
     HAL_MPU_Enable(MPU_HARDFAULT_NMI);
@@ -1179,7 +1179,7 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionPCROP(FLASH_OBProgramInitTypeDef *psFla
       FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_PCROP, FLOW_CTRL_PCROP);
     }
 #else
-    TRACE("\r\n= [SBOOT] System Security Configuration failed: incorrect PCROP. STOP!");
+    LOG_DEBUG("= [SBOOT] System Security Configuration failed: incorrect PCROP. STOP!");
     /* Security issue : execution stopped ! */
     SFU_EXCPT_Security_Error();
 #endif /* SECBOOT_OB_DEV_MODE */
@@ -1210,7 +1210,7 @@ SFU_ErrorStatus SFU_LL_SECU_CheckProtectionSecUser(FLASH_OBProgramInitTypeDef *p
      * - the header of the active slots
      */
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-    TRACE("\r\n= [SBOOT] Secure User memory Area settings: [%x]", psFlashOptionBytes->SecSize);
+    LOG_DEBUG("= [SBOOT] Secure User memory Area settings: [%x]", psFlashOptionBytes->SecSize);
 #endif /* SFU_VERBOSE_DEBUG_MODE */
     e_ret_status = SFU_SUCCESS;
     /* Execution stopped if flow control failed */
@@ -1219,7 +1219,7 @@ SFU_ErrorStatus SFU_LL_SECU_CheckProtectionSecUser(FLASH_OBProgramInitTypeDef *p
   else
   {
     /* else the settings are incorrect: ERROR */
-    TRACE("\r\n= [SBOOT] Incorrect Secure User memory Area settings: [%x]", psFlashOptionBytes->SecSize);
+    LOG_DEBUG("= [SBOOT] Incorrect Secure User memory Area settings: [%x]", psFlashOptionBytes->SecSize);
   }
 
   return e_ret_status;
@@ -1261,7 +1261,7 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionSecUser(FLASH_OBProgramInitTypeDef *psF
       FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_SEC_MEM, FLOW_CTRL_SEC_MEM);
     }
 #else
-    TRACE("\r\n= [SBOOT] System Security Configuration failed: Secure User Memory is incorrect. STOP!");
+    LOG_DEBUG("= [SBOOT] System Security Configuration failed: Secure User Memory is incorrect. STOP!");
     /* Security issue : execution stopped ! */
     SFU_EXCPT_Security_Error();
 #endif /* SECBOOT_OB_DEV_MODE */

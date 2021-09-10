@@ -84,7 +84,7 @@ typedef enum
 #define STATUS_FWIMG(B,A) if (B) { \
                                    SFU_IMG_Status=A; \
                                    SFU_IMG_Line = __LINE__; \
-                                   TRACE("\r\n          Abnormal error %d at line %d in %s - BLOCK", \
+                                   LOG_DEBUG("          Abnormal error %d at line %d in %s - BLOCK", \
                                          SFU_IMG_Status, SFU_IMG_Line, __FILE__); \
                                    while(1==1){;} \
                                  } while(0==1){;}
@@ -92,7 +92,7 @@ typedef enum
 #define STATUS_FWIMG(B,A) if (B) { \
                                    SFU_IMG_Status=A; \
                                    SFU_IMG_Line = __LINE__; \
-                                   TRACE("\r\n          Abnormal error %d at line %d in %s - CONTINUE", \
+                                   LOG_DEBUG("          Abnormal error %d at line %d in %s - CONTINUE", \
                                          SFU_IMG_Status, SFU_IMG_Line, __FILE__); \
                                  } while(0==1){;}
 #endif /* SFU_FWIMG_BLOCK_ON_ABNORMAL_ERRORS_MODE */

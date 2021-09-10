@@ -77,7 +77,7 @@ SFU_ErrorStatus SFU_LOADER_Init(void)
   if (0U != (uint32_t)(SFU_COM_YMODEM_PACKET_1K_SIZE % (uint32_t)sizeof(SFU_LL_FLASH_write_t)))
   {
     /* The packet buffer (payload part) must be a multiple of the FLASH write length  */
-    TRACE("\r\n= [FWIMG] Packet Payload size (%d) is not matching the FLASH constraints",
+    LOG_DEBUG("= [FWIMG] Packet Payload size (%d) is not matching the FLASH constraints",
           SFU_COM_YMODEM_PACKET_1K_SIZE);
     return SFU_ERROR;
   } /* else the FW Header Length is fine with regards to FLASH constraints */
@@ -86,7 +86,7 @@ SFU_ErrorStatus SFU_LOADER_Init(void)
   if (0U != (uint32_t)(SFU_COM_YMODEM_PACKET_SIZE % (uint32_t)sizeof(SFU_LL_FLASH_write_t)))
   {
     /* The packet buffer (payload part) must be a multiple of the FLASH write length  */
-    TRACE("\r\n= [FWIMG] Packet Payload size (%d) is not matching the FLASH constraints", SFU_COM_YMODEM_PACKET_SIZE);
+    LOG_DEBUG("= [FWIMG] Packet Payload size (%d) is not matching the FLASH constraints", SFU_COM_YMODEM_PACKET_SIZE);
     return SFU_ERROR;
   }
 #endif /* MINICOM_YMODEM */
@@ -132,7 +132,7 @@ SFU_ErrorStatus SFU_LOADER_DownloadNewUserFw(SFU_LOADER_StatusTypeDef *peSFU_LOA
   (void) SFU_LL_SECU_IWDG_Refresh();
 
   /* Transfer FW Image via YMODEM protocol */
-  TRACE("\r\n\t  File> Transfer> YMODEM> Send ");
+  LOG_DEBUG("\t  File> Transfer> YMODEM> Send ");
 
   /* Initialize global variables to be used during the YMODEM process */
   m_uDwlAreaAddress = 0U;
@@ -714,7 +714,7 @@ static SFU_ErrorStatus SFU_LOADER_VerifyFwHeader(uint8_t *pBuffer)
     else
     {
       /* The installation is forbidden */
-      TRACE("\r\n          Anti-rollback: candidate version(%d) rejected | current version(%d) , min.version(%d) !",
+      LOG_DEBUG("          Anti-rollback: candidate version(%d) rejected | current version(%d) , min.version(%d) !",
             p_x_fw_raw_header->FwVersion, cur_ver, SFU_FW_VERSION_START_NUM);
       m_LoaderStatus = SFU_LOADER_ERR_FW_VERSION;
     }
@@ -766,7 +766,7 @@ static SFU_ErrorStatus SFU_LOADER_VerifyFwHeader(uint8_t *pBuffer)
     else
     {
       /* The installation is forbidden */
-      TRACE("\r\n          Anti-rollback: candidate version(%d) rejected | current version(%d) , min.version(%d) !",
+      LOG_DEBUG("          Anti-rollback: candidate version(%d) rejected | current version(%d) , min.version(%d) !",
             p_x_fw_raw_header->FwVersion, verif_ver, SFU_FW_VERSION_START_NUM);
       m_LoaderStatus = SFU_LOADER_ERR_FW_VERSION;
     }

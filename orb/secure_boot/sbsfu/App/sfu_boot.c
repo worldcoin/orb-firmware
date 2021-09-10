@@ -237,8 +237,8 @@ void SFU_BOOT_ForceReboot(void)
    * WARNING: The follow TRACEs are for debug only. This function could be called
    * inside an IRQ so the below printf could not be executed or could generate a fault!
    */
-  TRACE("\r\n========= End of Execution ==========");
-  TRACE("\r\n\r\n\r\n");
+  LOG_DEBUG("========= End of Execution ==========");
+  LOG_DEBUG("\r\n\r\n");
 
   /*
    * This is the last operation executed. Force a System Reset.
@@ -313,23 +313,23 @@ static SFU_ErrorStatus SFU_BOOT_Init(void)
   } /* else continue */
 
 
-  TRACE("\r\n\r\n");
-  TRACE("\r\n======================================================================");
-  TRACE("\r\n=              (C) COPYRIGHT 2017 STMicroelectronics                 =");
-  TRACE("\r\n=                                                                    =");
-  TRACE("\r\n=              Secure Boot and Secure Firmware Update                =");
-  TRACE("\r\n======================================================================");
-  TRACE("\r\n\r\n");
+  LOG_DEBUG("\r\n");
+  LOG_DEBUG("======================================================================");
+  LOG_DEBUG("=              (C) COPYRIGHT 2017 STMicroelectronics                 =");
+  LOG_DEBUG("=                                                                    =");
+  LOG_DEBUG("=              Secure Boot and Secure Firmware Update                =");
+  LOG_DEBUG("======================================================================");
+  LOG_DEBUG("\r\n");
 
   /* Initialize the Secure Engine that will be used for all the most critical operations */
   if (SE_Init(&e_se_status, SystemCoreClock) != SE_SUCCESS)
   {
-    TRACE("\r\n= [SBOOT] SECURE ENGINE INITIALIZATION CRITICAL FAILURE!");
+    LOG_DEBUG("= [SBOOT] SECURE ENGINE INITIALIZATION CRITICAL FAILURE!");
   }
   else
   {
     e_ret_status = SFU_SUCCESS;
-    TRACE("\r\n= [SBOOT] SECURE ENGINE INITIALIZATION SUCCESSFUL");
+    LOG_DEBUG("= [SBOOT] SECURE ENGINE INITIALIZATION SUCCESSFUL");
   }
 
   return e_ret_status;
@@ -454,7 +454,7 @@ static SFU_ErrorStatus SFU_BOOT_SM_Run(void)
   */
 static void SFU_BOOT_SM_CheckStatusOnReset(void)
 {
-  TRACE("\r\n= [SBOOT] STATE: CHECK STATUS ON RESET");
+  LOG_DEBUG("= [SBOOT] STATE: CHECK STATUS ON RESET");
 
   /* Check the wakeup sources */
   SFU_BOOT_ManageResetSources();
@@ -496,7 +496,7 @@ static void SFU_BOOT_SM_CheckNewFwToDownload(void)
 
   if (STANDALONE_LOADER_STATE == STANDALONE_LOADER_DWL_REQ)
   {
-    TRACE("\r\n= [SBOOT] STATE: execution standalone loader");
+    LOG_DEBUG("= [SBOOT] STATE: execution standalone loader");
     e_ret_status = SFU_BOOT_LaunchStandaloneLoader();
 
     /* This is unreachable code (dead code) in principle...
@@ -510,7 +510,7 @@ static void SFU_BOOT_SM_CheckNewFwToDownload(void)
   if (initialDeviceStatusCheck == 1U)
   {
     /* At boot-up, before checking the FW status, a local download can be forced thanks to the user button */
-    TRACE("\r\n= [SBOOT] STATE: CHECK NEW FIRMWARE TO DOWNLOAD");
+    LOG_DEBUG("= [SBOOT] STATE: CHECK NEW FIRMWARE TO DOWNLOAD");
 
     // TODO
 //    if (0U != BUTTON_PUSHED())
@@ -557,7 +557,7 @@ static void SFU_BOOT_SM_CheckUserFwStatus(void)
 
   if (initialDeviceStatusCheck == 1U)
   {
-    TRACE("\r\n= [SBOOT] STATE: CHECK USER FW STATUS");
+    LOG_DEBUG("= [SBOOT] STATE: CHECK USER FW STATUS");
   }
 
 #if (SECBOOT_LOADER == SECBOOT_USE_STANDALONE_LOADER)
@@ -576,7 +576,7 @@ static void SFU_BOOT_SM_CheckUserFwStatus(void)
 #if defined(SFU_VERBOSE_DEBUG_MODE)
     if (e_ret_status == SFU_ERROR)
     {
-      TRACE("\r\n\t  Cannot memorize that a new image has been downloaded.");
+      LOG_DEBUG("\t  Cannot memorize that a new image has been downloaded.");
     }
 #endif /* SFU_VERBOSE_DEBUG_MODE */
 
@@ -599,7 +599,7 @@ static void SFU_BOOT_SM_CheckUserFwStatus(void)
        */
       /* Identify corresponding backed-up slot */
       m_DwlSlotToInstall = m_ActiveSlotToRollback - SLOT_ACTIVE_1 + SLOT_DWL_1;
-      TRACE("\r\n\t  Installation not validated: rollback procedure initiated (SLOT_ACTIVE_%d / SLOT_DWL_%d)",
+      LOG_DEBUG("\t  Installation not validated: rollback procedure initiated (SLOT_ACTIVE_%d / SLOT_DWL_%d)",
             m_ActiveSlotToRollback, m_DwlSlotToInstall - SLOT_DWL_1 + 1U);
       SFU_SET_SM_CURR_STATE(SFU_STATE_ROLLBACK_PREV_USER_FW);
       break;
@@ -607,7 +607,7 @@ static void SFU_BOOT_SM_CheckUserFwStatus(void)
     case SFU_IMG_FWUPDATE_STOPPED:
       /* The installation of a downloaded FW has been interrupted */
       /* We perform a resume of the installation */
-      TRACE("\r\n\t  Installation Failed: resume installation procedure initiated (SLOT_ACTIVE_%d / SLOT_DWL_%d)",
+      LOG_DEBUG("\t  Installation Failed: resume installation procedure initiated (SLOT_ACTIVE_%d / SLOT_DWL_%d)",
             m_ActiveSlotToResume, m_DwlSlotToInstall - SLOT_DWL_1 + 1U);
       SFU_SET_SM_CURR_STATE(SFU_STATE_RESUME_INSTALL_NEW_USER_FW);
       break;
@@ -616,7 +616,7 @@ static void SFU_BOOT_SM_CheckUserFwStatus(void)
       /*
        * A new FW is detected in the dwl slot and ready to be installed
        */
-      TRACE("\r\n\t  New Fw to be installed from slot SLOT_DWL_%d", m_DwlSlotToInstall - SLOT_DWL_1 + 1U);
+      LOG_DEBUG("\t  New Fw to be installed from slot SLOT_DWL_%d", m_DwlSlotToInstall - SLOT_DWL_1 + 1U);
       SFU_SET_SM_CURR_STATE(SFU_STATE_INSTALL_NEW_USER_FW);
       break;
 
@@ -637,7 +637,7 @@ static void SFU_BOOT_SM_CheckUserFwStatus(void)
         if (SFU_SUCCESS == SFU_IMG_DetectFW(MASTER_SLOT))
         {
           m_ActiveSlotToExecute = MASTER_SLOT;
-          TRACE("\r\n\t  A FW is detected in the slot SLOT_ACTIVE_%d", m_ActiveSlotToExecute);
+          LOG_DEBUG("\t  A FW is detected in the slot SLOT_ACTIVE_%d", m_ActiveSlotToExecute);
           SFU_SET_SM_CURR_STATE(SFU_STATE_VERIFY_USER_FW_SIGNATURE);
         }
       }
@@ -652,7 +652,7 @@ static void SFU_BOOT_SM_CheckUserFwStatus(void)
             if (SFU_SUCCESS == SFU_IMG_DetectFW(SLOT_ACTIVE_1 + i))
             {
               m_ActiveSlotToExecute = SLOT_ACTIVE_1 + i;
-              TRACE("\r\n\t  A FW is detected in the slot SLOT_ACTIVE_%d", m_ActiveSlotToExecute);
+              LOG_DEBUG("\t  A FW is detected in the slot SLOT_ACTIVE_%d", m_ActiveSlotToExecute);
               SFU_SET_SM_CURR_STATE(SFU_STATE_VERIFY_USER_FW_SIGNATURE);
             }
           }
@@ -673,7 +673,7 @@ static void SFU_BOOT_SM_CheckUserFwStatus(void)
                * We should never reach this code.
                * Could come from an attack ==> as an example we invalidate current firmware.
                */
-              TRACE("\r\n\t  Slot SLOT_ACTIVE_%d not empty : erasing ...", SLOT_ACTIVE_1 + i);
+              LOG_DEBUG("\t  Slot SLOT_ACTIVE_%d not empty : erasing ...", SLOT_ACTIVE_1 + i);
               (void)SFU_IMG_InvalidateCurrentFirmware(SLOT_ACTIVE_1 + i); /* If this fails we continue anyhow */
             }
           }
@@ -685,10 +685,10 @@ static void SFU_BOOT_SM_CheckUserFwStatus(void)
          */
         if (1U == initialDeviceStatusCheck)
         {
-          TRACE("\r\n\t  No valid FW found in the active slots nor new FW to be installed");
+          LOG_DEBUG("\t  No valid FW found in the active slots nor new FW to be installed");
 #if (SECBOOT_LOADER == SECBOOT_USE_LOCAL_LOADER) || (SECBOOT_LOADER == SECBOOT_USE_STANDALONE_LOADER)
           /* Waiting for a local download is automatic, no trigger required. */
-          TRACE("\r\n\t  Waiting for the local download to start... ");
+          LOG_DEBUG("\t  Waiting for the local download to start... ");
 #endif /* (SECBOOT_LOADER == SECBOOT_USE_LOCAL_LOADER) || (SECBOOT_LOADER == SECBOOT_USE_STANDALONE_LOADER) */
           initialDeviceStatusCheck = 0U;
 #ifdef SFU_TEST_PROTECTION
@@ -706,7 +706,7 @@ static void SFU_BOOT_SM_CheckUserFwStatus(void)
            *      - if the local loader feature is enabled we enter the local download state
            *      - if the local loader feature is disabled, the execution is stopped.
            */
-          TRACE("\r\n\t  Abnormal case: SFU_STATE_VERIFY_USER_FW_STATUS should not be entered more than once per boot.");
+          LOG_DEBUG("\t  Abnormal case: SFU_STATE_VERIFY_USER_FW_STATUS should not be entered more than once per boot.");
         }
 #endif /* SFU_VERBOSE_DEBUG_MODE */
 #if (SECBOOT_LOADER == SECBOOT_USE_LOCAL_LOADER) || (SECBOOT_LOADER == SECBOOT_USE_STANDALONE_LOADER)
@@ -728,7 +728,7 @@ static void SFU_BOOT_SM_CheckUserFwStatus(void)
       break;
 
     default:
-      TRACE("\r\n\t  Flash State Unknown, Critical failure");
+      LOG_DEBUG("\t  Flash State Unknown, Critical failure");
       /* If not in one of the previous state, something bad occurred */
       SFU_SET_SM_CURR_STATE(SFU_STATE_HANDLE_CRITICAL_FAILURE);
       break;
@@ -747,7 +747,7 @@ static void SFU_BOOT_SM_DownloadNewUserFw(void)
 {
   SFU_ErrorStatus e_ret_status = SFU_ERROR;
 
-  TRACE("\r\n= [SBOOT] STATE: DOWNLOAD NEW USER FIRMWARE");
+  LOG_DEBUG("= [SBOOT] STATE: DOWNLOAD NEW USER FIRMWARE");
 
   /* Jump into standalone loader */
   STANDALONE_LOADER_STATE = STANDALONE_LOADER_DWL_REQ;
@@ -772,7 +772,7 @@ static void SFU_BOOT_SM_DownloadNewUserFw(void)
   uint32_t                  dwl_slot;
   uint32_t                  u_size = 0;
 
-  TRACE("\r\n= [SBOOT] STATE: DOWNLOAD NEW USER FIRMWARE");
+  LOG_DEBUG("= [SBOOT] STATE: DOWNLOAD NEW USER FIRMWARE");
 
   /*
    * Download area will be chosen as following. After header analysis :
@@ -784,7 +784,7 @@ static void SFU_BOOT_SM_DownloadNewUserFw(void)
   if (e_ret_status == SFU_SUCCESS)
   {
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-    TRACE("\r\n\t  FwSize=%d | PartialFwSize=%d | PartialFwOffset=%d | %d bytes received",
+    LOG_DEBUG("\t  FwSize=%d | PartialFwSize=%d | PartialFwOffset=%d | %d bytes received",
           fw_image_header_validated.FwSize, fw_image_header_validated.PartialFwSize,
           fw_image_header_validated.PartialFwOffset, u_size);
 #endif /* SFU_VERBOSE_DEBUG_MODE */
@@ -807,7 +807,7 @@ static void SFU_BOOT_SM_DownloadNewUserFw(void)
 
       /* no specific error cause set */
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-      TRACE("\r\n\t  Cannot memorize that a new image has been downloaded.");
+      LOG_DEBUG("\t  Cannot memorize that a new image has been downloaded.");
 #endif /* SFU_VERBOSE_DEBUG_MODE */
     }
   }
@@ -857,7 +857,7 @@ static void SFU_BOOT_SM_InstallNewUserFw(void)
 {
   SFU_ErrorStatus e_ret_status = SFU_ERROR;
 
-  TRACE("\r\n= [SBOOT] STATE: INSTALL NEW USER FIRMWARE ");
+  LOG_DEBUG("= [SBOOT] STATE: INSTALL NEW USER FIRMWARE ");
 
   /* Check the candidate version vs current active version */
   e_ret_status = SFU_IMG_CheckCandidateVersion(m_DwlSlotToInstall);
@@ -886,7 +886,7 @@ static void SFU_BOOT_SM_InstallNewUserFw(void)
      * Nothing more to do, in the next FSM state we are going to verify the FW again and execute it if possible.
      */
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-    TRACE("\r\n\t  FW installation succeeded.");
+    LOG_DEBUG("\t  FW installation succeeded.");
 #endif /* SFU_VERBOSE_DEBUG_MODE */
   }
   else
@@ -896,7 +896,7 @@ static void SFU_BOOT_SM_InstallNewUserFw(void)
      * Nothing more to do, the next FSM state (HANDLE_CRITICAL_FAILURE) will deal with it.
      */
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-    TRACE("\r\n\t  FW installation failed!");
+    LOG_DEBUG("\t  FW installation failed!");
 #endif /* SFU_VERBOSE_DEBUG_MODE */
   }
 
@@ -924,7 +924,7 @@ static void SFU_BOOT_SM_ResumeInstallNewUserFw(void)
 {
   SFU_ErrorStatus e_ret_status = SFU_ERROR;
 
-  TRACE("\r\n= [SBOOT] STATE: RESUME INSTALLATION OF NEW USER FIRMWARE");
+  LOG_DEBUG("= [SBOOT] STATE: RESUME INSTALLATION OF NEW USER FIRMWARE");
 
   /*
    * This resume installation procedure continue installation of new User FW in the active slot
@@ -957,7 +957,7 @@ static void SFU_BOOT_SM_RollbackInstallPrevUserFw(void)
 #if defined(ENABLE_IMAGE_STATE_HANDLING) && !defined(SFU_NO_SWAP)
   SFU_ErrorStatus e_ret_status = SFU_ERROR;
 
-  TRACE("\r\n= [SBOOT] STATE: ROLLBACK INSTALLATION TO PREVIOUS USER FIRMWARE");
+  LOG_DEBUG("= [SBOOT] STATE: ROLLBACK INSTALLATION TO PREVIOUS USER FIRMWARE");
 
   /*
    * Rollack installation to the previous User FW from Dwl_Slot
@@ -978,7 +978,7 @@ static void SFU_BOOT_SM_RollbackInstallPrevUserFw(void)
     SFU_SET_SM_CURR_STATE(SFU_STATE_HANDLE_CRITICAL_FAILURE);
   }
 #else
-  TRACE("\r\n= [SBOOT] STATE: ROLLBACK NOT SUPPORTED");
+  LOG_DEBUG("= [SBOOT] STATE: ROLLBACK NOT SUPPORTED");
 
   /* No specific error cause managed here because the FSM state already provides the information. */
   SFU_SET_SM_CURR_STATE(SFU_STATE_HANDLE_CRITICAL_FAILURE);
@@ -997,7 +997,7 @@ static void SFU_BOOT_SM_VerifyUserFwSignature(void)
   SFU_ErrorStatus e_ret_status = SFU_ERROR;
   uint32_t i;
 
-  TRACE("\r\n= [SBOOT] STATE: VERIFY USER FW SIGNATURE");
+  LOG_DEBUG("= [SBOOT] STATE: VERIFY USER FW SIGNATURE");
 
 
   /*
@@ -1032,21 +1032,21 @@ static void SFU_BOOT_SM_VerifyUserFwSignature(void)
             if (SFU_SUCCESS != e_ret_status)
             {
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-              TRACE("\r\n\t  Unexpected code beyond FW image in slot SLOT_ACTIVE_%d", SLOT_ACTIVE_1 + i);
+              LOG_DEBUG("\t  Unexpected code beyond FW image in slot SLOT_ACTIVE_%d", SLOT_ACTIVE_1 + i);
 #endif /* SFU_VERBOSE_DEBUG_MODE */
             }
           }
           else
           {
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-            TRACE("\r\n\t  Firmware signature verification failure in slot SLOT_ACTIVE_%d", SLOT_ACTIVE_1 + i);
+            LOG_DEBUG("\t  Firmware signature verification failure in slot SLOT_ACTIVE_%d", SLOT_ACTIVE_1 + i);
 #endif /* SFU_VERBOSE_DEBUG_MODE */
           }
         }
         else
         {
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-          TRACE("\r\n\t  Header signature verification failure in slot SLOT_ACTIVE_%d", SLOT_ACTIVE_1 + i);
+          LOG_DEBUG("\t  Header signature verification failure in slot SLOT_ACTIVE_%d", SLOT_ACTIVE_1 + i);
 #endif /* SFU_VERBOSE_DEBUG_MODE */
         }
         /*
@@ -1063,7 +1063,7 @@ static void SFU_BOOT_SM_VerifyUserFwSignature(void)
            * Could come from an attack ==> as an example we invalidate current firmware.
            */
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-          TRACE("\r\n\t  Erasing slot SLOT_ACTIVE_%d", SLOT_ACTIVE_1 + i);
+          LOG_DEBUG("\t  Erasing slot SLOT_ACTIVE_%d", SLOT_ACTIVE_1 + i);
 #endif /* SFU_VERBOSE_DEBUG_MODE */
           (void)SFU_IMG_InvalidateCurrentFirmware(SLOT_ACTIVE_1 + i); /* If this fails we continue anyhow */
         }
@@ -1082,7 +1082,7 @@ static void SFU_BOOT_SM_VerifyUserFwSignature(void)
            * Could come from an attack ==> as an example we invalidate current firmware.
            */
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-          TRACE("\r\n\t  Slot SLOT_ACTIVE_%d not empty : erasing ...", SLOT_ACTIVE_1 + i);
+          LOG_DEBUG("\t  Slot SLOT_ACTIVE_%d not empty : erasing ...", SLOT_ACTIVE_1 + i);
 #endif /* SFU_VERBOSE_DEBUG_MODE */
           (void)SFU_IMG_InvalidateCurrentFirmware(SLOT_ACTIVE_1 + i); /* If this fails we continue anyhow */
         }
@@ -1106,7 +1106,7 @@ static void SFU_BOOT_SM_ExecuteUserFw(void)
   SE_StatusTypeDef e_se_status = SE_KO;
   uint32_t i;
 
-  TRACE("\r\n= [SBOOT] STATE: EXECUTE USER FIRMWARE");
+  LOG_DEBUG("= [SBOOT] STATE: EXECUTE USER FIRMWARE");
 
   /* Reload Watchdog */
   (void) SFU_LL_SECU_IWDG_Refresh();
@@ -1150,7 +1150,7 @@ static void SFU_BOOT_SM_ExecuteUserFw(void)
         {
           /* Image state cannot be changed : What to do ?
              ==> decision to continue execution */
-          TRACE("\r\n= [FWIMG] WARNING: IMAGE STATE CANNOT BE CHANGED!");
+          LOG_DEBUG("= [FWIMG] WARNING: IMAGE STATE CANNOT BE CHANGED!");
         }
 #endif /* ENABLE_IMAGE_STATE_HANDLING  && !(SFU_NO_SWAP) */
 
@@ -1201,7 +1201,7 @@ static void SFU_BOOT_SM_ExecuteUserFw(void)
         /* This point should not be reached */
 #if defined(SFU_VERBOSE_DEBUG_MODE)
         /* We do not memorize any specific error, the FSM state is already providing the info */
-        TRACE("\r\n\t  SFU_IMG_LaunchActiveImg(SLOT_ACTIVE_%d) failure!", m_ActiveSlotToExecute);
+        LOG_DEBUG("\t  SFU_IMG_LaunchActiveImg(SLOT_ACTIVE_%d) failure!", m_ActiveSlotToExecute);
 #endif /* SFU_VERBOSE_DEBUG_MODE */
         while (1 == 1)
         {
@@ -1241,7 +1241,7 @@ static void SFU_BOOT_SM_ExecuteUserFw(void)
   */
 static void SFU_BOOT_SM_HandleCriticalFailure(void)
 {
-  TRACE("\r\n= [SBOOT] STATE: HANDLE CRITICAL FAILURE");
+  LOG_DEBUG("= [SBOOT] STATE: HANDLE CRITICAL FAILURE");
 
   /* It's not possible to continue without compromising the stability or the security of the solution.
      The State Machine needs to be aborted and a Reset must be triggered */
@@ -1257,7 +1257,7 @@ static void SFU_BOOT_SM_HandleCriticalFailure(void)
   */
 static void SFU_BOOT_SM_RebootStateMachine(void)
 {
-  TRACE("\r\n= [SBOOT] STATE: REBOOT STATE MACHINE");
+  LOG_DEBUG("= [SBOOT] STATE: REBOOT STATE MACHINE");
 
   /*
    * In case some clean-up must be done before resetting.
@@ -1356,11 +1356,11 @@ static SFU_ErrorStatus SFU_BOOT_SystemSecurity_Config(void)
        ...
        ...
     */
-    TRACE("\r\n= [SBOOT] System Security Check failed! Rebooting...");
+    LOG_DEBUG("= [SBOOT] System Security Check failed! Rebooting...");
   }
   else
   {
-    TRACE("\r\n= [SBOOT] System Security Check successfully passed. Starting...");
+    LOG_DEBUG("= [SBOOT] System Security Check successfully passed. Starting...");
     e_ret_status = SFU_SUCCESS;
   }
 
@@ -1412,7 +1412,7 @@ static void SFU_BOOT_ManageResetSources(void)
        */
 
     case SFU_RESET_WDG_RESET:
-      TRACE("\r\n\t  WARNING: A Reboot has been triggered by a Watchdog reset!");
+      LOG_DEBUG("\t  WARNING: A Reboot has been triggered by a Watchdog reset!");
       /* WARNING: This might be generated by an attempted attack, a bug or your code!
          Add your code here in order to implement a custom action for this event,
          e.g. trigger a mass erase or take any other  action in order to
@@ -1423,7 +1423,7 @@ static void SFU_BOOT_ManageResetSources(void)
       break;
 
     case SFU_RESET_LOW_POWER:
-      TRACE("\r\n\t  INFO: A Reboot has been triggered by a LowPower reset!");
+      LOG_DEBUG("\t  INFO: A Reboot has been triggered by a LowPower reset!");
       /* WARNING: This might be generated by an attempted attack, a bug or your code!
          Add your code here in order to implement a custom action for this event,
          e.g. trigger a mass erase or take any other  action in order to
@@ -1434,7 +1434,7 @@ static void SFU_BOOT_ManageResetSources(void)
       break;
 
     case SFU_RESET_HW_RESET:
-      TRACE("\r\n\t  INFO: A Reboot has been triggered by a Hardware reset!");
+      LOG_DEBUG("\t  INFO: A Reboot has been triggered by a Hardware reset!");
       /* WARNING: This might be generated by an attempted attack, a bug or your code!
          Add your code here in order to implement a custom action for this event,
          e.g. trigger a mass erase or take any other  action in order to
@@ -1445,7 +1445,7 @@ static void SFU_BOOT_ManageResetSources(void)
       break;
 
     case SFU_RESET_BOR_RESET:
-      TRACE("\r\n\t  INFO: A Reboot has been triggered by a BOR reset!");
+      LOG_DEBUG("\t  INFO: A Reboot has been triggered by a BOR reset!");
       /* WARNING: This might be generated by an attempted attack, a bug or your code!
          Add your code here in order to implement a custom action for this event,
          e.g. trigger a mass erase or take any other  action in order to
@@ -1456,7 +1456,7 @@ static void SFU_BOOT_ManageResetSources(void)
       break;
 
     case SFU_RESET_SW_RESET:
-      TRACE("\r\n\t  INFO: A Reboot has been triggered by a Software reset!");
+      LOG_DEBUG("\t  INFO: A Reboot has been triggered by a Software reset!");
       /* WARNING: This might be generated by an attempted attack, a bug or your code!
          Add your code here in order to implement a custom action for this event,
          e.g. trigger a mass erase or take any other  action in order to
@@ -1467,7 +1467,7 @@ static void SFU_BOOT_ManageResetSources(void)
       break;
 
     case SFU_RESET_OB_LOADER:
-      TRACE("\r\n\t  WARNING: A Reboot has been triggered by an Option Bytes reload!");
+      LOG_DEBUG("\t  WARNING: A Reboot has been triggered by an Option Bytes reload!");
       /* WARNING: This might be generated by an attempted attack, a bug or your code!
          Add your code here in order to implement a custom action for this event,
          e.g. trigger a mass erase or take any other  action in order to
@@ -1478,7 +1478,7 @@ static void SFU_BOOT_ManageResetSources(void)
       break;
 
     default:
-      TRACE("\r\n\t  WARNING: A Reboot has been triggered by an Unknown reset source!");
+      LOG_DEBUG("\t  WARNING: A Reboot has been triggered by an Unknown reset source!");
       /* WARNING: This might be generated by an attempted attack, a bug or your code!
          Add your code here in order to implement a custom action for this event,
          e.g. trigger a mass erase or take any other  action in order to
