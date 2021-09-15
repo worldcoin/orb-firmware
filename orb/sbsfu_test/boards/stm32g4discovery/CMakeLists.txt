@@ -42,7 +42,7 @@ set(SRC_FILES
         ${CMAKE_SOURCE_DIR}/orb/common/se_interface_app.o
         )
 
-set_source_files_properties(./platform/startup_stm32g474xx.s PROPERTIES COMPILE_FLAGS "-x assembler-with-cpp")
+set_source_files_properties(./platform/startup_stm32g474xx.s PROPERTIES COMPILE_FLAGS "-x assembler-with-cpp -mfloat-abi=soft -mthumb")
 
 set(INC_DIRS
         ../../include
@@ -61,21 +61,26 @@ project(${PROJECT_NAME} C ASM)
 include_directories(${INC_DIRS})
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/STM32G474RETx.ld)
 
-add_definitions(-DUSE_HAL_DRIVER -DSTM32G474xx)
-add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING;STM32G4_DISCOVERY)
+add_compile_definitions(ARM_MATH_CM4;STM32G474xx;USE_HAL_DRIVER;STM32G4_DISCOVERY)
 # hardware floating point
-add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
-add_link_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
+add_compile_options(-mfloat-abi=soft -mfpu=fpv4-sp-d16)
+add_compile_options(-mcpu=cortex-m4 -mthumb)
+add_compile_options(-ffunction-sections)
+add_compile_options(-Os -Wall -Wno-strict-aliasing -Wno-format -fstack-usage)
 
-add_compile_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork)
-add_compile_options(-ffunction-sections -fdata-sections -fno-common -fmessage-length=0)
+add_link_options(-mcpu=cortex-m4 -mthumb -mfloat-abi=soft)
 add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${PROJECT_BINARY_DIR}/${PROJECT_NAME}.map)
-add_link_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork)
+add_link_options(-static -Xlinker)
 add_link_options(-T ${LINKER_SCRIPT})
+add_link_options(--specs=nano.specs)
+add_link_options(-z max-page-size=1)
+
 link_directories(${SDK_ROOT}/orb/common/)
+link_libraries(c m)
 
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${LINKER_SCRIPT})
 add_dependencies(${PROJECT_NAME} secure_boot)
+set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX .elf)
 
 generate_object(${PROJECT_NAME} .bin binary)
 
@@ -83,20 +88,22 @@ generate_object(${PROJECT_NAME} .bin binary)
 # - fetch firmware version
 # - Generate partial image if we want to update binary partially based on reference image
 
-set(FW_VERSION 123)
-set(MAGIC "SFU")
+set(FW_VERSION 1)
+set(MAGIC "SFU1")
 if (SECBOOT_ECCDSA_WITH_AES128_CBC_SHA256)
-#    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-#            COMMAND python ${CMAKE_SOURCE_DIR}/orb/se_core/SECBOOT_ECCDSA_WITH_AES128_CBC_SHA256.sh ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME} ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.bin 1 1)
-
     set(BIN_FILE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.bin)
     message(STATUS "Script to encrypt")
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND python ${PREPARE_IMAGE_PY} enc -k ${CMAKE_SOURCE_DIR}/orb/common/key_aes_cbc.bin -i iv.bin ${BIN_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.sfu
+            COMMAND rm -f ${CMAKE_CURRENT_BINARY_DIR}/iv.bin
+            # encrypt image
+            COMMAND python ${PREPARE_IMAGE_PY} enc -k ${CMAKE_SOURCE_DIR}/orb/common/AES_CBC.bin -i ${CMAKE_CURRENT_BINARY_DIR}/iv.bin ${BIN_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.sfu
+            # Generate SHA of clear FW
             COMMAND python ${PREPARE_IMAGE_PY} sha256 ${BIN_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.sign
-            COMMAND python ${PREPARE_IMAGE_PY} pack -m ${MAGIC} -k ${SDK_ROOT}/orb/common/ECCKEY1.txt -r 28 -v ${FW_VERSION} -i iv.bin -f ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.sfu -t ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.sign ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.sfb -o 4096
-            COMMAND python ${PREPARE_IMAGE_PY} header -m ${MAGIC} -k ${SDK_ROOT}/orb/common/ECCKEY1.txt -r 28 -v ${FW_VERSION} -i iv.bin -f ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.sfu -t ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.sign -o 4096 ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.sfuh.bin
-            COMMAND python ${PREPARE_IMAGE_PY} merge -v 0 -e 1 -i ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.sfuh.bin -s ${CMAKE_CURRENT_BINARY_DIR}/../../../secure_boot/boards/stm32g4discovery/secure_boot -u ${PROJECT_NAME} ${CMAKE_CURRENT_BINARY_DIR}/sbsfu_${PROJECT_NAME}_merged.bin
+            # Generate metadata
+            COMMAND python ${PREPARE_IMAGE_PY} pack -m ${MAGIC} -k ${SDK_ROOT}/orb/common/ECCKEY.txt -r 28 -v ${FW_VERSION} -i ${CMAKE_CURRENT_BINARY_DIR}/iv.bin -f ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.sfu -t ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.sign ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.sfb -o 4096
+            # Below steps are optional
+            # Generate header
+            COMMAND python ${PREPARE_IMAGE_PY} header -m ${MAGIC} -k ${SDK_ROOT}/orb/common/ECCKEY.txt -r 28 -v ${FW_VERSION} -i ${CMAKE_CURRENT_BINARY_DIR}/iv.bin -f ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.sfu -t ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.sign -o 4096 ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_sfuh.bin
+            COMMAND python ${PREPARE_IMAGE_PY} merge -v 0 -e 1 -i ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_sfuh.bin -s ${CMAKE_CURRENT_BINARY_DIR}/../../../secure_boot/boards/stm32g4discovery/secure_boot.elf -u ${PROJECT_NAME}.elf ${CMAKE_CURRENT_BINARY_DIR}/sbsfu_${PROJECT_NAME}_merged.bin
             COMMENT "Post-build")
-
 endif ()

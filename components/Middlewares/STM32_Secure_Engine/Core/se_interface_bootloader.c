@@ -26,6 +26,7 @@
 #endif /* __ICCARM__ */
 
 /* Includes ------------------------------------------------------------------*/
+#include <logging.h>
 #include "main.h"                       /* se_interface_bootloader.c is compiled in SBSFU project using main.h from
                                          * this project
                                          */
@@ -695,6 +696,8 @@ SE_ErrorStatus SE_VerifyHeaderSignature(SE_StatusTypeDef *peSE_Status, SE_FwRawH
     /* Set the CallGate function pointer */
     SET_CALLGATE();
 
+    LOG_DEBUG("Entering secure mode");
+
     /* Enter Secure Mode */
     SE_EnterSecureMode(&primask_bit);
 
@@ -706,6 +709,7 @@ SE_ErrorStatus SE_VerifyHeaderSignature(SE_StatusTypeDef *peSE_Status, SE_FwRawH
   }
 #endif /* SFU_ISOLATE_SE_WITH_MPU */
 
+    LOG_DEBUG("SE_CRYPTO_HL_AUTHENTICATE_METADATA ret %u", e_ret_status);
   return e_ret_status;
 
 }

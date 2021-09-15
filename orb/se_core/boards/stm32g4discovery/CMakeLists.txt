@@ -2,6 +2,8 @@ set(PROJECT_NAME se_core)
 
 project(${PROJECT_NAME} C ASM)
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
 set(SDK_ROOT ${CMAKE_SOURCE_DIR})
 set(HAL_DIRECTORY STM32G4xx_HAL_Driver)
 
@@ -63,8 +65,8 @@ if (SECBOOT_ECCDSA_WITH_AES128_CBC_SHA256)
     ## Base on prebuild.sh provided by STM, see orb/se_core/prebuild.sh.bak
     add_custom_target(generate_se_key
             COMMAND python ${PREPARE_IMAGE_PY} conf ${SDK_ROOT}/orb/se_core/include/se_crypto_config.h > crypto.txt
-            COMMAND python ${PREPARE_IMAGE_PY} trans -a GNU -k ${SDK_ROOT}/orb/common/key_aes_cbc.bin -f SE_ReadKey_1 -v V7M >> ${KEY_FILE}
-            COMMAND python ${PREPARE_IMAGE_PY} trans -a GNU -k ${SDK_ROOT}/orb/common/ECCKEY1.txt -f SE_ReadKey_1_Pub -v V7M >> ${KEY_FILE}
+            COMMAND python ${PREPARE_IMAGE_PY} trans -a GNU -k ${SDK_ROOT}/orb/common/AES_CBC.bin -f SE_ReadKey_1 -v V7M >> ${KEY_FILE}
+            COMMAND python ${PREPARE_IMAGE_PY} trans -a GNU -k ${SDK_ROOT}/orb/common/ECCKEY.txt -f SE_ReadKey_1_Pub -v V7M >> ${KEY_FILE}
             COMMAND echo "  .end" >> ${KEY_FILE}
             COMMENT "Pre-build")
 
@@ -82,14 +84,14 @@ add_definitions(-DUSE_HAL_DRIVER -DSTM32G474xx)
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/STM32G474RETx.ld)
 
 add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING;STM32G4_DISCOVERY)
-add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
+add_compile_options(-mfloat-abi=soft -mfpu=fpv4-sp-d16)
 
 add_compile_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork)
 add_compile_options(-std=gnu11 -g3)
-add_compile_options(-ffunction-sections -fdata-sections -fno-common -fmessage-length=0)
+add_compile_options(-ffunction-sections)
 add_compile_options(-Os -Wall -Wno-strict-aliasing -fstack-usage -MMD -MP)
 add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${PROJECT_BINARY_DIR}/${PROJECT_NAME}.map)
-add_link_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork -mfloat-abi=hard -mfpu=fpv4-sp-d16)
+add_link_options(-mcpu=cortex-m4 -mthumb -mfloat-abi=soft -mfpu=fpv4-sp-d16)
 add_link_options(--specs=nano.specs)
 add_link_options(-T ${LINKER_SCRIPT})
 
@@ -99,10 +101,11 @@ add_link_options(-T ${LINKER_SCRIPT})
 #     Those addresses will let SBDFU and application use the crypto functions
 link_directories(${SDK_ROOT}/components/Middlewares/STM32_Cryptographic/Fw_Crypto/STM32G4/Lib ${SDK_ROOT}/orb/common/)
 # Crypto lib linked in SE as well as libc (nano, see specs above) and libm)
-link_libraries(c m libSTM32CryptographicV3.1.3_CM4_GCC_fpu.a)
+link_libraries(c m libSTM32CryptographicV3.1.3_CM4_GCC.a)
 
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${LINKER_SCRIPT})
 add_dependencies(${PROJECT_NAME} generate_se_key)
+set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX .elf)
 
 # generate binary
 generate_object(${PROJECT_NAME} .bin binary)

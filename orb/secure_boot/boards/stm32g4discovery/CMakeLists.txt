@@ -4,7 +4,8 @@ project(${PROJECT_NAME} C ASM)
 
 set(SDK_ROOT ${CMAKE_SOURCE_DIR})
 set(HAL_DIRECTORY STM32G4xx_HAL_Driver)
-
+set(CMAKE_VERBOSE_MAKEFILE ON)
+set(VERBOSE 1)
 set(SRC_FILES
         ${SDK_ROOT}/components/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal.c
         ${SDK_ROOT}/components/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_adc.c
@@ -69,42 +70,43 @@ set(SRC_FILES
 set(INC_DIRS
         ../../include
         config
-        ../../../se_core/include
         ${SDK_ROOT}/components/Middlewares/STM32_Secure_Engine/Core/
         ${SDK_ROOT}/components/Drivers/CMSIS/Device/ST/STM32G4xx/Include
         ${SDK_ROOT}/components/Drivers/CMSIS/Include
         ${SDK_ROOT}/components/Drivers/STM32G4xx_HAL_Driver/Inc
         ${SDK_ROOT}/components/Middlewares/STM32_Secure_Engine/Core
         ${SDK_ROOT}/components/Middlewares/STM32_Secure_Engine/Interface
-        ${SDK_ROOT}/components/Middlewares/STM32_Cryptographic/Fw_Crypto/STM32G4/Inc
+        ${SDK_ROOT}/orb/se_core/include
         ${SDK_ROOT}/orb/secure_boot/sbsfu/App
         ${SDK_ROOT}/orb/secure_boot/sbsfu/Target
         ${SDK_ROOT}/orb/common/
+        ${SDK_ROOT}/external/mcu-libraries/include
         )
 
 set_source_files_properties(platform/sfu_se_mpu.s platform/startup_stm32g474xx.s PROPERTIES COMPILE_FLAGS "-x assembler-with-cpp")
 
 include_directories(${INC_DIRS})
 
-add_definitions(-DUSE_HAL_DRIVER -DSTM32G474xx)
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/STM32G474RETx.ld)
 
-add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING;STM32G4_DISCOVERY)
-add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
+add_compile_definitions(ARM_MATH_CM4;STM32G474xx;USE_HAL_DRIVER;STM32G4_DISCOVERY;MINICOM_YMODEM;CONFIG_LOG_LEVEL=4)
+add_compile_options(-mfloat-abi=soft -mfpu=fpv4-sp-d16)
 
-add_compile_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork)
+add_compile_options(-mcpu=cortex-m4 -mthumb)
 add_compile_options(-std=gnu11 -g3)
-add_compile_options(-ffunction-sections -fdata-sections -fno-common -fmessage-length=0)
-add_compile_options(-Os -Wall -Wno-strict-aliasing -fstack-usage -MMD -MP)
+add_compile_options(-ffunction-sections)
+add_compile_options(-Os -Wall -Wno-format -Wno-strict-aliasing -fstack-usage -MMD -MP)
+add_link_options(-mcpu=cortex-m4 -mthumb -mfloat-abi=soft -mfpu=fpv4-sp-d16)
 add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${PROJECT_BINARY_DIR}/${PROJECT_NAME}.map)
-add_link_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork -mfloat-abi=hard -mfpu=fpv4-sp-d16)
 add_link_options(--specs=nano.specs)
 add_link_options(-T ${LINKER_SCRIPT})
 
 link_directories(${SDK_ROOT}/orb/common/)
+link_libraries(c m)
 
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${LINKER_SCRIPT})
 add_dependencies(${PROJECT_NAME} se_core)
+set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX .elf)
 
 # generate binary
 generate_object(${PROJECT_NAME} .bin binary)
@@ -112,7 +114,7 @@ generate_object(${PROJECT_NAME} .bin binary)
 firmware_size(${PROJECT_NAME})
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_OBJCOPY} -j .SE_IF_Code ${PROJECT_NAME} se_inter.elf > /dev/null 2>>1
+        COMMAND ${CMAKE_OBJCOPY} -j .SE_IF_Code ${PROJECT_NAME}.elf se_inter.elf > /dev/null 2>>1
         COMMAND ${CMAKE_OBJCOPY} --extract-symbol se_inter.elf se_interface_app.elf
         COMMAND ${CMAKE_OBJCOPY} -S --keep-symbols=${CMAKE_CURRENT_SOURCE_DIR}/se_interface.txt se_interface_app.elf ${SDK_ROOT}/orb/common/se_interface_app.o
         COMMENT "Generating object file for SE interface to application")
