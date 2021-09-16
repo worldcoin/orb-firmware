@@ -32,6 +32,7 @@ extern "C" {
 #include "main.h"
 #include "se_def.h"
 #include "sfu_fwimg_regions.h"
+#include "kms_blob_metadata.h"
 
 /* Exported types ------------------------------------------------------------*/
 /**
@@ -66,10 +67,17 @@ typedef enum
   * some function allocates 2 buffer of this size in stack.
   * As image are encrypted by 128 bits blocks, this value is 16 bytes aligned.
   */
+#if   (SECBOOT_CRYPTO_SCHEME == SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256)
+#define CHUNK_SIZE_SIGN_VERIFICATION (2048UL)  /*!< Signature verification chunk size*/
+#else
 #define CHUNK_SIZE_SIGN_VERIFICATION (1024UL)  /*!< Signature verification chunk size*/
+#endif /* SECBOOT_CRYPTO_SCHEME == SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256 */
 
-/* For G4, the offset image is 4096 (due to Secure Memory protection) so the chunk size must be increased too */
-#define SFU_IMG_CHUNK_SIZE  (4096UL)
+#if (SECBOOT_CRYPTO_SCHEME == SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256)
+#define SFU_IMG_CHUNK_SIZE  (2048UL)
+#else
+#define SFU_IMG_CHUNK_SIZE  (512UL)
+#endif /* SECBOOT_CRYPTO_SCHEME */
 #define AES_BLOCK_SIZE (16UL)  /*!< Size of an AES block to check padding needs for decrypting */
 
 /* Exported macros -----------------------------------------------------------*/
@@ -84,7 +92,7 @@ typedef enum
 #define STATUS_FWIMG(B,A) if (B) { \
                                    SFU_IMG_Status=A; \
                                    SFU_IMG_Line = __LINE__; \
-                                   LOG_DEBUG("          Abnormal error %d at line %d in %s - BLOCK", \
+                                   TRACE("\r\n          Abnormal error %d at line %d in %s - BLOCK", \
                                          SFU_IMG_Status, SFU_IMG_Line, __FILE__); \
                                    while(1==1){;} \
                                  } while(0==1){;}
@@ -92,7 +100,7 @@ typedef enum
 #define STATUS_FWIMG(B,A) if (B) { \
                                    SFU_IMG_Status=A; \
                                    SFU_IMG_Line = __LINE__; \
-                                   LOG_DEBUG("          Abnormal error %d at line %d in %s - CONTINUE", \
+                                   TRACE("\r\n          Abnormal error %d at line %d in %s - CONTINUE", \
                                          SFU_IMG_Status, SFU_IMG_Line, __FILE__); \
                                  } while(0==1){;}
 #endif /* SFU_FWIMG_BLOCK_ON_ABNORMAL_ERRORS_MODE */

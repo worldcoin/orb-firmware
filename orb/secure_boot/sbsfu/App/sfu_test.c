@@ -45,10 +45,12 @@ static ProtectionTest_t aProtectTests[] =
 #ifdef SFU_MPU_PROTECT_ENABLE
   {SFU_RAM_BASE, "MPU SRAM1 start add", TEST_EXECUTE},
   {SFU_RAM_END - 3U, "MPU SRAM1 end add", TEST_EXECUTE},             /* -3 : previous 32 bits for execute test */
+  {SFU_SRAM2_BASE, "MPU SRAM2 start add", TEST_EXECUTE},
+  {SFU_SRAM2_END - 3U, "MPU SRAM2 end add", TEST_EXECUTE},             /* -3 : previous 32 bits for execute test */
   {PERIPH_BASE, "Peripheral base add", TEST_EXECUTE},
   {((uint32_t)0x5FFFFFFF - 3U), "Peripheral end address", TEST_EXECUTE},    /* -3 : previous 32 bits for execute test */
-  /* READ_FLASH is possible only in privileged mode */
-  {INTVECT_START, "Init. Vector", TEST_READ_FLASH},
+  /* READ_FLASH is possible as we are privileged when there is no MPU isolation but WRITE_FLASH must fail */
+  {INTVECT_START, "Init. Vector", TEST_WRITE_FLASH},
   {SLOT_DWL_1_START, "MPU code dwl slot1 begin add", TEST_EXECUTE},
   {SLOT_DWL_1_END - 3U, "MPU code dwl slot1 end add", TEST_EXECUTE},   /* -3 : alignment for 32bits execute test */
   {SLOT_DWL_2_START, "MPU code dwl slot2 begin add", TEST_EXECUTE},
@@ -81,8 +83,6 @@ static ProtectionTest_t aProtectTests[] =
   {SE_CODE_REGION_ROM_END - SHIFT_FLASH_WRITE, "Isolated code end add", TEST_WRITE_FLASH},/* -7 : alignment for
                                                                          64bits writing test + WRP protection applies */
   {SE_CODE_REGION_ROM_START, "Isolated code start add", TEST_READ_FLASH},
-  {SE_KEY_REGION_ROM_START, "Isol KeyConst start addr", TEST_READ_FLASH},
-  {SE_KEY_REGION_ROM_END, "Isol KeyConst end addr", TEST_READ_FLASH},
   {SE_CODE_REGION_ROM_END, "Isolated code end add", TEST_READ_FLASH},
   {SE_STARTUP_REGION_ROM_START + 1U, "Isolated startup add", TEST_EXECUTE}, /* +1 : contains the SE startup code
                                                                     that initializes all the variables in the binary. */
@@ -94,29 +94,40 @@ static ProtectionTest_t aProtectTests[] =
   {SE_REGION_RAM_END, "Isolated Vdata add", TEST_READ_RAM},
   {SE_REGION_RAM_START, "Isolated Vdata add", TEST_EXECUTE},
   {SE_REGION_RAM_END - 3U, "Isolated Vdata add", TEST_EXECUTE},       /* -3 : alignment for 32bits writing test */
-  /*
-   * The H7/G0/G4 does not protect the active slot headers with isolation.
-   * So the active slot headers is not protected against SB_SFU.
-   * But, it is protected from the user application thanks to the secure user memory.
-   */
+  {SLOT_ACTIVE_1_HEADER + SFU_IMG_IMAGE_OFFSET - (SHIFT_FLASH_WRITE + 1U), "Isolated NVdata add", TEST_WRITE_FLASH},
+  /* -8 : previous 64 bits for writing test */
+  {SLOT_ACTIVE_1_HEADER + SFU_IMG_IMAGE_OFFSET - 1U, "Isolated NVdata add", TEST_READ_FLASH},/* -1 : previous 8bits
+                                                                                                   for reading test */
+  {SLOT_ACTIVE_1_HEADER + SFU_IMG_IMAGE_OFFSET - 4U, "Isolated NVdata add", TEST_EXECUTE},   /* -4 : previous 32bits
+                                                                                                   for execute test */
+  {SLOT_ACTIVE_2_HEADER + SFU_IMG_IMAGE_OFFSET - (SHIFT_FLASH_WRITE + 1U), "Isolated NVdata add", TEST_WRITE_FLASH},
+  /* -8 : previous 64 bits for writing test */
+  {SLOT_ACTIVE_2_HEADER + SFU_IMG_IMAGE_OFFSET - 1U, "Isolated NVdata add", TEST_READ_FLASH},/* -1 : previous 8bits
+                                                                                                   for reading test */
+  {SLOT_ACTIVE_2_HEADER + SFU_IMG_IMAGE_OFFSET - 4U, "Isolated NVdata add", TEST_EXECUTE},   /* -4 : previous 32bits
+                                                                                                   for execute test */
+  {SLOT_ACTIVE_3_HEADER + SFU_IMG_IMAGE_OFFSET - (SHIFT_FLASH_WRITE + 1U), "Isolated NVdata add", TEST_WRITE_FLASH},
+  /* -8 : previous 64 bits for writing test */
+  {SLOT_ACTIVE_3_HEADER + SFU_IMG_IMAGE_OFFSET - 1U, "Isolated NVdata add", TEST_READ_FLASH},/* -1 : previous 8bits
+                                                                                                   for reading test */
+  {SLOT_ACTIVE_3_HEADER + SFU_IMG_IMAGE_OFFSET - 4U, "Isolated NVdata add", TEST_EXECUTE},   /* -4 : previous 32bits
+                                                                                                   for execute test */
 #endif /* TEST_ISOLATION  */
 #ifdef SFU_MPU_PROTECT_ENABLE
   /* Testing the MPU protection of the OBs */
   /*
-   * G474
+   * L4xx
    * Only Bank 1 matters because the protections (WRP...) are set on the content of Bank 1.
-   * [ 1FFF7800 1FFF7808 1FFF7810 1FFF7818 1FFF7820 1FFF7828]: 48 bytes to be protected
+   * [ 1FFF7800 1FFF7808 1FFF7810 1FFF7818 1FFF7820]: 40 bytes to be protected
    */
   {(uint32_t)0x1FFF7800, "OBs @ 0x1FFF7800", TEST_WRITE_FLASH},
   {(uint32_t)0x1FFF7808, "OBs @ 0x1FFF7808", TEST_WRITE_FLASH},
   {(uint32_t)0x1FFF7810, "OBs @ 0x1FFF7810", TEST_WRITE_FLASH},
   {(uint32_t)0x1FFF7818, "OBs @ 0x1FFF7818", TEST_WRITE_FLASH},
   {(uint32_t)0x1FFF7820, "OBs @ 0x1FFF7820", TEST_WRITE_FLASH},
-  {(uint32_t)0x1FFF7828, "OBs @ 0x1FFF7828", TEST_WRITE_FLASH},
+  {(uint32_t)0x1FFF7838, "OBs @ 0x1FFF7838", TEST_WRITE_FLASH}, /* Due to MPU definition, we protect 64B instead of
+                                                                   40B */
 #endif /* SFU_MPU_PROTECT_ENABLE  */
-  /*  Check RCC access not possible  */
-  {RCC_BASE, "RCC", TEST_WRITE_RAM},
-  {RCC_BASE + 1020U, "RCC end", TEST_WRITE_RAM},
   {0xAAAAAAAA, "Execution successful", TEST_END},
 };
 
@@ -208,12 +219,6 @@ static void SFU_TEST_Protection(void)
         case TEST_READ_FLASH :
           tmp = *(uint8_t *)(aProtectTests[test_idx].address);
           HAL_Delay(1);                                                 /* ensure Flag is set */
-          if (__HAL_FLASH_GET_FLAG(FLASH_FLAG_RDERR) == 0)
-          {
-            printf(" value : %d", tmp);
-            status = TEST_ERROR;
-          }
-          __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_RDERR);
           /*
            * When Isolation activated : RESET should be generated
            * So the test is FAILED if we reach this line
@@ -229,6 +234,7 @@ static void SFU_TEST_Protection(void)
            or reset generated if under FWALL or MPU protection */
         case TEST_ERASE_FLASH :
           HAL_FLASH_Unlock();
+          p_erase_init.Banks       = FLASH_BANK_1;
           p_erase_init.TypeErase   = FLASH_TYPEERASE_PAGES;
           p_erase_init.Page        = SFU_LL_FLASH_GetPage(aProtectTests[test_idx].address);
           p_erase_init.NbPages     = 1;

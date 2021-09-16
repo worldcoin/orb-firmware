@@ -554,7 +554,7 @@ SE_ErrorStatus SE_CRYPTO_Encrypt_Finish(uint8_t *pOutputBuffer, int32_t *pOutput
   *        This parameter can be SE_FW_IMAGE_COMPLETE or SE_FW_IMAGE_PARTIAL.
   * @retval SE_ErrorStatus SE_SUCCESS if successful, SE_ERROR otherwise.
   */
-SE_ErrorStatus SE_CRYPTO_Decrypt_Init(SE_FwRawHeaderTypeDef *pxSE_Metadata, uint32_t SE_FwType)
+SE_ErrorStatus SE_CRYPTSE_CRYPTO_Decrypt_InitO_Decrypt_Init(SE_FwRawHeaderTypeDef *pxSE_Metadata, uint32_t SE_FwType)
 {
   SE_ErrorStatus e_ret_status;
 

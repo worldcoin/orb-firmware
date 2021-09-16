@@ -29,6 +29,7 @@
 #include "sfu_low_level_flash_int.h"
 #include "sfu_low_level_security.h"
 #include "se_interface_bootloader.h"
+#include "sfu_interface_crypto_scheme.h"
 #include "sfu_fwimg_regions.h"
 #include "sfu_fwimg_services.h"
 #include "sfu_fwimg_internal.h"
@@ -197,7 +198,7 @@ static SFU_ErrorStatus  FirmwareToResume(uint32_t ActiveSlot, uint32_t DwlSlot, 
     else
     {
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-      LOG_DEBUG("\t  No resume required : TRAILER_HDR_TEST not valid!");
+      TRACE("\r\n\t  No resume required : TRAILER_HDR_TEST not valid!");
 #endif /* SFU_VERBOSE_DEBUG_MODE */
       e_ret_status = SFU_ERROR;
     }
@@ -212,7 +213,7 @@ static SFU_ErrorStatus  FirmwareToResume(uint32_t ActiveSlot, uint32_t DwlSlot, 
     if (memcmp(fw_header_dwl_slot, fw_header_trailer_test, SE_FW_AUTH_LEN) != 0U)
     {
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-      LOG_DEBUG("\t  No resume required : TRAILER_HDR_TEST not same as dwl slot header!");
+      TRACE("\r\n\t  No resume required : TRAILER_HDR_TEST not same as dwl slot header!");
 #endif /* SFU_VERBOSE_DEBUG_MODE */
       e_ret_status = SFU_ERROR;
     }
@@ -275,7 +276,7 @@ static SFU_ErrorStatus  FirmwareToResume(uint32_t ActiveSlot, uint32_t DwlSlot, 
       else
       {
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-        LOG_DEBUG("\t  No resume required : Header in active slot is neither sames TRAILER_HDR_TEST as nor TRAILER_VALID_TEST!");
+        TRACE("\r\n\t  No resume required : Header in active slot is neither sames TRAILER_HDR_TEST as nor TRAILER_VALID_TEST!");
 #endif /* SFU_VERBOSE_DEBUG_MODE */
         e_ret_status = SFU_ERROR;
       }
@@ -328,7 +329,7 @@ static SFU_ErrorStatus  FirmwareToResume(uint32_t ActiveSlot, uint32_t DwlSlot, 
 #if defined(SFU_VERBOSE_DEBUG_MODE)
         else
         {
-          LOG_DEBUG("\t  Init version:%d - Candidate version:%d : Installation not allowed!", SFU_FW_VERSION_INIT_NUM, pTestHeader->FwVersion);
+          TRACE("\r\n\t  Init version:%d - Candidate version:%d : Installation not allowed!", SFU_FW_VERSION_INIT_NUM, pTestHeader->FwVersion);
         }
 #endif /* SFU_VERBOSE_DEBUG_MODE */
       }
@@ -480,7 +481,7 @@ static SFU_ErrorStatus DecryptImageFromDwlSlotToActiveSlot(uint32_t ActiveSlot, 
   uint32_t fw_tag_len;
   uint8_t fw_tag_output[SE_TAG_LEN];
 
-  LOG_DEBUG("\t  Image preparation done.\r\n\t  Installation started ...");
+  TRACE("\r\n\t  Image preparation done.\r\n\t  Installation started ...");
 
   /* Verify header presence */
   if ((pFwImageHeader == NULL))
@@ -525,7 +526,7 @@ static SFU_ErrorStatus DecryptImageFromDwlSlotToActiveSlot(uint32_t ActiveSlot, 
       if (e_ret_status != SFU_SUCCESS)
       {
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-        LOG_DEBUG("\t  Header writing failure!");
+        TRACE("\r\n\t  Header writing failure!");
 #endif /* SFU_VERBOSE_DEBUG_MODE */
       }
     }
@@ -581,7 +582,7 @@ static SFU_ErrorStatus DecryptImageFromDwlSlotToActiveSlot(uint32_t ActiveSlot, 
 
 #if (SFU_IMAGE_PROGRAMMING_TYPE == SFU_ENCRYPTED_IMAGE)
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-  LOG_DEBUG("\t  %d bytes of ciphertext decrypted.", fw_index);
+  TRACE("\r\n\t  %d bytes of ciphertext decrypted.", fw_index);
 #endif /* SFU_VERBOSE_DEBUG_MODE */
 #endif /* SFU_ENCRYPTED_IMAGE */
 
@@ -594,7 +595,7 @@ static SFU_ErrorStatus DecryptImageFromDwlSlotToActiveSlot(uint32_t ActiveSlot, 
     {
       e_ret_status = SFU_ERROR;
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-      LOG_DEBUG("\t  Decrypt fails at Finalization stage.");
+      TRACE("\r\n\t  Decrypt fails at Finalization stage.");
 #endif /* SFU_VERBOSE_DEBUG_MODE */
     }
   }
@@ -705,7 +706,7 @@ static SFU_ErrorStatus FirmwareToInstall(uint32_t DwlSlot, SE_FwRawHeaderTypeDef
       e_ret_status = SFU_ERROR;
 
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-      LOG_DEBUG("\t  The binary image to be installed overlap with the trailer area!");
+      TRACE("\r\n\t  The binary image to be installed overlap with the trailer area!");
 #endif /* SFU_VERBOSE_DEBUG_MODE */
     }
     else
@@ -834,11 +835,11 @@ SFU_ErrorStatus SFU_IMG_TriggerResumeInstallation(uint32_t ActiveSlot, uint32_t 
 #if defined(SFU_VERBOSE_DEBUG_MODE)
   if (e_ret_status == SFU_SUCCESS)
   {
-    LOG_DEBUG("\t  Resume procedure completed.");
+    TRACE("\r\n\t  Resume procedure completed.");
   }
   else
   {
-    LOG_DEBUG("\t  Resume procedure cannot be finalized!");
+    TRACE("\r\n\t  Resume procedure cannot be finalized!");
   }
 #endif /* SFU_VERBOSE_DEBUG_MODE */
 
@@ -888,11 +889,11 @@ SFU_ErrorStatus SFU_IMG_TriggerImageInstallation(uint32_t DwlSlot)
 #if defined(SFU_VERBOSE_DEBUG_MODE)
   if (e_ret_status == SFU_SUCCESS)
   {
-    LOG_DEBUG("\t  Installation procedure completed.");
+    TRACE("\r\n\t  Installation procedure completed.");
   }
   else
   {
-    LOG_DEBUG("\t  Installation procedure cannot be finalized!");
+    TRACE("\r\n\t  Installation procedure cannot be finalized!");
   }
 #endif /* SFU_VERBOSE_DEBUG_MODE */
 

@@ -37,6 +37,7 @@ set(ORB_SOURCES
         ${SDK_ROOT}/orb/app/data_provider.c
         ${SDK_ROOT}/orb/app/deserializer.c
         ${SDK_ROOT}/orb/app/freertos.c
+        ${SDK_ROOT}/orb/app/internal_flash.c
         ${SDK_ROOT}/orb/app/main.c
         ${SDK_ROOT}/orb/app/logs.c
         ${SDK_ROOT}/orb/app/serializer.c
@@ -122,13 +123,11 @@ set(INC_DIRS
 project(${PROJECT_NAME} C ASM)
 
 include_directories(${INC_DIRS})
-
-add_definitions(-DUSE_HAL_DRIVER -DSTM32G474xx)
-
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/STM32G474RETx_FLASH.ld)
 
-# hardware floating point
+add_definitions(-DUSE_HAL_DRIVER -DSTM32G474xx)
 add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING;STM32G4_DISCOVERY)
+# hardware floating point
 add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
 add_link_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
 

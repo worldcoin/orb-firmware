@@ -48,8 +48,6 @@
 #warning "SFU_MPU_PROTECT_DISABLED"
 #endif /* SFU_MPU_PROTECT_ENABLE */
 
-
-
 #ifndef  SFU_TAMPER_PROTECT_ENABLE
 #warning "SFU_TAMPER_PROTECT_DISABLED"
 #endif /* SFU_TAMPER_PROTECT_ENABLE */
@@ -73,120 +71,141 @@
 /* Private typedef -----------------------------------------------------------*/
 typedef enum
 {
-  SFU_FALSE = 0U,
-  SFU_TRUE = !SFU_FALSE
+    SFU_FALSE = 0U,
+    SFU_TRUE = !SFU_FALSE
 } SFU_BoolTypeDef;
 
 typedef struct
 {
-  uint8_t                Number;            /*!< Specifies the number of the region to protect. This parameter can be a
+    uint8_t Number;            /*!< Specifies the number of the region to protect. This parameter can be a
                                                  value of CORTEX_MPU_Region_Number */
-  uint32_t               BaseAddress;       /*!< Specifies the base address of the region to protect. */
-  uint8_t                Size;              /*!< Specifies the size of the region to protect. */
-  uint8_t                AccessPermission;  /*!< Specifies the region access permission type. This parameter can be a
+    uint32_t BaseAddress;       /*!< Specifies the base address of the region to protect. */
+    uint8_t Size;              /*!< Specifies the size of the region to protect. */
+    uint8_t AccessPermission;  /*!< Specifies the region access permission type. This parameter can be a
                                                  value of CORTEX_MPU_Region_Permission_Attributes */
-  uint8_t                DisableExec;       /*!< Specifies the instruction access status. This parameter can be a value
+    uint8_t DisableExec;       /*!< Specifies the instruction access status. This parameter can be a value
                                                  of  CORTEX_MPU_Instruction_Access */
-  uint8_t                SubRegionDisable;  /*!< Specifies the sub region field (region is divided in 8 slices) when bit
+    uint8_t SubRegionDisable;  /*!< Specifies the sub region field (region is divided in 8 slices) when bit
                                                  is 1 region sub region is disabled */
-  uint8_t                Tex;               /*!< Specifies the tex value  */
-  uint8_t                Cacheable;         /*!< Specifies the cacheable value  */
-  uint8_t                Bufferable;        /*!< Specifies the cacheable value  */
+    uint8_t Tex;               /*!< Specifies the tex value  */
+    uint8_t Cacheable;         /*!< Specifies the cacheable value  */
+    uint8_t Bufferable;        /*!< Specifies the cacheable value  */
 } SFU_MPU_InitTypeDef;
 
-typedef uint32_t      SFU_ProtectionTypeDef;  /*!<   SFU HAL IF Protection Type Def*/
+typedef uint32_t SFU_ProtectionTypeDef;  /*!<   SFU HAL IF Protection Type Def*/
 
 /* Private variables ---------------------------------------------------------*/
 #ifdef  SFU_IWDG_PROTECT_ENABLE
-static IWDG_HandleTypeDef   IwdgHandle;
+static IWDG_HandleTypeDef IwdgHandle;
 
 #endif /* SFU_IWDG_PROTECT_ENABLE */
 #ifdef  SFU_MPU_PROTECT_ENABLE
 static SFU_MPU_InitTypeDef MpuAreas[] =
 
-{
-  /*  se execution */
-  {
-    SFU_PROTECT_MPU_EXEC_SE_RGNV, SFU_PROTECT_MPU_EXEC_SE_START, SFU_PROTECT_MPU_EXEC_SE_SIZE,
-    SFU_PROTECT_MPU_EXEC_SE_PERM, SFU_PROTECT_MPU_EXEC_SE_EXECV, SFU_PROTECT_MPU_EXEC_SE_SREG,
-    SFU_PROTECT_MPU_EXEC_SE_TEXV, SFU_PROTECT_MPU_EXEC_SE_C, SFU_PROTECT_MPU_EXEC_SE_B
-  },
+    {
+        /*  se execution */
+        {
+            SFU_PROTECT_MPU_EXEC_SE_RGNV, SFU_PROTECT_MPU_EXEC_SE_START,
+            SFU_PROTECT_MPU_EXEC_SE_SIZE,
+            SFU_PROTECT_MPU_EXEC_SE_PERM, SFU_PROTECT_MPU_EXEC_SE_EXECV,
+            SFU_PROTECT_MPU_EXEC_SE_SREG,
+            SFU_PROTECT_MPU_EXEC_SE_TEXV, SFU_PROTECT_MPU_EXEC_SE_C, SFU_PROTECT_MPU_EXEC_SE_B
+        },
 
-  /* se ram  */
-  {
-    SFU_PROTECT_MPU_SRAM_SE_RGNV, SFU_PROTECT_MPU_SRAM_SE_START, SFU_PROTECT_MPU_SRAM_SE_SIZE,
-    SFU_PROTECT_MPU_SRAM_SE_PERM, SFU_PROTECT_MPU_SRAM_SE_EXECV, SFU_PROTECT_MPU_SRAM_SE_SREG,
-    SFU_PROTECT_MPU_SRAM_SE_TEXV, SFU_PROTECT_MPU_SRAM_SE_C, SFU_PROTECT_MPU_SRAM_SE_B
-  },
+        /* se ram  */
+        {
+            SFU_PROTECT_MPU_SRAM_SE_RGNV, SFU_PROTECT_MPU_SRAM_SE_START,
+            SFU_PROTECT_MPU_SRAM_SE_SIZE,
+            SFU_PROTECT_MPU_SRAM_SE_PERM, SFU_PROTECT_MPU_SRAM_SE_EXECV,
+            SFU_PROTECT_MPU_SRAM_SE_SREG,
+            SFU_PROTECT_MPU_SRAM_SE_TEXV, SFU_PROTECT_MPU_SRAM_SE_C, SFU_PROTECT_MPU_SRAM_SE_B
+        },
 
-  /* SRAM access */
-  {
-    SFU_PROTECT_MPU_SRAMACC_RGNV, SFU_PROTECT_MPU_SRAMACC_START, SFU_PROTECT_MPU_SRAMACC_SIZE,
-    SFU_PROTECT_MPU_SRAMACC_PERM, SFU_PROTECT_MPU_SRAMACC_EXECV, SFU_PROTECT_MPU_SRAMACC_SREG,
-    SFU_PROTECT_MPU_SRAMACC_TEXV, SFU_PROTECT_MPU_SRAMACC_C, SFU_PROTECT_MPU_SRAMACC_B
-  },
+        /* SRAM access */
+        {
+            SFU_PROTECT_MPU_SRAMACC_RGNV, SFU_PROTECT_MPU_SRAMACC_START,
+            SFU_PROTECT_MPU_SRAMACC_SIZE,
+            SFU_PROTECT_MPU_SRAMACC_PERM, SFU_PROTECT_MPU_SRAMACC_EXECV,
+            SFU_PROTECT_MPU_SRAMACC_SREG,
+            SFU_PROTECT_MPU_SRAMACC_TEXV, SFU_PROTECT_MPU_SRAMACC_C, SFU_PROTECT_MPU_SRAMACC_B
+        },
 
-  /* install header : read /write only for privileged */
-  {
-    SFU_PROTECT_MPU_HEADER_RGNV, SFU_PROTECT_MPU_HEADER_START, SFU_PROTECT_MPU_HEADER_SIZE,
-    SFU_PROTECT_MPU_HEADER_PERM, SFU_PROTECT_MPU_HEADER_EXECV, SFU_PROTECT_MPU_HEADER_SREG,
-    SFU_PROTECT_MPU_HEADER_TEXV, SFU_PROTECT_MPU_HEADER_C, SFU_PROTECT_MPU_HEADER_B
-  },
+        /* install header : read /write only for privileged */
+        {
+            SFU_PROTECT_MPU_HEADER_RGNV, SFU_PROTECT_MPU_HEADER_START, SFU_PROTECT_MPU_HEADER_SIZE,
+            SFU_PROTECT_MPU_HEADER_PERM, SFU_PROTECT_MPU_HEADER_EXECV, SFU_PROTECT_MPU_HEADER_SREG,
+            SFU_PROTECT_MPU_HEADER_TEXV, SFU_PROTECT_MPU_HEADER_C, SFU_PROTECT_MPU_HEADER_B
+        },
 
-  /*  Flash execution */
-  {
-    SFU_PROTECT_MPU_FLASHEXE_RGNV, SFU_PROTECT_MPU_FLASHEXE_START, SFU_PROTECT_MPU_FLASHEXE_SIZE,
-    SFU_PROTECT_MPU_FLASHEXE_PERM, SFU_PROTECT_MPU_FLASHEXE_EXECV, SFU_PROTECT_MPU_FLASHEXE_SREG,
-    SFU_PROTECT_MPU_FLASHEXE_TEXV, SFU_PROTECT_MPU_FLASHEXE_C, SFU_PROTECT_MPU_FLASHEXE_B
-  },
-  /*  Flash access for read write, slot  , swap */
-  {
-    SFU_PROTECT_MPU_FLASHACC_RGNV, SFU_PROTECT_MPU_FLASHACC_START, SFU_PROTECT_MPU_FLASHACC_SIZE,
-    SFU_PROTECT_MPU_FLASHACC_PERM, SFU_PROTECT_MPU_FLASHACC_EXECV, SFU_PROTECT_MPU_FLASHACC_SREG,
-    SFU_PROTECT_MPU_FLASHACC_TEXV, SFU_PROTECT_MPU_FLASHACC_C, SFU_PROTECT_MPU_FLASHACC_B
-  },
-  /*  peripheral  */
-  {
-    SFU_PROTECT_MPU_PERIPH_1_RGNV, SFU_PROTECT_MPU_PERIPH_1_START, SFU_PROTECT_MPU_PERIPH_1_SIZE,
-    SFU_PROTECT_MPU_PERIPH_1_PERM, SFU_PROTECT_MPU_PERIPH_1_EXECV, SFU_PROTECT_MPU_PERIPH_1_SREG,
-    SFU_PROTECT_MPU_PERIPH_1_TEXV, SFU_PROTECT_MPU_PERIPH_1_C, SFU_PROTECT_MPU_PERIPH_1_B
-  },
-  {
-    SFU_PROTECT_MPU_PERIPH_2_RGNV, SFU_PROTECT_MPU_PERIPH_2_START, SFU_PROTECT_MPU_PERIPH_2_SIZE,
-    SFU_PROTECT_MPU_PERIPH_2_PERM, SFU_PROTECT_MPU_PERIPH_2_EXECV, SFU_PROTECT_MPU_PERIPH_2_SREG,
-    SFU_PROTECT_MPU_PERIPH_2_TEXV, SFU_PROTECT_MPU_PERIPH_2_C, SFU_PROTECT_MPU_PERIPH_2_B
-  }
-};
+        /*  Flash execution */
+        {
+            SFU_PROTECT_MPU_FLASHEXE_RGNV, SFU_PROTECT_MPU_FLASHEXE_START,
+            SFU_PROTECT_MPU_FLASHEXE_SIZE,
+            SFU_PROTECT_MPU_FLASHEXE_PERM, SFU_PROTECT_MPU_FLASHEXE_EXECV,
+            SFU_PROTECT_MPU_FLASHEXE_SREG,
+            SFU_PROTECT_MPU_FLASHEXE_TEXV, SFU_PROTECT_MPU_FLASHEXE_C, SFU_PROTECT_MPU_FLASHEXE_B
+        },
+        /*  Flash access for read write, slot  , swap */
+        {
+            SFU_PROTECT_MPU_FLASHACC_RGNV, SFU_PROTECT_MPU_FLASHACC_START,
+            SFU_PROTECT_MPU_FLASHACC_SIZE,
+            SFU_PROTECT_MPU_FLASHACC_PERM, SFU_PROTECT_MPU_FLASHACC_EXECV,
+            SFU_PROTECT_MPU_FLASHACC_SREG,
+            SFU_PROTECT_MPU_FLASHACC_TEXV, SFU_PROTECT_MPU_FLASHACC_C, SFU_PROTECT_MPU_FLASHACC_B
+        },
+        /*  peripheral  */
+        {
+            SFU_PROTECT_MPU_PERIPH_1_RGNV, SFU_PROTECT_MPU_PERIPH_1_START,
+            SFU_PROTECT_MPU_PERIPH_1_SIZE,
+            SFU_PROTECT_MPU_PERIPH_1_PERM, SFU_PROTECT_MPU_PERIPH_1_EXECV,
+            SFU_PROTECT_MPU_PERIPH_1_SREG,
+            SFU_PROTECT_MPU_PERIPH_1_TEXV, SFU_PROTECT_MPU_PERIPH_1_C, SFU_PROTECT_MPU_PERIPH_1_B
+        },
+        {
+            SFU_PROTECT_MPU_PERIPH_2_RGNV, SFU_PROTECT_MPU_PERIPH_2_START,
+            SFU_PROTECT_MPU_PERIPH_2_SIZE,
+            SFU_PROTECT_MPU_PERIPH_2_PERM, SFU_PROTECT_MPU_PERIPH_2_EXECV,
+            SFU_PROTECT_MPU_PERIPH_2_SREG,
+            SFU_PROTECT_MPU_PERIPH_2_TEXV, SFU_PROTECT_MPU_PERIPH_2_C, SFU_PROTECT_MPU_PERIPH_2_B
+        }
+    };
 #endif /* SFU_MPU_PROTECT_ENABLE */
 
 /* Private function prototypes -----------------------------------------------*/
-static SFU_ErrorStatus SFU_LL_SECU_CheckFlashConfiguration(FLASH_OBProgramInitTypeDef *psFlashOptionBytes);
-static SFU_ErrorStatus SFU_LL_SECU_SetFlashConfiguration(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
-                                                         SFU_BoolTypeDef *pbIsProtectionToBeApplied);
+static SFU_ErrorStatus
+SFU_LL_SECU_CheckFlashConfiguration(FLASH_OBProgramInitTypeDef *psFlashOptionBytes);
+static SFU_ErrorStatus
+SFU_LL_SECU_SetFlashConfiguration(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
+                                  SFU_BoolTypeDef *pbIsProtectionToBeApplied);
 
 #ifdef SFU_RDP_PROTECT_ENABLE
-static SFU_ErrorStatus SFU_LL_SECU_SetProtectionRDP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
-                                                    SFU_BoolTypeDef *pbIsProtectionToBeApplied);
+static SFU_ErrorStatus
+SFU_LL_SECU_SetProtectionRDP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
+                             SFU_BoolTypeDef *pbIsProtectionToBeApplied);
 #endif /*SFU_RDP_PROTECT_ENABLE*/
 
 #ifdef SFU_WRP_PROTECT_ENABLE
-static SFU_ErrorStatus SFU_LL_SECU_CheckProtectionWRP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes);
-static SFU_ErrorStatus SFU_LL_SECU_SetProtectionWRP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
-                                                    SFU_BoolTypeDef *pbIsProtectionToBeApplied);
+static SFU_ErrorStatus
+SFU_LL_SECU_CheckProtectionWRP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes);
+static SFU_ErrorStatus
+SFU_LL_SECU_SetProtectionWRP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
+                             SFU_BoolTypeDef *pbIsProtectionToBeApplied);
 #endif /*SFU_WRP_PROTECT_ENABLE*/
 
 #ifdef SFU_PCROP_PROTECT_ENABLE
-static SFU_ErrorStatus SFU_LL_SECU_CheckProtectionPCROP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes);
-static SFU_ErrorStatus SFU_LL_SECU_SetProtectionPCROP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
-                                                      SFU_BoolTypeDef *pbIsProtectionToBeApplied);
+static SFU_ErrorStatus
+SFU_LL_SECU_CheckProtectionPCROP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes);
+static SFU_ErrorStatus
+SFU_LL_SECU_SetProtectionPCROP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
+                               SFU_BoolTypeDef *pbIsProtectionToBeApplied);
 #endif /*SFU_PCROP_PROTECT_ENABLE*/
 
 #ifndef SFU_DAP_PROTECT_ENABLE
 #endif /*SFU_DAP_PROTECT_ENABLE*/
 
-
 #ifdef SFU_IWDG_PROTECT_ENABLE
-static SFU_ErrorStatus SFU_LL_SECU_SetProtectionIWDG(void);
+static SFU_ErrorStatus
+SFU_LL_SECU_SetProtectionIWDG(void);
 #endif /*SFU_IWDG_PROTECT_ENABLE*/
 
 #ifdef SFU_CLCK_MNTR_PROTECT_ENABLE
@@ -211,31 +230,34 @@ static SFU_ErrorStatus SFU_LL_SECU_SetProtectionSecUser(FLASH_OBProgramInitTypeD
   * @param  MPU_InitStruct Configuration to be checked
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
-static SFU_ErrorStatus MPU_CheckConfig(MPU_Region_InitTypeDef *pMPUInitStruct)
+static SFU_ErrorStatus
+MPU_CheckConfig(MPU_Region_InitTypeDef *pMPUInitStruct)
 {
-  uint32_t mpu_rasr = 0UL;
+    uint32_t mpu_rasr = 0UL;
 
-  /* Set the Region number */
-  MPU->RNR = pMPUInitStruct->Number;
+    /* Set the Region number */
+    MPU->RNR = pMPUInitStruct->Number;
 
-  mpu_rasr |= (((uint32_t)pMPUInitStruct->DisableExec        << MPU_RASR_XN_Pos) & MPU_RASR_XN_Msk);
-  mpu_rasr |= (((uint32_t)pMPUInitStruct->AccessPermission   << MPU_RASR_AP_Pos) & MPU_RASR_AP_Msk);
-  mpu_rasr |= (((uint32_t)pMPUInitStruct->TypeExtField       << MPU_RASR_TEX_Pos) & MPU_RASR_TEX_Msk);
-  mpu_rasr |= (((uint32_t)pMPUInitStruct->IsShareable        << MPU_RASR_S_Pos) & MPU_RASR_S_Msk);
-  mpu_rasr |= (((uint32_t)pMPUInitStruct->IsCacheable        << MPU_RASR_C_Pos) & MPU_RASR_C_Msk);
-  mpu_rasr |= (((uint32_t)pMPUInitStruct->IsBufferable       << MPU_RASR_B_Pos) & MPU_RASR_B_Msk);
-  mpu_rasr |= (((uint32_t)pMPUInitStruct->SubRegionDisable   << MPU_RASR_SRD_Pos) & MPU_RASR_SRD_Msk);
-  mpu_rasr |= (((uint32_t)pMPUInitStruct->Size               << MPU_RASR_SIZE_Pos) & MPU_RASR_SIZE_Msk);
-  mpu_rasr |= (((uint32_t)pMPUInitStruct->Enable             << MPU_RASR_ENABLE_Pos) & MPU_RASR_ENABLE_Msk);
+    mpu_rasr |= (((uint32_t) pMPUInitStruct->DisableExec << MPU_RASR_XN_Pos) & MPU_RASR_XN_Msk);
+    mpu_rasr |=
+        (((uint32_t) pMPUInitStruct->AccessPermission << MPU_RASR_AP_Pos) & MPU_RASR_AP_Msk);
+    mpu_rasr |= (((uint32_t) pMPUInitStruct->TypeExtField << MPU_RASR_TEX_Pos) & MPU_RASR_TEX_Msk);
+    mpu_rasr |= (((uint32_t) pMPUInitStruct->IsShareable << MPU_RASR_S_Pos) & MPU_RASR_S_Msk);
+    mpu_rasr |= (((uint32_t) pMPUInitStruct->IsCacheable << MPU_RASR_C_Pos) & MPU_RASR_C_Msk);
+    mpu_rasr |= (((uint32_t) pMPUInitStruct->IsBufferable << MPU_RASR_B_Pos) & MPU_RASR_B_Msk);
+    mpu_rasr |=
+        (((uint32_t) pMPUInitStruct->SubRegionDisable << MPU_RASR_SRD_Pos) & MPU_RASR_SRD_Msk);
+    mpu_rasr |= (((uint32_t) pMPUInitStruct->Size << MPU_RASR_SIZE_Pos) & MPU_RASR_SIZE_Msk);
+    mpu_rasr |= (((uint32_t) pMPUInitStruct->Enable << MPU_RASR_ENABLE_Pos) & MPU_RASR_ENABLE_Msk);
 
-  if (((MPU->RBAR & MPU_RBAR_ADDR_Msk) == pMPUInitStruct->BaseAddress) && (MPU->RASR == mpu_rasr))
-  {
-    return SFU_SUCCESS;
-  }
-  else
-  {
-    return SFU_ERROR;
-  }
+    if (((MPU->RBAR & MPU_RBAR_ADDR_Msk) == pMPUInitStruct->BaseAddress) && (MPU->RASR == mpu_rasr))
+    {
+        return SFU_SUCCESS;
+    }
+    else
+    {
+        return SFU_ERROR;
+    }
 }
 #endif /* SFU_MPU_PROTECT_ENABLE */
 
@@ -252,130 +274,142 @@ static SFU_ErrorStatus MPU_CheckConfig(MPU_Region_InitTypeDef *pMPUInitStruct)
   * @retval uint32_t CRC (returned value is the combination of all the applied protections.
   *         If different from SFU_STD_PROTECTION_ALL, 1 or more protections cannot be applied)
   */
-SFU_ErrorStatus SFU_LL_SECU_CheckApplyStaticProtections(void)
+SFU_ErrorStatus
+SFU_LL_SECU_CheckApplyStaticProtections(void)
 {
-  FLASH_OBProgramInitTypeDef flash_option_bytes;
-  SFU_BoolTypeDef is_protection_to_be_applied = SFU_FALSE;
-  SFU_ErrorStatus e_ret_status = SFU_SUCCESS;
+    FLASH_OBProgramInitTypeDef flash_option_bytes;
+    SFU_BoolTypeDef is_protection_to_be_applied = SFU_FALSE;
+    SFU_ErrorStatus e_ret_status = SFU_SUCCESS;
 
-  /* Unlock the Flash to enable the flash control register access *************/
-  (void) HAL_FLASH_Unlock();
+    /* Unlock the Flash to enable the flash control register access *************/
+    (void) HAL_FLASH_Unlock();
 
-  /* Clear OPTVERR bit set on virgin samples */
-  __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_OPTVERR);
+    /* Clear OPTVERR bit set on virgin samples */
+    __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_OPTVERR);
 
-  /* Unlock the Options Bytes *************************************************/
-  (void) HAL_FLASH_OB_Unlock();
+    /* Unlock the Options Bytes *************************************************/
+    (void) HAL_FLASH_OB_Unlock();
 
-  /* Get Option Bytes status for FLASH_BANK_1: WRP AREA_A, PCRoP, SecureArea **/
-  flash_option_bytes.WRPArea     = SFU_PROTECT_WRP_AREA_1;
-  flash_option_bytes.PCROPConfig = FLASH_BANK_1;
-  flash_option_bytes.SecBank = FLASH_BANK_1;
-  (void) HAL_FLASHEx_OBGetConfig(&flash_option_bytes);
+    /* Get Option Bytes status for FLASH_BANK_1: WRP AREA_A, PCRoP, SecureArea **/
+    flash_option_bytes.WRPArea = SFU_PROTECT_WRP_AREA_1;
+    flash_option_bytes.PCROPConfig = FLASH_BANK_1;
+    flash_option_bytes.SecBank = FLASH_BANK_1;
+    (void) HAL_FLASHEx_OBGetConfig(&flash_option_bytes);
 
-  /* Check/Apply RDP_Level 1. This is the minimum protection allowed */
-  /* if RDP_Level 2 is already applied it's not possible to modify the OptionBytes anymore */
-  if (flash_option_bytes.RDPLevel == OB_RDP_LEVEL_2)
-  {
-    /* Sanity check of the (enabled) static protections */
-    if (SFU_LL_SECU_CheckFlashConfiguration(&flash_option_bytes) != SFU_SUCCESS)
+    /* Check/Apply RDP_Level 1. This is the minimum protection allowed */
+    /* if RDP_Level 2 is already applied it's not possible to modify the OptionBytes anymore */
+    if (flash_option_bytes.RDPLevel == OB_RDP_LEVEL_2)
     {
-      LOG_DEBUG("= [SBOOT] Flash configuration failed! Product blocked.");
-      /* Security issue : execution stopped ! */
-      SFU_EXCPT_Security_Error();
-    }
+        /* Sanity check of the (enabled) static protections */
+        if (SFU_LL_SECU_CheckFlashConfiguration(&flash_option_bytes) != SFU_SUCCESS)
+        {
+            TRACE("= [SBOOT] Flash configuration failed! Product blocked.");
+            /* Security issue : execution stopped ! */
+            SFU_EXCPT_Security_Error(1);
+        }
 
 #ifdef SFU_WRP_PROTECT_ENABLE
-    if (SFU_LL_SECU_CheckProtectionWRP(&flash_option_bytes) != SFU_SUCCESS)
-    {
-      LOG_DEBUG("= [SBOOT] System Security Configuration failed! Product blocked.");
-      /* Security issue : execution stopped ! */
-      SFU_EXCPT_Security_Error();
-    }
+        if (SFU_LL_SECU_CheckProtectionWRP(&flash_option_bytes) != SFU_SUCCESS)
+        {
+            TRACE("= [SBOOT] System Security Configuration failed! Product blocked.");
+            /* Security issue : execution stopped ! */
+            SFU_EXCPT_Security_Error(2);
+        }
 #endif /* SFU_WRP_PROTECT_ENABLE */
 
 #ifdef SFU_PCROP_PROTECT_ENABLE
-    if (SFU_LL_SECU_CheckProtectionPCROP(&flash_option_bytes) != SFU_SUCCESS)
-    {
-      LOG_DEBUG("= [SBOOT] System Security Configuration failed! Product blocked.");
-      /* Security issue : execution stopped ! */
-      SFU_EXCPT_Security_Error();
-    }
+        if (SFU_LL_SECU_CheckProtectionPCROP(&flash_option_bytes) != SFU_SUCCESS)
+        {
+            TRACE("= [SBOOT] System Security Configuration failed! Product blocked.");
+            /* Security issue : execution stopped ! */
+            SFU_EXCPT_Security_Error(3);
+        }
 #endif /* SFU_PCROP_PROTECT_ENABLE */
 
 #ifdef SFU_SECURE_USER_PROTECT_ENABLE
-    if (SFU_LL_SECU_CheckProtectionSecUser(&flash_option_bytes) != SFU_SUCCESS)
-    {
-      LOG_DEBUG("= [SBOOT] System Security Configuration failed! Product blocked.");
-      /* Security issue : execution stopped ! */
-      SFU_EXCPT_Security_Error();
-    }
+            if (SFU_LL_SECU_CheckProtectionSecUser(&flash_option_bytes) != SFU_SUCCESS)
+            {
+              TRACE("= [SBOOT] System Security Configuration failed! Product blocked.");
+              /* Security issue : execution stopped ! */
+              SFU_EXCPT_Security_Error(4);
+            }
 #endif  /* SFU_SECURE_USER_PROTECT_ENABLE */
 
-    /*RDP level 2 ==> Flow control by-passed */
-    FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_RDP, FLOW_CTRL_RDP);
-  }
-  else
-  {
-    /* Check/Set Flash configuration *******************************************/
-    e_ret_status = SFU_LL_SECU_SetFlashConfiguration(&flash_option_bytes, &is_protection_to_be_applied);
-
-    /* Check/Apply WRP ********************************************************/
-#ifdef SFU_WRP_PROTECT_ENABLE
-    if (e_ret_status == SFU_SUCCESS)
-    {
-      e_ret_status = SFU_LL_SECU_SetProtectionWRP(&flash_option_bytes, &is_protection_to_be_applied);
+        /*RDP level 2 ==> Flow control by-passed */
+        FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_RDP, FLOW_CTRL_RDP);
     }
+    else
+    {
+        /* Check/Set Flash configuration *******************************************/
+        e_ret_status =
+            SFU_LL_SECU_SetFlashConfiguration(&flash_option_bytes, &is_protection_to_be_applied);
+        TRACE("SFU_LL_SECU_SetFlashConfiguration ret 0x%x\n\r", e_ret_status);
+
+        /* Check/Apply WRP ********************************************************/
+#ifdef SFU_WRP_PROTECT_ENABLE
+        if (e_ret_status == SFU_SUCCESS)
+        {
+            e_ret_status =
+                SFU_LL_SECU_SetProtectionWRP(&flash_option_bytes, &is_protection_to_be_applied);
+        }
+        TRACE("SFU_LL_SECU_SetProtectionWRP ret 0x%x\n\r", e_ret_status);
 #endif /* SFU_WRP_PROTECT_ENABLE */
 
-    /* Check/Apply PCRoP ******************************************************/
+        /* Check/Apply PCRoP ******************************************************/
 #ifdef SFU_PCROP_PROTECT_ENABLE
-    if (e_ret_status == SFU_SUCCESS)
-    {
-      e_ret_status = SFU_LL_SECU_SetProtectionPCROP(&flash_option_bytes, &is_protection_to_be_applied);
-    }
+        if (e_ret_status == SFU_SUCCESS)
+        {
+            e_ret_status =
+                SFU_LL_SECU_SetProtectionPCROP(&flash_option_bytes, &is_protection_to_be_applied);
+        }
+        TRACE("SFU_LL_SECU_SetProtectionPCROP ret 0x%x\n\r", e_ret_status);
 #endif /* SFU_PCROP_PROTECT_ENABLE */
 
-    /* Check/Apply Secure User Memory *****************************************/
+        /* Check/Apply Secure User Memory *****************************************/
 #ifdef SFU_SECURE_USER_PROTECT_ENABLE
-    if (e_ret_status == SFU_SUCCESS)
-    {
-      e_ret_status = SFU_LL_SECU_SetProtectionSecUser(&flash_option_bytes, &is_protection_to_be_applied);
-    }
+        if (e_ret_status == SFU_SUCCESS)
+        {
+          e_ret_status = SFU_LL_SECU_SetProtectionSecUser(&flash_option_bytes, &is_protection_to_be_applied);
+        }
+        TRACE("SFU_LL_SECU_SetProtectionSecUser ret 0x%x\n\r", e_ret_status);
 #endif  /* SFU_SECURE_USER_PROTECT_ENABLE */
 
-    /* Check/Apply RDP : RDP-L2 should be done as last option bytes configuration */
+        /* Check/Apply RDP : RDP-L2 should be done as last option bytes configuration */
 #ifdef SFU_RDP_PROTECT_ENABLE
-    if (e_ret_status == SFU_SUCCESS)
-    {
-      e_ret_status = SFU_LL_SECU_SetProtectionRDP(&flash_option_bytes, &is_protection_to_be_applied);
-    }
+        if (e_ret_status == SFU_SUCCESS)
+        {
+            e_ret_status =
+                SFU_LL_SECU_SetProtectionRDP(&flash_option_bytes, &is_protection_to_be_applied);
+        }
+        TRACE("SFU_LL_SECU_SetProtectionRDP ret 0x%x\n\r", e_ret_status);
 #endif  /* SFU_RDP_PROTECT_ENABLE */
 
-    if (e_ret_status == SFU_SUCCESS)
-    {
-      if (is_protection_to_be_applied)
-      {
-        /* Generate System Reset to reload the new option byte values *************/
-        /* WARNING: This means that if a protection can't be set, there will be a reset loop! */
-        (void) HAL_FLASH_OB_Launch();
-      }
+        if (e_ret_status == SFU_SUCCESS)
+        {
+            TRACE("is_protection_to_be_applied ret 0x%x\n\r", is_protection_to_be_applied);
+            if (is_protection_to_be_applied)
+            {
+                /* Generate System Reset to reload the new option byte values *************/
+                /* WARNING: This means that if a protection can't be set, there will be a reset loop! */
+                (void) HAL_FLASH_OB_Launch();
+            }
+        }
     }
-  }
 
 
-  /* Lock the Options Bytes ***************************************************/
-  (void) HAL_FLASH_OB_Lock();
+    /* Lock the Options Bytes ***************************************************/
+    (void) HAL_FLASH_OB_Lock();
+    TRACE("HAL_FLASH_OB_Lock\n\r");
 
-  /* Lock the Flash to disable the flash control register access (recommended
-  to protect the FLASH memory against possible unwanted operation) *********/
-  (void) HAL_FLASH_Lock();
+    /* Lock the Flash to disable the flash control register access (recommended
+    to protect the FLASH memory against possible unwanted operation) *********/
+    (void) HAL_FLASH_Lock();
+    TRACE("HAL_FLASH_Lock\n\r");
 
-  /* If it was not possible to apply one of the above mandatory protections, the
-  Option bytes have not been reloaded. Return the error status in order for the
-  caller function to take the right actions */
-  return e_ret_status;
-
+    /* If it was not possible to apply one of the above mandatory protections, the
+    Option bytes have not been reloaded. Return the error status in order for the
+    caller function to take the right actions */
+    return e_ret_status;
 }
 
 /**
@@ -384,152 +418,160 @@ SFU_ErrorStatus SFU_LL_SECU_CheckApplyStaticProtections(void)
   * @param  None
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
-SFU_ErrorStatus SFU_LL_SECU_CheckApplyRuntimeProtections(uint8_t uStep)
+SFU_ErrorStatus
+SFU_LL_SECU_CheckApplyRuntimeProtections(uint8_t uStep)
 {
-  SFU_ErrorStatus e_ret_status = SFU_SUCCESS;
-  SFU_ProtectionTypeDef runtime_protection = SFU_PROTECTIONS_NONE;
-  /* Check/Apply  IWDG **************************************************/
-#ifdef SFU_IWDG_PROTECT_ENABLE
-  if (SFU_LL_SECU_SetProtectionIWDG() == SFU_SUCCESS)
-  {
-    runtime_protection |= SFU_RUNTIME_PROTECTION_IWDG;
-  }
-  else
-  {
-    /* When a protection cannot be set then SFU_ERROR is returned */
-    e_ret_status = SFU_ERROR;
-  }
-#endif /* SFU_IWDG_PROTECT_ENABLE */
+    SFU_ErrorStatus e_ret_status = SFU_SUCCESS;
+    SFU_ProtectionTypeDef runtime_protection = SFU_PROTECTIONS_NONE;
 
-#ifdef SFU_MPU_PROTECT_ENABLE
-  /* Check/Apply MPU ************************************************/
-  if (uStep == SFU_INITIAL_CONFIGURATION)
-  {
-    if (SFU_LL_SECU_SetProtectionMPU(uStep) == SFU_SUCCESS)
+    TRACE("SFU_LL_SECU_CheckApplyRuntimeProtections: uStep=%u\r\n", uStep);
+
+    /* Check/Apply  IWDG **************************************************/
+#ifdef SFU_IWDG_PROTECT_ENABLE
+    if (SFU_LL_SECU_SetProtectionIWDG() == SFU_SUCCESS)
     {
-      runtime_protection |= SFU_RUNTIME_PROTECTION_MPU;
+        runtime_protection |= SFU_RUNTIME_PROTECTION_IWDG;
     }
     else
     {
-      /* When a protection cannot be set then SFU_ERROR is returned */
-      e_ret_status = SFU_ERROR;
+        /* When a protection cannot be set then SFU_ERROR is returned */
+        e_ret_status = SFU_ERROR;
     }
-  }
-  else
-  {
-    /* Privileged mode required for MPU second-configuration
-       Errors caught by FLOW_CONTROL */
-    SFU_MPU_SysCall((uint32_t)SB_SYSCALL_MPU_CONFIG);
-  }
+#endif /* SFU_IWDG_PROTECT_ENABLE */
+
+    TRACE("SFU_LL_SECU_SetProtectionIWDG ret 0x%x\r\n", e_ret_status);
+
+
+#ifdef SFU_MPU_PROTECT_ENABLE
+    /* Check/Apply MPU ************************************************/
+    if (uStep == SFU_INITIAL_CONFIGURATION)
+    {
+        if (SFU_LL_SECU_SetProtectionMPU(uStep) == SFU_SUCCESS)
+        {
+            runtime_protection |= SFU_RUNTIME_PROTECTION_MPU;
+        }
+        else
+        {
+            /* When a protection cannot be set then SFU_ERROR is returned */
+            e_ret_status = SFU_ERROR;
+        }
+    }
+    else
+    {
+        /* Privileged mode required for MPU second-configuration
+           Errors caught by FLOW_CONTROL */
+        SFU_MPU_SysCall((uint32_t) SB_SYSCALL_MPU_CONFIG);
+    }
+    TRACE("SFU_LL_SECU_SetProtectionMPU ret 0x%x\r\n", e_ret_status);
 #endif /* SFU_MPU_PROTECT_ENABLE */
 
 
 
-  /* Check/Apply disable DMAs  ************************************************/
+    /* Check/Apply disable DMAs  ************************************************/
 #ifdef SFU_DMA_PROTECT_ENABLE
-  if (uStep == SFU_INITIAL_CONFIGURATION)
-  {
-    if (SFU_LL_SECU_SetProtectionDMA() == SFU_SUCCESS)
+    if (uStep == SFU_INITIAL_CONFIGURATION)
     {
-      runtime_protection |= SFU_RUNTIME_PROTECTION_DMA;
+        if (SFU_LL_SECU_SetProtectionDMA() == SFU_SUCCESS)
+        {
+            runtime_protection |= SFU_RUNTIME_PROTECTION_DMA;
+        }
+        else
+        {
+            /* When a protection cannot be set then SFU_ERROR is returned */
+            e_ret_status = SFU_ERROR;
+        }
     }
     else
     {
-      /* When a protection cannot be set then SFU_ERROR is returned */
-      e_ret_status = SFU_ERROR;
+        /* Privileged mode required for DMA second-configuration in order to activate the clock through RCC
+           Errors caught by FLOW_CONTROL */
+        SFU_MPU_SysCall((uint32_t) SB_SYSCALL_DMA_CONFIG);
     }
-  }
-  else
-  {
-    /* Privileged mode required for DMA second-configuration in order to activate the clock through RCC
-       Errors caught by FLOW_CONTROL */
-    SFU_MPU_SysCall((uint32_t)SB_SYSCALL_DMA_CONFIG);
-  }
 #endif /* SFU_DMA_PROTECT_ENABLE */
+    TRACE("SFU_LL_SECU_SetProtectionDMA ret 0x%x\r\n", e_ret_status);
 
-
-  /* Check/Apply  DAP *********************************************************/
+    /* Check/Apply  DAP *********************************************************/
 #ifdef SFU_DAP_PROTECT_ENABLE
-  if (uStep == SFU_INITIAL_CONFIGURATION)
-  {
-    if (SFU_LL_SECU_SetProtectionDAP() == SFU_SUCCESS)
+    if (uStep == SFU_INITIAL_CONFIGURATION)
     {
-      runtime_protection |= SFU_RUNTIME_PROTECTION_DAP;
+        if (SFU_LL_SECU_SetProtectionDAP() == SFU_SUCCESS)
+        {
+            runtime_protection |= SFU_RUNTIME_PROTECTION_DAP;
+        }
+        else
+        {
+            /* When a protection cannot be set then SFU_ERROR is returned */
+            e_ret_status = SFU_ERROR;
+        }
     }
     else
     {
-      /* When a protection cannot be set then SFU_ERROR is returned */
-      e_ret_status = SFU_ERROR;
+        /* Privileged mode required for DMA second-configuration in order to activate the clock through RCC
+           Errors caught by FLOW_CONTROL */
+        SFU_MPU_SysCall((uint32_t) SB_SYSCALL_DAP_CONFIG);
     }
-  }
-  else
-  {
-    /* Privileged mode required for DMA second-configuration in order to activate the clock through RCC
-       Errors caught by FLOW_CONTROL */
-    SFU_MPU_SysCall((uint32_t)SB_SYSCALL_DAP_CONFIG);
-  }
 #else
 #endif /* SFU_DAP_PROTECT_ENABLE */
 
-  /* Check/Apply  ANTI_TAMPER *************************************************/
+    /* Check/Apply  ANTI_TAMPER *************************************************/
 #ifdef SFU_TAMPER_PROTECT_ENABLE
-  if (uStep == SFU_INITIAL_CONFIGURATION)
-  {
-    if (SFU_LL_SECU_SetProtectionANTI_TAMPER() == SFU_SUCCESS)
+    if (uStep == SFU_INITIAL_CONFIGURATION)
     {
-      runtime_protection |= SFU_RUNTIME_PROTECTION_ANTI_TAMPER;
+        if (SFU_LL_SECU_SetProtectionANTI_TAMPER() == SFU_SUCCESS)
+        {
+            runtime_protection |= SFU_RUNTIME_PROTECTION_ANTI_TAMPER;
+        }
+        else
+        {
+            /* When a protection cannot be set then SFU_ERROR is returned */
+            e_ret_status = SFU_ERROR;
+        }
+    }
+    else
+    {
+        /* Privileged mode required for TAMPER second-configuration in order to activate the clock through RCC
+           Errors caught by FLOW_CONTROL */
+        SFU_MPU_SysCall((uint32_t) SB_SYSCALL_TAMPER_CONFIG);
+    }
+#else
+#ifdef SFU_TEST_PROTECTION
+    if (SFU_LL_RTC_Init() != SFU_SUCCESS)
+    {
+      e_ret_status = SFU_ERROR;
+    }
+#endif /* SFU_TEST_PROTECTION */
+#endif /* SFU_TAMPER_PROTECT_ENABLE */
+    /* Check/Apply  CLOCK_MONITOR **********************************************/
+#ifdef SFU_CLCK_MNTR_PROTECT_ENABLE
+    if (SFU_LL_SECU_SetProtectionCLOCK_MONITOR() == SFU_SUCCESS)
+    {
+      runtime_protection |= SFU_RUNTIME_PROTECTION_CLOCK_MONITOR;
     }
     else
     {
       /* When a protection cannot be set then SFU_ERROR is returned */
       e_ret_status = SFU_ERROR;
     }
-  }
-  else
-  {
-    /* Privileged mode required for TAMPER second-configuration in order to activate the clock through RCC
-       Errors caught by FLOW_CONTROL */
-    SFU_MPU_SysCall((uint32_t)SB_SYSCALL_TAMPER_CONFIG);
-  }
-#else
-#ifdef SFU_TEST_PROTECTION
-  if (SFU_LL_RTC_Init() != SFU_SUCCESS)
-  {
-    e_ret_status = SFU_ERROR;
-  }
-#endif /* SFU_TEST_PROTECTION */
-#endif /* SFU_TAMPER_PROTECT_ENABLE */
-  /* Check/Apply  CLOCK_MONITOR **********************************************/
-#ifdef SFU_CLCK_MNTR_PROTECT_ENABLE
-  if (SFU_LL_SECU_SetProtectionCLOCK_MONITOR() == SFU_SUCCESS)
-  {
-    runtime_protection |= SFU_RUNTIME_PROTECTION_CLOCK_MONITOR;
-  }
-  else
-  {
-    /* When a protection cannot be set then SFU_ERROR is returned */
-    e_ret_status = SFU_ERROR;
-  }
 #endif /* SFU_CLCK_MNTR_PROTECT_ENABLE */
 
-  /* Check/Apply  TEMP_MONITOR **********************************************/
+    /* Check/Apply  TEMP_MONITOR **********************************************/
 #ifdef SFU_TEMP_MNTR_PROTECT_ENABLE
-  if (SFU_LL_SECU_SetProtectionTEMP_MONITOR() == SFU_SUCCESS)
-  {
-    runtime_protection |= SFU_RUNTIME_PROTECTION_TEMP_MONITOR;
-  }
-  else
-  {
-    /* When a protection cannot be set then SFU_ERROR is returned */
-    e_ret_status = SFU_ERROR;
-  }
+    if (SFU_LL_SECU_SetProtectionTEMP_MONITOR() == SFU_SUCCESS)
+    {
+      runtime_protection |= SFU_RUNTIME_PROTECTION_TEMP_MONITOR;
+    }
+    else
+    {
+      /* When a protection cannot be set then SFU_ERROR is returned */
+      e_ret_status = SFU_ERROR;
+    }
 #endif /* SFU_TEMP_MNTR_PROTECT_ENABLE */
 
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-  LOG_DEBUG("= [SBOOT] RuntimeProtections: %x", runtime_protection);
+    TRACE("= [SBOOT] RuntimeProtections: %x", runtime_protection);
 #endif /* SFU_VERBOSE_DEBUG_MODE */
 
-  return e_ret_status;
+    return e_ret_status;
 }
 
 /**
@@ -540,46 +582,47 @@ SFU_ErrorStatus SFU_LL_SECU_CheckApplyRuntimeProtections(uint8_t uStep)
   *         It can be improved returning and managing a combination of them.
   * @retval SFU_SUCCESS if successful, SFU_ERROR otherwise
   */
-void SFU_LL_SECU_GetResetSources(SFU_RESET_IdTypeDef *peResetpSourceId)
+void
+SFU_LL_SECU_GetResetSources(SFU_RESET_IdTypeDef *peResetpSourceId)
 {
-  /* Check if the last reset has been generated from a Watchdog exception */
-  if ((__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST) != RESET) ||
-      (__HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST) != RESET))
-  {
-    *peResetpSourceId = SFU_RESET_WDG_RESET;
+    /* Check if the last reset has been generated from a Watchdog exception */
+    if ((__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST) != RESET) ||
+        (__HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST) != RESET))
+    {
+        *peResetpSourceId = SFU_RESET_WDG_RESET;
 
-  }
+    }
 
 
-  /* Check if the last reset has been generated from a Low Power reset */
-  else if (__HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST) != RESET)
-  {
-    *peResetpSourceId = SFU_RESET_LOW_POWER;
+        /* Check if the last reset has been generated from a Low Power reset */
+    else if (__HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST) != RESET)
+    {
+        *peResetpSourceId = SFU_RESET_LOW_POWER;
 
-  }
+    }
 
-  /* Check if the last reset has been generated from a Software reset  */
-  else if (__HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST) != RESET)
-  {
-    *peResetpSourceId = SFU_RESET_SW_RESET;
+        /* Check if the last reset has been generated from a Software reset  */
+    else if (__HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST) != RESET)
+    {
+        *peResetpSourceId = SFU_RESET_SW_RESET;
 
-  }
-  /* Check if the last reset has been generated from an Option Byte Loader reset  */
-  else if (__HAL_RCC_GET_FLAG(RCC_FLAG_OBLRST) != RESET)
-  {
-    *peResetpSourceId = SFU_RESET_OB_LOADER;
-  }
-  /* Check if the last reset has been generated from a Hw pin reset  */
-  else if (__HAL_RCC_GET_FLAG(RCC_FLAG_PINRST) != RESET)
-  {
-    *peResetpSourceId = SFU_RESET_HW_RESET;
+    }
+        /* Check if the last reset has been generated from an Option Byte Loader reset  */
+    else if (__HAL_RCC_GET_FLAG(RCC_FLAG_OBLRST) != RESET)
+    {
+        *peResetpSourceId = SFU_RESET_OB_LOADER;
+    }
+        /* Check if the last reset has been generated from a Hw pin reset  */
+    else if (__HAL_RCC_GET_FLAG(RCC_FLAG_PINRST) != RESET)
+    {
+        *peResetpSourceId = SFU_RESET_HW_RESET;
 
-  }
-  /* Unknown */
-  else
-  {
-    *peResetpSourceId = SFU_RESET_UNKNOWN;
-  }
+    }
+        /* Unknown */
+    else
+    {
+        *peResetpSourceId = SFU_RESET_UNKNOWN;
+    }
 }
 
 /**
@@ -589,10 +632,11 @@ void SFU_LL_SECU_GetResetSources(SFU_RESET_IdTypeDef *peResetpSourceId)
   * @note   none
   * @retval none
   */
-void SFU_LL_SECU_ClearResetSources()
+void
+SFU_LL_SECU_ClearResetSources()
 {
-  /* Clear reset flags  */
-  __HAL_RCC_CLEAR_RESET_FLAGS();
+    /* Clear reset flags  */
+    __HAL_RCC_CLEAR_RESET_FLAGS();
 }
 
 /**
@@ -601,23 +645,24 @@ void SFU_LL_SECU_ClearResetSources()
   * @param  None
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
-SFU_ErrorStatus SFU_LL_SECU_IWDG_Refresh(void)
+SFU_ErrorStatus
+SFU_LL_SECU_IWDG_Refresh(void)
 {
-  SFU_ErrorStatus e_ret_status = SFU_ERROR;
+    SFU_ErrorStatus e_ret_status = SFU_ERROR;
 
 #ifdef SFU_IWDG_PROTECT_ENABLE
-  {
-    /* Refresh IWDG: reload counter */
-    if (HAL_IWDG_Refresh(&IwdgHandle) == HAL_OK)
     {
-      e_ret_status = SFU_SUCCESS;
+        /* Refresh IWDG: reload counter */
+        if (HAL_IWDG_Refresh(&IwdgHandle) == HAL_OK)
+        {
+            e_ret_status = SFU_SUCCESS;
+        }
     }
-  }
 #else
-  e_ret_status = SFU_SUCCESS;
+    e_ret_status = SFU_SUCCESS;
 #endif /*SFU_IWDG_PROTECT_ENABLE*/
 
-  return e_ret_status;
+    return e_ret_status;
 }
 
 /**
@@ -625,22 +670,30 @@ SFU_ErrorStatus SFU_LL_SECU_IWDG_Refresh(void)
   * @param  psFlashOptionBytes: pointer to the Option Bytes structure
   * @retval SFU_ErrorStatus SFU_SUCCESS if Flash configuration is correct, SFU_ERROR otherwise.
   */
-SFU_ErrorStatus SFU_LL_SECU_CheckFlashConfiguration(FLASH_OBProgramInitTypeDef *psFlashOptionBytes)
+SFU_ErrorStatus
+SFU_LL_SECU_CheckFlashConfiguration(FLASH_OBProgramInitTypeDef *psFlashOptionBytes)
 {
-  SFU_ErrorStatus e_ret_status = SFU_ERROR;
+    SFU_ErrorStatus e_ret_status = SFU_ERROR;
 
-  /* Check Single bank mode bit **********************************************/
-  if ((psFlashOptionBytes->USERConfig & OB_DBANK_64_BITS) != OB_DBANK_64_BITS)
-  {
-    e_ret_status = SFU_SUCCESS;
-  }
-  if (e_ret_status == SFU_SUCCESS)
-  {
-    /* Execution stopped if flow control failed */
-    FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_UBE, FLOW_CTRL_UBE);
-  }
-  return e_ret_status;
+    /* Check Single bank mode bit **********************************************/
+    if ((psFlashOptionBytes->USERConfig & OB_DBANK_64_BITS) != OB_DBANK_64_BITS)
+    {
+        TRACE("UserConfig: 0x%x", psFlashOptionBytes->USERConfig);
 
+        e_ret_status = SFU_SUCCESS;
+    }
+
+    TRACE("uFlowProtectValue: 0x%x", uFlowProtectValue);
+
+    if (e_ret_status == SFU_SUCCESS)
+    {
+        /* Execution stopped if flow control failed */
+        FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_UBE, FLOW_CTRL_UBE);
+    }
+
+//    TRACE("UserConfig: 0x%x", psFlashOptionBytes->USERConfig);
+
+    return e_ret_status;
 }
 
 /**
@@ -650,25 +703,26 @@ SFU_ErrorStatus SFU_LL_SECU_CheckFlashConfiguration(FLASH_OBProgramInitTypeDef *
   *         this OptByte has to be modified and immediately reloaded.
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
-SFU_ErrorStatus SFU_LL_SECU_SetFlashConfiguration(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
-                                                  SFU_BoolTypeDef *pbIsProtectionToBeApplied)
+SFU_ErrorStatus
+SFU_LL_SECU_SetFlashConfiguration(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
+                                  SFU_BoolTypeDef *pbIsProtectionToBeApplied)
 {
-  SFU_ErrorStatus e_ret_status = SFU_ERROR;
+    SFU_ErrorStatus e_ret_status = SFU_ERROR;
 
-  /* Check Flash configuration */
-  if (SFU_LL_SECU_CheckFlashConfiguration(psFlashOptionBytes) == SFU_SUCCESS)
-  {
-    e_ret_status = SFU_SUCCESS;
-  }
-  else
-  {
-    /* Single Bank mode cannot be activated on the FLY : information only */
-    LOG_DEBUG("= [SBOOT] Flash Configuration KO: Dual bank mode activated. STOP!");
-    /* Security issue : execution stopped ! */
-    SFU_EXCPT_Security_Error();
-  }
+    /* Check Flash configuration */
+    if (SFU_LL_SECU_CheckFlashConfiguration(psFlashOptionBytes) == SFU_SUCCESS)
+    {
+        e_ret_status = SFU_SUCCESS;
+    }
+    else
+    {
+        /* Single Bank mode cannot be activated on the FLY : information only */
+        TRACE("= [SBOOT] Flash Configuration KO: Dual bank mode activated. STOP!");
+        /* Security issue : execution stopped ! */
+        SFU_EXCPT_Security_Error(5);
+    }
 
-  return e_ret_status;
+    return e_ret_status;
 }
 
 #ifdef SFU_RDP_PROTECT_ENABLE
@@ -679,43 +733,44 @@ SFU_ErrorStatus SFU_LL_SECU_SetFlashConfiguration(FLASH_OBProgramInitTypeDef *ps
   *         this OptByte has to be modified and immediately reloaded.
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
-SFU_ErrorStatus SFU_LL_SECU_SetProtectionRDP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
-                                             SFU_BoolTypeDef *pbIsProtectionToBeApplied)
+SFU_ErrorStatus
+SFU_LL_SECU_SetProtectionRDP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
+                             SFU_BoolTypeDef *pbIsProtectionToBeApplied)
 {
-  SFU_ErrorStatus e_ret_status = SFU_ERROR;
+    SFU_ErrorStatus e_ret_status = SFU_ERROR;
 
-  /* Check/Apply RDP **********************************************************/
-  /* Please consider that the suggested and most secure approach is to set the RDP_LEVEL_2 */
-  if (psFlashOptionBytes->RDPLevel == SFU_PROTECT_RDP_LEVEL)
-  {
-    e_ret_status = SFU_SUCCESS; /*Protection already applied */
-    /* Execution stopped if flow control failed */
-    FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_RDP, FLOW_CTRL_RDP);
-  }
-  else
-  {
+    /* Check/Apply RDP **********************************************************/
+    /* Please consider that the suggested and most secure approach is to set the RDP_LEVEL_2 */
+    if (psFlashOptionBytes->RDPLevel == SFU_PROTECT_RDP_LEVEL)
+    {
+        e_ret_status = SFU_SUCCESS; /*Protection already applied */
+        /* Execution stopped if flow control failed */
+        FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_RDP, FLOW_CTRL_RDP);
+    }
+    else
+    {
 #if defined(SECBOOT_OB_DEV_MODE)
 #if defined(SFU_FINAL_SECURE_LOCK_ENABLE)
-    LOG_DEBUG("\t  Applying RDP-2 Level. Product locked! You might need to unplug/plug the USB cable!");
+        TRACE("\t  Applying RDP-2 Level. Product locked! You might need to unplug/plug the USB cable!");
 #else
-    LOG_DEBUG("\t  Applying RDP-1 Level. You might need to unplug/plug the USB cable!");
+        TRACE("\t  Applying RDP-1 Level. You might need to unplug/plug the USB cable!\n\r");
 #endif /* SFU_FINAL_SECURE_LOCK_ENABLE */
-    psFlashOptionBytes->OptionType      = OPTIONBYTE_RDP;
-    psFlashOptionBytes->RDPLevel        = SFU_PROTECT_RDP_LEVEL;
-    if (HAL_FLASHEx_OBProgram(psFlashOptionBytes) == HAL_OK)
-    {
-      *pbIsProtectionToBeApplied |= 1U;
-      e_ret_status = SFU_SUCCESS;
-      /* Execution stopped if flow control failed */
-      FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_RDP, FLOW_CTRL_RDP);
-    }
+        psFlashOptionBytes->OptionType = OPTIONBYTE_RDP;
+        psFlashOptionBytes->RDPLevel = SFU_PROTECT_RDP_LEVEL;
+        if (HAL_FLASHEx_OBProgram(psFlashOptionBytes) == HAL_OK)
+        {
+            *pbIsProtectionToBeApplied |= 1U;
+            e_ret_status = SFU_SUCCESS;
+            /* Execution stopped if flow control failed */
+            FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_RDP, FLOW_CTRL_RDP);
+        }
 #else
-    LOG_DEBUG("= [SBOOT] System Security Configuration failed: RDP is incorrect. STOP!");
-    /* Security issue : execution stopped ! */
-    SFU_EXCPT_Security_Error();
+        TRACE("= [SBOOT] System Security Configuration failed: RDP is incorrect. STOP!");
+        /* Security issue : execution stopped ! */
+        SFU_EXCPT_Security_Error(6);
 #endif /* SECBOOT_OB_DEV_MODE */
-  }
-  return e_ret_status;
+    }
+    return e_ret_status;
 }
 #endif /*SFU_RDP_PROTECT_ENABLE*/
 
@@ -725,22 +780,23 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionRDP(FLASH_OBProgramInitTypeDef *psFlash
   * @param  psFlashOptionBytes: pointer to the Option Bytes structure
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
-SFU_ErrorStatus SFU_LL_SECU_CheckProtectionWRP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes)
+SFU_ErrorStatus
+SFU_LL_SECU_CheckProtectionWRP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes)
 {
-  SFU_ErrorStatus e_ret_status = SFU_ERROR;
+    SFU_ErrorStatus e_ret_status = SFU_ERROR;
 
-  /* Check WRP ****************************************************************/
-  if ((psFlashOptionBytes->WRPStartOffset == SFU_PROTECT_WRP_PAGE_START_1) &&
-      (psFlashOptionBytes->WRPEndOffset   == SFU_PROTECT_WRP_PAGE_END_1))
-  {
-    e_ret_status = SFU_SUCCESS; /*Protection applied */
-  }
-  if (e_ret_status == SFU_SUCCESS)
-  {
-    /* Execution stopped if flow control failed */
-    FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_WRP, FLOW_CTRL_WRP);
-  }
-  return e_ret_status;
+    /* Check WRP ****************************************************************/
+    if ((psFlashOptionBytes->WRPStartOffset == SFU_PROTECT_WRP_PAGE_START_1) &&
+        (psFlashOptionBytes->WRPEndOffset == SFU_PROTECT_WRP_PAGE_END_1))
+    {
+        e_ret_status = SFU_SUCCESS; /*Protection applied */
+    }
+    if (e_ret_status == SFU_SUCCESS)
+    {
+        /* Execution stopped if flow control failed */
+        FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_WRP, FLOW_CTRL_WRP);
+    }
+    return e_ret_status;
 }
 
 /**
@@ -750,43 +806,42 @@ SFU_ErrorStatus SFU_LL_SECU_CheckProtectionWRP(FLASH_OBProgramInitTypeDef *psFla
   *         this OptByte has to be modified and immediately reloaded.
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
-SFU_ErrorStatus SFU_LL_SECU_SetProtectionWRP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
-                                             SFU_BoolTypeDef *pbIsProtectionToBeApplied)
+SFU_ErrorStatus
+SFU_LL_SECU_SetProtectionWRP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
+                             SFU_BoolTypeDef *pbIsProtectionToBeApplied)
 {
-  SFU_ErrorStatus e_ret_status = SFU_ERROR;
+    SFU_ErrorStatus e_ret_status = SFU_ERROR;
 
-  /* Check/Apply WRP **********************************************************/
-  if (SFU_LL_SECU_CheckProtectionWRP(psFlashOptionBytes) == SFU_SUCCESS)
-  {
-    e_ret_status = SFU_SUCCESS; /*Protection already applied */
-  }
-  else
-  {
-#if defined(SECBOOT_OB_DEV_MODE)
-    psFlashOptionBytes->OptionType     = OPTIONBYTE_WRP;
-    psFlashOptionBytes->WRPArea        = SFU_PROTECT_WRP_AREA_1;
-    psFlashOptionBytes->WRPStartOffset = SFU_PROTECT_WRP_PAGE_START_1;
-    psFlashOptionBytes->WRPEndOffset   = SFU_PROTECT_WRP_PAGE_END_1;
-
-    if (HAL_FLASHEx_OBProgram(psFlashOptionBytes) == HAL_OK)
+    /* Check/Apply WRP **********************************************************/
+    if (SFU_LL_SECU_CheckProtectionWRP(psFlashOptionBytes) == SFU_SUCCESS)
     {
-      *pbIsProtectionToBeApplied |= 1U;
-      e_ret_status = SFU_SUCCESS;
-      /* Execution stopped if flow control failed */
-      FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_WRP, FLOW_CTRL_WRP);
+        e_ret_status = SFU_SUCCESS; /*Protection already applied */
     }
-#else
-    LOG_DEBUG("= [SBOOT] System Security Configuration failed: WRP is incorrect. STOP!");
-    /* Security issue : execution stopped ! */
-    SFU_EXCPT_Security_Error();
-#endif /* SECBOOT_OB_DEV_MODE */
-  }
+    else
+    {
+#if defined(SECBOOT_OB_DEV_MODE)
+        psFlashOptionBytes->OptionType = OPTIONBYTE_WRP;
+        psFlashOptionBytes->WRPArea = SFU_PROTECT_WRP_AREA_1;
+        psFlashOptionBytes->WRPStartOffset = SFU_PROTECT_WRP_PAGE_START_1;
+        psFlashOptionBytes->WRPEndOffset = SFU_PROTECT_WRP_PAGE_END_1;
 
-  return e_ret_status;
+        if (HAL_FLASHEx_OBProgram(psFlashOptionBytes) == HAL_OK)
+        {
+            *pbIsProtectionToBeApplied |= 1U;
+            e_ret_status = SFU_SUCCESS;
+            /* Execution stopped if flow control failed */
+            FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_WRP, FLOW_CTRL_WRP);
+        }
+#else
+        TRACE("= [SBOOT] System Security Configuration failed: WRP is incorrect. STOP!");
+        /* Security issue : execution stopped ! */
+        SFU_EXCPT_Security_Error(7);
+#endif /* SECBOOT_OB_DEV_MODE */
+    }
+
+    return e_ret_status;
 }
 #endif /*SFU_WRP_PROTECT_ENABLE*/
-
-
 
 #ifdef SFU_MPU_PROTECT_ENABLE
 
@@ -795,80 +850,81 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionWRP(FLASH_OBProgramInitTypeDef *psFlash
   * @param  uStep Configuration step : SFU_INITIAL_CONFIGURATION, SFU_SECOND_CONFIGURATION, SFU_THIRD_CONFIGURATION
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
-SFU_ErrorStatus SFU_LL_SECU_SetProtectionMPU(uint8_t uStep)
+SFU_ErrorStatus
+SFU_LL_SECU_SetProtectionMPU(uint8_t uStep)
 {
-  SFU_ErrorStatus e_ret_status = SFU_ERROR;
-  uint8_t mpu_region_num; /* id of the MPU region being configured */
-  MPU_Region_InitTypeDef MPU_InitStruct;
+    SFU_ErrorStatus e_ret_status = SFU_ERROR;
+    uint8_t mpu_region_num; /* id of the MPU region being configured */
+    MPU_Region_InitTypeDef MPU_InitStruct;
 
-
-  for (mpu_region_num = 0U; mpu_region_num < (sizeof(MpuAreas) / sizeof(SFU_MPU_InitTypeDef)); mpu_region_num++)
-  {
-    MPU_InitStruct.Enable               = MPU_REGION_ENABLE;
-    MPU_InitStruct.Number               = MpuAreas[mpu_region_num].Number;
-    MPU_InitStruct.BaseAddress          = MpuAreas[mpu_region_num].BaseAddress;
-    MPU_InitStruct.Size                 = MpuAreas[mpu_region_num].Size;
-    MPU_InitStruct.SubRegionDisable     = MpuAreas[mpu_region_num].SubRegionDisable;
-    MPU_InitStruct.AccessPermission     = MpuAreas[mpu_region_num].AccessPermission;
-    MPU_InitStruct.DisableExec          = MpuAreas[mpu_region_num].DisableExec;
-    MPU_InitStruct.IsShareable          = MPU_ACCESS_NOT_SHAREABLE;
-    MPU_InitStruct.IsBufferable         = MpuAreas[mpu_region_num].Bufferable;
-    MPU_InitStruct.IsCacheable          = MpuAreas[mpu_region_num].Cacheable;
-    MPU_InitStruct.TypeExtField         = MpuAreas[mpu_region_num].Tex;
+    for (mpu_region_num = 0U; mpu_region_num < (sizeof(MpuAreas) / sizeof(SFU_MPU_InitTypeDef));
+         mpu_region_num++)
+    {
+        MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+        MPU_InitStruct.Number = MpuAreas[mpu_region_num].Number;
+        MPU_InitStruct.BaseAddress = MpuAreas[mpu_region_num].BaseAddress;
+        MPU_InitStruct.Size = MpuAreas[mpu_region_num].Size;
+        MPU_InitStruct.SubRegionDisable = MpuAreas[mpu_region_num].SubRegionDisable;
+        MPU_InitStruct.AccessPermission = MpuAreas[mpu_region_num].AccessPermission;
+        MPU_InitStruct.DisableExec = MpuAreas[mpu_region_num].DisableExec;
+        MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+        MPU_InitStruct.IsBufferable = MpuAreas[mpu_region_num].Bufferable;
+        MPU_InitStruct.IsCacheable = MpuAreas[mpu_region_num].Cacheable;
+        MPU_InitStruct.TypeExtField = MpuAreas[mpu_region_num].Tex;
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-    TRACE(" @%d:%x size:%x sub:%x perm:%x exec:%x\r\n",
-          MPU_InitStruct.Number, MPU_InitStruct.BaseAddress, MPU_InitStruct.Size, MPU_InitStruct.SubRegionDisable,
-          MPU_InitStruct.AccessPermission, MPU_InitStruct.DisableExec);
+        TRACE(" @%d:%x size:%x sub:%x perm:%x exec:%x\r\n",
+              MPU_InitStruct.Number, MPU_InitStruct.BaseAddress, MPU_InitStruct.Size, MPU_InitStruct.SubRegionDisable,
+              MPU_InitStruct.AccessPermission, MPU_InitStruct.DisableExec);
 #endif /* SFU_VERBOSE_DEBUG_MODE */
+
+        if (uStep == SFU_INITIAL_CONFIGURATION)
+        {
+            HAL_MPU_ConfigRegion(&MPU_InitStruct);
+        }
+        else
+        {
+            if (MPU_CheckConfig(&MPU_InitStruct) == SFU_ERROR)
+            {
+                return SFU_ERROR;
+            }
+        }
+    }
 
     if (uStep == SFU_INITIAL_CONFIGURATION)
     {
-      HAL_MPU_ConfigRegion(&MPU_InitStruct);
+#if defined(SFU_VERBOSE_DEBUG_MODE)
+        TRACE("");
+#endif /* SFU_VERBOSE_DEBUG_MODE */
+        /* Enables the MPU */
+        HAL_MPU_Enable(MPU_HARDFAULT_NMI);
+
+#if defined(SCB_SHCSR_MEMFAULTENA_Msk)
+        /* Enables memory fault exception */
+        SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk;
+#endif /* SCB_SHCSR_MEMFAULTENA_Msk */
     }
     else
     {
-      if (MPU_CheckConfig(&MPU_InitStruct) == SFU_ERROR)
-      {
-        return SFU_ERROR;
-      }
-    }
-  }
-
-  if (uStep == SFU_INITIAL_CONFIGURATION)
-  {
-#if defined(SFU_VERBOSE_DEBUG_MODE)
-    LOG_DEBUG("");
-#endif /* SFU_VERBOSE_DEBUG_MODE */
-    /* Enables the MPU */
-    HAL_MPU_Enable(MPU_HARDFAULT_NMI);
-
+        if (MPU->CTRL != (MPU_HARDFAULT_NMI | MPU_CTRL_ENABLE_Msk))
+        {
+            return SFU_ERROR;
+        }
 #if defined(SCB_SHCSR_MEMFAULTENA_Msk)
-    /* Enables memory fault exception */
-    SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk;
+        if ((SCB->SHCSR & SCB_SHCSR_MEMFAULTENA_Msk) != SCB_SHCSR_MEMFAULTENA_Msk)
+        {
+            return SFU_ERROR;
+        }
 #endif /* SCB_SHCSR_MEMFAULTENA_Msk */
-  }
-  else
-  {
-    if (MPU->CTRL != (MPU_HARDFAULT_NMI | MPU_CTRL_ENABLE_Msk))
-    {
-      return SFU_ERROR;
     }
-#if defined(SCB_SHCSR_MEMFAULTENA_Msk)
-    if ((SCB->SHCSR & SCB_SHCSR_MEMFAULTENA_Msk) != SCB_SHCSR_MEMFAULTENA_Msk)
+
+    e_ret_status = SFU_SUCCESS;
+
+    if (e_ret_status == SFU_SUCCESS)
     {
-      return SFU_ERROR;
+        /* Execution stopped if flow control failed */
+        FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_MPU, FLOW_CTRL_MPU);
     }
-#endif /* SCB_SHCSR_MEMFAULTENA_Msk */
-  }
-
-  e_ret_status = SFU_SUCCESS;
-
-  if (e_ret_status == SFU_SUCCESS)
-  {
-    /* Execution stopped if flow control failed */
-    FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_MPU, FLOW_CTRL_MPU);
-  }
-  return e_ret_status;
+    return e_ret_status;
 }
 #endif /*SFU_MPU_PROTECT_ENABLE*/
 
@@ -878,28 +934,28 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionMPU(uint8_t uStep)
   * @param  None
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
-SFU_ErrorStatus SFU_LL_SECU_SetProtectionMPU_SecUser(uint8_t Exec_Property)
+SFU_ErrorStatus
+SFU_LL_SECU_SetProtectionMPU_SecUser(uint8_t Exec_Property)
 {
-  MPU_Region_InitTypeDef MPU_InitStruct;
+    MPU_Region_InitTypeDef MPU_InitStruct;
 
-  /*  modify executable region 6 to allow execution for secure user memory activation */
-  MPU_InitStruct.Enable               = MPU_REGION_ENABLE;
-  MPU_InitStruct.Number               = SFU_PROTECT_MPU_SRAM_HDP_RGNV;
-  MPU_InitStruct.BaseAddress          = SFU_PROTECT_MPU_SRAM_HDP_START;
-  MPU_InitStruct.Size                 = SFU_PROTECT_MPU_SRAM_HDP_SIZE;
-  MPU_InitStruct.SubRegionDisable     = SFU_PROTECT_MPU_SRAM_HDP_SREG;
-  MPU_InitStruct.AccessPermission     = SFU_PROTECT_MPU_SRAM_HDP_PERM;
-  MPU_InitStruct.DisableExec          = Exec_Property;
-  MPU_InitStruct.IsShareable          = MPU_ACCESS_NOT_SHAREABLE;
-  MPU_InitStruct.IsBufferable         = SFU_PROTECT_MPU_SRAM_HDP_B ;
-  MPU_InitStruct.IsCacheable          = SFU_PROTECT_MPU_SRAM_HDP_C;
-  MPU_InitStruct.TypeExtField         = SFU_PROTECT_MPU_SRAM_HDP_TEXV;
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+    /*  modify executable region 6 to allow execution for secure user memory activation */
+    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+    MPU_InitStruct.Number = SFU_PROTECT_MPU_SRAM_HDP_RGNV;
+    MPU_InitStruct.BaseAddress = SFU_PROTECT_MPU_SRAM_HDP_START;
+    MPU_InitStruct.Size = SFU_PROTECT_MPU_SRAM_HDP_SIZE;
+    MPU_InitStruct.SubRegionDisable = SFU_PROTECT_MPU_SRAM_HDP_SREG;
+    MPU_InitStruct.AccessPermission = SFU_PROTECT_MPU_SRAM_HDP_PERM;
+    MPU_InitStruct.DisableExec = Exec_Property;
+    MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+    MPU_InitStruct.IsBufferable = SFU_PROTECT_MPU_SRAM_HDP_B;
+    MPU_InitStruct.IsCacheable = SFU_PROTECT_MPU_SRAM_HDP_C;
+    MPU_InitStruct.TypeExtField = SFU_PROTECT_MPU_SRAM_HDP_TEXV;
+    HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
-  return SFU_SUCCESS;
+    return SFU_SUCCESS;
 }
 #endif /* SFU_MPU_PROTECT_ENABLE */
-
 
 #ifdef SFU_DMA_PROTECT_ENABLE
 /**
@@ -907,26 +963,27 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionMPU_SecUser(uint8_t Exec_Property)
   * @param  None
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
-SFU_ErrorStatus SFU_LL_SECU_SetProtectionDMA(void)
+SFU_ErrorStatus
+SFU_LL_SECU_SetProtectionDMA(void)
 {
-  /*
-   * In this function we disable the DMA buses in order to avoid that while the SB/SFU is running
-   * some DMA has been already enabled (e.g. through debugger in RDP-1 after reset) in order to access sensitive
-   * information in SRAM, FLASH
-   */
-  /* Disable  DMA1, DMA2 */
-  __HAL_RCC_DMA1_CLK_DISABLE();
+    /*
+     * In this function we disable the DMA buses in order to avoid that while the SB/SFU is running
+     * some DMA has been already enabled (e.g. through debugger in RDP-1 after reset) in order to access sensitive
+     * information in SRAM, FLASH
+     */
+    /* Disable  DMA1, DMA2 */
+    __HAL_RCC_DMA1_CLK_DISABLE();
 
-  __HAL_RCC_DMA2_CLK_DISABLE();
+    __HAL_RCC_DMA2_CLK_DISABLE();
 
-  __HAL_RCC_DMAMUX1_CLK_DISABLE();
-
-
+    __HAL_RCC_DMAMUX1_CLK_DISABLE();
 
 
-  /* Execution stopped if flow control failed */
-  FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_DMA, FLOW_CTRL_DMA);
-  return SFU_SUCCESS;
+
+
+    /* Execution stopped if flow control failed */
+    FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_DMA, FLOW_CTRL_DMA);
+    return SFU_SUCCESS;
 }
 #endif /*SFU_DMA_PROTECT_ENABLE*/
 
@@ -940,35 +997,36 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionDMA(void)
   * @param  None
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
-SFU_ErrorStatus SFU_LL_SECU_SetProtectionIWDG(void)
+SFU_ErrorStatus
+SFU_LL_SECU_SetProtectionIWDG(void)
 {
-  SFU_ErrorStatus e_ret_status = SFU_ERROR;
+    SFU_ErrorStatus e_ret_status = SFU_ERROR;
 
-  /* TIMER could be used to get the LSI frequency in order to have a more precise IWDG.
-  This is not used in this implementation because not necessary and in order
-  to optimize code-size. If you are interested, please have a look at the IWDG Cube example. */
+    /* TIMER could be used to get the LSI frequency in order to have a more precise IWDG.
+    This is not used in this implementation because not necessary and in order
+    to optimize code-size. If you are interested, please have a look at the IWDG Cube example. */
 
-  /* Configure & Start the IWDG peripheral */
-  /* Set counter reload value to obtain 6 sec. IWDG TimeOut.
-  IWDG counter clock Frequency = uwLsiFreq
-  Set Prescaler to 64 (IWDG_PRESCALER_64)
-  Timeout Period = (Reload Counter Value * 64) / uwLsiFreq
-  So Set Reload Counter Value = (6 * uwLsiFreq) / 64 */
-  IwdgHandle.Instance = IWDG;
-  IwdgHandle.Init.Prescaler = IWDG_PRESCALER_64;
-  IwdgHandle.Init.Reload = (SFU_IWDG_TIMEOUT * LSI_VALUE / 64U);
-  IwdgHandle.Init.Window = IWDG_WINDOW_DISABLE;
+    /* Configure & Start the IWDG peripheral */
+    /* Set counter reload value to obtain 6 sec. IWDG TimeOut.
+    IWDG counter clock Frequency = uwLsiFreq
+    Set Prescaler to 64 (IWDG_PRESCALER_64)
+    Timeout Period = (Reload Counter Value * 64) / uwLsiFreq
+    So Set Reload Counter Value = (6 * uwLsiFreq) / 64 */
+    IwdgHandle.Instance = IWDG;
+    IwdgHandle.Init.Prescaler = IWDG_PRESCALER_64;
+    IwdgHandle.Init.Reload = (SFU_IWDG_TIMEOUT * LSI_VALUE / 64U);
+    IwdgHandle.Init.Window = IWDG_WINDOW_DISABLE;
 
-  {
-    if (HAL_IWDG_Init(&IwdgHandle) == HAL_OK)
     {
-      e_ret_status = SFU_SUCCESS;
-      /* Execution stopped if flow control failed */
-      FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_IWDG, FLOW_CTRL_IWDG);
+        if (HAL_IWDG_Init(&IwdgHandle) == HAL_OK)
+        {
+            e_ret_status = SFU_SUCCESS;
+            /* Execution stopped if flow control failed */
+            FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_IWDG, FLOW_CTRL_IWDG);
+        }
     }
-  }
 
-  return e_ret_status;
+    return e_ret_status;
 }
 #endif /*SFU_IWDG_PROTECT_ENABLE*/
 
@@ -978,25 +1036,26 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionIWDG(void)
   * @param  None
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
-SFU_ErrorStatus SFU_LL_SECU_SetProtectionDAP(void)
+SFU_ErrorStatus
+SFU_LL_SECU_SetProtectionDAP(void)
 {
-  SFU_ErrorStatus e_ret_status = SFU_ERROR;
+    SFU_ErrorStatus e_ret_status = SFU_ERROR;
 
-  GPIO_InitTypeDef GPIO_InitStruct;
+    GPIO_InitTypeDef GPIO_InitStruct;
 
-  /* Enable clock of DBG GPIO port */
-  SFU_DBG_CLK_ENABLE();
+    /* Enable clock of DBG GPIO port */
+    SFU_DBG_CLK_ENABLE();
 
-  /* Enable the DAP protections, so disable the DAP re-configuring SWCLK and SWDIO GPIO pins */
-  GPIO_InitStruct.Pin = SFU_DBG_SWDIO_PIN | SFU_DBG_SWCLK_PIN;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(SFU_DBG_PORT, &GPIO_InitStruct);
-  e_ret_status = SFU_SUCCESS;
-  /* Execution stopped if flow control failed */
-  FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_DAP, FLOW_CTRL_DAP);
+    /* Enable the DAP protections, so disable the DAP re-configuring SWCLK and SWDIO GPIO pins */
+    GPIO_InitStruct.Pin = SFU_DBG_SWDIO_PIN | SFU_DBG_SWCLK_PIN;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(SFU_DBG_PORT, &GPIO_InitStruct);
+    e_ret_status = SFU_SUCCESS;
+    /* Execution stopped if flow control failed */
+    FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_DAP, FLOW_CTRL_DAP);
 
-  return e_ret_status;
+    return e_ret_status;
 }
 #else
 #endif /*SFU_DAP_PROTECT_ENABLE*/
@@ -1007,59 +1066,60 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionDAP(void)
   * @param None
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
-SFU_ErrorStatus SFU_LL_SECU_SetProtectionANTI_TAMPER(void)
+SFU_ErrorStatus
+SFU_LL_SECU_SetProtectionANTI_TAMPER(void)
 {
-  SFU_ErrorStatus e_ret_status = SFU_ERROR;
-  RTC_TamperTypeDef  stamperstructure;
+    SFU_ErrorStatus e_ret_status = SFU_ERROR;
+    RTC_TamperTypeDef stamperstructure;
 
-  /* RTC_TAMPER_2 (PA0) selected. PC13 connected to RTC_TAMPER_1 is also connected to the USER button */
-  TAMPER_GPIO_CLK_ENABLE();
+    /* RTC_TAMPER_2 (PA0) selected. PC13 connected to RTC_TAMPER_1 is also connected to the USER button */
+    TAMPER_GPIO_CLK_ENABLE();
 
-  /* Configure Tamper Pin */
-  /* tamper is an additional function */
-  /* not an alternate Function : config not needed */
-  /* Configure the RTC peripheral */
-  /* Configure RTC prescaler and RTC data registers */
-  /* RTC configured as follows:
-  - Hour Format    = Format 24
-  - Asynch Prediv  = Value according to source clock
-  - Synch Prediv   = Value according to source clock
-  - OutPut         = Output Disable
-  - OutPutPolarity = High Polarity
-  - OutPutType     = Open Drain */
-  RtcHandle.Instance            = RTC;
-  RtcHandle.Init.HourFormat     = RTC_HOURFORMAT_24;
-  RtcHandle.Init.AsynchPrediv   = RTC_ASYNCH_PREDIV;
-  RtcHandle.Init.SynchPrediv    = RTC_SYNCH_PREDIV;
-  RtcHandle.Init.OutPut         = RTC_OUTPUT_DISABLE;
-  RtcHandle.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
-  RtcHandle.Init.OutPutType     = RTC_OUTPUT_TYPE_OPENDRAIN;
+    /* Configure Tamper Pin */
+    /* tamper is an additional function */
+    /* not an alternate Function : config not needed */
+    /* Configure the RTC peripheral */
+    /* Configure RTC prescaler and RTC data registers */
+    /* RTC configured as follows:
+    - Hour Format    = Format 24
+    - Asynch Prediv  = Value according to source clock
+    - Synch Prediv   = Value according to source clock
+    - OutPut         = Output Disable
+    - OutPutPolarity = High Polarity
+    - OutPutType     = Open Drain */
+    RtcHandle.Instance = RTC;
+    RtcHandle.Init.HourFormat = RTC_HOURFORMAT_24;
+    RtcHandle.Init.AsynchPrediv = RTC_ASYNCH_PREDIV;
+    RtcHandle.Init.SynchPrediv = RTC_SYNCH_PREDIV;
+    RtcHandle.Init.OutPut = RTC_OUTPUT_DISABLE;
+    RtcHandle.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
+    RtcHandle.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
 
-  if (HAL_RTC_Init(&RtcHandle) == HAL_OK)
-  {
-    /* Configure RTC Tamper */
-    stamperstructure.Tamper                       = RTC_TAMPER_ID;
-    stamperstructure.Trigger                      = RTC_TAMPERTRIGGER_FALLINGEDGE;
-    stamperstructure.Filter                       = RTC_TAMPERFILTER_DISABLE;
-    stamperstructure.SamplingFrequency            = RTC_TAMPERSAMPLINGFREQ_RTCCLK_DIV32768;
-    stamperstructure.PrechargeDuration            = RTC_TAMPERPRECHARGEDURATION_1RTCCLK;
-    stamperstructure.TamperPullUp                 = RTC_TAMPER_PULLUP_ENABLE;
-    stamperstructure.TimeStampOnTamperDetection   = RTC_TIMESTAMPONTAMPERDETECTION_DISABLE;
-    stamperstructure.NoErase                      = RTC_TAMPER_ERASE_BACKUP_ENABLE;
-    stamperstructure.MaskFlag                     = RTC_TAMPERMASK_FLAG_DISABLE;
-
-    if (HAL_RTCEx_SetTamper_IT(&RtcHandle, &stamperstructure) == HAL_OK)
+    if (HAL_RTC_Init(&RtcHandle) == HAL_OK)
     {
+        /* Configure RTC Tamper */
+        stamperstructure.Tamper = RTC_TAMPER_ID;
+        stamperstructure.Trigger = RTC_TAMPERTRIGGER_FALLINGEDGE;
+        stamperstructure.Filter = RTC_TAMPERFILTER_DISABLE;
+        stamperstructure.SamplingFrequency = RTC_TAMPERSAMPLINGFREQ_RTCCLK_DIV32768;
+        stamperstructure.PrechargeDuration = RTC_TAMPERPRECHARGEDURATION_1RTCCLK;
+        stamperstructure.TamperPullUp = RTC_TAMPER_PULLUP_ENABLE;
+        stamperstructure.TimeStampOnTamperDetection = RTC_TIMESTAMPONTAMPERDETECTION_DISABLE;
+        stamperstructure.NoErase = RTC_TAMPER_ERASE_BACKUP_ENABLE;
+        stamperstructure.MaskFlag = RTC_TAMPERMASK_FLAG_DISABLE;
 
-      /* Clear the Tamper interrupt pending bit */
-      __HAL_RTC_TAMPER_CLEAR_FLAG(&RtcHandle, RTC_FLAG_TAMP_2);
-      e_ret_status = SFU_SUCCESS;
-      /* Execution stopped if flow control failed */
-      FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_TAMPER, FLOW_CTRL_TAMPER);
+        if (HAL_RTCEx_SetTamper_IT(&RtcHandle, &stamperstructure) == HAL_OK)
+        {
+
+            /* Clear the Tamper interrupt pending bit */
+            __HAL_RTC_TAMPER_CLEAR_FLAG(&RtcHandle, RTC_FLAG_TAMP_2);
+            e_ret_status = SFU_SUCCESS;
+            /* Execution stopped if flow control failed */
+            FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_TAMPER, FLOW_CTRL_TAMPER);
+        }
     }
-  }
 
-  return e_ret_status;
+    return e_ret_status;
 }
 #endif /*SFU_TAMPER_PROTECT_ENABLE*/
 
@@ -1118,27 +1178,28 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionTEMP_MONITOR(void)
   * @param  psFlashOptionBytes: pointer to the Option Bytes structure.
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
-SFU_ErrorStatus SFU_LL_SECU_CheckProtectionPCROP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes)
+SFU_ErrorStatus
+SFU_LL_SECU_CheckProtectionPCROP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes)
 {
-  SFU_ErrorStatus e_ret_status = SFU_ERROR;
+    SFU_ErrorStatus e_ret_status = SFU_ERROR;
 
-  /* Check/Apply PCRoP ********************************************************/
-  /* Check if area is already included in a PCROP region */
-  if ((psFlashOptionBytes->PCROPStartAddr <= SFU_PROTECT_PCROP_ADDR_START)
-      && (psFlashOptionBytes->PCROPEndAddr >= (SFU_PROTECT_PCROP_ADDR_END - 16U)))
-  {
-    if ((psFlashOptionBytes->PCROPConfig & OB_PCROP_RDP_ERASE) == OB_PCROP_RDP_ERASE)
+    /* Check/Apply PCRoP ********************************************************/
+    /* Check if area is already included in a PCROP region */
+    if ((psFlashOptionBytes->PCROPStartAddr <= SFU_PROTECT_PCROP_ADDR_START)
+        && (psFlashOptionBytes->PCROPEndAddr >= (SFU_PROTECT_PCROP_ADDR_END - 16U)))
     {
-      e_ret_status = SFU_SUCCESS;
+        if ((psFlashOptionBytes->PCROPConfig & OB_PCROP_RDP_ERASE) == OB_PCROP_RDP_ERASE)
+        {
+            e_ret_status = SFU_SUCCESS;
+        }
     }
-  }
 
-  if (e_ret_status == SFU_SUCCESS)
-  {
-    /* Execution stopped if flow control failed */
-    FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_PCROP, FLOW_CTRL_PCROP);
-  }
-  return e_ret_status;
+    if (e_ret_status == SFU_SUCCESS)
+    {
+        /* Execution stopped if flow control failed */
+        FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_PCROP, FLOW_CTRL_PCROP);
+    }
+    return e_ret_status;
 }
 
 /**
@@ -1148,44 +1209,45 @@ SFU_ErrorStatus SFU_LL_SECU_CheckProtectionPCROP(FLASH_OBProgramInitTypeDef *psF
   *         this OptByte has to be modified and immediately reloaded.
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
-SFU_ErrorStatus SFU_LL_SECU_SetProtectionPCROP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
-                                               SFU_BoolTypeDef *pbIsProtectionToBeApplied)
+SFU_ErrorStatus
+SFU_LL_SECU_SetProtectionPCROP(FLASH_OBProgramInitTypeDef *psFlashOptionBytes,
+                               SFU_BoolTypeDef *pbIsProtectionToBeApplied)
 {
-  SFU_ErrorStatus e_ret_status = SFU_ERROR;
+    SFU_ErrorStatus e_ret_status = SFU_ERROR;
 
-  /* Check/Apply PCRoP ********************************************************/
+    /* Check/Apply PCRoP ********************************************************/
 
-  /* Check if area is already included in a PCROP region */
-  if (SFU_LL_SECU_CheckProtectionPCROP(psFlashOptionBytes) == SFU_SUCCESS)
-  {
-    e_ret_status = SFU_SUCCESS;
-  }
-  else
-  {
-#if defined(SECBOOT_OB_DEV_MODE)
-    /* Update OB for PCROP */
-    psFlashOptionBytes->OptionType = OPTIONBYTE_PCROP;
-
-    psFlashOptionBytes->PCROPConfig = SFU_PROTECT_PCROP_AREA + OB_PCROP_RDP_ERASE; /* Bank1 + erase PCROP when doing a
-                                                                                      RDP-level regression (1->0) */
-    psFlashOptionBytes->PCROPStartAddr = SFU_PROTECT_PCROP_ADDR_START;
-    psFlashOptionBytes->PCROPEndAddr = SFU_PROTECT_PCROP_ADDR_END;
-
-    if (HAL_FLASHEx_OBProgram(psFlashOptionBytes) == HAL_OK)
+    /* Check if area is already included in a PCROP region */
+    if (SFU_LL_SECU_CheckProtectionPCROP(psFlashOptionBytes) == SFU_SUCCESS)
     {
-      *pbIsProtectionToBeApplied |= 1U;
-      e_ret_status = SFU_SUCCESS;
-      /* Execution stopped if flow control failed */
-      FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_PCROP, FLOW_CTRL_PCROP);
+        e_ret_status = SFU_SUCCESS;
     }
-#else
-    LOG_DEBUG("= [SBOOT] System Security Configuration failed: incorrect PCROP. STOP!");
-    /* Security issue : execution stopped ! */
-    SFU_EXCPT_Security_Error();
-#endif /* SECBOOT_OB_DEV_MODE */
-  }
+    else
+    {
+#if defined(SECBOOT_OB_DEV_MODE)
+        /* Update OB for PCROP */
+        psFlashOptionBytes->OptionType = OPTIONBYTE_PCROP;
 
-  return e_ret_status;
+        psFlashOptionBytes->PCROPConfig = SFU_PROTECT_PCROP_AREA + OB_PCROP_RDP_ERASE; /* Bank1 + erase PCROP when doing a
+                                                                                      RDP-level regression (1->0) */
+        psFlashOptionBytes->PCROPStartAddr = SFU_PROTECT_PCROP_ADDR_START;
+        psFlashOptionBytes->PCROPEndAddr = SFU_PROTECT_PCROP_ADDR_END;
+
+        if (HAL_FLASHEx_OBProgram(psFlashOptionBytes) == HAL_OK)
+        {
+            *pbIsProtectionToBeApplied |= 1U;
+            e_ret_status = SFU_SUCCESS;
+            /* Execution stopped if flow control failed */
+            FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_PCROP, FLOW_CTRL_PCROP);
+        }
+#else
+        TRACE("= [SBOOT] System Security Configuration failed: incorrect PCROP. STOP!");
+        /* Security issue : execution stopped ! */
+        SFU_EXCPT_Security_Error(8);
+#endif /* SECBOOT_OB_DEV_MODE */
+    }
+
+    return e_ret_status;
 }
 #endif /*SFU_PCROP_PROTECT_ENABLE*/
 
@@ -1210,7 +1272,7 @@ SFU_ErrorStatus SFU_LL_SECU_CheckProtectionSecUser(FLASH_OBProgramInitTypeDef *p
      * - the header of the active slots
      */
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-    LOG_DEBUG("= [SBOOT] Secure User memory Area settings: [%x]", psFlashOptionBytes->SecSize);
+    TRACE("= [SBOOT] Secure User memory Area settings: [%x]", psFlashOptionBytes->SecSize);
 #endif /* SFU_VERBOSE_DEBUG_MODE */
     e_ret_status = SFU_SUCCESS;
     /* Execution stopped if flow control failed */
@@ -1219,7 +1281,7 @@ SFU_ErrorStatus SFU_LL_SECU_CheckProtectionSecUser(FLASH_OBProgramInitTypeDef *p
   else
   {
     /* else the settings are incorrect: ERROR */
-    LOG_DEBUG("= [SBOOT] Incorrect Secure User memory Area settings: [%x]", psFlashOptionBytes->SecSize);
+    TRACE("= [SBOOT] Incorrect Secure User memory Area settings: [%x]", psFlashOptionBytes->SecSize);
   }
 
   return e_ret_status;
@@ -1261,9 +1323,9 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionSecUser(FLASH_OBProgramInitTypeDef *psF
       FLOW_CONTROL_STEP(uFlowProtectValue, FLOW_STEP_SEC_MEM, FLOW_CTRL_SEC_MEM);
     }
 #else
-    LOG_DEBUG("= [SBOOT] System Security Configuration failed: Secure User Memory is incorrect. STOP!");
+    TRACE("= [SBOOT] System Security Configuration failed: Secure User Memory is incorrect. STOP!");
     /* Security issue : execution stopped ! */
-    SFU_EXCPT_Security_Error();
+    SFU_EXCPT_Security_Error(9);
 #endif /* SECBOOT_OB_DEV_MODE */
   }
 
@@ -1288,69 +1350,72 @@ SFU_ErrorStatus SFU_LL_SECU_SetProtectionSecUser(FLASH_OBProgramInitTypeDef *psF
 __attribute__((section(".SB_HDP_Code")))
 #endif /* __ICCARM__ */
 
-__RAM_FUNC void SFU_LL_SECU_ActivateSecUser(uint32_t Address)
+__RAM_FUNC void
+SFU_LL_SECU_ActivateSecUser(uint32_t Address)
 {
-  /* Unlock the Flash to enable the flash control register access */
-  (void) HAL_FLASH_Unlock();
+    /* Unlock the Flash to enable the flash control register access */
+    (void) HAL_FLASH_Unlock();
 
-  /* Avoid systick interruption during UserApp start-up
-     systick will be re-initialized by HAL_Init() during execution of main() from UserApp */
-  HAL_SuspendTick();
+    /* Avoid systick interruption during UserApp start-up
+       systick will be re-initialized by HAL_Init() during execution of main() from UserApp */
+    HAL_SuspendTick();
 
 #if defined(SFU_SECURE_USER_PROTECT_ENABLE)
-  /* Ensure all actions are completed before activating secure user memory */
-  __ISB();
-  /* Secure coding  : volatile variable usage to force compiler to reload FLASH->CR register address */
-  __IO uint32_t read_reg = (uint32_t) &FLASH->CR;
+    /* Ensure all actions are completed before activating secure user memory */
+    __ISB();
+    /* Secure coding  : volatile variable usage to force compiler to reload FLASH->CR register address */
+    __IO uint32_t read_reg = (uint32_t) &FLASH->CR;
 
-  do
-  {
-    /* Activate secure user memory */
-    FLASH->CR |= FLASH_CR_SEC_PROT1;
-  } while (((* (uint32_t *)read_reg) & FLASH_CR_SEC_PROT1) != FLASH_CR_SEC_PROT1);
+    do
+    {
+      /* Activate secure user memory */
+      FLASH->CR |= FLASH_CR_SEC_PROT1;
+    } while (((* (uint32_t *)read_reg) & FLASH_CR_SEC_PROT1) != FLASH_CR_SEC_PROT1);
 
-  if (((* (uint32_t *)read_reg) & FLASH_CR_SEC_PROT1) != FLASH_CR_SEC_PROT1)
-  {
-    /* Security issue : execution stopped ! */
-    NVIC_SystemReset();
-  }
-  else
-  {
-    __DSB();
+    if (((* (uint32_t *)read_reg) & FLASH_CR_SEC_PROT1) != FLASH_CR_SEC_PROT1)
+    {
+      /* Security issue : execution stopped ! */
+      NVIC_SystemReset();
+    }
+    else
+    {
+      __DSB();
 #else
-  if (1 == 1)
-  {
+    if (1 == 1)
+    {
 #endif /* (SFU_SECURE_USER_PROTECT_ENABLE) */
 #if defined(SFU_MPU_PROTECT_ENABLE)
-    /* Make sure outstanding transfers are done */
-    __DMB();
+        /* Make sure outstanding transfers are done */
+        __DMB();
 
-    /* Disable the MPU and clear the control register*/
-    MPU->CTRL  = 0U;
+        /* Disable the MPU and clear the control register*/
+        MPU->CTRL = 0U;
 
 #if (SECBOOT_LOADER == SECBOOT_USE_LOCAL_LOADER) || defined(SFU_DEBUG_MODE) || defined(SFU_TEST_PROTECTION)
-    /* Disable the UART. This may be done only after the MPU is disabled */
-    /* Use of macro that manipulate register instead of function call since secure user memory is activated */
-    SFU_UART_CLK_DISABLE();
+        /* Disable the UART. This may be done only after the MPU is disabled */
+        /* Use of macro that manipulate register instead of function call since secure user memory is activated */
+        SFU_UART_CLK_DISABLE();
 #endif /* (SECBOOT_LOADER == SECBOOT_USE_LOCAL_LOADER) || defined(SFU_DEBUG_MODE) || defined(SFU_TEST_PROTECTION) */
 #endif /* SFU_MPU_PROTECT_ENABLE */
 
 #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
-    /* Reset FPU context */
-    SCB->CPACR &= ~((3UL << 10*2)|(3UL << 11*2));  /* reset CP10 and CP11 Full Access */
-    FPU->FPCCR &= ~FPU_FPCCR_LSPEN_Msk; /* Disable automatic lazy state preservation for floating-point context */
-    FPU->FPCCR &= ~FPU_FPCCR_LSPACT_Msk; /* Clear the lazy state preservation for floating-point context */
+        /* Reset FPU context */
+        SCB->CPACR &= ~((3UL << 10 * 2) | (3UL << 11 * 2));  /* reset CP10 and CP11 Full Access */
+        FPU->FPCCR &=
+            ~FPU_FPCCR_LSPEN_Msk; /* Disable automatic lazy state preservation for floating-point context */
+        FPU->FPCCR &=
+            ~FPU_FPCCR_LSPACT_Msk; /* Clear the lazy state preservation for floating-point context */
 #endif /* (__FPU_PRESENT == 1) && (__FPU_USED == 1) */
 
-    /* clear process stack & unprivileged bit */
-    __set_CONTROL(__get_CONTROL() & ~0x3U);
+        /* clear process stack & unprivileged bit */
+        __set_CONTROL(__get_CONTROL() & ~0x3U);
 
-    /* returns from interrupt into application */
-    launch_application(Address, (uint32_t)jump_to_function);
-  }
+        /* returns from interrupt into application */
+        launch_application(Address, (uint32_t) jump_to_function);
+    }
 
-  /*we should never reach this point */
-  NVIC_SystemReset();
+    /*we should never reach this point */
+    NVIC_SystemReset();
 }
 
 #if defined(__CC_ARM)

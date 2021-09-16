@@ -29,6 +29,7 @@
 #include "sfu_com_loader.h"
 #include "sfu_trace.h"
 #include "se_interface_bootloader.h" /* for metadata authentication */
+#include "sfu_interface_crypto_scheme.h"
 #include "sfu_fwimg_services.h"      /* for version checking & to check if a valid FW is installed (the local
                                         bootloader is a kind of "application" running in SB_SFU) */
 #include "app_sfu.h"
@@ -77,7 +78,7 @@ SFU_ErrorStatus SFU_LOADER_Init(void)
   if (0U != (uint32_t)(SFU_COM_YMODEM_PACKET_1K_SIZE % (uint32_t)sizeof(SFU_LL_FLASH_write_t)))
   {
     /* The packet buffer (payload part) must be a multiple of the FLASH write length  */
-    LOG_DEBUG("= [FWIMG] Packet Payload size (%d) is not matching the FLASH constraints",
+    TRACE("\r\n= [FWIMG] Packet Payload size (%d) is not matching the FLASH constraints",
           SFU_COM_YMODEM_PACKET_1K_SIZE);
     return SFU_ERROR;
   } /* else the FW Header Length is fine with regards to FLASH constraints */
@@ -86,7 +87,7 @@ SFU_ErrorStatus SFU_LOADER_Init(void)
   if (0U != (uint32_t)(SFU_COM_YMODEM_PACKET_SIZE % (uint32_t)sizeof(SFU_LL_FLASH_write_t)))
   {
     /* The packet buffer (payload part) must be a multiple of the FLASH write length  */
-    LOG_DEBUG("= [FWIMG] Packet Payload size (%d) is not matching the FLASH constraints", SFU_COM_YMODEM_PACKET_SIZE);
+    TRACE("\r\n= [FWIMG] Packet Payload size (%d) is not matching the FLASH constraints", SFU_COM_YMODEM_PACKET_SIZE);
     return SFU_ERROR;
   }
 #endif /* MINICOM_YMODEM */
@@ -132,7 +133,7 @@ SFU_ErrorStatus SFU_LOADER_DownloadNewUserFw(SFU_LOADER_StatusTypeDef *peSFU_LOA
   (void) SFU_LL_SECU_IWDG_Refresh();
 
   /* Transfer FW Image via YMODEM protocol */
-  LOG_DEBUG("\t  File> Transfer> YMODEM> Send ");
+  TRACE("\r\n\t  File> Transfer> YMODEM> Send ");
 
   /* Initialize global variables to be used during the YMODEM process */
   m_uDwlAreaAddress = 0U;
@@ -227,6 +228,10 @@ SFU_ErrorStatus SFU_COM_YMODEM_DataPktRxCpltCallback(uint8_t *pData, uint32_t uS
 #if  !defined(SFU_NO_SWAP)
   uint32_t uLength;
 #endif /* !SFU_NO_SWAP */
+#if (SECBOOT_CRYPTO_SCHEME == SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256)
+  static uint32_t uSizeBuffered = 0U;
+  static uint8_t *pBuffer = NULL;
+#endif /* SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256 */
 
   /* Check the pointers allocation */
   if (p_data == NULL)
@@ -254,9 +259,46 @@ SFU_ErrorStatus SFU_COM_YMODEM_DataPktRxCpltCallback(uint8_t *pData, uint32_t uS
     }
   }
 
+#if (SECBOOT_CRYPTO_SCHEME == SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256)
+  /* In this scheme the header is larger than 1k so we need to receive 2 packets to have the whole header */
+  if (m_uPacketsReceived == 1U)
+  {
+    /* 1st packet -> part of header
+       we need to buffer it and wait for 2nd packet with the rest of the header */
+
+    /* if buffer was allocated in past free it and start again */
+    if (NULL != pBuffer)
+    {
+      free(pBuffer);
+      pBuffer = NULL;
+    }
+    pBuffer = calloc(SFU_COM_YMODEM_PACKET_1K_SIZE * 2, sizeof(uint8_t));
+    if (NULL == pBuffer)
+    {
+      e_ret_status = SFU_ERROR;
+    }
+    (void) memcpy(pBuffer, p_data, rx_size);
+    uSizeBuffered = rx_size;
+
+    /* can't do anything yet, return and expect 2nd packet */
+    return SFU_SUCCESS;
+  }
+
+  if (m_uPacketsReceived == 2U)
+  {
+    /* copy to buffer */
+    (void) memcpy(&pBuffer[uSizeBuffered], p_data, rx_size);
+    uSizeBuffered += rx_size;
+
+    /* Send 1st 2 buffered packets to be written to flash */
+    p_data = pBuffer;
+    rx_size = uSizeBuffered;
+
+#else
   /* First packet : Contains the FW header (SE_FW_HEADER_TOT_LEN bytes length) which is not encrypted  */
   if (m_uPacketsReceived == 1U)
   {
+#endif /* SECBOOT_CRYPTO_SCHEME */
 
     (void) memcpy(fw_header, p_data, SE_FW_HEADER_TOT_LEN);
 
@@ -378,6 +420,17 @@ SFU_ErrorStatus SFU_COM_YMODEM_DataPktRxCpltCallback(uint8_t *pData, uint32_t uS
     }
   }
 
+#if (SECBOOT_CRYPTO_SCHEME == SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256)
+
+  /* we can now get rid of the buffer */
+  if (m_uPacketsReceived == 2U)
+  {
+    uint32_t BufferSize = sizeof(pBuffer);
+    (void) memset(pBuffer, 0x00, BufferSize);
+    free(pBuffer);
+    pBuffer = NULL;
+  }
+#endif /* SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256 */
 
   /* Last packet : reset m_uPacketsReceived */
   if (m_uPacketsReceived == m_uNbrBlocksYmodem)
@@ -404,6 +457,10 @@ SFU_ErrorStatus SFU_COM_YMODEM_DataPktRxCpltCallback(uint8_t *pData, uint32_t uS
    * because this memory area is not copied when calling the SE_Decrypt_Init() primitive.
    * Hence we must make sure this memory area still contains the FW header when SE_Decrypt_Finish() is called. */
   static uint8_t fw_header[SE_FW_HEADER_TOT_LEN] __attribute__((aligned(8)));
+#if (SECBOOT_CRYPTO_SCHEME == SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256)
+  /* Buffer used to retrieve the 16 first 128B packets which contain the header */
+  static uint8_t fw_header_buffer[16U * SFU_COM_YMODEM_PACKET_SIZE] __attribute__((aligned(8)));
+#endif /* GENERATOR_KMS_ENABLED && SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256 */
   /* Size of downloaded Image initialized with first packet (header) and checked along download process */
   static uint32_t m_uDwlImgSize = 0U;
 
@@ -439,6 +496,136 @@ SFU_ErrorStatus SFU_COM_YMODEM_DataPktRxCpltCallback(uint8_t *pData, uint32_t uS
     }
   }
 
+#if (SECBOOT_CRYPTO_SCHEME == SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256)
+  /* In this scheme the header is larger than 1k so we need to receive 2kB i.e. 16 packets to have the whole header */
+  if (m_uPacketsReceived <= 16U)
+  {
+    /* packets 1 to 16: the header */
+    if (SFU_COM_YMODEM_PACKET_SIZE == rx_size)
+    {
+      memcpy(&fw_header_buffer[((m_uPacketsReceived - 1)*SFU_COM_YMODEM_PACKET_SIZE)], p_data, rx_size);
+      /* no more data to handle */
+      rx_size = 0U;
+    }
+    else
+    {
+      /* Unexpected case */
+      e_ret_status = SFU_ERROR;
+    }
+  }
+
+  if (16U == m_uPacketsReceived)
+  {
+    /*
+     * 16 packets received: full header received.
+     * The data has been copied in the previous if statement: fw_header does contain the full header.
+     * We need to verify the header.
+     */
+    memcpy(fw_header, fw_header_buffer, SE_FW_HEADER_TOT_LEN);
+
+    /* Verify header */
+    e_ret_status = SFU_LOADER_VerifyFwHeader(fw_header_buffer);
+
+    if (e_ret_status == SFU_SUCCESS)
+    {
+      m_uDwlAreaAddress = m_uDwlAreaStart;
+      /* Downloaded Image size : Header size + gap for image alignment to (UpdateFwOffset % sector size) +
+         Partial Image size */
+      m_uDwlImgSize = ((SE_FwRawHeaderTypeDef *)fw_header)->PartialFwSize +
+                      (((SE_FwRawHeaderTypeDef *)fw_header)->PartialFwOffset % SLOT_SIZE(SLOT_SWAP)) +
+                      SFU_IMG_IMAGE_OFFSET;
+    }
+
+    /* Clear Download application area (including TRAILERS area) */
+    if ((e_ret_status == SFU_SUCCESS)
+        && (SFU_LL_FLASH_Erase_Size(&x_flash_info, (uint8_t *) m_uDwlAreaAddress, SLOT_SIZE(m_uDwlSlot)) !=
+            SFU_SUCCESS))
+    {
+      m_LoaderStatus = SFU_LOADER_ERR_FLASH;
+      e_ret_status = SFU_ERROR;
+    }
+
+
+    if (e_ret_status == SFU_SUCCESS)
+    {
+      /* Write the FW header (SE_FW_HEADER_TOT_LEN bytes length) at start of DWL area */
+      if (SFU_LL_FLASH_Write(&x_flash_info, (uint8_t *)m_uDwlAreaAddress, fw_header, SE_FW_HEADER_TOT_LEN) ==
+          SFU_SUCCESS)
+      {
+        /* Shift the DWL area pointer */
+        m_uDwlAreaAddress += (SFU_IMG_IMAGE_OFFSET + (((SE_FwRawHeaderTypeDef *)fw_header)->PartialFwOffset %
+                                                      SLOT_SIZE(SLOT_SWAP)));
+        /* no more data to write */
+        rx_size = 0U;
+      }
+      else
+      {
+        m_LoaderStatus = SFU_LOADER_ERR_FLASH;
+        e_ret_status = SFU_ERROR;
+      }
+    }
+
+  }
+
+  /* Packets beyond FW header remaining bytes to decrypt ? */
+  if (m_uPacketsReceived > 16U)
+  {
+    /* Set dimension to the appropriate length for FLASH programming.
+     * Example: 64-bit length for L4.
+     */
+    if ((rx_size % (uint32_t)sizeof(SFU_LL_FLASH_write_t)) != 0)
+    {
+      /* By construction, the length of the buffer (fw_decrypted_chunk or p_data) must be a multiple of
+         sizeof(SFU_IMG_write_t) to avoid reading out of the buffer */
+      uOldSize = rx_size;
+      rx_size = rx_size + ((uint32_t)sizeof(SFU_LL_FLASH_write_t) - (rx_size % (uint32_t)sizeof(SFU_LL_FLASH_write_t)));
+      while (uOldSize < rx_size)
+      {
+        p_data[uOldSize] = 0xFF;
+        uOldSize++;
+      }
+    }
+
+    /* Check size to avoid writing beyond DWL image size */
+    if ((m_uDwlAreaAddress + rx_size) > (m_uDwlAreaStart + m_uDwlImgSize))
+    {
+      m_LoaderStatus = SFU_LOADER_ERR_FW_LENGTH;
+      e_ret_status = SFU_ERROR;
+    }
+
+    /* Check size to avoid writing beyond DWL area */
+    if ((m_uDwlAreaAddress + rx_size) > (m_uDwlAreaStart + m_uDwlAreaSize))
+    {
+      m_LoaderStatus = SFU_LOADER_ERR_FW_LENGTH;
+      e_ret_status = SFU_ERROR;
+    }
+
+    /* Write Data in Flash */
+    if (e_ret_status == SFU_SUCCESS)
+    {
+      /*
+       * With Minicom Ymodem, the data offset is not aligned because SFU_COM_YMODEM_PACKET_DATA_INDEX is 7
+       * So we cannot write in FLASH with p_data as source, we need a copy in an aligned buffer
+       */
+      memcpy(alignedBuffer, p_data, rx_size);
+
+      if (SFU_LL_FLASH_Write(&x_flash_info, (uint8_t *)m_uDwlAreaAddress, alignedBuffer, rx_size) == SFU_SUCCESS)
+      {
+        m_uDwlAreaAddress += (rx_size);
+      }
+      else
+      {
+        m_LoaderStatus = SFU_LOADER_ERR_FLASH;
+        e_ret_status = SFU_ERROR;
+      }
+    }
+  }
+  else
+  {
+    /* Nothing more to do */
+  }
+
+#else /* (GENERATOR_KMS_ENABLED)&&(SECBOOT_CRYPTO_SCHEME == SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256) */
 
   /*
    * Minicom splits the header of 192 bytes on 2 packets of 128 bytes.
@@ -590,6 +777,7 @@ SFU_ErrorStatus SFU_COM_YMODEM_DataPktRxCpltCallback(uint8_t *pData, uint32_t uS
     }
   }
 
+#endif /* (GENERATOR_KMS_ENABLED)&&(SECBOOT_CRYPTO_SCHEME == SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256) */
 
   /* Last packet : reset m_uPacketsReceived */
   if (m_uPacketsReceived == m_uNbrBlocksYmodem)
@@ -714,7 +902,7 @@ static SFU_ErrorStatus SFU_LOADER_VerifyFwHeader(uint8_t *pBuffer)
     else
     {
       /* The installation is forbidden */
-      LOG_DEBUG("          Anti-rollback: candidate version(%d) rejected | current version(%d) , min.version(%d) !",
+      TRACE("\r\n          Anti-rollback: candidate version(%d) rejected | current version(%d) , min.version(%d) !",
             p_x_fw_raw_header->FwVersion, cur_ver, SFU_FW_VERSION_START_NUM);
       m_LoaderStatus = SFU_LOADER_ERR_FW_VERSION;
     }
@@ -766,7 +954,7 @@ static SFU_ErrorStatus SFU_LOADER_VerifyFwHeader(uint8_t *pBuffer)
     else
     {
       /* The installation is forbidden */
-      LOG_DEBUG("          Anti-rollback: candidate version(%d) rejected | current version(%d) , min.version(%d) !",
+      TRACE("\r\n          Anti-rollback: candidate version(%d) rejected | current version(%d) , min.version(%d) !",
             p_x_fw_raw_header->FwVersion, verif_ver, SFU_FW_VERSION_START_NUM);
       m_LoaderStatus = SFU_LOADER_ERR_FW_VERSION;
     }

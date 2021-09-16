@@ -29,6 +29,7 @@
 #include "sfu_low_level_flash_int.h"
 #include "sfu_low_level_security.h"
 #include "se_interface_bootloader.h"
+#include "sfu_interface_crypto_scheme.h"
 #include "sfu_fwimg_regions.h"
 #include "sfu_fwimg_services.h" /* to have definitions like SFU_IMG_InitStatusTypeDef
                                    (required by sfu_fwimg_internal.h) */
@@ -117,7 +118,7 @@ static SFU_ErrorStatus FirmwareToRollback(uint32_t SlotNumber, SE_FwStateTypeDef
     if (e_ret_status_se == SE_SUCCESS)
     {
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-      LOG_DEBUG("\t  SLOT_ACTIVE_%d state = %d", SlotNumber, image_state);
+      TRACE("\r\n\t  SLOT_ACTIVE_%d state = %d", SlotNumber, image_state);
 #endif /* (SFU_VERBOSE_DEBUG_MODE)     */
       switch (image_state)
       {
@@ -140,7 +141,7 @@ static SFU_ErrorStatus FirmwareToRollback(uint32_t SlotNumber, SE_FwStateTypeDef
 #if defined(SFU_VERBOSE_DEBUG_MODE)
             if (e_ret_status_se != SE_SUCCESS)
             {
-              LOG_DEBUG("\t  SLOT_ACTIVE_%d state update error", SlotNumber);
+              TRACE("\r\n\t  SLOT_ACTIVE_%d state update error", SlotNumber);
             }
 #endif /* (SFU_VERBOSE_DEBUG_MODE)     */
             e_ret_status = SFU_ERROR;
@@ -155,7 +156,7 @@ static SFU_ErrorStatus FirmwareToRollback(uint32_t SlotNumber, SE_FwStateTypeDef
 #if defined(SFU_VERBOSE_DEBUG_MODE)
             if (e_ret_status_se != SE_SUCCESS)
             {
-              LOG_DEBUG("\t  SLOT_ACTIVE_%d state update error", SlotNumber);
+              TRACE("\r\n\t  SLOT_ACTIVE_%d state update error", SlotNumber);
             }
 #endif /* (SFU_VERBOSE_DEBUG_MODE)     */
             e_ret_status = SFU_SUCCESS;
@@ -473,7 +474,7 @@ static SFU_ErrorStatus SwapFirmwareImages(uint32_t ActiveSlot, uint32_t DwlSlot,
   uint32_t offset_block_partial_end;
   uint32_t offset_block_final_end;
 
-  LOG_DEBUG("\t  Image preparation done.\r\n\t  Swapping the firmware images");
+  TRACE("\r\n\t  Image preparation done.\r\n\t  Swapping the firmware images");
 
   /* index_active_slot_partial_begin is the index of first block (of SLOT_SIZE(SLOT_SWAP) bytes) in active slot
      impacted by partial image */
@@ -1198,7 +1199,7 @@ static SFU_ErrorStatus DecryptImageInDwlSlot(uint32_t DwlSlot, SE_FwRawHeaderTyp
 
 #if (SFU_IMAGE_PROGRAMMING_TYPE == SFU_ENCRYPTED_IMAGE)
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-  LOG_DEBUG("\t  %d bytes of ciphertext decrypted.", fw_decrypted_total_size);
+  TRACE("\r\n\t  %d bytes of ciphertext decrypted.", fw_decrypted_total_size);
 #endif /* SFU_VERBOSE_DEBUG_MODE */
 #endif /* SFU_ENCRYPTED_IMAGE */
 
@@ -1211,7 +1212,7 @@ static SFU_ErrorStatus DecryptImageInDwlSlot(uint32_t DwlSlot, SE_FwRawHeaderTyp
     {
       e_ret_status = SFU_ERROR;
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-      LOG_DEBUG("\t  Decrypt fails at Finalization stage.");
+      TRACE("\r\n\t  Decrypt fails at Finalization stage.");
 #endif /* SFU_VERBOSE_DEBUG_MODE */
     }
     else
@@ -1286,7 +1287,7 @@ static SFU_ErrorStatus  FirmwareToResume(uint32_t ActiveSlot, uint32_t DwlSlot, 
     else
     {
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-      LOG_DEBUG("\t  No resume required : TRAILER_HDR_TEST not valid!");
+      TRACE("\r\n\t  No resume required : TRAILER_HDR_TEST not valid!");
 #endif /* SFU_VERBOSE_DEBUG_MODE */
       e_ret_status = SFU_ERROR;
     }
@@ -1334,7 +1335,7 @@ static SFU_ErrorStatus  FirmwareToResume(uint32_t ActiveSlot, uint32_t DwlSlot, 
          * In both cases, resume install must not be triggered.
          */
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-        LOG_DEBUG("\t  No resume required : TRAILER_HDR_VALID already stored in active slot!");
+        TRACE("\r\n\t  No resume required : TRAILER_HDR_VALID already stored in active slot!");
 #endif /* SFU_VERBOSE_DEBUG_MODE */
         e_ret_status = SFU_ERROR;
       }
@@ -1436,11 +1437,11 @@ static SFU_ErrorStatus FirmwareToInstall(uint32_t DwlSlot, SE_FwRawHeaderTypeDef
 #if defined(SFU_VERBOSE_DEBUG_MODE)
         if (image_state != FWIMG_STATE_NEW)
         {
-          LOG_DEBUG("\t  The image state of SLOT_DWL_%d is not FWIMG_STATE_NEW!", DwlSlot);
+          TRACE("\r\n\t  The image state of SLOT_DWL_%d is not FWIMG_STATE_NEW!", DwlSlot);
         }
         if (trailer_begin < end_of_test_image)
         {
-          LOG_DEBUG("\t  The binary image to be installed overlap with the trailer area!");
+          TRACE("\r\n\t  The binary image to be installed overlap with the trailer area!");
         }
 #endif /* SFU_VERBOSE_DEBUG_MODE */
       }
@@ -1508,12 +1509,12 @@ static SFU_ErrorStatus FirmwareToInstall(uint32_t DwlSlot, SE_FwRawHeaderTypeDef
 #if defined(SFU_VERBOSE_DEBUG_MODE)
         if (trailer_begin < end_of_test_image)
         {
-          LOG_DEBUG("\t  The binary image to be installed overlap with the trailer area!");
+          TRACE("\r\n\t  The binary image to be installed overlap with the trailer area!");
         } /* check next error cause */
 
         if (ret != 0)
         {
-          LOG_DEBUG("\t  The headers in dwl slot and swap area do not match!");
+          TRACE("\r\n\t  The headers in dwl slot and swap area do not match!");
         } /* else do not print the message(s) again */
 #endif /* SFU_VERBOSE_DEBUG_MODE */
       }
@@ -1765,7 +1766,7 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_CheckSwapImageHandling(void)
     {
       if (!(SFU_IMG_REGION_IS_MULTIPLE(SLOT_SIZE(SLOT_ACTIVE_1 + i), SLOT_SIZE(SLOT_SWAP))))
       {
-        LOG_DEBUG("= [FWIMG] SLOT_ACTIVE_%d size (%d) must be a multiple of swap size (%d)\r\n",
+        TRACE("\r\n= [FWIMG] SLOT_ACTIVE_%d size (%d) must be a multiple of swap size (%d)\r\n",
               SLOT_ACTIVE_1 + i, SLOT_SIZE(SLOT_ACTIVE_1 + i), SLOT_SIZE(SLOT_SWAP));
         e_ret_status = SFU_IMG_INIT_SLOTS_SIZE_ERROR;
       }
@@ -1778,7 +1779,7 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_CheckSwapImageHandling(void)
     {
       if (!(SFU_IMG_REGION_IS_MULTIPLE(SLOT_SIZE(SLOT_DWL_1 + i), SLOT_SIZE(SLOT_SWAP))))
       {
-        LOG_DEBUG("= [FWIMG] SLOT_DWL_%d size (%d) must be a multiple of swap size (%d)\r\n",
+        TRACE("\r\n= [FWIMG] SLOT_DWL_%d size (%d) must be a multiple of swap size (%d)\r\n",
               i + 1U, SLOT_SIZE(SLOT_DWL_1 + i), SLOT_SIZE(SLOT_SWAP));
         e_ret_status = SFU_IMG_INIT_SLOTS_SIZE_ERROR;
       }
@@ -1796,7 +1797,7 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_CheckSwapImageHandling(void)
       if (((int32_t)(SFU_IMG_CHUNK_SIZE - (TRAILER_INDEX(SLOT_DWL_1 + i) * sizeof(SFU_LL_FLASH_write_t)))) < 0)
       {
         e_ret_status = SFU_IMG_INIT_SWAP_SETTINGS_ERROR;
-        LOG_DEBUG("= [FWIMG] %d bytes required for the swap metadata of SLOT_DWL_%d is too much\r\n",
+        TRACE("\r\n= [FWIMG] %d bytes required for the swap metadata of SLOT_DWL_%d is too much\r\n",
               (TRAILER_INDEX(SLOT_DWL_1 + i) * sizeof(SFU_LL_FLASH_write_t)), i + 1U);
       } /* else the swap settings are fine from a metadata size perspective */
     }
@@ -1814,7 +1815,7 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_CheckSwapImageHandling(void)
 #endif /* __GNUC__ */
   {
     e_ret_status = SFU_IMG_INIT_SWAP_SETTINGS_ERROR;
-    LOG_DEBUG("= [FWIMG] The swap procedure uses chunks of %d bytes but the swap size (%d) is not a multiple\r\n",
+    TRACE("\r\n= [FWIMG] The swap procedure uses chunks of %d bytes but the swap size (%d) is not a multiple\r\n",
           SFU_IMG_CHUNK_SIZE, SLOT_SIZE(SLOT_SWAP));
   } /* else the swap settings are fine from a chunk size perspective */
 
@@ -1825,7 +1826,7 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_CheckSwapImageHandling(void)
   if (((int32_t)(SFU_IMG_CHUNK_SIZE - SFU_IMG_IMAGE_OFFSET)) < 0)
   {
     e_ret_status = SFU_IMG_INIT_SWAP_SETTINGS_ERROR;
-    LOG_DEBUG("= [FWIMG] The swap procedure uses chunks of %d bytes but the firmware start offset is %d bytes\r\n",
+    TRACE("\r\n= [FWIMG] The swap procedure uses chunks of %d bytes but the firmware start offset is %d bytes\r\n",
           SFU_IMG_CHUNK_SIZE, SFU_IMG_IMAGE_OFFSET);
   } /* else the swap settings are fine from a firmware start offset perspective */
 
@@ -1836,7 +1837,7 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_CheckSwapImageHandling(void)
   if (!IS_ALIGNED(SlotStartAdd[SLOT_SWAP]))
   {
     e_ret_status = SFU_IMG_INIT_FLASH_CONSTRAINTS_ERROR;
-    LOG_DEBUG("= [FWIMG] swap (%x) is not properly aligned\r\n",
+    TRACE("\r\n= [FWIMG] swap (%x) is not properly aligned\r\n",
           SlotStartAdd[SLOT_SWAP]);
   } /* else swap is properly aligned */
 
@@ -1845,10 +1846,19 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_CheckSwapImageHandling(void)
    */
   if (((SlotStartAdd[SLOT_SWAP] - FLASH_BASE) / FLASH_PAGE_SIZE) <= SFU_PROTECT_WRP_PAGE_END_1)
   {
-    LOG_DEBUG("= [FWIMG] SWAP overlaps SBSFU code area protected by WRP\r\n");
+    TRACE("\r\n= [FWIMG] SWAP overlaps SBSFU code area protected by WRP\r\n");
     e_ret_status = SFU_IMG_INIT_FLASH_CONSTRAINTS_ERROR;
   }
 
+//  /* TODO
+//   * Sanity check: let's make sure the KMS NVM area does not overlap Swap area)
+//   */
+//  if (!(((SlotStartAdd[SLOT_SWAP]) > KMS_DATASTORAGE_END)
+//        || ((SlotEndAdd[SLOT_SWAP]) < (KMS_DATASTORAGE_START))))
+//  {
+//    TRACE("\r\n= [FWIMG] KMS NVM area overlaps Swap area\r\n");
+//    e_ret_status = SFU_IMG_INIT_FLASH_CONSTRAINTS_ERROR;
+//  }
 
   /* FWIMG core initialization completed */
   return e_ret_status;
@@ -2050,11 +2060,11 @@ exit:
 #if defined(SFU_VERBOSE_DEBUG_MODE)
   if (e_ret_status == SFU_SUCCESS)
   {
-    LOG_DEBUG("\t  Installation procedure completed.");
+    TRACE("\r\n\t  Installation procedure completed.");
   }
   else
   {
-    LOG_DEBUG("\t  Installation procedure cannot be finalized!");
+    TRACE("\r\n\t  Installation procedure cannot be finalized!");
   }
 #endif /* SFU_VERBOSE_DEBUG_MODE */
   /* return the installation result */
@@ -2128,11 +2138,11 @@ exit:
 #if defined(SFU_VERBOSE_DEBUG_MODE)
   if (e_ret_status == SFU_SUCCESS)
   {
-    LOG_DEBUG("\t  Resume procedure completed.");
+    TRACE("\r\n\t  Resume procedure completed.");
   }
   else
   {
-    LOG_DEBUG("\t  Resume procedure cannot be finalized!");
+    TRACE("\r\n\t  Resume procedure cannot be finalized!");
   }
 #endif /* SFU_VERBOSE_DEBUG_MODE */
 
@@ -2220,11 +2230,11 @@ exit:
 #if defined(SFU_VERBOSE_DEBUG_MODE)
   if (e_ret_status == SFU_SUCCESS)
   {
-    LOG_DEBUG("\t  Rollback procedure completed.");
+    TRACE("\r\n\t  Rollback procedure completed.");
   }
   else
   {
-    LOG_DEBUG("\t  Rollback procedure cannot be finalized!");
+    TRACE("\r\n\t  Rollback procedure cannot be finalized!");
   }
 #endif /* SFU_VERBOSE_DEBUG_MODE */
 
@@ -2265,7 +2275,7 @@ SFU_ErrorStatus SFU_IMG_UpdateImageState(uint32_t SlotNumber)
       else
       {
 #if defined(SFU_VERBOSE_DEBUG_MODE)
-        LOG_DEBUG("\t  SLOT_ACTIVE_%d state = %d failed to switch in FWIMG_STATE_SELFTEST", SlotNumber,
+        TRACE("\r\n\t  SLOT_ACTIVE_%d state = %d failed to switch in FWIMG_STATE_SELFTEST", SlotNumber,
               image_state);
 #endif /* (SFU_VERBOSE_DEBUG_MODE)     */
         e_ret_status = SFU_ERROR;

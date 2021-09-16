@@ -6,7 +6,7 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright(c) 2017 STMicroelectronics International N.V.
+  * <h2><center>&copy; Copyright (c) 2017 STMicroelectronics.
   * All rights reserved.</center></h2>
   *
   * This software component is licensed by ST under Ultimate Liberty license
@@ -60,7 +60,7 @@ extern uint32_t __ICFEDIT_SE_Key_region_ROM_start__;
 #define SE_KEY_REGION_ROM_START ((uint32_t)& __ICFEDIT_SE_Key_region_ROM_start__)
 extern uint32_t __ICFEDIT_SE_Key_region_ROM_end__;
 #define SE_KEY_REGION_ROM_END ((uint32_t)& __ICFEDIT_SE_Key_region_ROM_end__)
-extern uint32_t __ICFEDIT_SE_CallGate_region_ROM_start__; 
+extern uint32_t __ICFEDIT_SE_CallGate_region_ROM_start__;
 #define SE_CALLGATE_REGION_ROM_START ((uint32_t)& __ICFEDIT_SE_CallGate_region_ROM_start__)
 extern uint32_t __ICFEDIT_SB_HDP_region_ROM_start__;
 #define SB_HDP_REGION_ROM_START ((uint32_t)& __ICFEDIT_SB_HDP_region_ROM_start__)
@@ -89,14 +89,12 @@ extern uint32_t Image$$vector_start$$Base;
 #define  INTVECT_START ((uint32_t)& Image$$vector_start$$Base)
 #endif
 
+extern uint32_t __ICFEDIT_KMS_DataStorage_start__ ;
+#define KMS_DATASTORAGE_START ((uint32_t)& __ICFEDIT_KMS_DataStorage_start__)
+extern uint32_t __ICFEDIT_KMS_DataStorage_end__ ;
+#define KMS_DATASTORAGE_END ((uint32_t)& __ICFEDIT_KMS_DataStorage_end__)
 
-/**
-  * @}
-  */
-  
-/** @defgroup SFU_CONFIG_FW_MEMORY_MAPPING Firmware Slots Memory Mapping
-  * @{
-  */
+
 #if defined (__ICCARM__) || defined(__GNUC__)
 extern uint32_t __ICFEDIT_SLOT_Active_1_header__;
 #define SLOT_ACTIVE_1_HEADER ((uint32_t)& __ICFEDIT_SLOT_Active_1_header__)
@@ -132,22 +130,7 @@ extern uint32_t __ICFEDIT_SWAP_start__;
 #define SWAP_START ((uint32_t)& __ICFEDIT_SWAP_start__)
 extern uint32_t __ICFEDIT_SWAP_end__;
 #define SWAP_END ((uint32_t)& __ICFEDIT_SWAP_end__)
-#endif
-
-/**
-  * @}
-  */
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
+#endif /* __ICCARM__ || __GNUC__ */
 
 #ifdef __cplusplus
 }

@@ -47,7 +47,7 @@ extern "C" {
   *
   *
   */
-#if  SECBOOT_CRYPTO_SCHEME == SECBOOT_ECCDSA_WITHOUT_ENCRYPT_SHA256
+#if ( (SECBOOT_CRYPTO_SCHEME == SECBOOT_ECCDSA_WITHOUT_ENCRYPT_SHA256) || (SECBOOT_CRYPTO_SCHEME == SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256) )
 #define SFU_IMAGE_PROGRAMMING_TYPE SFU_CLEAR_IMAGE
 #else
 #define SFU_IMAGE_PROGRAMMING_TYPE SFU_ENCRYPTED_IMAGE
@@ -59,9 +59,13 @@ extern "C" {
 #define SFU_DEBUG_MODE               /*!< Comment this define to optimize memory footprint (debug mode removed)
                                           No more print on terminal during SBSFU execution */
 
-/*#define SFU_VERBOSE_DEBUG_MODE*/   /*!< Uncomment this define when in verbose Debug mode.
+#define SFU_VERBOSE_DEBUG_MODE   /*!< Uncomment this define when in verbose Debug mode.
                                           this switch activates more debug prints in the console (FSM state info...) */
 
+#if (SECBOOT_CRYPTO_SCHEME == SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256)
+#define SFU_X509_VERBOSE_DEBUG_MODE  /*!< Comment this define to disable X509 verbose Debug mode.
+                                          No more X509 prints (Crets...) on terminal during SBSFU execution */
+#endif /* SECBOOT_CRYPTO_SCHEME */
 
 /*#define SFU_FWIMG_BLOCK_ON_ABNORMAL_ERRORS_MODE*/  /*!< You may uncomment this define when running development tests.
                                                           When this switch is activated, the FWIMG part of SB_SFU will
@@ -162,15 +166,14 @@ extern "C" {
                                            switching to UserApp: a refresh is needed.
                                         2. The IWDG reload in the SB_SFU code will have to be tuned depending on your
                                            platform (flash size...)*/
-#define SFU_MPU_PROTECT_ENABLE     /*!< MPU protection:
+/*#define SFU_MPU_PROTECT_ENABLE*/    /*!< MPU protection:
                                         Enables/Disables the MPU protection.
                                         If Secure Engine isolation is ensured by MPU (see SFU_ISOLATE_SE_WITH_MPU in
                                         SE_CoreBin\Inc\se_low_level.h), then this switch also enables/disables it, in
                                         addition to the overall MPU protection. */
+#define SFU_MPU_USERAPP_ACTIVATION /*!< MPU protection during UserApp execution : Only active slot(s) considered as an
+                                        executable area */
 
-#define SFU_SECURE_USER_PROTECT_ENABLE /*!< Only accessible in Secure access mode,
-                                          the Secure user software is stored in the secure user memory, a configurable
-                                          protected area which is part of the user main memory. */
 
 /*#define SFU_FINAL_SECURE_LOCK_ENABLE */   /*!< WARNING: Should be enabled at the end of product development and test
                                                  steps.
@@ -183,7 +186,7 @@ extern "C" {
 
 
 #else
-#define SFU_PROTECT_RDP_LEVEL  (OB_RDP_LEVEL_1)  /*!< RDP level is set as 1 for debugging purposes. A product on the
+#define SFU_PROTECT_RDP_LEVEL  (OB_RDP_LEVEL_0)  /*!< EDIT: RDP Level 0 to debug // RDP level is set as 1 for debugging purposes. A product on the
                                                       field should set it as Level2 */
 #endif /* SFU_FINAL_SECURE_LOCK_ENABLE */
 
@@ -208,7 +211,7 @@ extern "C" {
 #define SECBOOT_OB_DEV_MODE
 
 
-#define SFU_IWDG_TIMEOUT  ((uint32_t) 6) /*!< IWDG timeout in seconds (the max. value that can be set here depends on
+#define SFU_IWDG_TIMEOUT  ((uint32_t)15) /*!< IWDG timeout in seconds (the max. value that can be set here depends on
                                               the prescaler settings: IWDG_PRESCALER_XXX. ) */
 
 

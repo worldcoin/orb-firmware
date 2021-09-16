@@ -76,7 +76,7 @@ typedef enum
 /* Exported functions ------------------------------------------------------- */
 void SFU_EXCPT_SetError(SFU_EXCPT_IdTypeDef eExceptionId);
 void SFU_EXCPT_IrqExceptionHandler(SFU_EXCPT_IdTypeDef eExceptionId);
-void SFU_EXCPT_Security_Error(void);
+void SFU_EXCPT_Security_Error(uint32_t step);
 
 SFU_ErrorStatus SFU_EXCPT_Init(void);
 SFU_ErrorStatus SFU_EXCPT_DeInit(void);

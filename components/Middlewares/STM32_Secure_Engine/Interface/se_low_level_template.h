@@ -81,7 +81,7 @@ extern "C" {
   * This switch enables the Secure Engine isolation based on the MPU usage.
   * This switch must be enabled if the STM32 platform in use does not have a Firewall.
   */
-/* #define SFU_ISOLATE_SE_WITH_MPU */
+#define SFU_ISOLATE_SE_WITH_MPU
 
 /**
   * @}

@@ -39,6 +39,10 @@ typedef enum
   SFU_STATE_CHECK_NEW_FW_TO_DOWNLOAD,   /*!< SFU checks if a local download must be handled       */
   SFU_STATE_DOWNLOAD_NEW_USER_FW,       /*!< downloads the encrypted firmware to be installed     */
 #endif /* (SECBOOT_LOADER == SECBOOT_USE_LOCAL_LOADER) || (SECBOOT_LOADER == SECBOOT_USE_STANDALONE_LOADER) */
+#ifdef KMS_ENABLED
+  SFU_STATE_CHECK_KMS_BLOB_TO_INSTALL, /*!< SFU checks if a kms blob download must be handled    */
+  SFU_STATE_INSTALL_KMS_BLOB,          /* !< download the new kms_blob */
+#endif /* KMS_ENABLED */
   SFU_STATE_VERIFY_USER_FW_STATUS,      /*!< checks the internal FLASH state to derive a status   */
   SFU_STATE_INSTALL_NEW_USER_FW,        /*!< decrypts and installs the firmware stored in dwl slot*/
   SFU_STATE_VERIFY_USER_FW_SIGNATURE,   /*!< checks the validity of the active firmware           */

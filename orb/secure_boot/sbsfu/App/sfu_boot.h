@@ -156,11 +156,12 @@ extern uint32_t uFlowCryptoValue;
   * (uFlowValue XOR STEP_VALUE) should be equal to CTRL_VALUE ==> execution stopped if failed !
   */
 #define FLOW_CONTROL_STEP(C,B,A) \
-  do{ \
+  do{                            \
+    TRACE("FLOW_CONTROL_STEP(0x%x,0x%x,0x%x)\r\n", C, B, A); \
     (C) ^= (B);\
     if ((C) != (A))\
     { \
-      SFU_EXCPT_Security_Error();\
+      SFU_EXCPT_Security_Error(B);\
     } \
   }while(0)
 
@@ -171,7 +172,7 @@ extern uint32_t uFlowCryptoValue;
   do{ \
     if ((B) != (A))\
     { \
-      SFU_EXCPT_Security_Error();\
+      SFU_EXCPT_Security_Error(A);\
     } \
   }while(0)
 

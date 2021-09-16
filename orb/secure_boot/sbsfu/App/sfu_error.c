@@ -83,7 +83,7 @@ void SFU_EXCPT_SetError(SFU_EXCPT_IdTypeDef eExceptionId)
   if (eExceptionId <= SFU_EXCPT_UNKNOWN)
   {
 #ifdef SFU_DEBUG_MODE
-    LOG_DEBUG("\t%s",m_aErrorStrings[(uint32_t) eExceptionId]);
+    TRACE("\r\n\t%s",m_aErrorStrings[(uint32_t) eExceptionId]);
 #endif /* SFU_DEBUG_MODE */
   }
 }
@@ -132,9 +132,9 @@ void SFU_EXCPT_IrqExceptionHandler(SFU_EXCPT_IdTypeDef eExceptionId)
   * @retval SFU_ErrorStatus SFU_SUCCESS if successful, SFU_ERROR otherwise.
   */
 
-void SFU_EXCPT_Security_Error(void)
+void SFU_EXCPT_Security_Error(uint32_t step)
 {
-  LOG_DEBUG("= [SBOOT] Security issue : execution stopped !");
+  TRACE("\r\n= [SBOOT] Security issue : execution stopped ! 0x%lx", step);
   HAL_Delay(1000);
   /* While(1) by-passed by an fault injection attack ==> Reset */
   if (0U != SFU_MPU_IsUnprivileged())
@@ -223,8 +223,7 @@ static void SFU_EXCPT_RuntimeExceptionHandler(SFU_EXCPT_IdTypeDef eExceptionId)
          ...
       */
 #ifdef SFU_TEST_PROTECTION
-      /* On STM32G0XX and STM32G4XX : Hard fault IT is generated instead of memory fault when secured area accessed
-         ==> this is not an error */
+      SFU_TEST_Error();
 #endif /* SFU_TEST_PROTECTION */
       break;
 

@@ -43,9 +43,9 @@ __ICFEDIT_SE_Key_region_ROM_end__          = __ICFEDIT_SE_Key_region_ROM_start__
 __ICFEDIT_SE_Startup_region_ROM_start__    = __ICFEDIT_SE_Key_region_ROM_end__ + 0x1;
 __ICFEDIT_SE_Code_nokey_region_ROM_start__ = __ICFEDIT_SE_Startup_region_ROM_start__ + 0x100;
 /* Aligned SE End at the end of the 1st 24Kbytes of flash, MPU protection isolation constraints */
-__ICFEDIT_SE_Code_region_ROM_end__         = 0x08005FFF;
+__ICFEDIT_SE_Code_region_ROM_end__         = __ICFEDIT_SE_Startup_region_ROM_start__ + 0x18FFF;
 
-/* SE IF ROM: used to locate Secure Engine interface code out of MPU isolation     */
+/* SE IF ROM: used to locate Secure Engine interface code out of MPU isolation, see "se_interface_*.c" files    */
 __ICFEDIT_SE_IF_region_ROM_start__         = __ICFEDIT_SE_Code_region_ROM_end__ + 0x1;
 __ICFEDIT_SE_IF_region_ROM_end__           = __ICFEDIT_SE_IF_region_ROM_start__ + 0x7FF;
 
@@ -56,7 +56,7 @@ __ICFEDIT_SB_HDP_region_ROM_end__          = __ICFEDIT_SB_HDP_region_ROM_start__
 /* SBSFU Code region */
 __ICFEDIT_SB_region_ROM_start__            = __ICFEDIT_SB_HDP_region_ROM_end__ + 1;
 /* Aligned SBSFU end at the end of the 1st 64Kbytes of FLASH, MPU protection isolation constraints */
-__ICFEDIT_SB_region_ROM_end__              = 0x0800FFFF;
+__ICFEDIT_SB_region_ROM_end__              = 0x0802FFFF;
 
 SE_Entry_Secure_ROM_Region_Length = __ICFEDIT_SE_CallGate_region_ROM_end__ - __ICFEDIT_SE_CallGate_region_ROM_start__ + 1;
 SE_Key_region_ROM_Length          = __ICFEDIT_SE_Key_region_ROM_end__ - __ICFEDIT_SE_Key_region_ROM_start__ + 1;
@@ -70,7 +70,7 @@ SB_ROM_region_Length              = __ICFEDIT_SB_region_ROM_end__ - __ICFEDIT_SB
 /* SE RAM1 region protected by MPU */
 /* SE stack is placed 1st in RAM, stack overflow does not write on other RAM area */
 __ICFEDIT_SE_region_RAM_start__     = 0x20000000;
-__ICFEDIT_SE_region_RAM_stack_top__ = 0x20000400;
+__ICFEDIT_SE_region_RAM_stack_top__ = 0x20000300;
 __ICFEDIT_SE_region_RAM_end__       = 0x20000FFF;
 
 /* Secure memory activation code area - execution in RAM */

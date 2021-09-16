@@ -26,7 +26,6 @@ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "logging.h"
 #include "app_sfu.h"
 #if defined(SFU_DEBUG_MODE) || defined(SFU_TEST_PROTECTION)
 #include "sfu_com_trace.h"

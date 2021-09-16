@@ -16,6 +16,7 @@ if(CMAKE_C_COMPILER MATCHES "arm-none-eabi-gcc$")
     set(PREPARE_IMAGE_PY ${CMAKE_CURRENT_SOURCE_DIR}/components/Middlewares/STM32_Secure_Engine/Utilities/KeysAndImages/prepareimage.py)
 
     add_subdirectory(orb/se_core/boards/stm32g4discovery)
+    add_subdirectory(orb/se_core_kms/boards/stm32g4discovery)
     add_subdirectory(orb/secure_boot/boards/stm32g4discovery)
     add_subdirectory(orb/app/boards/stm32g4discovery)
     add_subdirectory(orb/sbsfu_test/boards/stm32g4discovery)

@@ -71,6 +71,9 @@ main(void)
     /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
     HAL_Init();
 
+    /* De-configure previous configuration done during SBSFU execution */
+    HAL_RCC_DeInit();
+
     /* Configure the system clock */
     SystemClock_Config();
 

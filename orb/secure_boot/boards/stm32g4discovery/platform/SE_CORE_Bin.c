@@ -22,7 +22,7 @@
 
 #if defined (__GNUC__)
 asm(".section SE_CORE_Bin,\"a\";"
-                             ".incbin \"./../../../common/se_core.bin\";"
+                             ".incbin \"./../../../common/se_core_kms.bin\";"
 );
 #endif 
 

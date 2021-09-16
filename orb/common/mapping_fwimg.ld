@@ -35,7 +35,7 @@ __ICFEDIT_SWAP_start__           = 0x08046000;
 __ICFEDIT_SWAP_end__             = 0x08047FFF;
 
 /* Active slot #1 (216 kbytes) */
-__ICFEDIT_SLOT_Active_1_start__  = 0x08010000;
+__ICFEDIT_SLOT_Active_1_start__  = 0x08030000;
 __ICFEDIT_SLOT_Active_1_end__    = 0x08045FFF;
 __ICFEDIT_SLOT_Active_1_header__ = __ICFEDIT_SLOT_Active_1_start__;
 

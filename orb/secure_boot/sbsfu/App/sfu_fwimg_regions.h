@@ -68,8 +68,11 @@ extern "C" {
 /**
   * Image starting offset to add to the  address of 1st block
   */
-/* For G4 as active slot(s) header is(are) protected by Secure user memory, OFFSET is aligned on sector size : 4096 */
-#define SFU_IMG_IMAGE_OFFSET ((uint32_t)4096U)
+#if (SECBOOT_CRYPTO_SCHEME == SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256)
+#define SFU_IMG_IMAGE_OFFSET ((uint32_t)2048U)
+#else
+#define SFU_IMG_IMAGE_OFFSET ((uint32_t)512U)
+#endif /* SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256 */
 
 
 /* External variables --------------------------------------------------------*/

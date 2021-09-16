@@ -29,6 +29,7 @@
 #include "sfu_low_level_flash_int.h"
 #include "sfu_low_level_security.h"
 #include "se_interface_bootloader.h"
+#include "sfu_interface_crypto_scheme.h"
 #include "sfu_fwimg_regions.h"
 #include "sfu_fwimg_services.h"
 #include "sfu_fwimg_internal.h"
@@ -549,7 +550,7 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_InitImageHandling(void)
       if (!IS_ALIGNED(SlotStartAdd[SLOT_ACTIVE_1 + i]))
       {
         e_ret_status = SFU_IMG_INIT_FLASH_CONSTRAINTS_ERROR;
-        LOG_DEBUG("= [FWIMG] SLOT_ACTIVE_%d (%x) is not properly aligned\r\n",
+        TRACE("\r\n= [FWIMG] SLOT_ACTIVE_%d (%x) is not properly aligned\r\n",
               i + 1U, SlotStartAdd[SLOT_ACTIVE_1 + i]);
       } /* else active slot is properly aligned */
     }
@@ -568,7 +569,7 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_InitImageHandling(void)
       if (!IS_ALIGNED(SlotStartAdd[SLOT_DWL_1 + i]))
       {
         e_ret_status = SFU_IMG_INIT_FLASH_CONSTRAINTS_ERROR;
-        LOG_DEBUG("= [FWIMG] SLOT_DWL_%d (%x) is not properly aligned\r\n",
+        TRACE("\r\n= [FWIMG] SLOT_DWL_%d (%x) is not properly aligned\r\n",
               i + 1U, SlotStartAdd[SLOT_DWL_1 + 1U]);
       } /* else dwl slot is properly aligned */
     }
@@ -581,7 +582,7 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_InitImageHandling(void)
   if (0U != (uint32_t)(MAGIC_LENGTH % (uint32_t)sizeof(SFU_LL_FLASH_write_t)))
   {
     e_ret_status = SFU_IMG_INIT_FLASH_CONSTRAINTS_ERROR;
-    LOG_DEBUG("= [FWIMG] magic size (%d) is not matching the FLASH constraints\r\n", MAGIC_LENGTH);
+    TRACE("\r\n= [FWIMG] magic size (%d) is not matching the FLASH constraints\r\n", MAGIC_LENGTH);
   } /* else the MAGIC patterns size is fine with regards to FLASH constraints */
 
   /*
@@ -591,7 +592,7 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_InitImageHandling(void)
   {
     /* The code writing the FW header in FLASH requires the FW Header length to match the FLASH constraints */
     e_ret_status = SFU_IMG_INIT_FLASH_CONSTRAINTS_ERROR;
-    LOG_DEBUG("= [FWIMG] FW Header size (%d) is not matching the FLASH constraints\r\n", SE_FW_HEADER_TOT_LEN);
+    TRACE("\r\n= [FWIMG] FW Header size (%d) is not matching the FLASH constraints\r\n", SE_FW_HEADER_TOT_LEN);
   } /* else the FW Header Length is fine with regards to FLASH constraints */
 
   /*
@@ -601,7 +602,7 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_InitImageHandling(void)
   {
     /* The size of the chunks used to store the decrypted data must be a multiple of the FLASH write length */
     e_ret_status = SFU_IMG_INIT_FLASH_CONSTRAINTS_ERROR;
-    LOG_DEBUG("= [FWIMG] Decrypt chunk size (%d) is not matching the FLASH constraints\r\n", SFU_IMG_CHUNK_SIZE);
+    TRACE("\r\n= [FWIMG] Decrypt chunk size (%d) is not matching the FLASH constraints\r\n", SFU_IMG_CHUNK_SIZE);
   } /* else the decrypt chunk size is fine with regards to FLASH constraints */
 
   /*
@@ -613,7 +614,7 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_InitImageHandling(void)
   {
     /* For AES CBC block encryption/decryption the chunks must be aligned on the AES block size */
     e_ret_status = SFU_IMG_INIT_CRYPTO_CONSTRAINTS_ERROR;
-    LOG_DEBUG("= [FWIMG] Chunk size (%d) is not matching the AES CBC constraints\r\n", SFU_IMG_CHUNK_SIZE);
+    TRACE("\r\n= [FWIMG] Chunk size (%d) is not matching the AES CBC constraints\r\n", SFU_IMG_CHUNK_SIZE);
   }
 
   /*
@@ -631,7 +632,7 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_InitImageHandling(void)
     {
       if (((SlotStartAdd[SLOT_ACTIVE_1 + i] - FLASH_BASE) / FLASH_PAGE_SIZE_128_BITS) <= SFU_PROTECT_WRP_PAGE_END_1)
       {
-        LOG_DEBUG("= [FWIMG] SLOT_ACTIVE_%d overlaps SBSFU code area protected by WRP\r\n", i + 1U);
+        TRACE("\r\n= [FWIMG] SLOT_ACTIVE_%d overlaps SBSFU code area protected by WRP\r\n", i + 1U);
         e_ret_status = SFU_IMG_INIT_FLASH_CONSTRAINTS_ERROR;
       }
     }
@@ -652,7 +653,7 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_InitImageHandling(void)
     {
       if (((SlotStartAdd[SLOT_DWL_1 + i] - FLASH_BASE) / FLASH_PAGE_SIZE_128_BITS) <= SFU_PROTECT_WRP_PAGE_END_1)
       {
-        LOG_DEBUG("= [FWIMG] SLOT_DWL_%d overlaps SBSFU code area protected by WRP\r\n", i + 1U);
+        TRACE("\r\n= [FWIMG] SLOT_DWL_%d overlaps SBSFU code area protected by WRP\r\n", i + 1U);
         e_ret_status = SFU_IMG_INIT_FLASH_CONSTRAINTS_ERROR;
       }
     }
@@ -660,7 +661,7 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_InitImageHandling(void)
 
 
   /*
-   * Sanity check: let's make sure headers are under the MPU protection
+   * Sanity check: let's make sure headers are under the firewall protection
    */
   /* Calculate size of image header MPU region */
   mpu_max_size = 2U;
@@ -693,12 +694,27 @@ SFU_IMG_InitStatusTypeDef SFU_IMG_InitImageHandling(void)
             && ((SlotHeaderAdd[SLOT_ACTIVE_1 + i] + SE_FW_HEADER_TOT_LEN) <=
                 (SFU_PROTECT_MPU_HEADER_START + mpu_size))))
       {
-        LOG_DEBUG("= [FWIMG] Header of SLOT_ACTIVE_%d is not under the MPU protection\r\n", i + 1U);
+        TRACE("= [FWIMG] Header of SLOT_ACTIVE_%d is not under the MPU protection\r\n", i + 1U);
         e_ret_status = SFU_IMG_INIT_FLASH_CONSTRAINTS_ERROR;
       }
     }
   }
 
+//  /* TODO
+//   * Sanity check: let's make sure the KMS NVM area does not overlap dwl slot area
+//   */
+//  for (i = 0U; i < SFU_NB_MAX_DWL_AREA; i++)
+//  {
+//    if (SlotStartAdd[SLOT_DWL_1 + i] != 0U)
+//    {
+//      if (!(((SlotStartAdd[SLOT_DWL_1 + i]) > KMS_DATASTORAGE_END)
+//            || ((SlotEndAdd[SLOT_DWL_1 + i]) < (KMS_DATASTORAGE_START))))
+//      {
+//        TRACE("\r\n= [FWIMG] KMS NVM area overlaps SLOT_DWL_%d area\r\n", i + 1U);
+//        e_ret_status = SFU_IMG_INIT_FLASH_CONSTRAINTS_ERROR;
+//      }
+//    }
+//  }
 
 #if  !defined(SFU_NO_SWAP)
   /*
@@ -774,7 +790,7 @@ SFU_ErrorStatus SFU_IMG_VerifyActiveImg(uint32_t SlotNumber)
   if (SFU_ERROR == e_ret_status)
   {
     /* We do not memorize any specific error, the FSM state is already providing the info */
-    LOG_DEBUG("=         SFU_IMG_VerifyActiveImg failure with se_status=%d!", e_se_status);
+    TRACE("\r\n=         SFU_IMG_VerifyActiveImg failure with se_status=%d!", e_se_status);
   }
 #endif /* SFU_VERBOSE_DEBUG_MODE */
 
@@ -1012,7 +1028,7 @@ SFU_ErrorStatus SFU_IMG_CheckFwVersion(uint32_t ActiveSlot, uint16_t CurrentVers
 #if defined(SFU_VERBOSE_DEBUG_MODE)
     else
     {
-      LOG_DEBUG("\t  Init version:%d - Current version:%d - Candidate version:%d : Installation not allowed!", SFU_FW_VERSION_INIT_NUM, CurrentVersion, CandidateVersion);
+      TRACE("\r\n\t  Init version:%d - Current version:%d - Candidate version:%d : Installation not allowed!", SFU_FW_VERSION_INIT_NUM, CurrentVersion, CandidateVersion);
     }
 #endif /* SFU_VERBOSE_DEBUG_MODE */
   }
@@ -1031,7 +1047,7 @@ SFU_ErrorStatus SFU_IMG_CheckFwVersion(uint32_t ActiveSlot, uint16_t CurrentVers
 #if defined(SFU_VERBOSE_DEBUG_MODE)
     else
     {
-      LOG_DEBUG("\t  Init version:%d - Current version:%d - Candidate version:%d : Installation not allowed!", SFU_FW_VERSION_INIT_NUM, CurrentVersion, CandidateVersion);
+      TRACE("\r\n\t  Init version:%d - Current version:%d - Candidate version:%d : Installation not allowed!", SFU_FW_VERSION_INIT_NUM, CurrentVersion, CandidateVersion);
     }
 #endif /* SFU_VERBOSE_DEBUG_MODE */
 
