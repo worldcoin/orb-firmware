@@ -108,35 +108,48 @@ include_directories(${INC_DIRS})
 
 # if python doesn't find packages, make sure to have installed the environment
 # PYTHONPATH can be set to force usage of specific packages
-#
-#if (SECBOOT_ECCDSA_WITH_AES128_CBC_SHA256)
-#
-#    # create se_key.s file
-#    # TODO do not regenerate if dependencies didn't change
-#
-#    set(KEY_FILE ${SDK_ROOT}/orb/se_core/se_key.s)
-#    file(WRITE ${KEY_FILE} "\t.section .SE_Key_Data,\"a\",%progbits\n\t.syntax unified\n\t.thumb\n")
-#
-#    # TODO add Debug and Release targets in order to use a Debug and Release private key
-#
-#    ## Prebuild target
-#    ## Base on prebuild.sh provided by STM, see orb/se_core/prebuild.sh.bak
-#    add_custom_target(generate_se_key
-#            COMMAND python ${PREPARE_IMAGE_PY} conf ${SDK_ROOT}/orb/se_core/include/se_crypto_config.h > crypto.txt
-#            COMMAND python ${PREPARE_IMAGE_PY} trans -a GNU -k ${SDK_ROOT}/orb/common/AES_CBC.bin -f SE_ReadKey_1 -v V7M >> ${KEY_FILE}
-#            COMMAND python ${PREPARE_IMAGE_PY} trans -a GNU -k ${SDK_ROOT}/orb/common/ECCKEY.txt -f SE_ReadKey_1_Pub -v V7M >> ${KEY_FILE}
-#            COMMAND echo "  .end" >> ${KEY_FILE}
-#            COMMENT "Pre-build")
-#
-#elseif (SECBOOT_AES128_GCM_AES128_GCM_AES128_GCM OR SECBOOT_ECCDSA_WITHOUT_ENCRYPT_SHA256)
-#
-#    message(WARNING "SECBOOT_AES128_GCM_AES128_GCM_AES128_GCM and SECBOOT_ECCDSA_WITHOUT_ENCRYPT_SHA256 crypto schemes are not implemented. You can look at STM's prebuild.sh script to implement them")
-#
-#else ()
-#
-#    message(WARNING "Please define crypto scheme")
-#
-#endif ()
+
+set(SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256 ON)
+if (SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256)
+
+    # create se_key.s file
+    # TODO do not regenerate if dependencies didn't change
+
+    set(KEY_FILE ${SDK_ROOT}/orb/se_core/se_key.s)
+    file(WRITE ${KEY_FILE} "\t.section .SE_Key_Data,\"a\",%progbits\n\t.syntax unified\n\t.thumb\n")
+
+    # TODO add Debug and Release targets in order to use a Debug and Release private key
+
+    ## Prebuild target
+    ## Base on prebuild.sh provided by STM, see orb/se_core/prebuild.sh.bak
+    add_custom_target(generate_se_key_kms
+            COMMAND python ${PREPARE_IMAGE_PY} conf ${SDK_ROOT}/orb/se_core_kms/include/se_crypto_config.h > crypto.txt
+
+            COMMAND python ${PREPARE_IMAGE_PY} inject -k ${SDK_ROOT}/orb/common/ECCKEY.txt -f ${SDK_ROOT}/orb/se_core_kms/include/kms_platf_objects_config.h.pattern -p @ECDSA_BLOB_KEY@ ${SDK_ROOT}/orb/se_core_kms/include/kms_platf_objects_config.h.tmp
+
+            COMMAND python ${PREPARE_IMAGE_PY} inject -k ${SDK_ROOT}/orb/common/OEM_KEY_COMPANY1_key_AES_CBC.bin -f ${SDK_ROOT}/orb/se_core_kms/include/kms_platf_objects_config.h.tmp -p @AES_BLOB_KEY@ ${SDK_ROOT}/orb/se_core_kms/include/kms_platf_objects_config.h
+
+            COMMAND cp ${SDK_ROOT}/orb/se_core_kms/include/kms_platf_objects_config.h ${SDK_ROOT}/orb/se_core_kms/include/kms_platf_objects_config.h.tmp
+
+            COMMAND python ${PREPARE_IMAGE_PY} inject -c ${SDK_ROOT}/orb/common/sbsfu_r0_crt.der -f ${SDK_ROOT}/orb/se_core_kms/include/kms_platf_objects_config.h.tmp -p @SBSFU_ROOT_CA@ ${SDK_ROOT}/orb/se_core_kms/include/kms_platf_objects_config.h
+
+            COMMAND cp ${SDK_ROOT}/orb/se_core_kms/include/kms_platf_objects_config.h ${SDK_ROOT}/orb/se_core_kms/include/kms_platf_objects_config.h.tmp
+
+            COMMAND python ${PREPARE_IMAGE_PY} inject -c ${SDK_ROOT}/orb/common/sbsfu_inter1_oem1_crt.der -f ${SDK_ROOT}/orb/se_core_kms/include/kms_platf_objects_config.h.tmp -p @SBSFU_OEM_CA_1@ ${SDK_ROOT}/orb/se_core_kms/include/kms_platf_objects_config.h
+
+            COMMAND rm ${SDK_ROOT}/orb/se_core_kms/include/kms_platf_objects_config.h.tmp
+
+            COMMENT "Pre-build")
+
+elseif (SECBOOT_AES128_GCM_AES128_GCM_AES128_GCM OR SECBOOT_ECCDSA_WITHOUT_ENCRYPT_SHA256)
+
+    message(WARNING "SECBOOT_AES128_GCM_AES128_GCM_AES128_GCM and SECBOOT_ECCDSA_WITHOUT_ENCRYPT_SHA256 crypto schemes are not implemented. You can look at STM's prebuild.sh script to implement them")
+
+else ()
+
+    message(WARNING "Please define crypto scheme")
+
+endif ()
 
 add_definitions(-DUSE_HAL_DRIVER -DSTM32G474xx -DMBEDTLS_CONFIG_FILE=<mbed_crypto_config.h> -DKMS_ENABLED -DENABLE_IMAGE_STATE_HANDLING)
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/STM32G474RETx.ld)
@@ -162,7 +175,7 @@ link_directories(${SDK_ROOT}/components/Middlewares/STM32_Cryptographic/Fw_Crypt
 link_libraries(c m libSTM32CryptographicV3.1.3_CM4_GCC.a)
 
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${LINKER_SCRIPT})
-#add_dependencies(${PROJECT_NAME} generate_se_key)
+add_dependencies(${PROJECT_NAME} generate_se_key_kms)
 set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX .elf)
 
 # generate binary

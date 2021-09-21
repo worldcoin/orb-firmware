@@ -62,7 +62,7 @@ include_directories(${INC_DIRS})
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/STM32G474RETx.ld)
 
 add_compile_definitions(ARM_MATH_CM4;STM32G474xx;USE_HAL_DRIVER;STM32G4_DISCOVERY;MINICOM_YMODEM)
-# hardware floating point
+
 add_compile_options(-mfloat-abi=soft -mfpu=fpv4-sp-d16)
 add_compile_options(-mcpu=cortex-m4 -mthumb)
 add_compile_options(-ffunction-sections)
@@ -84,7 +84,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX .elf)
 
 generate_object(${PROJECT_NAME} .bin binary)
 
-# TODO postbuild
+# TODO postbuild:
 # - fetch firmware version
 # - Generate partial image if we want to update binary partially based on reference image
 

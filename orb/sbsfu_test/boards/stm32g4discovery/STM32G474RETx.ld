@@ -51,7 +51,6 @@ MEMORY
  ISR_VECTOR (rx)   : ORIGIN = __ICFEDIT_intvec_start__, LENGTH = VECTOR_SIZE
  APPLI_region_ROM  : ORIGIN = APPLI_region_ROM_start, LENGTH = APPLI_region_ROM_length
  APPLI_region_RAM  : ORIGIN = APPLI_region_RAM_start, LENGTH = APPLI_region_RAM_length
-
 }
 
 /* Define output sections */

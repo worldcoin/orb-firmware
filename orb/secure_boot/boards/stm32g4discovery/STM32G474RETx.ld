@@ -69,6 +69,17 @@ SECTIONS
   .SE_IF_Code : { KEEP(*se_interface_application.c.obj (.text .text*))
                   KEEP(*se_interface_bootloader.c.obj (.text .text*))
                   KEEP(*se_interface_common.c.obj (.text .text*))
+
+                                   /* KEEP(*se_interface_application.c.obj (.text .text*))
+                                   KEEP(*se_interface_kms.c.obj (.text .text*))
+                                   */
+                                   /*
+                                      discard files below from SE_IF_Code
+                                      KEEP(*se_interface_bootloader.c.obj (.text .text*))
+                                      KEEP(*se_interface_common.c.obj (.text .text*))
+                                      KEEP(*t_kms.c.obj (.text .text*))
+                                   */
+
   } >SE_IF_region_ROM
 
   .text :
