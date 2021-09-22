@@ -68,11 +68,8 @@ extern "C" {
 /**
   * Image starting offset to add to the  address of 1st block
   */
-#if (SECBOOT_CRYPTO_SCHEME == SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256)
+// TODO why 2048? how does it depends to the SECBOOT_CRYPTO_SCHEME?
 #define SFU_IMG_IMAGE_OFFSET ((uint32_t)2048U)
-#else
-#define SFU_IMG_IMAGE_OFFSET ((uint32_t)512U)
-#endif /* SECBOOT_X509_ECDSA_WITHOUT_ENCRYPT_SHA256 */
 
 
 /* External variables --------------------------------------------------------*/
