@@ -39,8 +39,8 @@ extern "C" {
   */
 typedef enum
 {
-  SFU_ERROR = 0x00001FE1U,
-  SFU_SUCCESS = 0x00122F11U
+    SFU_ERROR = 0x00001FE1U,
+    SFU_SUCCESS = 0x00122F11U
 } SFU_ErrorStatus;
 
 /* Exported constants --------------------------------------------------------*/
@@ -53,11 +53,6 @@ extern uint32_t Image$$vector_start$$Base;
 #define SFU_RAM_END              ((uint32_t) SB_REGION_RAM_END)
 #define SFU_SB_RAM_BASE          ((uint32_t) SB_REGION_RAM_START)
 #define SFU_SB_RAM_END           ((uint32_t) SB_REGION_RAM_END)
-
-/* needed for sfu_test.c */
-// TODO check addresses
-#define SFU_SRAM2_BASE           ((uint32_t)0x10000000)
-#define SFU_SRAM2_END            ((uint32_t)0x10007FFF)
 
 #define SFU_BOOT_BASE_ADDR       ((uint32_t) INTVECT_START)           /* SFU Boot Address */
 #define SFU_ROM_ADDR_END         ((uint32_t) SB_REGION_ROM_END)       /* SBSFU end Address (covering all the SBSFU
