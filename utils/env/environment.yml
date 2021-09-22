@@ -1,0 +1,21 @@
+name: worldcoin
+channels:
+  - fouge
+  - litex-hub
+  - memfault
+  - conda-forge
+dependencies:
+  - make
+  - python=3.9
+  - conda-forge::cmake
+  - pyserial
+  - ccache
+  - protobuf
+  - gcc-arm-none-eabi
+  - ninja
+  - pthread-stubs
+  - openocd
+  - gperf
+  - pip:
+      - west
+      - pyserial
