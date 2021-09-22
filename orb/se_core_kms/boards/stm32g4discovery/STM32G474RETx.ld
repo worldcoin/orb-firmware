@@ -51,7 +51,6 @@ SECTIONS
     KEEP(*(.SE_CallGate_Code))
   } > SE_Entry_Secure_ROM_Region
 
-  .SE_Key_Data : { KEEP(*(.SE_Key_Data)) } > SE_Key_region_ROM
   .SE_Startup_Code : { KEEP ( *se_startup.c.obj (.text .text*)) } > SE_Startup_region_ROM
   .text :
   {
