@@ -20,6 +20,7 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
+#include <hardfault.h>
 #include "main.h"
 #include "sfu_low_level_flash_int.h"
 #include "sfu_low_level_security.h"
@@ -477,6 +478,12 @@ void NMI_Handler(void)
   */
 void HardFault_Handler(void)
 {
+    // jump to hardfault_handler_c with active stack pointer
+    HARDFAULT_HANDLING_ASM();
+
+    // reset target
+    HAL_NVIC_SystemReset();
+
   SFU_EXCPT_IrqExceptionHandler(SFU_EXCPT_HARD_FAULT);
 }
 
