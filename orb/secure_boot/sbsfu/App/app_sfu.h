@@ -166,7 +166,7 @@ extern "C" {
                                            switching to UserApp: a refresh is needed.
                                         2. The IWDG reload in the SB_SFU code will have to be tuned depending on your
                                            platform (flash size...)*/
-/*#define SFU_MPU_PROTECT_ENABLE*/    /*!< MPU protection:
+#define SFU_MPU_PROTECT_ENABLE    /*!< MPU protection:
                                         Enables/Disables the MPU protection.
                                         If Secure Engine isolation is ensured by MPU (see SFU_ISOLATE_SE_WITH_MPU in
                                         SE_CoreBin\Inc\se_low_level.h), then this switch also enables/disables it, in
