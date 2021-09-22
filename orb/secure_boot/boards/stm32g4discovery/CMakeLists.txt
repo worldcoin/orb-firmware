@@ -147,6 +147,8 @@ set(SRC_FILES
         platform/syscalls.c
         platform/system_stm32g4xx.c
 
+        ${SDK_ROOT}/external/mcu-libraries/diag/hardfault.c
+
         ../../main.c
         )
 
@@ -164,6 +166,7 @@ set(INC_DIRS
         ${SDK_ROOT}/orb/secure_boot/sbsfu/Target
         ${SDK_ROOT}/orb/common/
         ${SDK_ROOT}/external/mcu-libraries/include
+        ${SDK_ROOT}/external/mcu-libraries/diag
 
         ${SDK_ROOT}/components/Middlewares/STM32_Key_Management_Services/Core/
         ${SDK_ROOT}/components/Middlewares/STM32_Key_Management_Services/iKMS
@@ -177,7 +180,7 @@ include_directories(${INC_DIRS})
 
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/STM32G474RETx.ld)
 
-add_compile_definitions(ARM_MATH_CM4;STM32G474xx;USE_HAL_DRIVER;STM32G4_DISCOVERY;MINICOM_YMODEM;CONFIG_LOG_LEVEL=4;KMS_ENABLED)
+add_compile_definitions(ARM_MATH_CM4;STM32G474xx;USE_HAL_DRIVER;STM32G4_DISCOVERY;MINICOM_YMODEM;CONFIG_LOG_LEVEL=4;KMS_ENABLED;__FPU_PRESENT=1)
 add_compile_options(-DKMS_ENABLED -DENABLE_IMAGE_STATE_HANDLING -DMBEDTLS_CONFIG_FILE=<sfu_scheme_x509_config_mbedtls.h>)
 add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
 
