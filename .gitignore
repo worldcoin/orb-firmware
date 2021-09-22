@@ -5,4 +5,17 @@ cmake-build-*/
 build/
 *.egg-info/
 
+# generated files
 version.h
+orb/se_core/se_key.s
+
+# Windows
+win/
+.dll
+
+# Python
+.pyd
+__pycache__/
+
+# docs
+_htmresc/
