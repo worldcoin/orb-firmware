@@ -1,6 +1,6 @@
 
 cmake_minimum_required(VERSION 3.19)
-project("Orb firmware")
+project("Orb firmware - STM32Cube")
 
 include(utils/cmake/utils.cmake)
 
