@@ -10,7 +10,7 @@
 #include "arduino_r3_connector.dtsi"
 
 / {
-	model = "STMicroelectronics STM32G474RE-NUCLEO board";
+	model = "STMicroelectronics STM32G4-DISCO board";
 	compatible = "st,stm32g474re-nucleo";
 
 	chosen {
