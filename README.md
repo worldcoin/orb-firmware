@@ -24,9 +24,9 @@ Your directory structure should now look similar to the one below:
 ```
 proto2-main-mcu
  |___ .west
+ |___ app_main
  |___ bootloader
  |___ modules
- |___ orb
  |___ tools
  |___ utils
  |___ zephyr
