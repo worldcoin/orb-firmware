@@ -37,7 +37,7 @@ proto2-main-mcu
 Compile the app:
 
 ```shell
-west build -b stm32g4_discovery -c orb
+west build -b stm32g4_discovery
 ```
 
 ### Installation
