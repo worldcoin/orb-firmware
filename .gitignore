@@ -20,10 +20,3 @@ __pycache__/
 # docs
 _htmresc/
 
-# Directories created by west update
-.west/
-bootloader/
-modules/
-test/
-tools/
-zephyr/
