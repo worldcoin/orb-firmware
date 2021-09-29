@@ -164,13 +164,13 @@
             label = "image-0";
             reg = <0x0000C000 0x00038000>;
         };
-        slot1_partition: partition@3E000 {
+        slot1_partition: partition@44000 {
             label = "image-1";
             reg = <0x00044000 0x00038000>;
         };
 
         /* final 16KiB reserved for app storage partition */
-        storage_partition: partition@70000 {
+        storage_partition: partition@7C000 {
             label = "storage";
             reg = <0x0007C000 0x00004000>;
         };
