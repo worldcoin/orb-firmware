@@ -1,10 +1,15 @@
-cmake_minimum_required(VERSION 3.20.0)
+cmake_minimum_required(VERSION 3.19.0)
 
 # source toolchain
 set(CMAKE_TOOLCHAIN_FILE utils/cmake/toolchain-gnuarmemb.cmake)
 
-# default board is stm32g484_eval
-set(BOARD stm32g484_eval)
+# default board is orb
+if (DEFINED ENV{BOARD})
+    set(BOARD $ENV{BOARD})
+    message(STATUS "BOARD ${BOARD}")
+else()
+    set(BOARD orb)
+endif()
 
 # find zephyr directory
 # either define environment variable pointing to Zephyr base
