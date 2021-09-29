@@ -1,0 +1,3 @@
+config BOARD_ORB
+	bool "Orb main microcontroller"
+	depends on SOC_STM32G474XX

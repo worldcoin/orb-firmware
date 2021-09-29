@@ -1,0 +1,23 @@
+identifier: orb
+name: Worldcoin Orb
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gnuarmemb
+  - xtools
+ram: 128
+flash: 512
+supported:
+  - nvs
+  - pwm
+  - i2c
+  - gpio
+  - usb device
+  - counter
+  - spi
+  - watchdog
+  - adc
+  - dma
+  - can
+  - canfd
