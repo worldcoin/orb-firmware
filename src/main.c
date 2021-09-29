@@ -1,10 +1,8 @@
 #include <zephyr.h>
 #include <device.h>
-#include <drivers/gpio.h>
 #include <drivers/regulator.h>
 
 #include <sys/printk.h>
-#include <sys/__assert.h>
 #include <string.h>
 
 void

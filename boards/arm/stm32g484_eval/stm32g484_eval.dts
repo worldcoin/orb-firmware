@@ -20,7 +20,21 @@
 		zephyr,can-primary = &can1;
 	};
 
-	leds {
+    vbat_sw {
+        compatible = "regulator-fixed-sync", "regulator-fixed";
+        label = "12V VBAT SW";
+        regulator-name = "12v_vbat_sw";
+        enable-gpios = <&gpiog 7 GPIO_ACTIVE_HIGH>; // unused GPIO pin
+    };
+
+    supply_12v {
+        compatible = "regulator-fixed-sync", "regulator-fixed";
+        label = "12V Supply";
+        regulator-name = "supply_12v";
+        enable-gpios = <&gpiog 8 GPIO_ACTIVE_HIGH>; // unused GPIO pin
+    };
+
+    leds {
 		compatible = "gpio-leds";
         green_led: led_0 {
             gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
