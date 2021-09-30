@@ -1,23 +1,24 @@
 #include <zephyr.h>
 #include <device.h>
-#include <drivers/gpio.h>
 #include <drivers/regulator.h>
-
 #include <sys/printk.h>
-#include <sys/__assert.h>
 #include <string.h>
+
+#include <logging/log.h>
+LOG_MODULE_REGISTER(main);
 
 void
 main(void)
 {
-    printk("Hello, world!\n");
-    printk("This is the orb\n");
+    /* standard print */
+    LOG_INF("Hello from Orb");
 
     const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
     const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
 
-    if (!device_is_ready(vbat_sw_regulator) || !(device_is_ready(supply_12v))) {
-        printk("12V supply not ready!\n");
+    if (!device_is_ready(vbat_sw_regulator) || !(device_is_ready(supply_12v)))
+    {
+        LOG_ERR("12V supply not ready!\n");
         return;
     }
 
@@ -25,5 +26,5 @@ main(void)
     k_msleep(100);
     regulator_enable(supply_12v, NULL);
 
-    while(1);
+    while (1);
 }
