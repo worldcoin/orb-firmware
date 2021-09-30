@@ -18,6 +18,7 @@
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,can-primary = &can1;
+        zephyr,code-partition = &boot_partition; // todo move out of that file
 	};
 
     vbat_sw {
@@ -105,6 +106,7 @@
 };
 
 &usart1 {
+    // Connected on Virtual COM port (STLINK)
 	pinctrl-0 = <&usart1_tx_pa9 &usart1_rx_pa10>;
 	current-speed = <115200>;
 	status = "okay";
@@ -175,24 +177,30 @@
 		/* 48KiB for bootloader */
         boot_partition: partition@0 {
             label = "mcuboot";
-            reg = <0x00000000 0x0000C000>;
+            reg = <0x00000000 0x00010000>;
             read-only;
         };
 
 		/* 224KiB per slot */
-		slot0_partition: partition@C000 {
+		slot0_partition: partition@10000 {
             label = "image-0";
-            reg = <0x0000C000 0x00038000>;
+            reg = <0x00010000 0x00034000>;
         };
         slot1_partition: partition@44000 {
             label = "image-1";
             reg = <0x00044000 0x00038000>;
         };
 
-        /* final 16KiB reserved for app storage partition */
-        storage_partition: partition@7C000 {
+		/* 8KiB scratch */
+        scratch_partition: partition@7C000 {
+            label = "image-scratch";
+            reg = <0x0007C000 0x00002000>;
+        };
+
+        /* final 8KiB reserved for app storage partition */
+        storage_partition: partition@7E000 {
             label = "storage";
-            reg = <0x0007C000 0x00004000>;
+            reg = <0x0007E000 0x00002000>;
         };
 	};
 };
