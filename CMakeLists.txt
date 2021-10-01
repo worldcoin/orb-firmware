@@ -37,3 +37,5 @@ set(INCLUDE_DIRS
         include
         )
 
+target_sources(${TARGET} PRIVATE ${SOURCES_FILES})
+target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIRS})
