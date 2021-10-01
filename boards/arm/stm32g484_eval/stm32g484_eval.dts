@@ -17,7 +17,7 @@
 		zephyr,shell-uart = &usart1;
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
-		zephyr,can-primary = &can1;
+		zephyr,can-primary = &can2;
         zephyr,code-partition = &boot_partition; // todo move out of that file
 	};
 
@@ -71,6 +71,34 @@
 		};
 	};
 
+    soc {
+        can {
+            can2: can@40006800 {
+                compatible = "st,stm32-fdcan";
+                #address-cells = <1>;
+                #size-cells = <0>;
+                reg = <0x40006800 0x400>, <0x4000A750 0x350>;
+                reg-names = "m_can", "message_ram";
+                interrupts = <86 0>, <87 0>;
+                interrupt-names = "LINE_0", "LINE_1";
+                status = "disabled";
+                label = "CAN_2";
+            };
+
+            can3: can@40006C00 {
+                compatible = "st,stm32-fdcan";
+                #address-cells = <1>;
+                #size-cells = <0>;
+                reg = <0x40006C00 0x400>, <0x4000AAA0 0x350>;
+                reg-names = "m_can", "message_ram";
+                interrupts = <88 0>, <89 0>;
+                interrupt-names = "LINE_0", "LINE_1";
+                status = "disabled";
+                label = "CAN_3";
+            };
+        };
+    };
+
 	aliases {
 		led0 = &green_led;
 		led1 = &red_led;
@@ -79,14 +107,14 @@
 	};
 };
 
-//&clk_hse {
-//	clock-frequency = <DT_FREQ_M(24)>;
-//	status = "okay";
-//};
-
-&clk_hsi {
-    status = "okay";
+&clk_hse {
+	clock-frequency = <DT_FREQ_M(24)>;
+	status = "okay";
 };
+
+//&clk_hsi {
+//    status = "okay";
+//};
 
 &pll {
 	div-m = <4>;
@@ -111,36 +139,36 @@
 	current-speed = <115200>;
 	status = "okay";
 };
-
-&lpuart1 {
-	pinctrl-0 = <&lpuart1_tx_pa2 &lpuart1_rx_pa3>;
-	current-speed = <115200>;
-	status = "okay";
-};
-
-&i2c1 {
-	pinctrl-0 = <&i2c1_scl_pb8 &i2c1_sda_pb9>;
-	status = "okay";
-};
-
-&spi1 {
-	pinctrl-0 = <&spi1_sck_pa5 &spi1_miso_pa6 &spi1_mosi_pa7>;
-	cs-gpios = <&gpiob 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-	status = "okay";
-};
-
-&spi2 {
-	pinctrl-0 = <&spi2_nss_pb12 &spi2_sck_pb13
-		     &spi2_miso_pb14 &spi2_mosi_pb15>;
-	status = "okay";
-};
-
-&spi3 {
-	/* SPI3 on the ST Morpho Connector CN7 pins 17, 1, 2, 3*/
-	pinctrl-0 = <&spi3_nss_pa15 &spi3_sck_pc10
-		     &spi3_miso_pc11 &spi3_mosi_pc12>;
-	status = "okay";
-};
+//
+//&lpuart1 {
+//	pinctrl-0 = <&lpuart1_tx_pa2 &lpuart1_rx_pa3>;
+//	current-speed = <115200>;
+//	status = "okay";
+//};
+//
+//&i2c1 {
+//	pinctrl-0 = <&i2c1_scl_pb8 &i2c1_sda_pb9>;
+//	status = "okay";
+//};
+//
+//&spi1 {
+//	pinctrl-0 = <&spi1_sck_pa5 &spi1_miso_pa6 &spi1_mosi_pa7>;
+//	cs-gpios = <&gpiob 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+//	status = "okay";
+//};
+//
+//&spi2 {
+//	pinctrl-0 = <&spi2_nss_pb12 &spi2_sck_pb13
+//		     &spi2_miso_pb14 &spi2_mosi_pb15>;
+//	status = "okay";
+//};
+//
+//&spi3 {
+//	/* SPI3 on the ST Morpho Connector CN7 pins 17, 1, 2, 3*/
+//	pinctrl-0 = <&spi3_nss_pa15 &spi3_sck_pc10
+//		     &spi3_miso_pc11 &spi3_mosi_pc12>;
+//	status = "okay";
+//};
 
 &timers2 {
 	status = "okay";
@@ -177,14 +205,14 @@
 		/* 48KiB for bootloader */
         boot_partition: partition@0 {
             label = "mcuboot";
-            reg = <0x00000000 0x00010000>;
+            reg = <0x00000000 0x00020000>;
             read-only;
         };
 
 		/* 224KiB per slot */
-		slot0_partition: partition@10000 {
+		slot0_partition: partition@20000 {
             label = "image-0";
-            reg = <0x00010000 0x00034000>;
+            reg = <0x00020000 0x00024000>;
         };
         slot1_partition: partition@44000 {
             label = "image-1";
@@ -218,13 +246,24 @@
 	status = "okay";
 };
 
-&can1 {
-	pinctrl-0 = <&fdcan1_rx_pa11 &fdcan1_tx_pa12>;
-	bus-speed = <125000>;
-	sjw = <1>;
-	sample-point = <875>;
-	bus-speed-data = <1000000>;
-	sjw-data = <1>;
-	sample-point-data = <875>;
-	status = "okay";
+//&can1 {
+//	pinctrl-0 = <&fdcan1_rx_pb8 &fdcan1_tx_pb9>;
+//	bus-speed = <125000>;
+//	sjw = <1>;
+//	sample-point = <875>;
+//	bus-speed-data = <1000000>;
+//	sjw-data = <1>;
+//	sample-point-data = <875>;
+//	status = "okay";
+//};
+
+&can2 {
+    pinctrl-0 = <&fdcan2_rx_pb5 &fdcan2_tx_pb13>;
+    bus-speed = <125000>;
+    sjw = <1>;
+    sample-point = <875>;
+    bus-speed-data = <1000000>;
+    sjw-data = <1>;
+    sample-point-data = <875>;
+    status = "okay";
 };
