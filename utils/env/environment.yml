@@ -16,6 +16,7 @@ dependencies:
   - pthread-stubs
   - openocd
   - gperf
+  - clang-format
   - pip:
       - west
       - pyserial
