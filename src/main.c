@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include <logging/log.h>
+#include <canbus.h>
 LOG_MODULE_REGISTER(main);
 
 void
@@ -18,7 +19,7 @@ main(void)
 
     if (!device_is_ready(vbat_sw_regulator) || !(device_is_ready(supply_12v)))
     {
-        LOG_ERR("12V supply not ready!\n");
+        LOG_ERR("12V supply not ready!");
         return;
     }
 
@@ -26,5 +27,5 @@ main(void)
     k_msleep(100);
     regulator_enable(supply_12v, NULL);
 
-    while (1);
+    canbus_init();
 }
