@@ -31,6 +31,9 @@ project(orb-firmware)
 set(SOURCES_FILES
         src/main.c
         src/canbus.c
+
+        src/power_sequence/power_sequence.c
+        src/fan/fan.c
 )
 
 set(INCLUDE_DIRS

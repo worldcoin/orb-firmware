@@ -1,0 +1,8 @@
+description: PWM Fan
+
+compatible: "pwm-fan"
+
+properties:
+    pwms:
+      required: true
+      type: phandle-array
