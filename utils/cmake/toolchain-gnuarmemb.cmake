@@ -8,7 +8,7 @@
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR ARM)
 
-set(TOOLCHAIN_PREFIX arm-none-eabi-)
+set(TOOLCHAIN_PREFIX arm-zephyr-eabi-)
 
 # Without that flag CMake is not able to pass test compilation check
 set(CMAKE_EXE_LINKER_FLAGS_INIT "--specs=nosys.specs")
@@ -23,6 +23,21 @@ if (NOT ARM_TOOLCHAIN_DIR AND NOT CMAKE_C_COMPILER)
             OUTPUT_VARIABLE CMAKE_C_COMPILER
             OUTPUT_STRIP_TRAILING_WHITESPACE
     )
+
+    if (NOT CMAKE_C_COMPILER)
+        message(STATUS "Trying to find arm-none-eabi")
+
+        set(TOOLCHAIN_PREFIX arm-none-eabi-)
+        execute_process(
+                COMMAND which ${TOOLCHAIN_PREFIX}gcc
+                OUTPUT_VARIABLE CMAKE_C_COMPILER
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    endif ()
+
+    if (NOT CMAKE_C_COMPILER)
+        message(SEND_ERROR "Unable to find C compiler")
+    endif ()
 endif ()
 
 if (NOT ARM_TOOLCHAIN_DIR AND CMAKE_C_COMPILER)
@@ -40,9 +55,29 @@ if (ARM_TOOLCHAIN_DIR AND NOT CMAKE_C_COMPILER)
 endif ()
 
 # Set C++ compiler
-set(CMAKE_CXX_COMPILER ${ARM_TOOLCHAIN_DIR}/${TOOLCHAIN_PREFIX}g++)
+#set(CMAKE_CXX_COMPILER ${ARM_TOOLCHAIN_DIR}/${TOOLCHAIN_PREFIX}g++)
 
-message(STATUS "Compiler: ${CMAKE_C_COMPILER}")
+if (NOT CMAKE_CXX_COMPILER)
+    execute_process(
+            COMMAND which ${TOOLCHAIN_PREFIX}g++
+            OUTPUT_VARIABLE CMAKE_CXX_COMPILER
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    if (NOT CMAKE_CXX_COMPILER)
+        message(STATUS "Trying to find arm-none-eabi-g++")
+
+        set(TOOLCHAIN_PREFIX arm-none-eabi-)
+        execute_process(
+                COMMAND which ${TOOLCHAIN_PREFIX}g++
+                OUTPUT_VARIABLE CMAKE_CXX_COMPILER
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    endif ()
+endif ()
+
+message(STATUS "C Compiler: ${CMAKE_C_COMPILER}")
+message(STATUS "C++ Compiler: ${CMAKE_CXX_COMPILER}")
 
 set(CMAKE_ASM_COMPILER ${CMAKE_C_COMPILER})
 
