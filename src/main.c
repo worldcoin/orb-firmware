@@ -1,30 +1,70 @@
 #include <zephyr.h>
 #include <device.h>
-#include <drivers/regulator.h>
-#include <sys/printk.h>
-#include <string.h>
-
+#include <drivers/gpio.h>
 #include <logging/log.h>
 LOG_MODULE_REGISTER(main);
+
+#include "power_sequence/power_sequence.h"
+#include "fan/fan.h"
+
+#define BUTTON_PRESS_TIME_MS 5000
+#define BUTTON_SAMPLE_PERIOD_MS 10
+
+#define POWER_BUTTON_NODE DT_PATH(buttons, power_button)
+#define POWER_BUTTON_CTLR DT_GPIO_CTLR(POWER_BUTTON_NODE, gpios)
+#define POWER_BUTTON_PIN DT_GPIO_PIN(POWER_BUTTON_NODE, gpios)
+#define POWER_BUTTON_FLAGS DT_GPIO_FLAGS(POWER_BUTTON_NODE, gpios)
+
+static int wait_for_button_press(void)
+{
+    const struct device *power_button = DEVICE_DT_GET(POWER_BUTTON_CTLR);
+
+    if (!device_is_ready(power_button)) {
+        LOG_ERR("power button is not ready!");
+        return 1;
+    }
+
+    if (gpio_pin_configure(power_button, POWER_BUTTON_PIN, POWER_BUTTON_FLAGS | GPIO_INPUT)) {
+        LOG_ERR("Error configuring power button!");
+        return 1;
+    }
+
+    LOG_INF("Waiting for button press of " TOSTR(BUTTON_PRESS_TIME_MS) "ms");
+    for (size_t i = 0; i < (BUTTON_PRESS_TIME_MS / BUTTON_SAMPLE_PERIOD_MS); ++i) {
+        if (!gpio_pin_get(power_button, POWER_BUTTON_PIN)) {
+            if (i > 1) {
+                LOG_INF("Press stopped.");
+            }
+            i = 0;
+        }
+        if (i == 1) {
+            LOG_INF("Press started.");
+        }
+        k_msleep(BUTTON_SAMPLE_PERIOD_MS);
+    }
+
+    return 0;
+}
 
 void
 main(void)
 {
-    /* standard print */
-    LOG_INF("Hello from Orb");
+    LOG_INF("Hello from Orb MCU :)");
 
-    const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
-    const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
-
-    if (!device_is_ready(vbat_sw_regulator) || !(device_is_ready(supply_12v)))
-    {
-        LOG_ERR("12V supply not ready!\n");
+    if (wait_for_button_press()) {
+        LOG_ERR("Error waiting for button. Halting application");
         return;
     }
 
-    regulator_enable(vbat_sw_regulator, NULL);
-    k_msleep(100);
-    regulator_enable(supply_12v, NULL);
+    LOG_INF("Booting system");
 
-    while (1);
+    if (turn_on_essential_power_supplies()) {
+        LOG_ERR("Power sequencing error. Halting application");
+        return;
+    }
+
+    if (turn_on_fan()) {
+        LOG_ERR("Error turning on fan. Halting application");
+        return;
+    }
 }
