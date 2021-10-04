@@ -29,4 +29,5 @@ project(orb-firmware)
 target_sources(app PRIVATE src/main.c
     src/power_sequence/power_sequence.c
     src/fan/fan.c
+    src/sound/sound.c
     )
