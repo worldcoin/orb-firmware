@@ -1,11 +1,11 @@
-#include <zephyr.h>
 #include <device.h>
 #include <drivers/gpio.h>
 #include <logging/log.h>
+#include <zephyr.h>
 LOG_MODULE_REGISTER(main);
 
-#include "power_sequence/power_sequence.h"
 #include "fan/fan.h"
+#include "power_sequence/power_sequence.h"
 #include "sound/sound.h"
 
 void main(void)
