@@ -1,12 +1,16 @@
 #include <zephyr.h>
 #include <device.h>
 #include <drivers/gpio.h>
-#include <logging/log.h>
-#include <canbus.h>
-LOG_MODULE_REGISTER(main);
-
 #include "power_sequence/power_sequence.h"
 #include "fan/fan.h"
+#include "messaging/messaging.h"
+
+#include <logging/log.h>
+LOG_MODULE_REGISTER(main);
+
+#if TEST_TARGET
+#include "messaging/tests.h"
+#endif
 
 #define BUTTON_PRESS_TIME_MS 5000
 #define BUTTON_SAMPLE_PERIOD_MS 10
@@ -69,5 +73,13 @@ main(void)
         return;
     }
 
-    canbus_init();
+    messaging_init();
+
+    // the target is now up and running
+
+#if TEST_TARGET
+    LOG_WRN("Running test target");
+
+    tests_init();
+#endif
 }

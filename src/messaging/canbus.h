@@ -10,7 +10,7 @@
 
 /// Send chunk of data over CAN bus
 /// ISO-TP protocol is used to ensure flow-control
-/// Non-blocking mode
+/// ⚠️ Blocking mode
 /// \param data
 /// \param len
 /// \return
@@ -19,7 +19,7 @@
 ret_code_t
 canbus_send(const char *data, size_t len);
 
-void
+ret_code_t
 canbus_init(void);
 
 #endif //ORB_FIRMWARE_APP_MAIN_SRC_CANBUS_H

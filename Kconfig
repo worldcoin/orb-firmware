@@ -5,6 +5,11 @@ comment "App-specific configuration options"
 # Shared libraries used on Orb
 config ORB_MCU_LIBRARIES_LIB
     default y
-    bool "Enable usage of Orb generic libraries"
+    bool "Import Orb libraries"
+
+config ORB_PROTOBUF_DEFINITIONS_LIB
+    default y
+    bool "Import Orb Protobuf definitions"
+    select NANOPB
 
 source "Kconfig.zephyr"

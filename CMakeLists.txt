@@ -18,9 +18,9 @@ endif ()
 # or look for it in the parent directory
 if (DEFINED ENV{ZEPHYR_BASE})
     set(ZEPHYR_BASE $ENV{ZEPHYR_BASE})
-else()
+else ()
     set(ZEPHYR_BASE ${WORKSPACE_DIR}/zephyr)
-endif()
+endif ()
 
 # Get custom boards definitions from that repo
 list(APPEND BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
@@ -30,11 +30,20 @@ project(orb-firmware)
 
 set(SOURCES_FILES
         src/main.c
-        src/canbus.c
+
+        src/messaging/canbus.c
+        src/messaging/messaging.c
 
         src/power_sequence/power_sequence.c
         src/fan/fan.c
-)
+        )
+
+# set(TEST_TARGET ON)
+
+if (TEST_TARGET)
+    zephyr_compile_options(-DTEST_TARGET=1)
+    list(APPEND SOURCES_FILES src/messaging/tests.c)
+endif ()
 
 set(INCLUDE_DIRS
         include
@@ -43,5 +52,5 @@ set(INCLUDE_DIRS
 target_sources(${TARGET} PRIVATE ${SOURCES_FILES})
 target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIRS})
 
-zephyr_link_libraries(ORB_MCU_LIBRARIES)
+zephyr_link_libraries(ORB_MCU_LIBRARIES ORB_PROTOBUF_DEFINITIONS_LIB)
 
