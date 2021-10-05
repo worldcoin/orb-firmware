@@ -9,7 +9,10 @@
 #include "mcu_messaging.pb.h"
 
 void
-messaging_push(McuMessage * message);
+messaging_push_tx(McuMessage *message);
+
+void
+messaging_push_rx(McuMessage *message);
 
 ret_code_t
 messaging_init(void);

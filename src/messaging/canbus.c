@@ -91,7 +91,7 @@ rx_thread(void *arg1, void *arg2, void *arg3)
 
             bool decoded = pb_decode(&stream, McuMessage_fields, &data);
             if (decoded) {
-                messaging_push(&data);
+                messaging_push_rx(&data);
             } else {
                 LOG_ERR("Error parsing data, discarding");
             }

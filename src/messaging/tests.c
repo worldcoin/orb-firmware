@@ -11,15 +11,17 @@ LOG_MODULE_REGISTER(cantest);
 #include <errors.h>
 #include <pb_encode.h>
 #include "canbus.h"
+#include "messaging.h"
 
 K_THREAD_STACK_DEFINE(test_thread_stack, 10214);
 static struct k_thread test_thread_data;
 
+/// This function allows the test of the full CAN bus data pipe using two boards
+/// Below, we test the TX thread while a remote Orb will receive data in its RX thread
+/// \return never
 _Noreturn void
 test_can_send()
 {
-    char buffer[512];
-    ret_code_t err_code;
     int packet = 0;
 
     // pretend to send Jetson messages
@@ -33,19 +35,12 @@ test_can_send()
 
         k_msleep(2000);
 
-        memset(buffer, 0, sizeof(buffer));
-        pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
-
         data_to_serialize.message.j_message.which_payload = JetsonToMcu_ir_leds_tag;
         data_to_serialize.message.j_message.payload.ir_leds.on_duration = packet;
         data_to_serialize.message.j_message.payload.ir_leds.wavelength = InfraredLEDs_Wavelength_WAVELENGTH_850NM;
 
-        bool encoded = pb_encode(&stream, McuMessage_fields, &data_to_serialize);
-        if (encoded)
-        {
-            err_code = canbus_send(buffer, stream.bytes_written);
-            LOG_INF("Sent data #%d [%u]", packet, err_code);
-        }
+        // queue new tx message to test the full TX thread
+        messaging_push_tx(&data_to_serialize);
 
         packet++;
     }
