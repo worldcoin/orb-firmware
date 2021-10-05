@@ -20,3 +20,6 @@ __pycache__/
 # docs
 _htmresc/
 
+# board-specific config that shouldn't be tracked
+utils/debug/my_board.cfg
+
