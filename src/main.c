@@ -80,6 +80,6 @@ main(void)
 #if TEST_TARGET
     LOG_WRN("Running test target");
 
-    tests_init();
+    tests_messaging_init();
 #endif
 }

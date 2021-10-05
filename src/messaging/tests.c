@@ -52,7 +52,7 @@ test_can_send()
 }
 
 void
-tests_init(void)
+tests_messaging_init(void)
 {
     k_tid_t tid = k_thread_create(&test_thread_data, test_thread_stack,
                                   K_THREAD_STACK_SIZEOF(test_thread_stack),
