@@ -42,3 +42,6 @@ set(INCLUDE_DIRS
 
 target_sources(${TARGET} PRIVATE ${SOURCES_FILES})
 target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIRS})
+
+zephyr_link_libraries(ORB_MCU_LIBRARIES)
+

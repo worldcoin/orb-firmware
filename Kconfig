@@ -1,0 +1,10 @@
+mainmenu "Application configuration"
+
+comment "App-specific configuration options"
+
+# Shared libraries used on Orb
+config ORB_MCU_LIBRARIES_LIB
+    default y
+    bool "Enable usage of Orb generic libraries"
+
+source "Kconfig.zephyr"
