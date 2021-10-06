@@ -74,13 +74,14 @@ rx_thread(void *arg1, void *arg2, void *arg3)
                 memcpy(&rx_buffer[wr_idx], buf->data, buf->len);
                 wr_idx += buf->len;
             } else {
-                // todo push data and reset rx buf
+                // TODO report error somehow (Memfault?)
+                LOG_ERR("CAN frame too long");
             }
 
             if (buf != NULL) {
                 net_buf_unref(buf);
             }
-        } while (rem_len);
+        } while (rem_len > 0);
 
         if (rem_len == ISOTP_N_OK) {
             pb_istream_t stream = pb_istream_from_buffer(rx_buffer, wr_idx);
