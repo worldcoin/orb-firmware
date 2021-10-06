@@ -22,6 +22,13 @@
 		zephyr,code-partition = &boot_partition; // todo move out of that file
 	};
 
+    zephyr,user {
+        // This is a mux for who controls the audio amp
+        // 1 == MCU
+        // 0 == Jetson
+        sound-amp-mux-gpios = <&gpioe 10 GPIO_ACTIVE_HIGH>;
+    };
+
 	vbat_sw
 	{
 		compatible = "regulator-fixed-sync", "regulator-fixed";
@@ -62,6 +69,13 @@
 		};
 	};
 
+    supply_3v8 {
+        compatible = "regulator-fixed-sync", "regulator-fixed";
+        label = "3.8V Supply";
+        regulator-name = "supply_3v8";
+        enable-gpios = <&gpioe 15 GPIO_ACTIVE_HIGH>;
+    };
+
 	supply_3v3
 	{
 		compatible = "regulator-fixed-sync", "regulator-fixed";
@@ -76,11 +90,25 @@
 		};
 	};
 
+    supply_1v8 {
+        compatible = "regulator-fixed-sync", "regulator-fixed";
+        label = "1.8V Supply";
+        regulator-name = "supply_1v8";
+        enable-gpios = <&gpioe 8 GPIO_ACTIVE_HIGH>;
+
+        power_good {
+            compatible = "gpio-power-good";
+            gpios = <&gpioe 7 GPIO_PULL_UP>;
+        };
+    };
+
 	fan
 	{
 		compatible = "pwm-fan";
 		pwms = <&pwm2 3 10000 PWM_POLARITY_NORMAL>;
-	};
+
+    // Currently no tachometer reading, only a 2-wire fan
+    };
 
 	buttons
 	{
@@ -92,6 +120,50 @@
 			label = "Power button";
 		};
 	};
+
+    jetson_power_pins {
+        compatible = "gpio-jetson-power";
+        shutdown_request {
+        gpios = <&gpioe 14 GPIO_ACTIVE_LOW>;
+
+        // input
+        // Jetson module uses this to request a shutdown sequence
+        };
+
+        power_enable {
+        gpios = <&gpioe 12 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
+
+        // output
+        // this signals the Jetson module to turn on an off
+        };
+
+        system_reset {
+        gpios = <&gpioe 11 GPIO_ACTIVE_LOW>;
+
+        // bidirectional
+        // drive low to reset
+        // driven by Jetson to indicate power sequence is complete
+        };
+
+        module_sleep {
+        gpios = <&gpiof 2 GPIO_ACTIVE_LOW>;
+
+        // input
+        // when driven low indicates that the module has gone to sleep
+        };
+
+        sleep_wake {
+        gpios = <&gpioe 9 GPIO_ACTIVE_HIGH>;
+
+        // output
+        // drive high to indicate that the Jetson should enter sleep mode
+        };
+        };
+
+        lte_gps_usb_reset {
+        compatible = "gpio-lte-gps-usb";
+        gpios = <&gpiod 3 GPIO_ACTIVE_LOW>;
+    };
 
 	leds
 	{
@@ -226,10 +298,10 @@
 //	status = "okay";
 //};
 //
-//&i2c1 {
-//	pinctrl-0 = <&i2c1_scl_pb8 &i2c1_sda_pb9>;
-//	status = "okay";
-//};
+&i2c1 {
+	pinctrl-0 = <&i2c1_scl_pb8 &i2c1_sda_pb9>;
+	status = "okay";
+};
 //
 //&spi1 {
 //	pinctrl-0 = <&spi1_sck_pa5 &spi1_miso_pa6 &spi1_mosi_pa7>;
