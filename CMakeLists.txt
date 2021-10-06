@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.19.0)
 set(TARGET app)
+
 # source toolchain
 set(CMAKE_TOOLCHAIN_FILE utils/cmake/toolchain-gnuarmemb.cmake)
 
@@ -39,8 +40,7 @@ set(SOURCES_FILES
         src/sound/sound.c
         )
 
-# set(TEST_TARGET ON)
-
+# set TEST_TARGET variable to enable the test features
 if (TEST_TARGET)
     zephyr_compile_options(-DTEST_TARGET=1)
     list(APPEND SOURCES_FILES src/messaging/tests.c)
@@ -53,5 +53,5 @@ set(INCLUDE_DIRS
 target_sources(${TARGET} PRIVATE ${SOURCES_FILES})
 target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIRS})
 
-zephyr_link_libraries(ORB_MCU_LIBRARIES ORB_PROTOBUF_DEFINITIONS_LIB)
-
+# link with Zephyr modules below
+zephyr_link_libraries(ORB_MCU_LIBRARIES ORB_PROTOBUF_DEFINITIONS)
