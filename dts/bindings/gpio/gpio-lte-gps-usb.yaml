@@ -1,0 +1,8 @@
+description: GPIO pin to reset the LTE, GPS, and USB modules
+
+compatible: "gpio-lte-gps-usb"
+
+properties:
+    gpios:
+      type: phandle-array
+      required: true
