@@ -44,6 +44,10 @@ const struct isotp_msg_id tx_addr = {
 _Noreturn static void
 rx_thread(void *arg1, void *arg2, void *arg3)
 {
+    ARG_UNUSED(arg1);
+    ARG_UNUSED(arg2);
+    ARG_UNUSED(arg3);
+
     struct net_buf *buf = NULL;
     int ret, rem_len;
     struct isotp_recv_ctx recv_ctx;
