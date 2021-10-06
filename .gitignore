@@ -20,6 +20,7 @@ __pycache__/
 # docs
 _htmresc/
 
-# board-specific config that shouldn't be tracked
+# board-specific OpenOCD config that shouldn't be tracked
+# copy-pasted from utils/debug/my_board.cfg.template
 utils/debug/my_board.cfg
 
