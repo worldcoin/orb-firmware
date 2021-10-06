@@ -31,9 +31,7 @@ test_can_send()
 
     while(1)
     {
-        LOG_INF("Sending new message");
-
-        k_msleep(2000);
+        k_msleep(1);
 
         data_to_serialize.message.j_message.which_payload = JetsonToMcu_ir_leds_tag;
         data_to_serialize.message.j_message.payload.ir_leds.on_duration = packet;
@@ -52,7 +50,7 @@ tests_messaging_init(void)
     k_tid_t tid = k_thread_create(&test_thread_data, test_thread_stack,
                                   K_THREAD_STACK_SIZEOF(test_thread_stack),
                                   test_can_send, NULL, NULL, NULL,
-                                  7, 0, K_NO_WAIT);
+                                  9, 0, K_NO_WAIT);
     if (!tid) {
         LOG_ERR("ERROR spawning test_thread thread");
     }

@@ -328,7 +328,7 @@ pwm3:
 
 &can1 {
 	pinctrl-0 = <&fdcan1_rx_pb8 &fdcan1_tx_pb9>;
-	bus-speed = <125000>;
+	bus-speed = <250000>;
 	sjw = <1>;
 	sample-point = <875>;
 	bus-speed-data = <1000000>;
@@ -340,10 +340,10 @@ pwm3:
 &can2
 {
 	pinctrl-0 = <&fdcan2_rx_pb5 &fdcan2_tx_pb13>;
-	bus-speed = <125000>;
+	bus-speed = <1000000>;
 	sjw = <1>;
 	sample-point = <875>;
-	bus-speed-data = <1000000>;
+	bus-speed-data = <2000000>;
 	sjw-data = <1>;
 	sample-point-data = <875>;
 	status = "okay";

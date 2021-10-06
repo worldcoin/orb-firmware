@@ -24,8 +24,8 @@ LOG_MODULE_REGISTER(canbus);
 const struct device *can_dev;
 const struct isotp_fc_opts flow_control_opts = {.bs = 8, .stmin = 0};
 
-#define RX_THREAD_STACK_SIZE 2048
-#define RX_THREAD_PRIORITY 5
+#define RX_THREAD_STACK_SIZE    2048
+#define RX_THREAD_PRIORITY      5
 
 K_THREAD_STACK_DEFINE(rx_thread_stack, RX_THREAD_STACK_SIZE);
 static struct k_thread rx_thread_data;
@@ -77,15 +77,12 @@ rx_thread(void *arg1, void *arg2, void *arg3)
                 // todo push data and reset rx buf
             }
 
-            if (buf != NULL)
-            {
+            if (buf != NULL) {
                 net_buf_unref(buf);
             }
         } while (rem_len);
 
         if (rem_len == ISOTP_N_OK) {
-            LOG_INF("Got %d bytes in total", wr_idx);
-
             pb_istream_t stream = pb_istream_from_buffer(rx_buffer, wr_idx);
             McuMessage data = {0};
 
@@ -102,25 +99,16 @@ rx_thread(void *arg1, void *arg2, void *arg3)
     }
 }
 
-__unused static void
-send_complete_cb(int error_nr, void *arg)
-{
-    ARG_UNUSED(arg);
-    LOG_INF("TX complete cb [%d]", error_nr);
-}
-
 ret_code_t
-canbus_send(const char *data, size_t len)
+canbus_send(const char *data, size_t len, void (*tx_complete_cb)(int, void *))
 {
     static struct isotp_send_ctx send_ctx;
     memset(&send_ctx, 0, sizeof(send_ctx));
 
-    // canbus_send is currently in blocking mode (no callback specified)
-    // to be modified when needed, see `canbus_send` doc
     int ret = isotp_send(&send_ctx, can_dev,
                          data, len,
                          &tx_addr, &rx_addr,
-                         NULL, NULL);
+                         tx_complete_cb, NULL);
     if (ret != ISOTP_N_OK) {
         LOG_ERR("Error while sending data to ID %d [%d]",
                 tx_addr.std_id, ret);

@@ -29,8 +29,10 @@ K_THREAD_DEFINE(process_tx_messages,
                 THREAD_PROCESS_TX_MESSAGES_PRIORITY, 0, 0);
 
 // Message queues to pass messages to/from Jetson and Security MCU
-K_MSGQ_DEFINE(rx_msg_queue, sizeof(McuMessage), 4, 4);
-K_MSGQ_DEFINE(tx_msg_queue, sizeof(McuMessage), 4, 4);
+K_MSGQ_DEFINE(rx_msg_queue, sizeof(McuMessage), 8, 4);
+K_MSGQ_DEFINE(tx_msg_queue, sizeof(McuMessage), 8, 4);
+
+K_SEM_DEFINE(tx_sem, 1, 1);
 
 void
 messaging_push_tx(McuMessage *message)
@@ -44,6 +46,18 @@ messaging_push_tx(McuMessage *message)
     }
 }
 
+static void
+tx_complete_cb(int error_nr, void *arg)
+{
+    ARG_UNUSED(arg);
+    ARG_UNUSED(error_nr);
+
+    // don't care about the error: failing tx are discarded
+
+    // notify thread data TX is available
+    k_sem_give(&tx_sem);
+}
+
 _Noreturn static void
 process_tx_messages_thread()
 {
@@ -51,21 +65,26 @@ process_tx_messages_thread()
     char tx_buffer[256];
 
     while (1) {
-        // wait for new message
+        // wait for semaphore to be released when TX done
+        k_sem_take(&tx_sem, K_FOREVER);
+
+        // wait for new message to be queued
         int ret = k_msgq_get(&tx_msg_queue, &new, K_FOREVER);
         if (ret != 0) {
             // error
             continue;
         }
 
+        // encode protobuf format
         pb_ostream_t stream = pb_ostream_from_buffer(tx_buffer, sizeof(tx_buffer));
         bool encoded = pb_encode(&stream, McuMessage_fields, &new);
         if (encoded) {
-            ret_code_t err_code = canbus_send(tx_buffer, stream.bytes_written);
-            if (err_code) {
-                LOG_INF("Error sending data: %u", err_code);
-            } else {
-                LOG_INF("Message sent");
+            ret_code_t err_code = canbus_send(tx_buffer, stream.bytes_written, tx_complete_cb);
+            if (err_code != RET_SUCCESS) {
+                LOG_WRN("Error sending message");
+
+                // release semaphore, we are not waiting for completion
+                k_sem_give(&tx_sem);
             }
         }
     }
@@ -86,6 +105,9 @@ process_rx_messages_thread()
 {
     McuMessage new;
 
+    static uint32_t test_value = 0;
+    static uint32_t missed = 0;
+
     while (1) {
         // wait for new message
         int ret = k_msgq_get(&rx_msg_queue, &new, K_FOREVER);
@@ -102,9 +124,15 @@ process_rx_messages_thread()
             break;
 
         case JetsonToMcu_ir_leds_tag: {
-            LOG_INF("IR led command wavelength: %u, on_duration: %u",
-                    new.message.j_message.payload.ir_leds.wavelength,
-                    new.message.j_message.payload.ir_leds.on_duration);
+//            LOG_INF("IR led command wavelength: %u, on_duration: %u",
+//                    new.message.j_message.payload.ir_leds.wavelength,
+//                    new.message.j_message.payload.ir_leds.on_duration);
+            if (new.message.j_message.payload.ir_leds.on_duration != test_value + 1) {
+                missed++;
+                LOG_ERR("%u != %u, c %u", new.message.j_message.payload.ir_leds.on_duration, test_value, missed);
+            }
+            test_value = new.message.j_message.payload.ir_leds.on_duration;
+
         }
             break;
 
