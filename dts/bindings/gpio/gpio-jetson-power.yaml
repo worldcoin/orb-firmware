@@ -1,3 +1,4 @@
+---
 description: GPIO pin attached to a sleep/wake pin
 
 compatible: "gpio-jetson-power"
@@ -5,6 +6,6 @@ compatible: "gpio-jetson-power"
 child-binding:
     description: "associated gpio pin"
     properties:
-      gpios:
-        type: phandle-array
-        required: true
+        gpios:
+            type: phandle-array
+            required: true

@@ -1,6 +1,6 @@
-#include <zephyr.h>
 #include <device.h>
 #include <drivers/pwm.h>
+#include <zephyr.h>
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(fan);
@@ -17,12 +17,13 @@ LOG_MODULE_REGISTER(fan);
 
 int turn_on_fan(void)
 {
-	const struct device *fan_pwm = DEVICE_DT_GET(FAN_PWM_CTLR);
-	if (!device_is_ready(fan_pwm)) {
-		LOG_ERR(MSG " no");
-		return 1;
-	}
-	LOG_INF(MSG " yes");
-	LOG_INF("Switching fan to 100%% speed");
-	return pwm_pin_set_nsec(fan_pwm, FAN_PWM_CHANNEL, FAN_PWM_PERIOD, FAN_PWM_PERIOD, FAN_PWM_FLAGS);
+    const struct device *fan_pwm = DEVICE_DT_GET(FAN_PWM_CTLR);
+    if (!device_is_ready(fan_pwm)) {
+        LOG_ERR(MSG " no");
+        return 1;
+    }
+    LOG_INF(MSG " yes");
+    LOG_INF("Switching fan to 100%% speed");
+    return pwm_pin_set_nsec(fan_pwm, FAN_PWM_CHANNEL, FAN_PWM_PERIOD,
+                            FAN_PWM_PERIOD, FAN_PWM_FLAGS);
 }
