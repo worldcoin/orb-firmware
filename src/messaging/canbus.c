@@ -61,7 +61,6 @@ rx_thread(void *arg1, void *arg2, void *arg3)
 
     while (1) {
         wr_idx = 0;
-        memset(rx_buffer, 0, sizeof(rx_buffer));
 
         // enter receiving loop
         // we will not exit until all the bytes are received or timeout
