@@ -95,7 +95,6 @@ rx_thread(void *arg1, void *arg2, void *arg3)
             } else {
                 LOG_ERR("Error parsing data, discarding");
             }
-
         } else {
             LOG_DBG("Data not received: %d", rem_len);
         }
