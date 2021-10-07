@@ -54,4 +54,4 @@ target_sources(${TARGET} PRIVATE ${SOURCES_FILES})
 target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIRS})
 
 # link with Zephyr modules below
-zephyr_link_libraries(ORB_MCU_LIBRARIES ORB_PROTOBUF_DEFINITIONS)
+zephyr_link_libraries(ORB_MCU_LIBRARIES ORB_PROTOBUF_DEFINITIONS_LIB)
