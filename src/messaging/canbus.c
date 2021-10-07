@@ -72,7 +72,7 @@ rx_thread(void *arg1, void *arg2, void *arg3)
                 break;
             }
 
-            if (wr_idx + buf->len < sizeof(rx_buffer)) {
+            if (wr_idx + buf->len <= sizeof(rx_buffer)) {
                 memcpy(&rx_buffer[wr_idx], buf->data, buf->len);
                 wr_idx += buf->len;
             } else {
