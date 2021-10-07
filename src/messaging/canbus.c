@@ -80,9 +80,7 @@ rx_thread(void *arg1, void *arg2, void *arg3)
                 LOG_ERR("CAN frame too long");
             }
 
-            if (buf != NULL) {
-                net_buf_unref(buf);
-            }
+            net_buf_unref(buf);
         } while (rem_len > 0);
 
         if (rem_len == ISOTP_N_OK) {
