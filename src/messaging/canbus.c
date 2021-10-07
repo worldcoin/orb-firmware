@@ -67,8 +67,7 @@ rx_thread(void *arg1, void *arg2, void *arg3)
         // we will not exit until all the bytes are received or timeout
         do {
             // get new block (BS)
-            rem_len = isotp_recv_net(&recv_ctx, &buf,
-                                     K_MSEC(2000));
+            rem_len = isotp_recv_net(&recv_ctx, &buf, K_FOREVER);
             if (rem_len < ISOTP_N_OK) {
                 LOG_DBG("Receiving error [%d]", rem_len);
                 break;
