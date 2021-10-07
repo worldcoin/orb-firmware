@@ -10,6 +10,6 @@ config ORB_MCU_LIBRARIES_LIB
 config ORB_PROTOBUF_DEFINITIONS_LIB
     default y
     bool "Import Orb Protobuf definitions"
-    select NANOPB
+    depends on NANOPB
 
 source "Kconfig.zephyr"
