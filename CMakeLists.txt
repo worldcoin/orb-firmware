@@ -12,16 +12,6 @@ else ()
     set(BOARD orb)
 endif ()
 
-# find zephyr directory
-# either define environment variable pointing to Zephyr base
-# or look for it in the parent directory
-if (DEFINED ENV{ZEPHYR_BASE})
-    set(ZEPHYR_BASE $ENV{ZEPHYR_BASE})
-else ()
-    get_filename_component(WORKSPACE_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
-    set(ZEPHYR_BASE ${WORKSPACE_DIR}/zephyr)
-endif ()
-
 # Get custom boards definitions from that repo
 list(APPEND BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
