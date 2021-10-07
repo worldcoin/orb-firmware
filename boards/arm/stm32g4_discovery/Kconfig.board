@@ -1,8 +1,0 @@
-# STM32G4 DISCO board configuration
-
-# Copyright (c) 2019 STMicroelectronics.
-# SPDX-License-Identifier: Apache-2.0
-
-config BOARD_STM32G4_DISCOVERY
-	bool "STM32G4 Discovery Development Board"
-	depends on SOC_STM32G474XX
