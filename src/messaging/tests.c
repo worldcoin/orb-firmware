@@ -13,7 +13,7 @@ LOG_MODULE_REGISTER(cantest);
 #include "canbus.h"
 #include "messaging.h"
 
-K_THREAD_STACK_DEFINE(test_thread_stack, 10214);
+K_THREAD_STACK_DEFINE(test_thread_stack, 1024);
 static struct k_thread test_thread_data;
 
 /// This function allows the test of the full CAN bus data pipe using two boards
