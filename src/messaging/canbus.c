@@ -40,6 +40,39 @@ const struct isotp_msg_id tx_addr = {
     .use_ext_addr = 0
 };
 
+static void
+handle_message(McuMessage *new)
+{
+    static uint32_t test_value = 0;
+    static uint32_t missed = 0;
+
+    // handle new message
+    switch (new->message.j_message.which_payload) {
+    case JetsonToMcu_shutdown_tag: {
+        LOG_INF("Shutdown command");
+    }
+        break;
+
+    case JetsonToMcu_ir_leds_tag: {
+//            LOG_INF("IR led command wavelength: %u, on_duration: %u",
+//                    new.message.j_message.payload.ir_leds.wavelength,
+//                    new.message.j_message.payload.ir_leds.on_duration);
+        if (new->message.j_message.payload.ir_leds.on_duration != test_value + 1) {
+            missed++;
+            LOG_ERR("%u != %u, c %u", new->message.j_message.payload.ir_leds.on_duration, test_value, missed);
+        }
+        test_value = new->message.j_message.payload.ir_leds.on_duration;
+
+    }
+        break;
+
+    case JetsonToMcu_brightness_front_leds_tag: {
+        LOG_INF("Brightness: %u",
+                new->message.j_message.payload.brightness_front_leds.white_leds);
+    }
+    }
+}
+
 _Noreturn static void
 rx_thread(void *arg1, void *arg2, void *arg3)
 {
@@ -76,7 +109,7 @@ rx_thread(void *arg1, void *arg2, void *arg3)
                 wr_idx += buf->len;
             } else {
                 // TODO report error somehow (Memfault?)
-                LOG_ERR("CAN frame too long");
+                LOG_ERR("CAN frame too long: %u", wr_idx+buf->len);
             }
 
             net_buf_unref(buf);
@@ -88,7 +121,7 @@ rx_thread(void *arg1, void *arg2, void *arg3)
 
             bool decoded = pb_decode(&stream, McuMessage_fields, &data);
             if (decoded) {
-                messaging_push_rx(&data);
+                handle_message(&data);
             } else {
                 LOG_ERR("Error parsing data, discarding");
             }
