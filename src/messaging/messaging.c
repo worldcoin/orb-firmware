@@ -10,6 +10,7 @@
 
 #include <logging/log.h>
 #include <pb_encode.h>
+#include <app_config.h>
 LOG_MODULE_REGISTER(messaging);
 
 // RX thread
@@ -22,11 +23,10 @@ K_THREAD_DEFINE(process_rx_messages,
 
 // TX thread
 #define THREAD_PROCESS_TX_MESSAGES_STACKSIZE      1024
-#define THREAD_PROCESS_TX_MESSAGES_PRIORITY       8
 static void process_tx_messages_thread();
 K_THREAD_DEFINE(process_tx_messages,
                 THREAD_PROCESS_TX_MESSAGES_STACKSIZE, process_tx_messages_thread, NULL, NULL, NULL,
-                THREAD_PROCESS_TX_MESSAGES_PRIORITY, 0, 0);
+                THREAD_PRIORITY_PROCESS_TX_MSG, 0, 0);
 
 // Message queues to pass messages to/from Jetson and Security MCU
 K_MSGQ_DEFINE(rx_msg_queue, sizeof(McuMessage), 8, 4);

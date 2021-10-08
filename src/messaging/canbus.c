@@ -130,7 +130,7 @@ canbus_init(void)
     k_tid_t tid = k_thread_create(&rx_thread_data, rx_thread_stack,
                                   K_THREAD_STACK_SIZEOF(rx_thread_stack),
                                   rx_thread, NULL, NULL, NULL,
-                                  RX_THREAD_PRIORITY, 0, K_NO_WAIT);
+                                  THREAD_PRIORITY_CAN_RX, 0, K_NO_WAIT);
     if (!tid) {
         LOG_ERR("ERROR spawning rx thread");
         return RET_ERROR_NO_MEM;
