@@ -1,0 +1,11 @@
+//
+// Created by Cyril on 05/10/2021.
+//
+
+#ifndef ORB_FIRMWARE_APP_MAIN_SRC_MESSAGING_TESTS_H
+#define ORB_FIRMWARE_APP_MAIN_SRC_MESSAGING_TESTS_H
+
+void
+tests_messaging_init(void);
+
+#endif //ORB_FIRMWARE_APP_MAIN_SRC_MESSAGING_TESTS_H

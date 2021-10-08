@@ -23,6 +23,21 @@ if (NOT ARM_TOOLCHAIN_DIR AND NOT CMAKE_C_COMPILER)
             OUTPUT_VARIABLE CMAKE_C_COMPILER
             OUTPUT_STRIP_TRAILING_WHITESPACE
     )
+
+    if (NOT CMAKE_C_COMPILER)
+        message(STATUS "Trying to find arm-none-eabi")
+
+        set(TOOLCHAIN_PREFIX arm-none-eabi-)
+        execute_process(
+                COMMAND which ${TOOLCHAIN_PREFIX}gcc
+                OUTPUT_VARIABLE CMAKE_C_COMPILER
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    endif ()
+
+    if (NOT CMAKE_C_COMPILER)
+        message(SEND_ERROR "Unable to find C compiler")
+    endif ()
 endif ()
 
 if (NOT ARM_TOOLCHAIN_DIR AND CMAKE_C_COMPILER)
@@ -40,14 +55,69 @@ if (ARM_TOOLCHAIN_DIR AND NOT CMAKE_C_COMPILER)
 endif ()
 
 # Set C++ compiler
-set(CMAKE_CXX_COMPILER ${ARM_TOOLCHAIN_DIR}/${TOOLCHAIN_PREFIX}g++)
+#set(CMAKE_CXX_COMPILER ${ARM_TOOLCHAIN_DIR}/${TOOLCHAIN_PREFIX}g++)
 
-message(STATUS "Compiler: ${CMAKE_C_COMPILER}")
+if (NOT CMAKE_CXX_COMPILER)
+    execute_process(
+            COMMAND which ${TOOLCHAIN_PREFIX}g++
+            OUTPUT_VARIABLE CMAKE_CXX_COMPILER
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    if (NOT CMAKE_CXX_COMPILER)
+        message(STATUS "Trying to find arm-none-eabi-g++")
+
+        set(TOOLCHAIN_PREFIX arm-none-eabi-)
+        execute_process(
+                COMMAND which ${TOOLCHAIN_PREFIX}g++
+                OUTPUT_VARIABLE CMAKE_CXX_COMPILER
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    endif ()
+endif ()
+
+message(STATUS "C Compiler: ${CMAKE_C_COMPILER}")
+message(STATUS "C++ Compiler: ${CMAKE_CXX_COMPILER}")
 
 set(CMAKE_ASM_COMPILER ${CMAKE_C_COMPILER})
 
-set(CMAKE_OBJCOPY ${ARM_TOOLCHAIN_DIR}/${TOOLCHAIN_PREFIX}objcopy CACHE INTERNAL "objcopy tool")
-set(CMAKE_SIZE_UTIL ${ARM_TOOLCHAIN_DIR}/${TOOLCHAIN_PREFIX}size CACHE INTERNAL "size tool")
+if (NOT CMAKE_OBJCOPY)
+    execute_process(
+            COMMAND which ${TOOLCHAIN_PREFIX}objcopy
+            OUTPUT_VARIABLE CMAKE_OBJCOPY
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    if (NOT CMAKE_OBJCOPY)
+        message(STATUS "Trying to find arm-none-eabi-objcopy")
+
+        set(TOOLCHAIN_PREFIX arm-none-eabi-)
+        execute_process(
+                COMMAND which ${TOOLCHAIN_PREFIX}objcopy
+                OUTPUT_VARIABLE CMAKE_OBJCOPY
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    endif ()
+endif ()
+
+if (NOT CMAKE_SIZE_UTIL)
+    execute_process(
+            COMMAND which ${TOOLCHAIN_PREFIX}size
+            OUTPUT_VARIABLE CMAKE_SIZE_UTIL
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    if (NOT CMAKE_OBJCOPY)
+        message(STATUS "Trying to find arm-none-eabi-size")
+
+        set(TOOLCHAIN_PREFIX arm-none-eabi-)
+        execute_process(
+                COMMAND which ${TOOLCHAIN_PREFIX}size
+                OUTPUT_VARIABLE CMAKE_SIZE_UTIL
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    endif ()
+endif ()
 
 set(CMAKE_FIND_ROOT_PATH ${BINUTILS_PATH})
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)

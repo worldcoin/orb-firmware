@@ -1,0 +1,18 @@
+source [find interface/stlink.cfg]
+
+transport select hla_swd
+
+
+# Uncomment the line below to debug one specific board among
+# several connected to your computer
+# you can find the serial number by using STM32CubeProgrammer
+# when connecting, the log will display:
+#   `17:33:41 : ST-LINK SN  : xxxxxxxxxxxxxxxxxxx`
+# copy-paste the serial value below
+
+# hla_serial xxxxxxxxxxxxxxxxxxx
+
+
+source [find target/stm32g4x.cfg]
+
+reset_config srst_only
