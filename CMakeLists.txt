@@ -43,6 +43,9 @@ set(SOURCES_FILES
         src/power_sequence/power_sequence.c
         src/fan/fan.c
         src/sound/sound.c
+        src/front_unit_rgb_leds/front_unit_rgb_leds.c
+        src/front_unit_rgb_leds/front_unit_led_patterns.c
+        src/distributor_leds/distributor_leds.c
         )
 
 # set TEST_TARGET variable to enable the test features
