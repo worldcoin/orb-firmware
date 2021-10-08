@@ -24,11 +24,10 @@ LOG_MODULE_REGISTER(canbus);
 const struct device *can_dev;
 const struct isotp_fc_opts flow_control_opts = {.bs = 8, .stmin = 0};
 
-#define RX_THREAD_STACK_SIZE    2048
-#define RX_THREAD_PRIORITY      5
+#define THREAD_STACK_SIZE_CAN_RX    2048
 
-K_THREAD_STACK_DEFINE(rx_thread_stack, RX_THREAD_STACK_SIZE);
-static struct k_thread rx_thread_data;
+K_THREAD_STACK_DEFINE(rx_thread_stack, THREAD_STACK_SIZE_CAN_RX);
+static struct k_thread rx_thread_data = {0};
 
 const struct isotp_msg_id rx_addr = {
     .std_id = RX_ADDR,
