@@ -24,11 +24,10 @@ LOG_MODULE_REGISTER(canbus);
 const struct device *can_dev;
 const struct isotp_fc_opts flow_control_opts = {.bs = 8, .stmin = 0};
 
-#define RX_THREAD_STACK_SIZE    2048
-#define RX_THREAD_PRIORITY      5
+#define THREAD_STACK_SIZE_CAN_RX    2048
 
-K_THREAD_STACK_DEFINE(rx_thread_stack, RX_THREAD_STACK_SIZE);
-static struct k_thread rx_thread_data;
+K_THREAD_STACK_DEFINE(rx_thread_stack, THREAD_STACK_SIZE_CAN_RX);
+static struct k_thread rx_thread_data = {0};
 
 const struct isotp_msg_id rx_addr = {
     .std_id = RX_ADDR,
@@ -41,6 +40,39 @@ const struct isotp_msg_id tx_addr = {
     .use_ext_addr = 0
 };
 
+static void
+handle_message(McuMessage *new)
+{
+    static uint32_t test_value = 0;
+    static uint32_t missed = 0;
+
+    // handle new message
+    switch (new->message.j_message.which_payload) {
+    case JetsonToMcu_shutdown_tag: {
+        LOG_INF("Shutdown command");
+    }
+        break;
+
+    case JetsonToMcu_ir_leds_tag: {
+//            LOG_INF("IR led command wavelength: %u, on_duration: %u",
+//                    new.message.j_message.payload.ir_leds.wavelength,
+//                    new.message.j_message.payload.ir_leds.on_duration);
+        if (new->message.j_message.payload.ir_leds.on_duration != test_value + 1) {
+            missed++;
+            LOG_ERR("%u != %u, c %u", new->message.j_message.payload.ir_leds.on_duration, test_value, missed);
+        }
+        test_value = new->message.j_message.payload.ir_leds.on_duration;
+
+    }
+        break;
+
+    case JetsonToMcu_brightness_front_leds_tag: {
+        LOG_INF("Brightness: %u",
+                new->message.j_message.payload.brightness_front_leds.white_leds);
+    }
+    }
+}
+
 _Noreturn static void
 rx_thread(void *arg1, void *arg2, void *arg3)
 {
@@ -50,7 +82,7 @@ rx_thread(void *arg1, void *arg2, void *arg3)
 
     struct net_buf *buf = NULL;
     int ret, rem_len;
-    struct isotp_recv_ctx recv_ctx;
+    struct isotp_recv_ctx recv_ctx = {0};
     uint8_t rx_buffer[RX_BUF_SIZE] = {0};
     size_t wr_idx = 0;
 
@@ -77,7 +109,7 @@ rx_thread(void *arg1, void *arg2, void *arg3)
                 wr_idx += buf->len;
             } else {
                 // TODO report error somehow (Memfault?)
-                LOG_ERR("CAN frame too long");
+                LOG_ERR("CAN frame too long: %u", wr_idx+buf->len);
             }
 
             net_buf_unref(buf);
@@ -89,7 +121,7 @@ rx_thread(void *arg1, void *arg2, void *arg3)
 
             bool decoded = pb_decode(&stream, McuMessage_fields, &data);
             if (decoded) {
-                messaging_push_rx(&data);
+                handle_message(&data);
             } else {
                 LOG_ERR("Error parsing data, discarding");
             }
@@ -102,8 +134,7 @@ rx_thread(void *arg1, void *arg2, void *arg3)
 ret_code_t
 canbus_send(const char *data, size_t len, void (*tx_complete_cb)(int, void *))
 {
-    static struct isotp_send_ctx send_ctx;
-    memset(&send_ctx, 0, sizeof(send_ctx));
+    static struct isotp_send_ctx send_ctx = {0};
 
     int ret = isotp_send(&send_ctx, can_dev,
                          data, len,
@@ -131,7 +162,7 @@ canbus_init(void)
     k_tid_t tid = k_thread_create(&rx_thread_data, rx_thread_stack,
                                   K_THREAD_STACK_SIZEOF(rx_thread_stack),
                                   rx_thread, NULL, NULL, NULL,
-                                  RX_THREAD_PRIORITY, 0, K_NO_WAIT);
+                                  THREAD_PRIORITY_CAN_RX, 0, K_NO_WAIT);
     if (!tid) {
         LOG_ERR("ERROR spawning rx thread");
         return RET_ERROR_NO_MEM;
