@@ -50,7 +50,7 @@ rx_thread(void *arg1, void *arg2, void *arg3)
 
     struct net_buf *buf = NULL;
     int ret, rem_len;
-    struct isotp_recv_ctx recv_ctx;
+    struct isotp_recv_ctx recv_ctx = {0};
     uint8_t rx_buffer[RX_BUF_SIZE] = {0};
     size_t wr_idx = 0;
 
@@ -102,8 +102,7 @@ rx_thread(void *arg1, void *arg2, void *arg3)
 ret_code_t
 canbus_send(const char *data, size_t len, void (*tx_complete_cb)(int, void *))
 {
-    static struct isotp_send_ctx send_ctx;
-    memset(&send_ctx, 0, sizeof(send_ctx));
+    static struct isotp_send_ctx send_ctx = {0};
 
     int ret = isotp_send(&send_ctx, can_dev,
                          data, len,
