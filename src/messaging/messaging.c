@@ -25,7 +25,7 @@ K_MSGQ_DEFINE(tx_msg_queue, sizeof(McuMessage), 8, 4);
 
 K_SEM_DEFINE(tx_sem, 1, 1);
 
-void
+ret_code_t
 messaging_push_tx(McuMessage *message)
 {
     // make sure data "header" is correctly set
@@ -34,7 +34,10 @@ messaging_push_tx(McuMessage *message)
     int ret = k_msgq_put(&tx_msg_queue, message, K_NO_WAIT);
     if (ret) {
         LOG_ERR("Too many tx messages");
+        return RET_ERROR_BUSY;
     }
+
+    return RET_SUCCESS;
 }
 
 static void
