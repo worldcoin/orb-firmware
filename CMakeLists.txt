@@ -12,8 +12,24 @@ else ()
     set(BOARD orb)
 endif ()
 
-# Get custom boards definitions from that repo
-list(APPEND BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+# Get our custom boards definitions before loading Zephyr
+get_filename_component(WORKSPACE_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
+set(ORB_BOARD_DEF ${WORKSPACE_DIR}/modules/orb-board-def)
+list(APPEND BOARD_ROOT ${ORB_BOARD_DEF})
+list(APPEND DTS_ROOT ${ORB_BOARD_DEF})
+
+# Add a common dts overlay necessary to ensure the app is linked into,
+# and fits inside, the slot0 partition. (If the user specified a
+# DTC_OVERLAY_FILE on the CMake command line, we need to append onto
+# the list).
+if(DTC_OVERLAY_FILE)
+    set(DTC_OVERLAY_FILE
+            "${DTC_OVERLAY_FILE} ${CMAKE_CURRENT_LIST_DIR}/dts.overlay"
+            CACHE STRING "" FORCE
+            )
+else()
+    set(DTC_OVERLAY_FILE ${CMAKE_CURRENT_LIST_DIR}/dts.overlay)
+endif()
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(orb-firmware)
