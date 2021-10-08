@@ -7,7 +7,6 @@
 LOG_MODULE_REGISTER(canbus);
 
 #include "mcu_messaging.pb.h"
-#include "messaging.h"
 #include <device.h>
 #include <zephyr.h>
 #include <canbus/isotp.h>
@@ -19,7 +18,14 @@ LOG_MODULE_REGISTER(canbus);
 #define RX_ADDR         CONFIG_CAN_ADDRESS_MCU     // MCU
 #define TX_ADDR         CONFIG_CAN_ADDRESS_JETSON  // Jetson address
 
-#define RX_BUF_SIZE     256
+#ifndef McuMessage_size
+// Nanopb allows us to specify sizes in order to know the maximum
+// size of an McuMessage at compile time
+// see comments in mcu_messaging.pb.h to fix that error
+#error "Please define a maximum size to any field that can have a dynamic size, see NanoPb option file"
+#endif
+
+#define RX_BUF_SIZE     McuMessage_size
 
 const struct device *can_dev;
 const struct isotp_fc_opts flow_control_opts = {.bs = 8, .stmin = 0};
