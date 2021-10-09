@@ -43,6 +43,7 @@ set(SOURCES_FILES
         src/power_sequence/power_sequence.c
         src/fan/fan.c
         src/sound/sound.c
+        src/stepper_motors/stepper_motors.c
         )
 
 # set TEST_TARGET variable to enable the test features

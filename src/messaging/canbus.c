@@ -159,9 +159,9 @@ canbus_send(const char *data, size_t len, void (*tx_complete_cb)(int, void *))
 ret_code_t
 canbus_init(void)
 {
-    can_dev = device_get_binding(DT_CHOSEN_ZEPHYR_CAN_PRIMARY_LABEL);
-    if (!can_dev) {
-        LOG_ERR("CAN: Device driver not found.");
+    can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_can_primary));
+    if (!device_is_ready(can_dev)) {
+        LOG_ERR("Internal CAN device not ready");
         return RET_ERROR_NOT_FOUND;
     }
 
