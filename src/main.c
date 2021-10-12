@@ -28,7 +28,7 @@ void main(void)
     __ASSERT(init_sound() == 0, "Error initializing sound");
     __ASSERT(init_stepper_motors() == 0, "Error initializing sound");
 
-    messaging_init();
+//    messaging_init();
 
     // the target is now up and running
 
