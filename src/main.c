@@ -9,16 +9,18 @@
 #include <zephyr.h>
 LOG_MODULE_REGISTER(main);
 
-#if TEST_TARGET
+#if CONFIG_BOARD_STM32G484_EVAL
 #include "messaging/tests.h"
 #endif
 
 
 void main(void)
 {
-    LOG_INF("Hello from Orb MCU :)");
+    LOG_INF("Hello from " CONFIG_BOARD " :)");
 
+#ifdef CONFIG_BOARD_ORB
     __ASSERT(wait_for_power_button_press() == 0, "Error waiting for button");
+#endif
 
     LOG_INF("Booting system");
 
@@ -27,12 +29,14 @@ void main(void)
     __ASSERT(turn_on_fan() == 0, "Error turning on fan");
     __ASSERT(init_sound() == 0, "Error initializing sound");
 
+    k_msleep(1000);
+
     messaging_init();
 
     // the target is now up and running
 
-#if TEST_TARGET
-    LOG_WRN("Running test target");
+#ifdef CONFIG_BOARD_STM32G484_EVAL
+    LOG_WRN("Running tests");
 
     tests_messaging_init();
 #endif
