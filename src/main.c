@@ -29,8 +29,6 @@ void main(void)
     __ASSERT(turn_on_fan() == 0, "Error turning on fan");
     __ASSERT(init_sound() == 0, "Error initializing sound");
 
-    k_msleep(1000);
-
     messaging_init();
 
     // the target is now up and running
