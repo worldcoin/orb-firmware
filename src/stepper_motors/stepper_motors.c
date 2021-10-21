@@ -175,7 +175,7 @@ ret_code_t init_stepper_motors(void)
                       sizeof(init_for_position_mode) / sizeof(init_for_position_mode[0]));
 
     // COOLCONF, set SGT to offset StallGuard value
-    motor_spi_write(spi_bus_controller, REG_COOLCONF, (12 << 16));
+    motor_spi_write(spi_bus_controller, REG_COOLCONF, (11 << 16));
 
     k_msleep(100);
 
