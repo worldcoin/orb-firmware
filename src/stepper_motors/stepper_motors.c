@@ -20,6 +20,8 @@ LOG_MODULE_REGISTER(stepper_motors);
 #define REG_COOLCONF    0x6D
 #define REG_DRV_STATUS  0x6F
 
+#define ORB_INIT_VMAX        60000
+
 static struct spi_config spi_cfg = {
     .frequency = 1000000,
     .operation = SPI_WORD_SET(8) | SPI_OP_MODE_MASTER | SPI_MODE_CPOL | SPI_MODE_CPHA,
@@ -45,9 +47,10 @@ const uint64_t init_for_velocity_mode[] = {
     0xAC00002710,
     0x90000401C8,
     0xB200061A80,
-    0xB100007500, // VCOOLTHRS
+    0xB100000000 + (ORB_INIT_VMAX / 2), // VCOOLTHRS: StallGuard enabled when motor reaches that velocity. Let's use ~VMAX/2
     0xA600001388,
-    0xA700007530,
+    0xA700000000 + ORB_INIT_VMAX, // VMAX
+    0xB400000000 | (1 << 10), // SW_MODE sg_stop
     0xA000000001
 };
 
@@ -55,14 +58,15 @@ const uint64_t init_for_position_mode[] = {
     0xA4000003E8,
     0xA50000C350,
     0xA6000001F4,
-    0xA7000304D0,
+    0xA700000000 + ORB_INIT_VMAX,
     0xA8000002BC,
     0xAA00000578,
     0xAB0000000A,
-    0xA000000001
+    0xA000000000,
 };
 
-void spi_send_commands(const struct device *spi_bus_controller, const uint64_t *cmds, size_t num_cmds)
+static void
+motor_spi_send_commands(const struct device *spi_bus_controller, const uint64_t *cmds, size_t num_cmds)
 {
     uint64_t cmd;
     uint8_t tx_buffer[5];
@@ -76,7 +80,8 @@ void spi_send_commands(const struct device *spi_bus_controller, const uint64_t *
     }
 }
 
-void motor_spi_write(const struct device *spi_bus_controller, uint8_t reg, uint32_t value)
+static void
+motor_spi_write(const struct device *spi_bus_controller, uint8_t reg, uint32_t value)
 {
     uint8_t tx_buffer[5] = {0};
     uint8_t rx_buffer[5] = {0};
@@ -99,7 +104,8 @@ void motor_spi_write(const struct device *spi_bus_controller, uint8_t reg, uint3
     __ASSERT(ret == 0, "Error SPI transceive");
 }
 
-uint32_t motor_spi_read(const struct device *spi_bus_controller, uint8_t reg)
+static uint32_t
+motor_spi_read(const struct device *spi_bus_controller, uint8_t reg)
 {
     uint8_t tx_buffer[5] = {0};
     uint8_t rx_buffer[5] = {0};
@@ -138,7 +144,8 @@ uint32_t motor_spi_read(const struct device *spi_bus_controller, uint8_t reg)
     return read_value;
 }
 
-ret_code_t init_stepper_motors(void)
+ret_code_t
+init_stepper_motors(void)
 {
     const struct device *spi_bus_controller = DEVICE_DT_GET(SPI_CONTROLLER_NODE);
     uint32_t read_value = 0;
@@ -167,35 +174,64 @@ ret_code_t init_stepper_motors(void)
     motor_spi_write(spi_bus_controller, 0x23, 0x0F);
     k_msleep(100);
 
-    spi_send_commands(spi_bus_controller,
-                      init_for_position_mode,
-                      sizeof(init_for_position_mode) / sizeof(init_for_position_mode[0]));
-
     // COOLCONF, set SGT to offset StallGuard value
-    motor_spi_write(spi_bus_controller, REG_COOLCONF, (5 << 16));
+    motor_spi_write(spi_bus_controller, REG_COOLCONF, (5 << 16) | (1 << 24) /* enable SG filter */);
 
     k_msleep(100);
 
     // start in one direction for testing
-    spi_send_commands(spi_bus_controller,
-                      init_for_velocity_mode,
-                      ARRAY_SIZE(init_for_velocity_mode));
+    motor_spi_send_commands(spi_bus_controller,
+                            init_for_velocity_mode,
+                            ARRAY_SIZE(init_for_velocity_mode));
 
-    uint8_t direction = 0;
+    uint32_t step = 0;
     uint32_t status;
     while (1) {
         status = motor_spi_read(spi_bus_controller, REG_DRV_STATUS);
         LOG_INF("Status 0x%08x", status);
 
-        uint8_t current_level = ((status >> 16) & 0x1F);
-        LOG_INF("Current level: %u", current_level);
+        // motor stalled, stopped by using sg_stop
 
-        // if motor stalled, invert direction
-        if (status & (1 << 24)) {
-            LOG_WRN("StallGuard flag");
+        if (step == 0 && status & (1 << 24)) {
+            LOG_WRN("Motor is stalled");
 
-            motor_spi_write(spi_bus_controller, 0x20, 1 << direction);
-            direction = 1 - direction;
+            // disable sg_stop
+            motor_spi_write(spi_bus_controller, 0xB4, 0x0);
+
+            // read current position
+            int32_t x_actual = (int32_t) motor_spi_read(spi_bus_controller, 0x21);
+            LOG_INF("XACTUAL: %ld", x_actual);
+
+            // clear events
+            // the motor can be re-enabled by reading RAMP_STAT
+            uint32_t stalled_status = motor_spi_read(spi_bus_controller, 0x35);
+            LOG_INF("RAMP_STAT: 0x%08lx", stalled_status);
+
+            // go to the other end using position mode
+            motor_spi_send_commands(spi_bus_controller,
+                                    init_for_position_mode,
+                                    sizeof(init_for_position_mode) / sizeof(init_for_position_mode[0]));
+
+            motor_spi_write(spi_bus_controller, 0x2D, (uint32_t) (x_actual - 256*550));
+
+            ++step;
+            k_msleep(500);
+
+            continue;
+        }
+
+        if (step == 1 && status & (1 << 24)) {
+            LOG_WRN("Motor stalled when trying to reach other end");
+            return RET_ERROR_INVALID_STATE;
+        }
+
+        if (step == 1 && status & (1 << 31)) {
+            motor_spi_read(spi_bus_controller, 0x35);
+
+            LOG_INF("Reached other end");
+            ++step;
+
+            return RET_SUCCESS;
         }
 
         k_msleep(250);
