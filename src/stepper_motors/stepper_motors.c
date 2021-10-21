@@ -41,7 +41,7 @@ static struct spi_buf_set tx_bufs = {
 const uint64_t init_for_velocity_mode[] = {
     0x8000000008,
     0xEC000100C5,
-    0xB000011000, // bytes from left to right: I_HOLD=0, I_RUN=16, IHOLDDELAY=1
+    0xB000011000, // IHOLD_IRUN reg, bytes from left to right: I_HOLD=0, I_RUN=16, IHOLDDELAY=1
     0xAC00002710,
     0x90000401C8,
     0xB200061A80,
