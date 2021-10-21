@@ -26,7 +26,7 @@ void main(void)
     __ASSERT(turn_on_jetson() == 0, "Jetson power-on error");
     __ASSERT(turn_on_fan() == 0, "Error turning on fan");
     __ASSERT(init_sound() == 0, "Error initializing sound");
-    __ASSERT(init_stepper_motors() == 0, "Error initializing sound");
+    __ASSERT(init_stepper_motors() == 0, "Error initializing motors");
 
 //    messaging_init();
 
