@@ -1,13 +1,11 @@
+#include "stepper_motors.h"
 #include <device.h>
 #include <zephyr.h>
 #include <drivers/spi.h>
 #include <sys/byteorder.h>
 
-
 #include <logging/log.h>
 LOG_MODULE_REGISTER(stepper_motors);
-
-#include "stepper_motors.h"
 
 #define SPI_DEVICE DT_NODELABEL(motion_controller)
 #define SPI_CONTROLLER_NODE DT_PARENT(SPI_DEVICE)
@@ -43,7 +41,7 @@ static struct spi_buf_set tx_bufs = {
 const uint64_t init_for_velocity_mode[] = {
     0x8000000008,
     0xEC000100C5,
-    0xB000011F05,
+    0xB000011000, // bytes from left to right: I_HOLD=0, I_RUN=16, IHOLDDELAY=1
     0xAC00002710,
     0x90000401C8,
     0xB200061A80,
@@ -98,7 +96,7 @@ void motor_spi_write(const struct device *spi_bus_controller, uint8_t reg, uint3
     tx.len = sizeof tx_buffer;
 
     int ret = spi_transceive(spi_bus_controller, &spi_cfg, &tx_bufs, &rx_bufs);
-    __ASSERT(ret == 0, "Error SPI transceive, reg 0x%02", reg);
+    __ASSERT(ret == 0, "Error SPI transceive");
 }
 
 uint32_t motor_spi_read(const struct device *spi_bus_controller, uint8_t reg)
@@ -123,13 +121,13 @@ uint32_t motor_spi_read(const struct device *spi_bus_controller, uint8_t reg)
 
     // first, send reg address
     ret = spi_transceive(spi_bus_controller, &spi_cfg, &tx_bufs, &rx_bufs);
-    __ASSERT(ret == 0, "Error SPI transceive, reg 0x%02", reg);
+    __ASSERT(ret == 0, "Error SPI transceive");
 
     memset(rx_buffer, 0, sizeof(rx_buffer));
 
     // second, read data
     ret = spi_transceive(spi_bus_controller, &spi_cfg, &tx_bufs, &rx_bufs);
-    __ASSERT(ret == 0, "Error SPI transceive, reg 0x%02", reg);
+    __ASSERT(ret == 0, "Error SPI transceive");
 
     uint32_t read_value =
         (rx_buffer[1] << 24 |
@@ -143,7 +141,6 @@ uint32_t motor_spi_read(const struct device *spi_bus_controller, uint8_t reg)
 ret_code_t init_stepper_motors(void)
 {
     const struct device *spi_bus_controller = DEVICE_DT_GET(SPI_CONTROLLER_NODE);
-    int ret = 0;
     uint32_t read_value = 0;
 
     if (!device_is_ready(spi_bus_controller)) {
@@ -175,7 +172,7 @@ ret_code_t init_stepper_motors(void)
                       sizeof(init_for_position_mode) / sizeof(init_for_position_mode[0]));
 
     // COOLCONF, set SGT to offset StallGuard value
-    motor_spi_write(spi_bus_controller, REG_COOLCONF, (11 << 16));
+    motor_spi_write(spi_bus_controller, REG_COOLCONF, (5 << 16));
 
     k_msleep(100);
 
