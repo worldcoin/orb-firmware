@@ -15,7 +15,12 @@ LOG_MODULE_REGISTER(stepper_motors);
 #define READ 0
 #define WRITE (1 << 7)
 
-#define REG_INPUT 0x04
+#define TMC5041_IC_VERSION 0x10
+
+#define REG_INPUT       0x04
+#define REG_VCOOLTHRS   0x31
+#define REG_COOLCONF    0x6D
+#define REG_DRV_STATUS  0x6F
 
 static struct spi_config spi_cfg = {
     .frequency = 1000000,
@@ -35,16 +40,29 @@ static struct spi_buf_set tx_bufs = {
     .count = 1
 };
 
-const uint64_t init_for_velocity_mode[] = {
+const uint64_t init_for_velocity_mode_direction1[] = {
     0x8000000008,
     0xEC000100C5,
     0xB000011F05,
     0xAC00002710,
     0x90000401C8,
     0xB200061A80,
-    0xB100007530,
+    0xB100007500, // VCOOLTHRS
     0xA600001388,
-    0xA700004E20,
+    0xA700007530,
+    0xA000000001
+};
+
+const uint64_t init_for_velocity_mode_direction2[] = {
+    0x8000000008,
+    0xEC000100C5,
+    0xB000011F05,
+    0xAC00002710,
+    0x90000401C8,
+    0xB200061A80,
+    0xB100007500, // VCOOLTHRS
+    0xA600001388,
+    0xA700007530,
     0xA000000002
 };
 
@@ -73,71 +91,136 @@ void spi_send_commands(const struct device *spi_bus_controller, const uint64_t *
     }
 }
 
-int init_stepper_motors(void)
+void motor_spi_write(const struct device *spi_bus_controller, uint8_t reg, uint32_t value)
 {
-    uint8_t tx_buffer[5];
-    uint8_t rx_buffer[5];
-    const struct device *spi_bus_controller = DEVICE_DT_GET(SPI_CONTROLLER_NODE);
+    uint8_t tx_buffer[5] = {0};
+    uint8_t rx_buffer[5] = {0};
 
-    if (!device_is_ready(spi_bus_controller)) {
-        LOG_ERR("motion controller SPI device not ready");
-        return 1;
-    } else {
-        LOG_INF("Motion controler SPI ready");
-    }
+    // make sure there is the write flag
+    reg |= WRITE;
+    tx_buffer[0] = reg;
 
-    memset(tx_buffer, 0, sizeof tx_buffer);
-    tx_buffer[0] = READ | REG_INPUT;
+    tx_buffer[1] = (value >> 24) & 0xFF;
+    tx_buffer[2] = (value >> 16) & 0xFF;
+    tx_buffer[3] = (value >> 8) & 0xFF;
+    tx_buffer[4] = (value >> 0) & 0xFF;
 
     rx.buf = rx_buffer;
     rx.len = sizeof rx_buffer;
-
     tx.buf = tx_buffer;
     tx.len = sizeof tx_buffer;
 
     int ret = spi_transceive(spi_bus_controller, &spi_cfg, &tx_bufs, &rx_bufs);
+    __ASSERT(ret == 0, "Error SPI transceive, reg 0x%02", reg);
+}
 
-    spi_send_commands(spi_bus_controller, init_for_velocity_mode, ARRAY_SIZE(init_for_velocity_mode));
+uint32_t motor_spi_read(const struct device *spi_bus_controller, uint8_t reg)
+{
+    uint8_t tx_buffer[5] = {0};
+    uint8_t rx_buffer[5] = {0};
+    int ret;
 
+    // make sure there is the read flag (msb is 0)
+    reg &= ~WRITE;
+    tx_buffer[0] = reg;
+
+    rx.buf = rx_buffer;
+    rx.len = sizeof rx_buffer;
     tx.buf = tx_buffer;
-    memset(tx_buffer, 0, sizeof tx_buffer);
+    tx.len = sizeof tx_buffer;
 
-/*
+    // reading happens in two SPI operations:
+    //  - first, send the register address, returned data is
+    //    the one from previous read operation.
+    //  - second, read the actual data
 
-    tx_buffer[0] = 0xed;
-    //tx_buffer[2] = 0x7f;
-    tx_buffer[2] = 0x40;
+    // first, send reg address
+    ret = spi_transceive(spi_bus_controller, &spi_cfg, &tx_bufs, &rx_bufs);
+    __ASSERT(ret == 0, "Error SPI transceive, reg 0x%02", reg);
 
-    for (int i = 0; i < 5; ++i) {
-        LOG_INF("tx_buffer[%d] = 0x%02x", i, tx_buffer[i]);
+    memset(rx_buffer, 0, sizeof(rx_buffer));
+
+    // second, read data
+    ret = spi_transceive(spi_bus_controller, &spi_cfg, &tx_bufs, &rx_bufs);
+    __ASSERT(ret == 0, "Error SPI transceive, reg 0x%02", reg);
+
+    uint32_t read_value =
+        (rx_buffer[1] << 24 |
+            rx_buffer[2] << 16 |
+            rx_buffer[3] << 8 |
+            rx_buffer[4] << 0);
+
+    return read_value;
+}
+
+ret_code_t init_stepper_motors(void)
+{
+    const struct device *spi_bus_controller = DEVICE_DT_GET(SPI_CONTROLLER_NODE);
+    int ret = 0;
+    uint32_t read_value = 0;
+
+    if (!device_is_ready(spi_bus_controller)) {
+        LOG_ERR("motion controller SPI device not ready");
+        return RET_ERROR_BUSY;
+    } else {
+        LOG_INF("Motion controller SPI ready");
     }
-    spi_write(spi_bus_controller, &spi_cfg, &tx_bufs);
-*/
-    tx.buf = tx_buffer;
-    memset(tx_buffer, 0, sizeof tx_buffer);
-    tx_buffer[0] = 0x6f;
 
-    uint16_t stall_val;
+    read_value = motor_spi_read(spi_bus_controller, 0x00);
+    LOG_INF("GCONF: 0x%08x", read_value);
+    k_msleep(10);
+
+    read_value = motor_spi_read(spi_bus_controller, REG_INPUT);
+    LOG_INF("Input: 0x%08x", read_value);
+    uint8_t ic_version = (read_value >> 24 & 0xFF);
+
+    if (ic_version != TMC5041_IC_VERSION) {
+        LOG_ERR("Error reading TMC5041");
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    // VSTART
+    motor_spi_write(spi_bus_controller, 0x23, 0x0F);
+    k_msleep(100);
+
+    spi_send_commands(spi_bus_controller,
+                      init_for_position_mode,
+                      sizeof(init_for_position_mode) / sizeof(init_for_position_mode[0]));
+
+    // COOLCONF, set SGT to offset StallGuard value
+    motor_spi_write(spi_bus_controller, REG_COOLCONF, (13 << 16));
+
+    k_msleep(100);
+
+    // start in one direction for testing
+    spi_send_commands(spi_bus_controller,
+                      init_for_velocity_mode_direction1,
+                      ARRAY_SIZE(init_for_velocity_mode_direction1));
+
+    bool direction = true;
+    uint32_t status;
     while (1) {
-        spi_transceive(spi_bus_controller, &spi_cfg, &tx_bufs, &rx_bufs);
-        stall_val = ((rx_buffer[3] & 1) << 8) | rx_buffer[4];
+        status = motor_spi_read(spi_bus_controller, REG_DRV_STATUS);
+        LOG_INF("Status 0x%08x", status);
 
-        for (int i = 0; i < 5; ++i) {
-            LOG_INF("rx_buffer[%d] = 0x%02x", i, rx_buffer[i]);
+        uint8_t current_level = ((status >> 16) & 0x1F);
+        LOG_INF("Current level: %u", current_level);
+
+        if (status & (1 << 24)) {
+            LOG_WRN("StallGuard flag");
+
+            if (direction) {
+                spi_send_commands(spi_bus_controller,
+                                  init_for_velocity_mode_direction2,
+                                  ARRAY_SIZE(init_for_velocity_mode_direction2));
+            } else {
+                spi_send_commands(spi_bus_controller,
+                                  init_for_velocity_mode_direction1,
+                                  ARRAY_SIZE(init_for_velocity_mode_direction1));
+            }
+            direction = !direction;
         }
 
-        LOG_INF("stall value: %u", stall_val);
-
-        spi_read(spi_bus_controller, &spi_cfg, &rx_bufs);
-        stall_val = ((rx_buffer[3] & 1) << 8) | rx_buffer[4];
-
-        for (int i = 0; i < 5; ++i) {
-            LOG_INF("rx_buffer[%d] = 0x%02x", i, rx_buffer[i]);
-        }
-
-        LOG_INF("stall value: %u", stall_val);
-
-        k_msleep(100);
+        k_msleep(250);
     }
-    return 0;
 }
