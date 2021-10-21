@@ -40,7 +40,7 @@ static struct spi_buf_set tx_bufs = {
     .count = 1
 };
 
-const uint64_t init_for_velocity_mode_direction1[] = {
+const uint64_t init_for_velocity_mode[] = {
     0x8000000008,
     0xEC000100C5,
     0xB000011F05,
@@ -51,19 +51,6 @@ const uint64_t init_for_velocity_mode_direction1[] = {
     0xA600001388,
     0xA700007530,
     0xA000000001
-};
-
-const uint64_t init_for_velocity_mode_direction2[] = {
-    0x8000000008,
-    0xEC000100C5,
-    0xB000011F05,
-    0xAC00002710,
-    0x90000401C8,
-    0xB200061A80,
-    0xB100007500, // VCOOLTHRS
-    0xA600001388,
-    0xA700007530,
-    0xA000000002
 };
 
 const uint64_t init_for_position_mode[] = {
@@ -188,16 +175,16 @@ ret_code_t init_stepper_motors(void)
                       sizeof(init_for_position_mode) / sizeof(init_for_position_mode[0]));
 
     // COOLCONF, set SGT to offset StallGuard value
-    motor_spi_write(spi_bus_controller, REG_COOLCONF, (13 << 16));
+    motor_spi_write(spi_bus_controller, REG_COOLCONF, (12 << 16));
 
     k_msleep(100);
 
     // start in one direction for testing
     spi_send_commands(spi_bus_controller,
-                      init_for_velocity_mode_direction1,
-                      ARRAY_SIZE(init_for_velocity_mode_direction1));
+                      init_for_velocity_mode,
+                      ARRAY_SIZE(init_for_velocity_mode));
 
-    bool direction = true;
+    uint8_t direction = 0;
     uint32_t status;
     while (1) {
         status = motor_spi_read(spi_bus_controller, REG_DRV_STATUS);
@@ -206,19 +193,12 @@ ret_code_t init_stepper_motors(void)
         uint8_t current_level = ((status >> 16) & 0x1F);
         LOG_INF("Current level: %u", current_level);
 
+        // if motor stalled, invert direction
         if (status & (1 << 24)) {
             LOG_WRN("StallGuard flag");
 
-            if (direction) {
-                spi_send_commands(spi_bus_controller,
-                                  init_for_velocity_mode_direction2,
-                                  ARRAY_SIZE(init_for_velocity_mode_direction2));
-            } else {
-                spi_send_commands(spi_bus_controller,
-                                  init_for_velocity_mode_direction1,
-                                  ARRAY_SIZE(init_for_velocity_mode_direction1));
-            }
-            direction = !direction;
+            motor_spi_write(spi_bus_controller, 0x20, 1 << direction);
+            direction = 1 - direction;
         }
 
         k_msleep(250);
