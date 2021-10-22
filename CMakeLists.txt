@@ -39,18 +39,13 @@ set(SOURCES_FILES
 
         src/messaging/canbus.c
         src/messaging/messaging.c
+        src/messaging/tests.c
 
         src/power_sequence/power_sequence.c
         src/fan/fan.c
         src/sound/sound.c
         src/stepper_motors/stepper_motors.c
         )
-
-# set TEST_TARGET variable to enable the test features
-if (TEST_TARGET)
-    zephyr_compile_options(-DTEST_TARGET=1)
-    list(APPEND SOURCES_FILES src/messaging/tests.c)
-endif ()
 
 set(INCLUDE_DIRS
         include

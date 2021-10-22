@@ -30,12 +30,12 @@ test_can_send()
     data_to_serialize.version = Version_VERSION_0;
     data_to_serialize.which_message = McuMessage_j_message_tag;
 
-    ret_code_t err = RET_SUCCESS;
+    ret_code_t err = RET_ERROR_BUSY;
     while(1)
     {
         if (err == RET_SUCCESS)
         {
-            k_msleep(1);
+            k_msleep(100);
         }
         else
         {
