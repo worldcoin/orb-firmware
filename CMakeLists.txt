@@ -1,10 +1,6 @@
 cmake_minimum_required(VERSION 3.19.0)
 set(TARGET app)
 
-# source toolchain
-set(CMAKE_TOOLCHAIN_FILE utils/cmake/toolchain-gnuarmemb.cmake)
-
-
 # default board is orb
 if (DEFINED ENV{BOARD})
     set(BOARD $ENV{BOARD})
@@ -39,12 +35,18 @@ set(SOURCES_FILES
 
         src/messaging/canbus.c
         src/messaging/messaging.c
-        src/messaging/tests.c
+        src/messaging/messaging_tests.c
 
         src/power_sequence/power_sequence.c
         src/fan/fan.c
         src/sound/sound.c
+
+        src/front_unit_rgb_leds/front_unit_rgb_leds.c
+        src/front_unit_rgb_leds/front_unit_led_patterns.c
+        src/distributor_leds/distributor_leds.c
+
         src/stepper_motors/stepper_motors.c
+        src/stepper_motors/motors_tests.c
         )
 
 set(INCLUDE_DIRS
