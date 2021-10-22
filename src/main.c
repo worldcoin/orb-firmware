@@ -42,6 +42,7 @@ void main(void)
 
     // the target is now up and running
 
+    motors_tests_init();
 #ifdef CONFIG_BOARD_STM32G484_EVAL
     LOG_WRN("Running tests");
 

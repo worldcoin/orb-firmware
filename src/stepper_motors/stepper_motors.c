@@ -21,6 +21,7 @@ LOG_MODULE_REGISTER(stepper_motors);
 #define REG_DRV_STATUS  0x6F
 
 #define MOTOR_INIT_VMAX             60000
+#define MOTOR_FS_VMAX               180000
 #define MOTOR1_FULL_COURSE_STEPS    (256*600)
 
 static struct spi_config spi_cfg = {
@@ -28,8 +29,10 @@ static struct spi_config spi_cfg = {
     .operation = SPI_WORD_SET(8) | SPI_OP_MODE_MASTER | SPI_MODE_CPOL | SPI_MODE_CPHA,
     .cs = SPI_CS_CONTROL_PTR_DT(SPI_DEVICE, 2)
 };
+static const struct device *spi_bus_controller = DEVICE_DT_GET(SPI_CONTROLLER_NODE);
 
-typedef struct {
+typedef struct
+{
   int x0;           // step at x=0 (middle position)
   int x_current;
   int y0;           // step at y=0 (middle position)
@@ -57,18 +60,30 @@ const uint64_t init_for_velocity_mode[] = {
     0xAC00002710,
     0x90000401C8,
     0xB200061A80,
-    0xB100000000 + (MOTOR_INIT_VMAX / 2), // VCOOLTHRS: StallGuard enabled when motor reaches that velocity. Let's use ~VMAX/2
+    0xB100000000
+        + (MOTOR_INIT_VMAX / 2), // VCOOLTHRS: StallGuard enabled when motor reaches that velocity. Let's use ~VMAX/2
     0xA600001388,
     0xA700000000 + MOTOR_INIT_VMAX, // VMAX
     0xB400000000 | (1 << 10), // SW_MODE sg_stop
     0xA000000001
 };
 
-const uint64_t init_for_position_mode[] = {
+const uint64_t position_mode_initial_phase[] = {
     0xA4000003E8, // A1 first acceleration
     0xA50000C350, // V1 Acceleration threshold, velocity V1
     0xA6000001F4, // Acceleration above V1
     0xA700000000 + MOTOR_INIT_VMAX, // VMAX
+    0xA8000002BC, // DMAX Deceleration above V1
+    0xAA00000578, // D1 Deceleration below V1
+    0xAB0000000A, // VSTOP stop velocity
+    0xA000000000, // RAMPMODE = 0 position move
+};
+
+const uint64_t position_mode_full_speed[] = {
+    0xA4000006E8, // A1 first acceleration
+    0xA500000000 + MOTOR_FS_VMAX/2, // V1 Acceleration threshold, velocity V1
+    0xA6000003E8, // Acceleration above V1
+    0xA700000000 + MOTOR_FS_VMAX, // VMAX
     0xA8000002BC, // DMAX Deceleration above V1
     0xAA00000578, // D1 Deceleration below V1
     0xAB0000000A, // VSTOP stop velocity
@@ -155,9 +170,27 @@ motor_spi_read(const struct device *spi_bus_controller, uint8_t reg)
 }
 
 ret_code_t
+motors_angle_horizontal(int8_t x)
+{
+    __ASSERT(x < 100 && x > -100, "Accepted range is [-100;100]");
+
+    LOG_INF("Setting motor to: %d", x);
+    motor_spi_write(spi_bus_controller, 0x2D, (uint32_t) motors_refs.x0 + ((int32_t) x * (MOTOR1_FULL_COURSE_STEPS/2) / 100));
+
+    return RET_SUCCESS;
+}
+
+ret_code_t
+motors_angle_vertical(int8_t x)
+{
+    // not implemented
+
+    return RET_ERROR_INTERNAL;
+}
+
+ret_code_t
 motors_init(void)
 {
-    const struct device *spi_bus_controller = DEVICE_DT_GET(SPI_CONTROLLER_NODE);
     uint32_t read_value;
 
     if (!device_is_ready(spi_bus_controller)) {
@@ -211,17 +244,16 @@ motors_init(void)
 
             // read current position
             x_first_end = (int32_t) motor_spi_read(spi_bus_controller, 0x21);
-            LOG_INF("XACTUAL 1: %d", x_first_end);
+            LOG_INF("First end pos: %d", x_first_end);
 
             // clear events
             // the motor can be re-enabled by reading RAMP_STAT
-            uint32_t stalled_status = motor_spi_read(spi_bus_controller, 0x35);
-            LOG_INF("RAMP_STAT: 0x%08x", stalled_status);
+            motor_spi_read(spi_bus_controller, 0x35);
 
             // go to the other end using position mode
             motor_spi_send_commands(spi_bus_controller,
-                                    init_for_position_mode,
-                                    sizeof(init_for_position_mode) / sizeof(init_for_position_mode[0]));
+                                    position_mode_initial_phase,
+                                    sizeof(position_mode_initial_phase) / sizeof(position_mode_initial_phase[0]));
 
             // ready to move, let's go to the other end
             motor_spi_write(spi_bus_controller, 0x2D, (uint32_t) (x_first_end - MOTOR1_FULL_COURSE_STEPS));
@@ -243,22 +275,24 @@ motors_init(void)
 
             // read current position
             int32_t x = (int32_t) motor_spi_read(spi_bus_controller, 0x21);
-            LOG_INF("XACTUAL 2: %d", x);
+            LOG_INF("Second end pos: %d", x);
 
-            if (abs(x - (x_first_end - MOTOR1_FULL_COURSE_STEPS)) > 256)
-            {
+            if (abs(x - (x_first_end - MOTOR1_FULL_COURSE_STEPS)) > 256) {
                 LOG_INF("Didn't reached target");
 
                 return RET_ERROR_INVALID_STATE;
             }
 
-            motors_refs.x0 = x + (MOTOR1_FULL_COURSE_STEPS/2);
+            motors_refs.x0 = x + (MOTOR1_FULL_COURSE_STEPS / 2);
 
-            LOG_INF("X0=%d", motors_refs.x0);
+            LOG_INF("Motor 1, ref step: %d", motors_refs.x0);
 
             // go to middle position
             motor_spi_write(spi_bus_controller, 0x2D, motors_refs.x0);
 
+            motor_spi_send_commands(spi_bus_controller,
+                                    position_mode_full_speed,
+                                    sizeof(position_mode_full_speed) / sizeof(position_mode_full_speed[0]));
             return RET_SUCCESS;
         }
 
