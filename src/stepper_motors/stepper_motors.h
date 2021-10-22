@@ -3,6 +3,6 @@
 
 #include <errors.h>
 
-ret_code_t init_stepper_motors(void);
+ret_code_t motors_init(void);
 
 #endif // STEPPER_MOTORS_H
