@@ -21,7 +21,7 @@ LOG_MODULE_REGISTER(stepper_motors);
 #define REG_DRV_STATUS  0x6F
 
 #define MOTOR_INIT_VMAX             60000
-#define MOTOR_FS_VMAX               180000
+#define MOTOR_FS_VMAX               800000
 #define MOTOR1_FULL_COURSE_STEPS    (256*600)
 
 static struct spi_config spi_cfg = {
@@ -80,13 +80,13 @@ const uint64_t position_mode_initial_phase[] = {
 };
 
 const uint64_t position_mode_full_speed[] = {
-    0xA4000006E8, // A1 first acceleration
-    0xA500000000 + MOTOR_FS_VMAX/2, // V1 Acceleration threshold, velocity V1
-    0xA6000003E8, // Acceleration above V1
+    0xA400008000, // A1 first acceleration
+    0xA500000000 + MOTOR_FS_VMAX*3/4, // V1 Acceleration threshold, velocity V1
+    0xA600001000, // Acceleration above V1
     0xA700000000 + MOTOR_FS_VMAX, // VMAX
-    0xA8000002BC, // DMAX Deceleration above V1
-    0xAA00000578, // D1 Deceleration below V1
-    0xAB0000000A, // VSTOP stop velocity
+    0xA800001000, // DMAX Deceleration above V1
+    0xAA00008000, // D1 Deceleration below V1
+    0xAB00000010, // VSTOP stop velocity
     0xA000000000, // RAMPMODE = 0 position move
 };
 
