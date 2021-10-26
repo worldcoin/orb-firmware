@@ -172,7 +172,7 @@ motor_spi_read(const struct device *spi_bus_controller, uint8_t reg)
 ret_code_t
 motors_angle_horizontal(int8_t x)
 {
-    __ASSERT(x < 100 && x > -100, "Accepted range is [-100;100]");
+    __ASSERT(x <= 100 && x >= -100, "Accepted range is [-100;100]");
 
     LOG_INF("Setting motor to: %d", x);
     motor_spi_write(spi_bus_controller, 0x2D, (uint32_t) motors_refs.x0 + ((int32_t) x * (MOTOR1_FULL_COURSE_STEPS/2) / 100));
