@@ -29,8 +29,11 @@ void main(void)
     __ASSERT(turn_on_jetson() == 0, "Jetson power-on error");
     __ASSERT(turn_on_fan() == 0, "Error turning on fan");
     __ASSERT(init_sound() == 0, "Error initializing sound");
+
+#ifdef CONFIG_BOARD_ORB
     __ASSERT(front_unit_rgb_leds_init() == 0,
              "Error doing front unit RGB LEDs");
+#endif
     __ASSERT(do_distributor_rgb_leds() == 0, "Error doing distributor RGB LEDs");
 
     messaging_init();
