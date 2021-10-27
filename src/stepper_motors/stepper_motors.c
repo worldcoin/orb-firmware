@@ -335,8 +335,9 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                             TMC5041_REGISTERS[REG_IDX_XTARGET][motor],
                             (uint32_t) (x_first_end - MOTOR1_FULL_COURSE_STEPS));
 
+            // add longer delay before we continue
+            // as we need to wait for the motor to move and removes its stall detection flag
             k_msleep(500);
-
             continue;
         }
 
