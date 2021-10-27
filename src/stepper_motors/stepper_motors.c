@@ -355,7 +355,7 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
             LOG_INF("Motor %u reached other end, pos %d", motor, x);
 
             if (abs(x - (x_first_end - MOTOR1_FULL_COURSE_STEPS)) > 256) {
-                LOG_INF("Didn't reached target: x=%ld, should be ~ %d", x, (x_first_end - MOTOR1_FULL_COURSE_STEPS));
+                LOG_INF("Didn't reached target: x=%d, should be ~ %d", x, (x_first_end - MOTOR1_FULL_COURSE_STEPS));
 
                 err_code = RET_ERROR_INVALID_STATE;
                 break;
