@@ -8,9 +8,7 @@ RUN apt-get update && \
         device-tree-compiler \
         dfu-util \
         file \
-        g++-multilib \
         gcc \
-        gcc-multilib \
         git \
         gperf \
         libsdl2-dev \
@@ -42,13 +40,16 @@ RUN cd /tmp && \
     git remote add origin -f https://github.com/zephyrproject-rtos/zephyr.git && \
     git pull origin main && \
     pip3 install -r scripts/requirements.txt && \
+    cd .. && \
     rm -rf zephyr
 
+# Download and install Zephyr SDK
 ARG SDK_VER=0.13.1
 RUN cd /tmp && \
-    wget -nv https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SDK_VER}/zephyr-sdk-${SDK_VER}-linux-x86_64-setup.run && \
-    chmod +x zephyr-sdk-${SDK_VER}-linux-x86_64-setup.run && \
-    ./zephyr-sdk-${SDK_VER}-linux-x86_64-setup.run -- -d /opt/zephyr-sdk-${SDK_VER} && \
-    rm zephyr-sdk-${SDK_VER}-linux-x86_64-setup.run && \
+    ARCH="$(uname -m)" && \
+    wget -nv https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SDK_VER}/zephyr-sdk-${SDK_VER}-linux-${ARCH}-setup.run && \
+    chmod +x zephyr-sdk-${SDK_VER}-linux-${ARCH}-setup.run && \
+    ./zephyr-sdk-${SDK_VER}-linux-${ARCH}-setup.run -- -d /opt/zephyr-sdk-${SDK_VER} && \
+    rm zephyr-sdk-${SDK_VER}-linux-${ARCH}-setup.run && \
     cd /opt/zephyr-sdk-${SDK_VER} && \
     rm -rf aarch64-zephyr-elf/ arc-zephyr-elf/ arc64-zephyr-elf/ mips-zephyr-elf/ nios2-zephyr-elf/ riscv64-zephyr-elf/ sparc-zephyr-elf/ xtensa/ sysroots
