@@ -41,7 +41,7 @@ const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][2] = {
     {0x6F, 0x7F}, // DRV_STATUS
 };
 
-#define MOTOR_INIT_VMAX             60000
+#define MOTOR_INIT_VMAX             80000
 #define MOTOR_FS_VMAX               800000
 #define MOTOR1_FULL_COURSE_STEPS    (256*600)
 
@@ -298,9 +298,9 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
     uint32_t status;
     int32_t x_first_end = 0;
     // timeout to detect first end
-    // in unit of 250ms = 3.5 seconds
-    // = maximum time to go from one side to the other during auto-homing
-    uint32_t timeout = 14;
+    // in unit of 250ms = 5 seconds
+    // = maximum time to go from one side to the other during auto-homing + some delay
+    uint32_t timeout = 16;
 
     while (1) {
         status = motor_spi_read(spi_bus_controller, TMC5041_REGISTERS[REG_IDX_DRV_STATUS][motor]);
