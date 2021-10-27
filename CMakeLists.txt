@@ -36,7 +36,9 @@ set(SOURCES_FILES
         src/messaging/canbus.c
         src/messaging/messaging.c
         src/messaging/messaging_tests.c
+        )
 
+target_sources_ifdef(CONFIG_BOARD_ORB ${TARGET} PRIVATE
         src/power_sequence/power_sequence.c
         src/fan/fan.c
         src/sound/sound.c
