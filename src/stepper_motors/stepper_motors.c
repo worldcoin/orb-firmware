@@ -17,15 +17,16 @@ K_THREAD_STACK_DEFINE(stack_area_motor1_init, 256);
 K_THREAD_STACK_DEFINE(stack_area_motor2_init, 256);
 static struct k_thread thread_data_motor1;
 static struct k_thread thread_data_motor2;
+static k_tid_t tid_autohoming[2] = {0};
 
 typedef enum tmc5041_registers_e
 {
   REG_IDX_XACTUAL,
   REG_IDX_VSTART,
   REG_IDX_XTARGET,
-  REG_IDX_COOLCONF,
-  REG_IDX_RAMP_STAT,
   REG_IDX_SW_MODE,
+  REG_IDX_RAMP_STAT,
+  REG_IDX_COOLCONF,
   REG_IDX_DRV_STATUS,
   REG_IDX_COUNT
 } tmc5041_registers_t;
@@ -34,9 +35,9 @@ const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][2] = {
     {0x21, 0x41}, // XACTUAL
     {0x23, 0x43}, // VSTART
     {0x2D, 0x4D}, // XTARGET
-    {0x6D, 0x7D}, // COOLCONF
-    {0x35, 0x55}, // RAMP_STAT
     {0x34, 0x54}, // SW_MODE
+    {0x35, 0x55}, // RAMP_STAT
+    {0x6D, 0x7D}, // COOLCONF
     {0x6F, 0x7F}, // DRV_STATUS
 };
 
@@ -55,7 +56,7 @@ typedef struct
 {
   int x0;           // step at x=0 (middle position)
   int x_current;
-  bool is_init;
+  uint32_t motor_state;
 } motors_refs_t;
 
 static motors_refs_t motors_refs[2] = {0};
@@ -236,11 +237,11 @@ motors_set_angle(int8_t d, uint8_t motor)
     __ASSERT(d <= 100 && d >= -100, "Accepted range is [-100;100]");
     __ASSERT(motor <= 1, "Motor number not handled");
 
-    LOG_INF("Setting motor %u to: %d", motor, d);
-
-    if (motors_refs[motor].is_init == false) {
-        return RET_ERROR_INVALID_STATE;
+    if (motors_refs[motor].motor_state) {
+        return motors_refs[motor].motor_state;
     }
+
+    LOG_INF("Setting motor %u to: %d", motor, d);
 
     motor_spi_write(spi_bus_controller,
                     TMC5041_REGISTERS[REG_IDX_XTARGET][motor],
@@ -267,6 +268,7 @@ motors_init_thread(void *p1, void *p2, void *p3)
     UNUSED_PARAMETER(p2);
     UNUSED_PARAMETER(p3);
 
+    ret_code_t err_code = RET_SUCCESS;
     uint32_t motor = (uint32_t) p1;
 
     LOG_INF("Initializing motor %u", motor);
@@ -289,10 +291,9 @@ motors_init_thread(void *p1, void *p2, void *p3)
 
     while (1) {
         status = motor_spi_read(spi_bus_controller, TMC5041_REGISTERS[REG_IDX_DRV_STATUS][motor]);
-        LOG_DBG("Status 0x%08x", status);
+        LOG_DBG("Status %d 0x%08x", motor, status);
 
-        // motor stalled, stopped by using sg_stop
-
+        // checking if motor stalled, stopped by using sg_stop
         if (x_first_end == 0 && status & (1 << 24)) {
             // disable sg_stop
             motor_spi_write(spi_bus_controller, TMC5041_REGISTERS[REG_IDX_SW_MODE][motor], 0x0);
@@ -321,8 +322,8 @@ motors_init_thread(void *p1, void *p2, void *p3)
 
         if (x_first_end != 0 && status & (1 << 24)) {
             LOG_WRN("Motor %u stalled when trying to reach other end", motor);
-            // TODO raise error RET_ERROR_INVALID_STATE
-            return;
+            err_code = RET_ERROR_INVALID_STATE;
+            break;
         }
 
         if (x_first_end != 0 && status & (1 << 31)) {
@@ -333,10 +334,10 @@ motors_init_thread(void *p1, void *p2, void *p3)
             LOG_INF("Motor %u reached other end, pos %d", motor, x);
 
             if (abs(x - (x_first_end - MOTOR1_FULL_COURSE_STEPS)) > 256) {
-                LOG_INF("Didn't reached target: x=%ld, should be ~ %ld", x, (x_first_end - MOTOR1_FULL_COURSE_STEPS));
+                LOG_INF("Didn't reached target: x=%ld, should be ~ %d", x, (x_first_end - MOTOR1_FULL_COURSE_STEPS));
 
-                // TODO raise error RET_ERROR_INVALID_STATE
-                return;
+                err_code = RET_ERROR_INVALID_STATE;
+                break;
             }
 
             motors_refs[motor].x0 = x + (MOTOR1_FULL_COURSE_STEPS / 2);
@@ -350,14 +351,49 @@ motors_init_thread(void *p1, void *p2, void *p3)
                                     position_mode_full_speed[motor],
                                     ARRAY_SIZE(position_mode_full_speed[motor]));
 
-            // motor is initialized
-            motors_refs[motor].is_init = true;
-
-            return;
+            break;
         }
 
         k_msleep(250);
     }
+
+    // keep auto-homing state
+    motors_refs[motor].motor_state = err_code;
+
+    if (err_code) {
+        // todo raise event motor issue
+    }
+
+    tid_autohoming[motor] = NULL;
+}
+
+ret_code_t
+motors_auto_homing(uint8_t motor)
+{
+    __ASSERT(motor <= 1, "Wrong motor number");
+
+    if (tid_autohoming[motor] != NULL) {
+        LOG_ERR("Motor %u auto-homing already in progress", motor);
+        return RET_ERROR_FORBIDDEN;
+    }
+
+    if (motor == 0) {
+        tid_autohoming[motor] =
+            k_thread_create(&thread_data_motor1, stack_area_motor1_init, K_THREAD_STACK_SIZEOF(stack_area_motor1_init),
+                            motors_init_thread, 0, NULL, NULL,
+                            THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
+    } else {
+        tid_autohoming[motor] =
+            k_thread_create(&thread_data_motor2, stack_area_motor2_init, K_THREAD_STACK_SIZEOF(stack_area_motor2_init),
+                            motors_init_thread, (void *) 1, NULL, NULL,
+                            THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
+    }
+
+    if (tid_autohoming[motor] == NULL) {
+        return RET_ERROR_INTERNAL;
+    }
+
+    return RET_SUCCESS;
 }
 
 ret_code_t
@@ -385,13 +421,11 @@ motors_init(void)
         return RET_ERROR_INVALID_STATE;
     }
 
-    k_thread_create(&thread_data_motor1, stack_area_motor1_init, K_THREAD_STACK_SIZEOF(stack_area_motor1_init),
-                    motors_init_thread, 0, NULL, NULL,
-                    THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
+    motors_refs[0].motor_state = RET_ERROR_NOT_INITIALIZED;
+    motors_refs[1].motor_state = RET_ERROR_NOT_INITIALIZED;
 
-    k_thread_create(&thread_data_motor2, stack_area_motor2_init, K_THREAD_STACK_SIZEOF(stack_area_motor2_init),
-                    motors_init_thread, (void *) 1, NULL, NULL,
-                    THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
+    motors_auto_homing(0);
+    motors_auto_homing(1);
 
     return RET_SUCCESS;
 }
