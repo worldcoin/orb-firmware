@@ -310,7 +310,7 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
         // - motor stopped by using sg_stop (status flag)
         // OR
         // - timeout==0 means the motor is blocked in end course (didn't move at all, preventing sg_stop from working)
-        if (x_first_end == 0 && (status & (1 << 24) || timeout-- == 0)) {
+        if (x_first_end == 0 && (status & (1 << 24) || --timeout == 0)) {
             if (timeout == 0) {
                 LOG_WRN("Timeout while looking for first end on motor %d", motor);
             }
