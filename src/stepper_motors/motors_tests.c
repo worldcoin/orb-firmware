@@ -7,7 +7,6 @@
 #include <zephyr.h>
 
 #include <logging/log.h>
-#include <random/rand32.h>
 #include <app_config.h>
 LOG_MODULE_REGISTER(motors_test);
 
@@ -36,11 +35,10 @@ test_routine()
         }
 
         if (motor) {
-            err_code = motors_angle_horizontal((int8_t) angle);
-        } else {
             err_code = motors_angle_vertical((int8_t) angle);
+        } else {
+            err_code = motors_angle_horizontal((int8_t) angle);
         }
-
 
         switch (err_code) {
         case RET_SUCCESS: {
@@ -48,12 +46,20 @@ test_routine()
         }
             break;
 
-        case RET_ERROR_INVALID_STATE: {
-            LOG_ERR("Motor not initialized");
+        case RET_ERROR_NOT_INITIALIZED: {
+            LOG_ERR("Motor %d not initialized", motor);
+            motors_auto_homing(motor);
         }
             break;
 
-        default:LOG_WRN("Setting motor angle ret: %u", err_code);
+        case RET_ERROR_INVALID_STATE: {
+            LOG_ERR("Motor %d invalid state", motor);
+        }
+            break;
+
+        default: {
+            LOG_WRN("Setting motor %d angle ret: %u", motor, err_code);
+        }
         }
     }
 }
