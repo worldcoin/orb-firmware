@@ -10,6 +10,7 @@
 // work queue                           CONFIG_SYSTEM_WORKQUEUE_PRIORITY = -1
 #define THREAD_PRIORITY_CAN_RX          5
 #define THREAD_PRIORITY_PROCESS_TX_MSG  7
+#define THREAD_PRIORITY_MOTORS_INIT     8
 #define THREAD_PRIORITY_TESTS           9
 // main thread priority                 10 // set as
 // logging thread priority              14

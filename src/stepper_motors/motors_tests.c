@@ -20,13 +20,41 @@ static struct k_thread test_thread_data;
 static _Noreturn void
 test_routine()
 {
-    while(1)
-    {
-        k_msleep(10000);
+    int8_t angle = 0;
+    bool motor = true;
+    ret_code_t err_code;
 
-        int8_t random_angle = ((int32_t) sys_rand32_get())  % 100;
+    while (1) {
+        k_msleep(2000);
 
-        motors_angle_horizontal((int8_t) random_angle);
+        /* switch motor and angle */
+        if (angle > 0) {
+            angle = -100;
+            motor = !motor;
+        } else {
+            angle = 100;
+        }
+
+        if (motor) {
+            err_code = motors_angle_horizontal((int8_t) angle);
+        } else {
+            err_code = motors_angle_vertical((int8_t) angle);
+        }
+
+
+        switch (err_code) {
+        case RET_SUCCESS: {
+            /* Do nothing */
+        }
+            break;
+
+        case RET_ERROR_INVALID_STATE: {
+            LOG_ERR("Motor not initialized");
+        }
+            break;
+
+        default:LOG_WRN("Setting motor angle ret: %u", err_code);
+        }
     }
 }
 
