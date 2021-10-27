@@ -297,13 +297,24 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 
     uint32_t status;
     int32_t x_first_end = 0;
+    // timeout to detect first end
+    // in unit of 250ms = 3.5 seconds
+    // = maximum time to go from one side to the other during auto-homing
+    uint32_t timeout = 14;
 
     while (1) {
         status = motor_spi_read(spi_bus_controller, TMC5041_REGISTERS[REG_IDX_DRV_STATUS][motor]);
         LOG_DBG("Status %d 0x%08x", motor, status);
 
-        // checking if motor stalled, stopped by using sg_stop
-        if (x_first_end == 0 && status & (1 << 24)) {
+        // motor stall detection done by checking either:
+        // - motor stopped by using sg_stop (status flag)
+        // OR
+        // - timeout==0 means the motor is blocked in end course (didn't move at all, preventing sg_stop from working)
+        if (x_first_end == 0 && (status & (1 << 24) || timeout-- == 0)) {
+            if (timeout == 0) {
+                LOG_WRN("Timeout while looking for first end on motor %d", motor);
+            }
+
             // disable sg_stop
             motor_spi_write(spi_bus_controller, TMC5041_REGISTERS[REG_IDX_SW_MODE][motor], 0x0);
 
