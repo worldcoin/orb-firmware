@@ -262,8 +262,17 @@ motors_angle_vertical(int8_t x)
     return motors_set_angle(x, 1);
 }
 
+/**
+ * @brief Perform auto-homing
+ *
+ * This thread sets the motor state after auto-homing procedure
+ *
+ * @param p1 motor number, casted as uint32_t
+ * @param p2 unused
+ * @param p3 unused
+ */
 static void
-motors_init_thread(void *p1, void *p2, void *p3)
+motors_auto_homing_thread(void *p1, void *p2, void *p3)
 {
     UNUSED_PARAMETER(p2);
     UNUSED_PARAMETER(p3);
@@ -380,12 +389,12 @@ motors_auto_homing(uint8_t motor)
     if (motor == 0) {
         tid_autohoming[motor] =
             k_thread_create(&thread_data_motor1, stack_area_motor1_init, K_THREAD_STACK_SIZEOF(stack_area_motor1_init),
-                            motors_init_thread, 0, NULL, NULL,
+                            motors_auto_homing_thread, 0, NULL, NULL,
                             THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
     } else {
         tid_autohoming[motor] =
             k_thread_create(&thread_data_motor2, stack_area_motor2_init, K_THREAD_STACK_SIZEOF(stack_area_motor2_init),
-                            motors_init_thread, (void *) 1, NULL, NULL,
+                            motors_auto_homing_thread, (void *) 1, NULL, NULL,
                             THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
     }
 
