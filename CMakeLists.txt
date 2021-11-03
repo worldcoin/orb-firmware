@@ -1,10 +1,6 @@
 cmake_minimum_required(VERSION 3.19.0)
 set(TARGET app)
 
-# source toolchain
-set(CMAKE_TOOLCHAIN_FILE utils/cmake/toolchain-gnuarmemb.cmake)
-
-
 # default board is orb
 if (DEFINED ENV{BOARD})
     set(BOARD $ENV{BOARD})
