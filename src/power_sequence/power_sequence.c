@@ -14,8 +14,7 @@ LOG_MODULE_REGISTER(power_sequence);
 static int
 check_is_ready(const struct device *dev, const char *name)
 {
-    if (!device_is_ready(dev))
-    {
+    if (!device_is_ready(dev)) {
         LOG_ERR(FORMAT_STRING "no", name);
         return 1;
     }
@@ -60,8 +59,7 @@ turn_on_power_supplies(void)
         check_is_ready(supply_3v3, "3.3V supply") ||
         check_is_ready(supply_3v3_pg, "3.3V supply power good pin") ||
         check_is_ready(supply_1v8, "1.8V supply") ||
-        check_is_ready(supply_1v8_pg, "1.8V supply power good pin"))
-    {
+        check_is_ready(supply_1v8_pg, "1.8V supply power good pin")) {
         return 1;
     }
 
@@ -74,8 +72,7 @@ turn_on_power_supplies(void)
     k_msleep(100);
 
     if (gpio_pin_configure(supply_5v_pg, SUPPLY_5V_PG_PIN,
-                           SUPPLY_5V_PG_FLAGS | GPIO_INPUT))
-    {
+                           SUPPLY_5V_PG_FLAGS | GPIO_INPUT)) {
         LOG_ERR("Error configuring 5v pg pin!");
         return 1;
     }
@@ -90,8 +87,7 @@ turn_on_power_supplies(void)
     LOG_INF("5V power supply good");
 
     if (gpio_pin_configure(supply_3v3_pg, SUPPLY_3V3_PG_PIN,
-                           SUPPLY_3V3_PG_FLAGS | GPIO_INPUT))
-    {
+                           SUPPLY_3V3_PG_FLAGS | GPIO_INPUT)) {
         LOG_ERR("Error configuring 3.3v pg pin!");
         return 1;
     }
@@ -110,8 +106,7 @@ turn_on_power_supplies(void)
     LOG_INF("3.8V power supply enabled");
 
     if (gpio_pin_configure(supply_1v8_pg, SUPPLY_1V8_PG_PIN,
-                           SUPPLY_1V8_PG_FLAGS | GPIO_INPUT))
-    {
+                           SUPPLY_1V8_PG_FLAGS | GPIO_INPUT)) {
         LOG_ERR("Error configuring 1.8 pg pin!");
         return 1;
     }
@@ -138,33 +133,27 @@ wait_for_power_button_press(void)
 {
     const struct device *power_button = DEVICE_DT_GET(POWER_BUTTON_CTLR);
 
-    if (!device_is_ready(power_button))
-    {
+    if (!device_is_ready(power_button)) {
         LOG_ERR("power button is not ready!");
         return 1;
     }
 
     if (gpio_pin_configure(power_button, POWER_BUTTON_PIN,
-                           POWER_BUTTON_FLAGS | GPIO_INPUT))
-    {
+                           POWER_BUTTON_FLAGS | GPIO_INPUT)) {
         LOG_ERR("Error configuring power button!");
         return 1;
     }
 
     LOG_INF("Waiting for button press of " TOSTR(BUTTON_PRESS_TIME_MS) "ms");
     for (size_t i = 0; i < (BUTTON_PRESS_TIME_MS / BUTTON_SAMPLE_PERIOD_MS);
-         ++i)
-    {
-        if (!gpio_pin_get(power_button, POWER_BUTTON_PIN))
-        {
-            if (i > 1)
-            {
+         ++i) {
+        if (!gpio_pin_get(power_button, POWER_BUTTON_PIN)) {
+            if (i > 1) {
                 LOG_INF("Press stopped.");
             }
             i = 0;
         }
-        if (i == 1)
-        {
+        if (i == 1) {
             LOG_INF("Press started.");
         }
         k_msleep(BUTTON_SAMPLE_PERIOD_MS);
@@ -211,35 +200,30 @@ turn_on_jetson(void)
 
     if (check_is_ready(sleep_wake, "sleep wake pin") ||
         check_is_ready(power_enable, "power enable pin") ||
-        check_is_ready(system_reset, "system reset pin"))
-    {
+        check_is_ready(system_reset, "system reset pin")) {
         return 1;
     }
 
     if (gpio_pin_configure(sleep_wake, SLEEP_WAKE_PIN,
-                           SLEEP_WAKE_FLAGS | GPIO_OUTPUT))
-    {
+                           SLEEP_WAKE_FLAGS | GPIO_OUTPUT)) {
         LOG_ERR("Error configuring sleep wake pin!");
         return 1;
     }
 
     if (gpio_pin_configure(power_enable, POWER_ENABLE_PIN,
-                           POWER_ENABLE_FLAGS | GPIO_OUTPUT))
-    {
+                           POWER_ENABLE_FLAGS | GPIO_OUTPUT)) {
         LOG_ERR("Error configuring power enable pin!");
         return 1;
     }
 
     if (gpio_pin_configure(system_reset, SYSTEM_RESET_PIN,
-                           SYSTEM_RESET_FLAGS | GPIO_INPUT))
-    {
+                           SYSTEM_RESET_FLAGS | GPIO_INPUT)) {
         LOG_ERR("Error configuring system reset pin!");
         return 1;
     }
 
     if (gpio_pin_configure(lte_gps_usb_reset, LTE_GPS_USB_RESET_PIN,
-                           LTE_GPS_USB_RESET_FLAGS | GPIO_OUTPUT))
-    {
+                           LTE_GPS_USB_RESET_FLAGS | GPIO_OUTPUT)) {
         LOG_ERR("Error configuring LTE/GPS/USB reset pin!");
         return 1;
     }

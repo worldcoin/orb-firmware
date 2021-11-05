@@ -31,14 +31,10 @@ test_can_send()
     data_to_serialize.which_message = McuMessage_j_message_tag;
 
     ret_code_t err = RET_ERROR_BUSY;
-    while (1)
-    {
-        if (err == RET_SUCCESS)
-        {
+    while (1) {
+        if (err == RET_SUCCESS) {
             k_msleep(100);
-        }
-        else
-        {
+        } else {
             k_msleep(1000);
         }
 
@@ -63,8 +59,7 @@ tests_messaging_init(void)
                                   K_THREAD_STACK_SIZEOF(test_thread_stack),
                                   test_can_send, NULL, NULL, NULL,
                                   THREAD_PRIORITY_TEST_SEND_CAN, 0, K_NO_WAIT);
-    if (!tid)
-    {
+    if (!tid) {
         LOG_ERR("ERROR spawning test_thread thread");
     }
 }

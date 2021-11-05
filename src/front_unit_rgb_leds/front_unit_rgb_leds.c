@@ -32,8 +32,7 @@ front_unit_rgb_leds_init(void)
     led_strip = DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds));
 #endif
 
-    if (!device_is_ready(led_strip))
-    {
+    if (!device_is_ready(led_strip)) {
         LOG_ERR("Front unit LED strip not ready!");
         return 1;
     }

@@ -33,8 +33,7 @@ messaging_push_tx(McuMessage *message)
     message->version = Version_VERSION_0;
 
     int ret = k_msgq_put(&tx_msg_queue, message, K_NO_WAIT);
-    if (ret)
-    {
+    if (ret) {
         LOG_ERR("Too many tx messages");
         return RET_ERROR_BUSY;
     }
@@ -60,15 +59,13 @@ process_tx_messages_thread()
     McuMessage new;
     char tx_buffer[256];
 
-    while (1)
-    {
+    while (1) {
         // wait for semaphore to be released when TX done
         k_sem_take(&tx_sem, K_FOREVER);
 
         // wait for new message to be queued
         int ret = k_msgq_get(&tx_msg_queue, &new, K_FOREVER);
-        if (ret != 0)
-        {
+        if (ret != 0) {
             // error
             continue;
         }
@@ -77,12 +74,10 @@ process_tx_messages_thread()
         pb_ostream_t stream =
             pb_ostream_from_buffer(tx_buffer, sizeof(tx_buffer));
         bool encoded = pb_encode(&stream, McuMessage_fields, &new);
-        if (encoded)
-        {
+        if (encoded) {
             ret_code_t err_code =
                 canbus_send(tx_buffer, stream.bytes_written, tx_complete_cb);
-            if (err_code != RET_SUCCESS)
-            {
+            if (err_code != RET_SUCCESS) {
                 LOG_WRN("Error sending message");
 
                 // release semaphore, we are not waiting for
