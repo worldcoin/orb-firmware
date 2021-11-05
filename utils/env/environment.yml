@@ -17,6 +17,7 @@ dependencies:
   - openocd
   - gperf
   - clang-format
+  - pre-commit
   - pip:
       - west
       - pyserial
