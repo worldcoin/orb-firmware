@@ -26,3 +26,9 @@ repos:
     rev: v13.0.0
     hooks:
       - id: clang-format
+
+  - repo: https://github.com/sirosen/check-jsonschema
+    rev: 0.5.1
+    hooks:
+      - id: check-github-actions
+      - id: check-github-workflows
