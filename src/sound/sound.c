@@ -19,7 +19,8 @@ LOG_MODULE_REGISTER(sound);
 #define SOUND_AMP_ADDR 0x2c
 #define SOUND_AMP_REG_CTRL2 0x3
 
-int init_sound(void)
+int
+init_sound(void)
 {
     const struct device *sound_mux = DEVICE_DT_GET(SOUND_AMP_MUX_CTLR);
     const struct device *sound_i2c = DEVICE_DT_GET(SOUND_AMP_I2C);

@@ -20,7 +20,8 @@ static struct k_thread test_thread_data;
 /// This function allows the test of the full CAN bus data pipe using two boards
 /// Below, we test the TX thread while a remote Orb will receive data in its RX
 /// thread \return never
-_Noreturn void test_can_send()
+_Noreturn void
+test_can_send()
 {
     int packet = 0;
 
@@ -51,7 +52,8 @@ _Noreturn void test_can_send()
     }
 }
 
-void tests_messaging_init(void)
+void
+tests_messaging_init(void)
 {
     k_tid_t tid = k_thread_create(&test_thread_data, test_thread_stack,
                                   K_THREAD_STACK_SIZEOF(test_thread_stack),

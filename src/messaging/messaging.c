@@ -15,7 +15,8 @@ LOG_MODULE_REGISTER(messaging);
 
 // TX thread
 #define THREAD_PROCESS_TX_MESSAGES_STACKSIZE 1024
-static void process_tx_messages_thread();
+static void
+process_tx_messages_thread();
 K_THREAD_DEFINE(process_tx_messages, THREAD_PROCESS_TX_MESSAGES_STACKSIZE,
                 process_tx_messages_thread, NULL, NULL, NULL,
                 THREAD_PRIORITY_PROCESS_TX_MSG, 0, 0);
@@ -25,7 +26,8 @@ K_MSGQ_DEFINE(tx_msg_queue, sizeof(McuMessage), 8, 4);
 
 K_SEM_DEFINE(tx_sem, 1, 1);
 
-ret_code_t messaging_push_tx(McuMessage *message)
+ret_code_t
+messaging_push_tx(McuMessage *message)
 {
     // make sure data "header" is correctly set
     message->version = Version_VERSION_0;
@@ -39,7 +41,8 @@ ret_code_t messaging_push_tx(McuMessage *message)
     return RET_SUCCESS;
 }
 
-static void tx_complete_cb(int error_nr, void *arg)
+static void
+tx_complete_cb(int error_nr, void *arg)
 {
     ARG_UNUSED(arg);
     ARG_UNUSED(error_nr);
@@ -50,7 +53,8 @@ static void tx_complete_cb(int error_nr, void *arg)
     k_sem_give(&tx_sem);
 }
 
-_Noreturn static void process_tx_messages_thread()
+_Noreturn static void
+process_tx_messages_thread()
 {
     McuMessage new;
     char tx_buffer[256];
@@ -84,7 +88,8 @@ _Noreturn static void process_tx_messages_thread()
     }
 }
 
-ret_code_t messaging_init(void)
+ret_code_t
+messaging_init(void)
 {
     ret_code_t err_code;
 

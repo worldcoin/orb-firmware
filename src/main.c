@@ -15,7 +15,8 @@ LOG_MODULE_REGISTER(main);
 #include "messaging/tests.h"
 #endif
 
-void main(void)
+void
+main(void)
 {
     LOG_INF("Hello from " CONFIG_BOARD " :)");
 

@@ -41,7 +41,8 @@ const struct isotp_msg_id rx_addr = {
 const struct isotp_msg_id tx_addr = {
     .std_id = TX_ADDR, .id_type = CAN_STANDARD_IDENTIFIER, .use_ext_addr = 0};
 
-static void handle_message(McuMessage *new)
+static void
+handle_message(McuMessage *new)
 {
     static uint32_t test_value = 0;
     static uint32_t missed = 0;
@@ -75,7 +76,8 @@ static void handle_message(McuMessage *new)
     }
 }
 
-_Noreturn static void rx_thread(void *arg1, void *arg2, void *arg3)
+_Noreturn static void
+rx_thread(void *arg1, void *arg2, void *arg3)
 {
     ARG_UNUSED(arg1);
     ARG_UNUSED(arg2);
@@ -132,8 +134,8 @@ _Noreturn static void rx_thread(void *arg1, void *arg2, void *arg3)
     }
 }
 
-ret_code_t canbus_send(const char *data, size_t len,
-                       void (*tx_complete_cb)(int, void *))
+ret_code_t
+canbus_send(const char *data, size_t len, void (*tx_complete_cb)(int, void *))
 {
     static struct isotp_send_ctx send_ctx = {0};
 
@@ -148,7 +150,8 @@ ret_code_t canbus_send(const char *data, size_t len,
     return RET_SUCCESS;
 }
 
-ret_code_t canbus_init(void)
+ret_code_t
+canbus_init(void)
 {
     can_dev = device_get_binding(DT_CHOSEN_ZEPHYR_CAN_PRIMARY_LABEL);
     if (!can_dev) {
