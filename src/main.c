@@ -34,7 +34,8 @@ void main(void)
     __ASSERT(front_unit_rgb_leds_init() == 0,
              "Error doing front unit RGB LEDs");
 #endif
-    __ASSERT(do_distributor_rgb_leds() == 0, "Error doing distributor RGB LEDs");
+    __ASSERT(do_distributor_rgb_leds() == 0,
+             "Error doing distributor RGB LEDs");
 
     messaging_init();
 
