@@ -4,11 +4,11 @@
 
 ### Download the source
 
-Go to [the workspace repository](https://github.com/worldcoin/proto2-firmware) 
+Go to [the workspace repository](https://github.com/worldcoin/proto2-firmware)
 and follow the instructions in the README.md.
 
-Once downloaded, West will checkout the repository in the `app_main` directory 
-with a branch called `manifest-rev`. If you want to work on the repo, make sure 
+Once downloaded, West will checkout the repository in the `app_main` directory
+with a branch called `manifest-rev`. If you want to work on the repo, make sure
 to checkout the `main` branch and branch from there.
 
 ```shell
@@ -35,3 +35,10 @@ Flash the target:
 west flash
 ```
 
+## Contributing
+
+### Formatting
+
+```shell
+pre-commit install -c utils/format/pre-commit-config.yaml
+```

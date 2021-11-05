@@ -5,13 +5,11 @@
 #ifndef ORB_FIRMWARE_APP_MAIN_SRC_MESSAGES_H
 #define ORB_FIRMWARE_APP_MAIN_SRC_MESSAGES_H
 
-#include <errors.h>
 #include "mcu_messaging.pb.h"
+#include <errors.h>
 
-ret_code_t
-messaging_push_tx(McuMessage *message);
+ret_code_t messaging_push_tx(McuMessage *message);
 
-ret_code_t
-messaging_init(void);
+ret_code_t messaging_init(void);
 
-#endif //ORB_FIRMWARE_APP_MAIN_SRC_MESSAGES_H
+#endif // ORB_FIRMWARE_APP_MAIN_SRC_MESSAGES_H
