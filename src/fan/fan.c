@@ -15,10 +15,12 @@ LOG_MODULE_REGISTER(fan);
 
 #define MSG "Checking that fan PWM controller is ready... "
 
-int turn_on_fan(void)
+int
+turn_on_fan(void)
 {
     const struct device *fan_pwm = DEVICE_DT_GET(FAN_PWM_CTLR);
-    if (!device_is_ready(fan_pwm)) {
+    if (!device_is_ready(fan_pwm))
+    {
         LOG_ERR(MSG " no");
         return 1;
     }

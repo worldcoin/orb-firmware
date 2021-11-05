@@ -41,33 +41,41 @@ const struct isotp_msg_id rx_addr = {
 const struct isotp_msg_id tx_addr = {
     .std_id = TX_ADDR, .id_type = CAN_STANDARD_IDENTIFIER, .use_ext_addr = 0};
 
-static void handle_message(McuMessage *new)
+static void
+handle_message(McuMessage *new)
 {
     static uint32_t test_value = 0;
     static uint32_t missed = 0;
 
     // handle new message
-    switch (new->message.j_message.which_payload) {
-    case JetsonToMcu_shutdown_tag: {
+    switch (new->message.j_message.which_payload)
+    {
+    case JetsonToMcu_shutdown_tag:
+    {
         LOG_INF("Shutdown command");
-    } break;
+    }
+    break;
 
-    case JetsonToMcu_ir_leds_tag: {
+    case JetsonToMcu_ir_leds_tag:
+    {
         //            LOG_INF("IR led command wavelength: %u,
         //            on_duration: %u",
         //                    new.message.j_message.payload.ir_leds.wavelength,
         //                    new.message.j_message.payload.ir_leds.on_duration);
         if (new->message.j_message.payload.ir_leds.on_duration !=
-            test_value + 1) {
+            test_value + 1)
+        {
             missed++;
             LOG_ERR("%u != %u, c %u",
                     new->message.j_message.payload.ir_leds.on_duration,
                     test_value, missed);
         }
         test_value = new->message.j_message.payload.ir_leds.on_duration;
-    } break;
+    }
+    break;
 
-    case JetsonToMcu_brightness_front_leds_tag: {
+    case JetsonToMcu_brightness_front_leds_tag:
+    {
         LOG_INF(
             "Brightness: %u",
             new->message.j_message.payload.brightness_front_leds.white_leds);
@@ -75,7 +83,8 @@ static void handle_message(McuMessage *new)
     }
 }
 
-_Noreturn static void rx_thread(void *arg1, void *arg2, void *arg3)
+_Noreturn static void
+rx_thread(void *arg1, void *arg2, void *arg3)
 {
     ARG_UNUSED(arg1);
     ARG_UNUSED(arg2);
@@ -92,23 +101,29 @@ _Noreturn static void rx_thread(void *arg1, void *arg2, void *arg3)
     __ASSERT(ret == ISOTP_N_OK, "Failed to bind to rx ID %d [%d]",
              rx_addr.std_id, ret);
 
-    while (1) {
+    while (1)
+    {
         wr_idx = 0;
 
         // enter receiving loop
         // we will not exit until all the bytes are received or timeout
-        do {
+        do
+        {
             // get new block (BS)
             rem_len = isotp_recv_net(&recv_ctx, &buf, K_FOREVER);
-            if (rem_len < ISOTP_N_OK) {
+            if (rem_len < ISOTP_N_OK)
+            {
                 LOG_DBG("Receiving error [%d]", rem_len);
                 break;
             }
 
-            if (wr_idx + buf->len <= sizeof(rx_buffer)) {
+            if (wr_idx + buf->len <= sizeof(rx_buffer))
+            {
                 memcpy(&rx_buffer[wr_idx], buf->data, buf->len);
                 wr_idx += buf->len;
-            } else {
+            }
+            else
+            {
                 // TODO report error somehow (Memfault?)
                 LOG_ERR("CAN frame too long: %u", wr_idx + buf->len);
             }
@@ -116,30 +131,37 @@ _Noreturn static void rx_thread(void *arg1, void *arg2, void *arg3)
             net_buf_unref(buf);
         } while (rem_len > 0);
 
-        if (rem_len == ISOTP_N_OK) {
+        if (rem_len == ISOTP_N_OK)
+        {
             pb_istream_t stream = pb_istream_from_buffer(rx_buffer, wr_idx);
             McuMessage data = {0};
 
             bool decoded = pb_decode(&stream, McuMessage_fields, &data);
-            if (decoded) {
+            if (decoded)
+            {
                 handle_message(&data);
-            } else {
+            }
+            else
+            {
                 LOG_ERR("Error parsing data, discarding");
             }
-        } else {
+        }
+        else
+        {
             LOG_DBG("Data not received: %d", rem_len);
         }
     }
 }
 
-ret_code_t canbus_send(const char *data, size_t len,
-                       void (*tx_complete_cb)(int, void *))
+ret_code_t
+canbus_send(const char *data, size_t len, void (*tx_complete_cb)(int, void *))
 {
     static struct isotp_send_ctx send_ctx = {0};
 
     int ret = isotp_send(&send_ctx, can_dev, data, len, &tx_addr, &rx_addr,
                          tx_complete_cb, NULL);
-    if (ret != ISOTP_N_OK) {
+    if (ret != ISOTP_N_OK)
+    {
         LOG_ERR("Error while sending data to ID %d [%d]", tx_addr.std_id, ret);
 
         return RET_ERROR_INTERNAL;
@@ -148,10 +170,12 @@ ret_code_t canbus_send(const char *data, size_t len,
     return RET_SUCCESS;
 }
 
-ret_code_t canbus_init(void)
+ret_code_t
+canbus_init(void)
 {
     can_dev = device_get_binding(DT_CHOSEN_ZEPHYR_CAN_PRIMARY_LABEL);
-    if (!can_dev) {
+    if (!can_dev)
+    {
         LOG_ERR("CAN: Device driver not found.");
         return RET_ERROR_NOT_FOUND;
     }
@@ -160,7 +184,8 @@ ret_code_t canbus_init(void)
         k_thread_create(&rx_thread_data, rx_thread_stack,
                         K_THREAD_STACK_SIZEOF(rx_thread_stack), rx_thread, NULL,
                         NULL, NULL, THREAD_PRIORITY_CAN_RX, 0, K_NO_WAIT);
-    if (!tid) {
+    if (!tid)
+    {
         LOG_ERR("ERROR spawning rx thread");
         return RET_ERROR_NO_MEM;
     }
