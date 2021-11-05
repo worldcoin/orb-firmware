@@ -1,3 +1,6 @@
 BasedOnStyle: LLVM
 IndentWidth: 4
-BreakBeforeBraces: Linux
+BreakBeforeBraces: Allman
+AlwaysBreakAfterReturnType: All
+AlignAfterOpenBracket: Align
+AlignOperands: Align
