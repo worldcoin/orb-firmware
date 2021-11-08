@@ -1,4 +1,0 @@
-#ifndef IR_CAMERA_SYSTEM
-#define IR_CAMERA_SYSTEM
-
-#endif // IR_CAMERA_SYSTEM

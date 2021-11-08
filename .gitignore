@@ -3,6 +3,7 @@
 cmake-build-*/
 
 build/
+.docker_image_built
 *.egg-info/
 
 # generated files
