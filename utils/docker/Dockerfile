@@ -20,6 +20,7 @@ RUN apt-get update && \
         python3-setuptools \
         python3-tk \
         python3-wheel \
+        udev \
         wget \
         xz-utils
 
@@ -30,26 +31,45 @@ RUN cd /tmp && \
 
 RUN apt-get update && apt-get install -y cmake
 
-RUN pip3 install -U west
+RUN pip3 install \
+    pre-commit \
+    west
 
+ARG BASE_URL=https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/main/scripts
 RUN cd /tmp && \
-    mkdir zephyr && \
-    cd zephyr && \
-    git config --global init.defaultBranch main && \
-    git init && \
-    git remote add origin -f https://github.com/zephyrproject-rtos/zephyr.git && \
-    git pull origin main && \
-    pip3 install -r scripts/requirements.txt && \
-    cd .. && \
-    rm -rf zephyr
+    wget -nv \
+        "$BASE_URL"/requirements.txt \
+        "$BASE_URL"/requirements-base.txt \
+        "$BASE_URL"/requirements-build-test.txt \
+        "$BASE_URL"/requirements-doc.txt \
+        "$BASE_URL"/requirements-run-test.txt \
+        "$BASE_URL"/requirements-extras.txt \
+        "$BASE_URL"/requirements-compliance.txt && \
+    pip3 install -r requirements.txt && \
+    rm \
+        requirements.txt \
+        requirements-base.txt \
+        requirements-build-test.txt \
+        requirements-doc.txt \
+        requirements-run-test.txt \
+        requirements-extras.txt \
+        requirements-compliance.txt
+
+RUN pyocd pack install stm32g474vetx
 
 # Download and install Zephyr SDK
 ARG SDK_VER=0.13.1
 RUN cd /tmp && \
     ARCH="$(uname -m)" && \
-    wget -nv https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SDK_VER}/zephyr-sdk-${SDK_VER}-linux-${ARCH}-setup.run && \
-    chmod +x zephyr-sdk-${SDK_VER}-linux-${ARCH}-setup.run && \
-    ./zephyr-sdk-${SDK_VER}-linux-${ARCH}-setup.run -- -d /opt/zephyr-sdk-${SDK_VER} && \
-    rm zephyr-sdk-${SDK_VER}-linux-${ARCH}-setup.run && \
-    cd /opt/zephyr-sdk-${SDK_VER} && \
-    rm -rf aarch64-zephyr-elf/ arc-zephyr-elf/ arc64-zephyr-elf/ mips-zephyr-elf/ nios2-zephyr-elf/ riscv64-zephyr-elf/ sparc-zephyr-elf/ xtensa/ sysroots
+    wget -nv https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SDK_VER}/zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run && \
+    chmod +x zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run && \
+    ./zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run -- -d /opt/zephyr-sdk-${SDK_VER} && \
+    rm ./zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run
+
+RUN cd /tmp && \
+    git clone https://github.com/ncopa/su-exec.git && \
+    cd su-exec && \
+    make && \
+    cp -v ./su-exec /usr/local/bin && \
+    chmod +s /usr/local/bin/su-exec && \
+    rm -rf /tmp/su-exec
