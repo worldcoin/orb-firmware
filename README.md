@@ -27,12 +27,18 @@ Compile the app:
 west build -b [stm32g484_eval | orb]
 ```
 
-### Installation
+### Flashing
 
-Flash the target:
+If not in the Docker container:
 
 ```shell
 west flash
+```
+
+If in the Docker container:
+
+```shell
+su-exec root west flash
 ```
 
 ## Contributing
