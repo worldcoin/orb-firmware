@@ -3,6 +3,7 @@
 cmake-build-*/
 
 build/
+.docker_image_built
 *.egg-info/
 
 # generated files
@@ -23,4 +24,3 @@ _htmresc/
 # board-specific OpenOCD config that shouldn't be tracked
 # copy-pasted from utils/debug/my_board.cfg.template
 utils/debug/my_board.cfg
-

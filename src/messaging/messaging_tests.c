@@ -6,20 +6,20 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(cantest);
 
-#include <app_config.h>
-#include <mcu_messaging.pb.h>
-#include <zephyr.h>
-#include <errors.h>
-#include <pb_encode.h>
 #include "canbus.h"
 #include "messaging.h"
+#include <app_config.h>
+#include <errors.h>
+#include <mcu_messaging.pb.h>
+#include <pb_encode.h>
+#include <zephyr.h>
 
 K_THREAD_STACK_DEFINE(messaging_test_thread_stack, 1024);
 static struct k_thread test_thread_data;
 
 /// This function allows the test of the full CAN bus data pipe using two boards
-/// Below, we test the TX thread while a remote Orb will receive data in its RX thread
-/// \return never
+/// Below, we test the TX thread while a remote Orb will receive data in its RX
+/// thread \return never
 _Noreturn void
 test_can_send()
 {
@@ -53,12 +53,11 @@ test_can_send()
 void
 messaging_tests_init(void)
 {
-    k_tid_t tid = k_thread_create(&test_thread_data, messaging_test_thread_stack,
-                                  K_THREAD_STACK_SIZEOF(messaging_test_thread_stack),
-                                  test_can_send, NULL, NULL, NULL,
-                                  THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
+    k_tid_t tid = k_thread_create(
+        &test_thread_data, messaging_test_thread_stack,
+        K_THREAD_STACK_SIZEOF(messaging_test_thread_stack), test_can_send, NULL,
+        NULL, NULL, THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
     if (!tid) {
         LOG_ERR("ERROR spawning test_thread thread");
     }
 }
-

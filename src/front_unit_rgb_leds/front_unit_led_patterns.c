@@ -5,7 +5,9 @@
 
 static struct led_rgb leds[60];
 
-void front_unit_rgb_led_ramp_up_and_down_loop(const struct device *led_strip, uint8_t intensity)
+void
+front_unit_rgb_led_ramp_up_and_down_loop(const struct device *led_strip,
+                                         uint8_t intensity)
 {
     for (;;) {
         memset(leds, 0, sizeof leds);
@@ -46,7 +48,9 @@ void front_unit_rgb_led_ramp_up_and_down_loop(const struct device *led_strip, ui
     }
 }
 
-void front_unit_rgb_led_random_loop(const struct device *led_strip, uint8_t intensity)
+void
+front_unit_rgb_led_random_loop(const struct device *led_strip,
+                               uint8_t intensity)
 {
     for (;;) {
         for (int i = 4; i < ARRAY_SIZE(leds); ++i) {
@@ -59,13 +63,15 @@ void front_unit_rgb_led_random_loop(const struct device *led_strip, uint8_t inte
     }
 }
 
-void front_unit_rgb_led_white(const struct device *led_strip, uint8_t intensity)
+void
+front_unit_rgb_led_white(const struct device *led_strip, uint8_t intensity)
 {
     memset(leds, intensity, sizeof leds);
     led_strip_update_rgb(led_strip, leds, ARRAY_SIZE(leds));
 }
 
-void front_unit_rgb_led_off(const struct device *led_strip)
+void
+front_unit_rgb_led_off(const struct device *led_strip)
 {
     memset(leds, 0, sizeof leds);
     led_strip_update_rgb(led_strip, leds, ARRAY_SIZE(leds));

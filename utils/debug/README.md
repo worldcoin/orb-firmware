@@ -2,13 +2,14 @@
 
 ## Logs
 
-Logs are printed out on the UART port. 
+Logs are printed out on the UART port.
 
-Configuration is: 
-  - 115200 8N1
-  - TX pin: `PC10`
-  - RX pin: `PC11` ⚠️ not used: incoming data is not parsed yet
-  - On STM32G-DISCO board, you can use the Virtual COM port (STLink USB).
+Configuration is:
+
+- 115200 8N1
+- TX pin: `PC10`
+- RX pin: `PC11` ⚠️ not used: incoming data is not parsed yet
+- On STM32G-DISCO board, you can use the Virtual COM port (STLink USB).
 
 ### Python scripts
 

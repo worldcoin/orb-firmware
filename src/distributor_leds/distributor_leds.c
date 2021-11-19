@@ -8,4 +8,8 @@ LOG_MODULE_REGISTER(distributor_leds);
 
 #include "distributor_leds.h"
 
-int do_distributor_rgb_leds(void) { return 0; }
+int
+do_distributor_rgb_leds(void)
+{
+    return 0;
+}

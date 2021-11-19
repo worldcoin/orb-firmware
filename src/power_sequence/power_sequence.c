@@ -11,7 +11,8 @@ LOG_MODULE_REGISTER(power_sequence);
 
 #define FORMAT_STRING "Checking that %s is ready... "
 
-static int check_is_ready(const struct device *dev, const char *name)
+static int
+check_is_ready(const struct device *dev, const char *name)
 {
     if (!device_is_ready(dev)) {
         LOG_ERR(FORMAT_STRING "no", name);
@@ -37,7 +38,8 @@ static int check_is_ready(const struct device *dev, const char *name)
 #define SUPPLY_1V8_PG_PIN DT_GPIO_PIN(SUPPLY_1V8_PG_NODE, gpios)
 #define SUPPLY_1V8_PG_FLAGS DT_GPIO_FLAGS(SUPPLY_1V8_PG_NODE, gpios)
 
-int turn_on_power_supplies(void)
+int
+turn_on_power_supplies(void)
 {
     const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
     const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
@@ -126,7 +128,8 @@ int turn_on_power_supplies(void)
 #define POWER_BUTTON_PIN DT_GPIO_PIN(POWER_BUTTON_NODE, gpios)
 #define POWER_BUTTON_FLAGS DT_GPIO_FLAGS(POWER_BUTTON_NODE, gpios)
 
-int wait_for_power_button_press(void)
+int
+wait_for_power_button_press(void)
 {
     const struct device *power_button = DEVICE_DT_GET(POWER_BUTTON_CTLR);
 
@@ -186,7 +189,8 @@ int wait_for_power_button_press(void)
 #define LTE_GPS_USB_RESET_FLAGS DT_GPIO_FLAGS(LTE_GPS_USB_RESET_NODE, gpios)
 #define LTE_GPS_USB_ON 0
 
-int turn_on_jetson(void)
+int
+turn_on_jetson(void)
 {
     const struct device *sleep_wake = DEVICE_DT_GET(SLEEP_WAKE_CTLR);
     const struct device *power_enable = DEVICE_DT_GET(SLEEP_WAKE_CTLR);

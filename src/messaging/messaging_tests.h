@@ -8,4 +8,4 @@
 void
 messaging_tests_init(void);
 
-#endif //ORB_FIRMWARE_APP_MAIN_SRC_MESSAGING_TESTS_H
+#endif // ORB_FIRMWARE_APP_MAIN_SRC_MESSAGING_TESTS_H
