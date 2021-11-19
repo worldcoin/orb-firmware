@@ -6,6 +6,7 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(canbus);
 
+#include "../stepper_motors/stepper_motors.h"
 #include "mcu_messaging.pb.h"
 #include <canbus/isotp.h>
 #include <device.h>
@@ -54,7 +55,14 @@ handle_message(McuMessage *new)
         LOG_INF(
             "Brightness: %u",
             new->message.j_message.payload.brightness_front_leds.brightness);
-    }
+    } break;
+
+    case JetsonToMcu_ocu_mirror_tag: {
+        motors_angle_horizontal(
+            (int8_t) new->message.j_message.payload.ocu_mirror.horizontal);
+        motors_angle_vertical(
+            (int8_t) new->message.j_message.payload.ocu_mirror.vertical);
+    } break;
     }
 }
 
