@@ -31,20 +31,17 @@ test_can_send()
     data_to_serialize.which_message = McuMessage_j_message_tag;
 
     ret_code_t err = RET_ERROR_BUSY;
-    while(1)
-    {
-        if (err == RET_SUCCESS)
-        {
+    while (1) {
+        if (err == RET_SUCCESS) {
             k_msleep(100);
-        }
-        else
-        {
+        } else {
             k_msleep(1000);
         }
 
-        data_to_serialize.message.j_message.which_payload = JetsonToMcu_ir_leds_tag;
-        data_to_serialize.message.j_message.payload.ir_leds.on_duration = packet;
-        data_to_serialize.message.j_message.payload.ir_leds.wavelength = InfraredLEDs_Wavelength_WAVELENGTH_850NM;
+        data_to_serialize.message.j_message.which_payload =
+            JetsonToMcu_brightness_front_leds_tag;
+        data_to_serialize.message.j_message.payload.brightness_front_leds
+            .brightness = packet;
 
         // queue new tx message to test the full TX thread
         err = messaging_push_tx(&data_to_serialize);

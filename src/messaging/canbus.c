@@ -49,9 +49,6 @@ const struct isotp_msg_id tx_addr = {
 static void
 handle_message(McuMessage *new)
 {
-    static uint32_t test_value = 0;
-    static uint32_t missed = 0;
-
     // handle new message
     switch (new->message.j_message.which_payload) {
     case JetsonToMcu_shutdown_tag: {
@@ -59,22 +56,9 @@ handle_message(McuMessage *new)
     }
         break;
 
-    case JetsonToMcu_ir_leds_tag: {
-//            LOG_INF("IR led command wavelength: %u, on_duration: %u",
-//                    new.message.j_message.payload.ir_leds.wavelength,
-//                    new.message.j_message.payload.ir_leds.on_duration);
-        if (new->message.j_message.payload.ir_leds.on_duration != test_value + 1) {
-            missed++;
-            LOG_ERR("%u != %u, c %u", new->message.j_message.payload.ir_leds.on_duration, test_value, missed);
-        }
-        test_value = new->message.j_message.payload.ir_leds.on_duration;
-
-    }
-        break;
-
     case JetsonToMcu_brightness_front_leds_tag: {
         LOG_INF("Brightness: %u",
-                new->message.j_message.payload.brightness_front_leds.white_leds);
+                new->message.j_message.payload.brightness_front_leds.brightness);
     }
     }
 }
@@ -159,7 +143,7 @@ canbus_send(const char *data, size_t len, void (*tx_complete_cb)(int, void *))
 ret_code_t
 canbus_init(void)
 {
-    can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_can_primary));
+    can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
     if (!device_is_ready(can_dev)) {
         LOG_ERR("Internal CAN device not ready");
         return RET_ERROR_NOT_FOUND;
