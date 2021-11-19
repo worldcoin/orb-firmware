@@ -6,8 +6,8 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(canbus);
 
-#include "../stepper_motors/stepper_motors.h"
 #include "mcu_messaging.pb.h"
+#include "stepper_motors/stepper_motors.h"
 #include <canbus/isotp.h>
 #include <device.h>
 #include <pb.h>

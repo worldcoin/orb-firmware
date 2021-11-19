@@ -53,6 +53,7 @@ target_sources_ifdef(CONFIG_BOARD_ORB ${TARGET} PRIVATE
 
 set(INCLUDE_DIRS
         include
+        src
         )
 
 target_sources(${TARGET} PRIVATE ${SOURCES_FILES})
