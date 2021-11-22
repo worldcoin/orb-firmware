@@ -7,8 +7,11 @@
 LOG_MODULE_REGISTER(canbus);
 
 #include "mcu_messaging.pb.h"
+#include "messaging.h"
+#include <assert.h>
 #include <canbus/isotp.h>
 #include <device.h>
+#include <ir_camera_system/ir_camera_system.h>
 #include <pb.h>
 #include <pb_decode.h>
 #include <zephyr.h>
@@ -41,10 +44,137 @@ const struct isotp_msg_id rx_addr = {
 const struct isotp_msg_id tx_addr = {
     .std_id = TX_ADDR, .id_type = CAN_STANDARD_IDENTIFIER, .use_ext_addr = 0};
 
-static void
-handle_message(McuMessage *new)
+static Ack_ErrorCode
+handle_infrared_leds_message(InfraredLEDs leds)
 {
-    LOG_INF("Got message %d", new->message.j_message.which_payload);
+    LOG_DBG("Got LED wavelength message = %d", leds.wavelength);
+    ir_camera_system_enable_leds(leds.wavelength);
+    return Ack_ErrorCode_SUCCESS;
+}
+
+static Ack_ErrorCode
+handle_led_on_time_message(LedOnTimeUs on_time)
+{
+    LOG_DBG("Got LED on time message = %u", on_time.on_duration_us);
+    return ir_camera_system_set_on_time_us(on_time.on_duration_us);
+}
+
+static Ack_ErrorCode
+handle_start_triggering_ir_eye_camera_message(void)
+{
+    LOG_DBG("");
+    ir_camera_system_enable_ir_eye_camera();
+    return Ack_ErrorCode_SUCCESS;
+}
+
+static Ack_ErrorCode
+handle_stop_triggering_ir_eye_camera_message(void)
+{
+    LOG_DBG("");
+    ir_camera_system_disable_ir_eye_camera();
+    return Ack_ErrorCode_SUCCESS;
+}
+
+static Ack_ErrorCode
+handle_start_triggering_ir_face_camera_message(void)
+{
+    LOG_DBG("");
+    ir_camera_system_enable_ir_face_camera();
+    return Ack_ErrorCode_SUCCESS;
+}
+
+static Ack_ErrorCode
+handle_stop_triggering_ir_face_camera_message(void)
+{
+    LOG_DBG("");
+    ir_camera_system_disable_ir_face_camera();
+    return Ack_ErrorCode_SUCCESS;
+}
+
+static Ack_ErrorCode
+handle_start_triggering_2dtof_camera_message(void)
+{
+    LOG_DBG("");
+    ir_camera_system_enable_2d_tof_camera();
+    return Ack_ErrorCode_SUCCESS;
+}
+
+static Ack_ErrorCode
+handle_stop_triggering_2dtof_camera_message(void)
+{
+    LOG_DBG("");
+    ir_camera_system_disable_2d_tof_camera();
+    return Ack_ErrorCode_SUCCESS;
+}
+
+static Ack_ErrorCode
+handle_740nm_brightness_message(Brightness740Nm brightness)
+{
+    LOG_DBG("");
+    return ir_camera_system_set_740nm_led_brightness(brightness.brightness);
+}
+
+static void
+handle_message(McuMessage *m)
+{
+    McuMessage ack = {.which_message = McuMessage_m_message_tag,
+                      .message.m_message.which_payload = McuToJetson_ack_tag,
+                      .message.m_message.payload.ack.ack_number =
+                          m->message.j_message.ack_number,
+                      .message.m_message.payload.ack.error =
+                          Ack_ErrorCode_FAIL};
+
+    if (m->which_message != McuMessage_j_message_tag) {
+        LOG_INF("Got message not intended for MCU. Dropping.");
+        return;
+    }
+
+    LOG_DBG("Got a message: %d", m->message.j_message.which_payload);
+
+    switch (m->message.j_message.which_payload) {
+    case JetsonToMcu_infrared_leds_tag:
+        ack.message.m_message.payload.ack.error = handle_infrared_leds_message(
+            m->message.j_message.payload.infrared_leds);
+        break;
+    case JetsonToMcu_led_on_time_tag:
+        ack.message.m_message.payload.ack.error = handle_led_on_time_message(
+            m->message.j_message.payload.led_on_time);
+        break;
+    case JetsonToMcu_start_triggering_ir_eye_camera_tag:
+        ack.message.m_message.payload.ack.error =
+            handle_start_triggering_ir_eye_camera_message();
+        break;
+    case JetsonToMcu_stop_triggering_ir_eye_camera_tag:
+        ack.message.m_message.payload.ack.error =
+            handle_stop_triggering_ir_eye_camera_message();
+        break;
+    case JetsonToMcu_start_triggering_ir_face_camera_tag:
+        ack.message.m_message.payload.ack.error =
+            handle_start_triggering_ir_face_camera_message();
+        break;
+    case JetsonToMcu_stop_triggering_ir_face_camera_tag:
+        ack.message.m_message.payload.ack.error =
+            handle_stop_triggering_ir_face_camera_message();
+        break;
+    case JetsonToMcu_start_triggering_2dtof_camera_tag:
+        ack.message.m_message.payload.ack.error =
+            handle_start_triggering_2dtof_camera_message();
+        break;
+    case JetsonToMcu_stop_triggering_2dtof_camera_tag:
+        ack.message.m_message.payload.ack.error =
+            handle_stop_triggering_2dtof_camera_message();
+        break;
+    case JetsonToMcu_brightness_740nm_leds_tag:
+        ack.message.m_message.payload.ack.error =
+            handle_740nm_brightness_message(
+                m->message.j_message.payload.brightness_740nm_leds);
+        break;
+    default:
+        LOG_ERR("Unhandled message payload %d!",
+                m->message.j_message.which_payload);
+    }
+
+    messaging_push_tx(&ack);
 }
 
 _Noreturn static void

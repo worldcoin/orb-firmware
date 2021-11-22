@@ -53,10 +53,10 @@ test_can_send()
 void
 tests_messaging_init(void)
 {
-    k_tid_t tid = k_thread_create(&test_thread_data, test_thread_stack,
-                                  K_THREAD_STACK_SIZEOF(test_thread_stack),
-                                  test_can_send, NULL, NULL, NULL,
-                                  THREAD_PRIORITY_TEST_SEND_CAN, 0, K_NO_WAIT);
+    k_tid_t tid =
+        k_thread_create(&test_thread_data, test_thread_stack,
+                        K_THREAD_STACK_SIZEOF(test_thread_stack), test_can_send,
+                        NULL, NULL, NULL, THREAD_PRIORITY_CAN_RX, 0, K_NO_WAIT);
     if (!tid) {
         LOG_ERR("ERROR spawning test_thread thread");
     }

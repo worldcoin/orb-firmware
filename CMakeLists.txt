@@ -1,5 +1,7 @@
-cmake_minimum_required(VERSION 3.19.0)
+cmake_minimum_required(VERSION 3.20.0)
 set(TARGET app)
+
+set_property(GLOBAL PROPERTY CSTD gnu11)
 
 # default board is orb
 if (DEFINED ENV{BOARD})
@@ -40,13 +42,19 @@ set(SOURCES_FILES
         src/power_sequence/power_sequence.c
         src/fan/fan.c
         src/sound/sound.c
+
         src/front_unit_rgb_leds/front_unit_rgb_leds.c
         src/front_unit_rgb_leds/front_unit_led_patterns.c
+
         src/distributor_leds/distributor_leds.c
+
+        src/ir_camera_system/ir_camera_system.c
+        src/ir_camera_system/ir_camera_system_test.c
         )
 
 set(INCLUDE_DIRS
         include
+        src
         )
 
 target_sources(${TARGET} PRIVATE ${SOURCES_FILES})
