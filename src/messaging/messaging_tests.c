@@ -39,8 +39,8 @@ test_can_send()
         }
 
         data_to_serialize.message.j_message.which_payload =
-            JetsonToMcu_brightness_front_leds_tag;
-        data_to_serialize.message.j_message.payload.brightness_front_leds
+            JetsonToMcu_user_leds_brightness_tag;
+        data_to_serialize.message.j_message.payload.user_leds_brightness
             .brightness = packet;
 
         // queue new tx message to test the full TX thread

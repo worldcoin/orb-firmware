@@ -51,17 +51,16 @@ handle_message(McuMessage *new)
         LOG_INF("Shutdown command");
     } break;
 
-    case JetsonToMcu_brightness_front_leds_tag: {
-        LOG_INF(
-            "Brightness: %u",
-            new->message.j_message.payload.brightness_front_leds.brightness);
+    case JetsonToMcu_user_leds_brightness_tag: {
+        LOG_INF("User LED brightness: %u",
+                new->message.j_message.payload.user_leds_brightness.brightness);
     } break;
 
-    case JetsonToMcu_ocu_mirror_tag: {
-        motors_angle_horizontal(
-            (int8_t) new->message.j_message.payload.ocu_mirror.horizontal);
-        motors_angle_vertical(
-            (int8_t) new->message.j_message.payload.ocu_mirror.vertical);
+    case JetsonToMcu_mirror_angle_tag: {
+        motors_angle_horizontal((int8_t) new->message.j_message.payload
+                                    .mirror_angle.horizontal_angle);
+        motors_angle_vertical((int8_t) new->message.j_message.payload
+                                  .mirror_angle.vertical_angle);
     } break;
     }
 }
