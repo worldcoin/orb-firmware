@@ -16,27 +16,29 @@ static struct k_thread test_thread_data;
 /// This function allows the test of the full CAN bus data pipe using two boards
 /// Below, we test the TX thread while a remote Orb will receive data in its RX
 /// thread \return never
-static _Noreturn void test_routine()
+static void
+test_routine()
 {
-    int8_t angle = 0;
+    int8_t angle_vertical = -20;
+    int8_t angle_horizontal = 25;
     bool motor = true;
     ret_code_t err_code;
 
-    while (1) {
-        k_msleep(2000);
+    // wait for motors to initialize themselves
+    k_msleep(10000);
 
-        /* switch motor and angle */
-        if (angle > 0) {
-            angle = -100;
-            motor = !motor;
-        } else {
-            angle = 100;
-        }
+    while (1) {
+        k_msleep(500);
+
+        /* switch motor */
+        motor = !motor;
 
         if (motor) {
-            err_code = motors_angle_vertical((int8_t)angle);
+            err_code = motors_angle_vertical(angle_vertical * 1000);
+            angle_vertical++;
         } else {
-            err_code = motors_angle_horizontal((int8_t)angle);
+            err_code = motors_angle_horizontal(angle_horizontal * 1000);
+            angle_horizontal++;
         }
 
         switch (err_code) {
@@ -52,14 +54,29 @@ static _Noreturn void test_routine()
             LOG_ERR("Motor %d invalid state", motor);
         } break;
 
+        case RET_ERROR_INVALID_PARAM: {
+            if (angle_vertical > 20 && motor) {
+                LOG_INF("Reached vertical end");
+            }
+            if (angle_horizontal > 65 && !motor) {
+                LOG_INF("Reached horizontal end");
+            }
+        } break;
+
         default: {
             LOG_WRN("Setting motor %d angle ret: %u", motor, err_code);
         }
         }
+
+        if (angle_vertical > 20 && angle_horizontal > 65) {
+            LOG_INF("Ending motor test routine");
+            return;
+        }
     }
 }
 
-void motors_tests_init(void)
+void
+motors_tests_init(void)
 {
     k_tid_t tid = k_thread_create(
         &test_thread_data, motors_test_thread_stack,

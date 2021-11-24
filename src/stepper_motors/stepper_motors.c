@@ -146,8 +146,9 @@ const uint64_t position_mode_full_speed[2][8] = {
         0xC000000000,                 // RAMPMODE = 0 position move
     }};
 
-static void motor_spi_send_commands(const struct device *spi_bus_controller,
-                                    const uint64_t *cmds, size_t num_cmds)
+static void
+motor_spi_send_commands(const struct device *spi_bus_controller,
+                        const uint64_t *cmds, size_t num_cmds)
 {
     uint64_t cmd;
     uint8_t tx_buffer[5];
@@ -161,8 +162,9 @@ static void motor_spi_send_commands(const struct device *spi_bus_controller,
     }
 }
 
-static void motor_spi_write(const struct device *spi_bus_controller,
-                            uint8_t reg, uint32_t value)
+static void
+motor_spi_write(const struct device *spi_bus_controller, uint8_t reg,
+                uint32_t value)
 {
     uint8_t tx_buffer[5] = {0};
     uint8_t rx_buffer[5] = {0};
@@ -185,8 +187,8 @@ static void motor_spi_write(const struct device *spi_bus_controller,
     __ASSERT(ret == 0, "Error SPI transceive");
 }
 
-static uint32_t motor_spi_read(const struct device *spi_bus_controller,
-                               uint8_t reg)
+static uint32_t
+motor_spi_read(const struct device *spi_bus_controller, uint8_t reg)
 {
     uint8_t tx_buffer[5] = {0};
     uint8_t rx_buffer[5] = {0};
@@ -222,18 +224,25 @@ static uint32_t motor_spi_read(const struct device *spi_bus_controller,
     return read_value;
 }
 
-static ret_code_t motors_set_angle(int8_t d, uint8_t motor)
+/// Set relative angle in millidegrees from the center position
+/// \param d_from_center millidegrees from center
+/// \param motor motor 0 or 1
+/// \return
+static ret_code_t
+motors_set_angle_relative(int32_t d_from_center, uint8_t motor)
 {
-    __ASSERT(d <= 100 && d >= -100, "Accepted range is [-100;100]");
     __ASSERT(motor <= 1, "Motor number not handled");
 
     if (motors_refs[motor].motor_state) {
         return motors_refs[motor].motor_state;
     }
 
-    int32_t xtarget = motors_refs[motor].x0 +
-                      d * ((motors_full_course_steps[motor] / 2) / 100);
-    LOG_INF("Setting motor %u to: %d (%d)", motor, d, xtarget);
+    int32_t steps_per_degree = (int32_t)motors_full_course_steps[motor] / 40;
+    int32_t xtarget = (d_from_center * steps_per_degree) / 1000;
+    xtarget = xtarget + motors_refs[motor].x0;
+
+    LOG_INF("Setting motor %u to: %d milli-degrees (%d)", motor, d_from_center,
+            xtarget);
 
     motor_spi_write(spi_bus_controller,
                     TMC5041_REGISTERS[REG_IDX_XTARGET][motor], xtarget);
@@ -241,9 +250,30 @@ static ret_code_t motors_set_angle(int8_t d, uint8_t motor)
     return RET_SUCCESS;
 }
 
-ret_code_t motors_angle_horizontal(int8_t x) { return motors_set_angle(x, 0); }
+ret_code_t
+motors_angle_horizontal(int32_t angle_millidegrees)
+{
+    if (angle_millidegrees > 65000 || angle_millidegrees < 25000) {
+        LOG_ERR("Accepted range is [25000;65000]");
+        return RET_ERROR_INVALID_PARAM;
+    }
 
-ret_code_t motors_angle_vertical(int8_t x) { return motors_set_angle(x, 1); }
+    // recenter
+    int32_t m_degrees_from_center = angle_millidegrees - 45000;
+
+    return motors_set_angle_relative(m_degrees_from_center, 0);
+}
+
+ret_code_t
+motors_angle_vertical(int32_t angle_millidegrees)
+{
+    if (angle_millidegrees > 20000 || angle_millidegrees < -20000) {
+        LOG_ERR("Accepted range is [-20000;20000]");
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    return motors_set_angle_relative(angle_millidegrees, 1);
+}
 
 /**
  * @brief Perform auto-homing
@@ -254,7 +284,8 @@ ret_code_t motors_angle_vertical(int8_t x) { return motors_set_angle(x, 1); }
  * @param p2 unused
  * @param p3 unused
  */
-static void motors_auto_homing_thread(void *p1, void *p2, void *p3)
+static void
+motors_auto_homing_thread(void *p1, void *p2, void *p3)
 {
     UNUSED_PARAMETER(p2);
     UNUSED_PARAMETER(p3);
@@ -307,13 +338,15 @@ static void motors_auto_homing_thread(void *p1, void *p2, void *p3)
             motor_spi_write(spi_bus_controller,
                             TMC5041_REGISTERS[REG_IDX_VMAX][motor], 0x0);
 
-            // read current position at least twice to make sure motor is stopped
+            // read current position at least twice to make sure motor is
+            // stopped
             x_first_end = 0;
             int32_t x = 0;
             do {
                 x_first_end = x;
                 x = (int32_t)motor_spi_read(
-                    spi_bus_controller, TMC5041_REGISTERS[REG_IDX_XACTUAL][motor]);
+                    spi_bus_controller,
+                    TMC5041_REGISTERS[REG_IDX_XACTUAL][motor]);
                 k_msleep(10);
             } while (x_first_end != x);
 
@@ -398,7 +431,8 @@ static void motors_auto_homing_thread(void *p1, void *p2, void *p3)
     tid_autohoming[motor] = NULL;
 }
 
-ret_code_t motors_auto_homing(uint8_t motor)
+ret_code_t
+motors_auto_homing(uint8_t motor)
 {
     __ASSERT(motor <= 1, "Wrong motor number");
 
@@ -411,13 +445,13 @@ ret_code_t motors_auto_homing(uint8_t motor)
         tid_autohoming[motor] =
             k_thread_create(&thread_data_motor1, stack_area_motor1_init,
                             K_THREAD_STACK_SIZEOF(stack_area_motor1_init),
-                            motors_auto_homing_thread, (void *) 0, NULL, NULL,
+                            motors_auto_homing_thread, (void *)0, NULL, NULL,
                             THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
     } else {
         tid_autohoming[motor] =
             k_thread_create(&thread_data_motor2, stack_area_motor2_init,
                             K_THREAD_STACK_SIZEOF(stack_area_motor2_init),
-                            motors_auto_homing_thread, (void *) 1, NULL, NULL,
+                            motors_auto_homing_thread, (void *)1, NULL, NULL,
                             THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
     }
 
@@ -428,7 +462,8 @@ ret_code_t motors_auto_homing(uint8_t motor)
     return RET_SUCCESS;
 }
 
-ret_code_t motors_init(void)
+ret_code_t
+motors_init(void)
 {
     uint32_t read_value;
 
