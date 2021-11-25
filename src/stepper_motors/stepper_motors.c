@@ -17,16 +17,16 @@ static struct k_thread thread_data_motor_vertical;
 static k_tid_t tid_autohoming[MOTOR_COUNT] = {0};
 
 // SPI w/ TMC5041
-#define SPI_DEVICE DT_NODELABEL(motion_controller)
+#define SPI_DEVICE          DT_NODELABEL(motion_controller)
 #define SPI_CONTROLLER_NODE DT_PARENT(SPI_DEVICE)
 
-#define READ 0
+#define READ  0
 #define WRITE (1 << 7)
 
 #define TMC5041_IC_VERSION 0x10
 
 #define TMC5041_REG_GCONF 0x00
-#define REG_INPUT 0x04
+#define REG_INPUT         0x04
 
 typedef enum tmc5041_registers_e {
     REG_IDX_XACTUAL,
@@ -67,7 +67,7 @@ static struct spi_buf_set tx_bufs = {.buffers = &tx, .count = 1};
 
 // Motors configuration
 #define MOTOR_INIT_VMAX 80000
-#define MOTOR_FS_VMAX 800000
+#define MOTOR_FS_VMAX   800000
 
 const uint32_t motors_full_course_steps[MOTOR_COUNT] = {(300 * 256),
                                                         (500 * 256)};
