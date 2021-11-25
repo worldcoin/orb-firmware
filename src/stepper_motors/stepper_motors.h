@@ -3,13 +3,7 @@
 
 #include <errors.h>
 
-#define READ 0
-#define WRITE (1 << 7)
-
-#define TMC5041_IC_VERSION 0x10
-
-#define TMC5041_REG_GCONF 0x00
-#define REG_INPUT 0x04
+typedef enum { MOTOR_VERTICAL = 0, MOTOR_HORIZONTAL, MOTOR_COUNT } motor_t;
 
 /**
  * Set horizontal angle
@@ -46,7 +40,7 @@ motors_angle_vertical(int32_t angle_millidegrees);
  * * RET_ERROR_FORBIDDEN auto-homing already in progress
  */
 ret_code_t
-motors_auto_homing(uint8_t motor);
+motors_auto_homing(motor_t motor);
 
 /**
  * Initiliazing motors

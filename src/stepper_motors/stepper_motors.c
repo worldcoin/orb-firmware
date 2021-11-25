@@ -10,14 +10,23 @@
 #include <stdlib.h>
 LOG_MODULE_REGISTER(stepper_motors);
 
+K_THREAD_STACK_DEFINE(stack_area_motor_horizontal_init, 256);
+K_THREAD_STACK_DEFINE(stack_area_motor_vertical_init, 256);
+static struct k_thread thread_data_motor_horizontal;
+static struct k_thread thread_data_motor_vertical;
+static k_tid_t tid_autohoming[MOTOR_COUNT] = {0};
+
+// SPI w/ TMC5041
 #define SPI_DEVICE DT_NODELABEL(motion_controller)
 #define SPI_CONTROLLER_NODE DT_PARENT(SPI_DEVICE)
 
-K_THREAD_STACK_DEFINE(stack_area_motor1_init, 256);
-K_THREAD_STACK_DEFINE(stack_area_motor2_init, 256);
-static struct k_thread thread_data_motor1;
-static struct k_thread thread_data_motor2;
-static k_tid_t tid_autohoming[2] = {0};
+#define READ 0
+#define WRITE (1 << 7)
+
+#define TMC5041_IC_VERSION 0x10
+
+#define TMC5041_REG_GCONF 0x00
+#define REG_INPUT 0x04
 
 typedef enum tmc5041_registers_e {
     REG_IDX_XACTUAL,
@@ -31,7 +40,7 @@ typedef enum tmc5041_registers_e {
     REG_IDX_COUNT
 } tmc5041_registers_t;
 
-const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][2] = {
+const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][MOTOR_COUNT] = {
     {0x21, 0x41}, // XACTUAL
     {0x23, 0x43}, // VSTART
     {0x27, 0x47}, // VMAX
@@ -42,12 +51,6 @@ const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][2] = {
     {0x6F, 0x7F}, // DRV_STATUS
 };
 
-#define MOTOR_INIT_VMAX 80000
-#define MOTOR_FS_VMAX 800000
-
-const uint32_t motors_full_course_steps[2] = {(500 * 256), (300 * 256)};
-const uint8_t motors_stall_guard_threshold[2] = {5, 5};
-
 static struct spi_config spi_cfg = {.frequency = 1000000,
                                     .operation = SPI_WORD_SET(8) |
                                                  SPI_OP_MODE_MASTER |
@@ -56,21 +59,29 @@ static struct spi_config spi_cfg = {.frequency = 1000000,
 static const struct device *spi_bus_controller =
     DEVICE_DT_GET(SPI_CONTROLLER_NODE);
 
-typedef struct {
-    int x0; // step at x=0 (middle position)
-    int x_current;
-    uint32_t motor_state;
-} motors_refs_t;
-
-static motors_refs_t motors_refs[2] = {0};
-
 static struct spi_buf rx;
 static struct spi_buf_set rx_bufs = {.buffers = &rx, .count = 1};
 
 static struct spi_buf tx;
 static struct spi_buf_set tx_bufs = {.buffers = &tx, .count = 1};
 
-const uint64_t motor_init_for_velocity_mode[2][11] = {
+// Motors configuration
+#define MOTOR_INIT_VMAX 80000
+#define MOTOR_FS_VMAX 800000
+
+const uint32_t motors_full_course_steps[MOTOR_COUNT] = {(300 * 256),
+                                                        (500 * 256)};
+const uint8_t motors_stall_guard_threshold[MOTOR_COUNT] = {5, 5};
+
+typedef struct {
+    int x0; // step at x=0 (middle position)
+    int x_current;
+    uint32_t motor_state;
+} motors_refs_t;
+
+static motors_refs_t motors_refs[MOTOR_COUNT] = {0};
+
+const uint64_t motor_init_for_velocity_mode[MOTOR_COUNT][11] = {
     {0x8000000008,
      0xEC000100C5, // 0x6C CHOPCONF
      0xB000011000, // IHOLD_IRUN reg, bytes from left to right: I_HOLD=0,
@@ -100,7 +111,7 @@ const uint64_t motor_init_for_velocity_mode[2][11] = {
      0xD400000000 | (1 << 10),       // SW_MODE sg_stop
      0xC000000001}};
 
-const uint64_t position_mode_initial_phase[2][8] = {
+const uint64_t position_mode_initial_phase[MOTOR_COUNT][8] = {
     {
         0xA4000003E8, // A1 first acceleration
         0xA50000C350, // V1 Acceleration threshold, velocity V1
@@ -122,7 +133,7 @@ const uint64_t position_mode_initial_phase[2][8] = {
         0xC000000000,                   // RAMPMODE = 0 position move
     }};
 
-const uint64_t position_mode_full_speed[2][8] = {
+const uint64_t position_mode_full_speed[MOTOR_COUNT][8] = {
     {
         0xA400008000, // A1 first acceleration
         0xA500000000 +
@@ -229,9 +240,9 @@ motor_spi_read(const struct device *spi_bus_controller, uint8_t reg)
 /// \param motor motor 0 or 1
 /// \return
 static ret_code_t
-motors_set_angle_relative(int32_t d_from_center, uint8_t motor)
+motors_set_angle_relative(int32_t d_from_center, motor_t motor)
 {
-    __ASSERT(motor <= 1, "Motor number not handled");
+    __ASSERT(motor < MOTOR_COUNT, "Motor number not handled");
 
     if (motors_refs[motor].motor_state) {
         return motors_refs[motor].motor_state;
@@ -261,7 +272,7 @@ motors_angle_horizontal(int32_t angle_millidegrees)
     // recenter
     int32_t m_degrees_from_center = angle_millidegrees - 45000;
 
-    return motors_set_angle_relative(m_degrees_from_center, 0);
+    return motors_set_angle_relative(m_degrees_from_center, MOTOR_HORIZONTAL);
 }
 
 ret_code_t
@@ -272,7 +283,7 @@ motors_angle_vertical(int32_t angle_millidegrees)
         return RET_ERROR_INVALID_PARAM;
     }
 
-    return motors_set_angle_relative(angle_millidegrees, 1);
+    return motors_set_angle_relative(angle_millidegrees, MOTOR_VERTICAL);
 }
 
 /**
@@ -432,27 +443,27 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 }
 
 ret_code_t
-motors_auto_homing(uint8_t motor)
+motors_auto_homing(motor_t motor)
 {
-    __ASSERT(motor <= 1, "Wrong motor number");
+    __ASSERT(motor <= MOTOR_COUNT, "Wrong motor number");
 
     if (tid_autohoming[motor] != NULL) {
         LOG_ERR("Motor %u auto-homing already in progress", motor);
         return RET_ERROR_FORBIDDEN;
     }
 
-    if (motor == 0) {
-        tid_autohoming[motor] =
-            k_thread_create(&thread_data_motor1, stack_area_motor1_init,
-                            K_THREAD_STACK_SIZEOF(stack_area_motor1_init),
-                            motors_auto_homing_thread, (void *)0, NULL, NULL,
-                            THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
+    if (motor == MOTOR_HORIZONTAL) {
+        tid_autohoming[motor] = k_thread_create(
+            &thread_data_motor_horizontal, stack_area_motor_horizontal_init,
+            K_THREAD_STACK_SIZEOF(stack_area_motor_horizontal_init),
+            motors_auto_homing_thread, (void *)MOTOR_HORIZONTAL, NULL, NULL,
+            THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
     } else {
-        tid_autohoming[motor] =
-            k_thread_create(&thread_data_motor2, stack_area_motor2_init,
-                            K_THREAD_STACK_SIZEOF(stack_area_motor2_init),
-                            motors_auto_homing_thread, (void *)1, NULL, NULL,
-                            THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
+        tid_autohoming[motor] = k_thread_create(
+            &thread_data_motor_vertical, stack_area_motor_vertical_init,
+            K_THREAD_STACK_SIZEOF(stack_area_motor_vertical_init),
+            motors_auto_homing_thread, (void *)MOTOR_VERTICAL, NULL, NULL,
+            THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
     }
 
     if (tid_autohoming[motor] == NULL) {
@@ -487,11 +498,11 @@ motors_init(void)
         return RET_ERROR_INVALID_STATE;
     }
 
-    motors_refs[0].motor_state = RET_ERROR_NOT_INITIALIZED;
-    motors_refs[1].motor_state = RET_ERROR_NOT_INITIALIZED;
+    motors_refs[MOTOR_HORIZONTAL].motor_state = RET_ERROR_NOT_INITIALIZED;
+    motors_refs[MOTOR_VERTICAL].motor_state = RET_ERROR_NOT_INITIALIZED;
 
-    motors_auto_homing(0);
-    motors_auto_homing(1);
+    motors_auto_homing(MOTOR_HORIZONTAL);
+    motors_auto_homing(MOTOR_VERTICAL);
 
     return RET_SUCCESS;
 }
