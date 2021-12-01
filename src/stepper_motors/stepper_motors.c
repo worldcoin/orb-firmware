@@ -332,7 +332,7 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
     while (1) {
         status = motor_spi_read(spi_bus_controller,
                                 TMC5041_REGISTERS[REG_IDX_DRV_STATUS][motor]);
-        LOG_INF("Status %d 0x%08x", motor, status);
+        LOG_DBG("Status %d 0x%08x", motor, status);
 
         // motor stall detection done by checking either:
         // - motor stopped by using sg_stop (status flag)
