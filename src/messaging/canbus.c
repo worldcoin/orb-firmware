@@ -45,17 +45,10 @@ const struct isotp_msg_id tx_addr = {
 static void
 handle_message(McuMessage *new)
 {
+    LOG_INF("Got message %d", new->message.j_message.which_payload);
+
     // handle new message
     switch (new->message.j_message.which_payload) {
-    case JetsonToMcu_shutdown_tag: {
-        LOG_INF("Shutdown command");
-    } break;
-
-    case JetsonToMcu_user_leds_brightness_tag: {
-        LOG_INF("User LED brightness: %u",
-                new->message.j_message.payload.user_leds_brightness.brightness);
-    } break;
-
     case JetsonToMcu_mirror_angle_tag: {
         motors_angle_horizontal((int8_t) new->message.j_message.payload
                                     .mirror_angle.horizontal_angle);
@@ -143,8 +136,8 @@ ret_code_t
 canbus_init(void)
 {
     can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
-    if (!device_is_ready(can_dev)) {
-        LOG_ERR("Internal CAN device not ready");
+    if (!can_dev) {
+        LOG_ERR("CAN: Device driver not found.");
         return RET_ERROR_NOT_FOUND;
     }
 
