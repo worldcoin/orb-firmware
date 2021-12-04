@@ -1,5 +1,5 @@
-DOCKER_VER := 1
-DOCKER_TAG := pdietl/worldcoin-mcu-zephyr:$(DOCKER_VER)
+DOCKER_VER := 2
+DOCKER_TAG := ghcr.io/worldcoin/mcu-zephyr-build:$(DOCKER_VER)
 REPO_DIR ?= $(HOME)/firmware
 
 .PHONY: all build
