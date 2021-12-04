@@ -9,17 +9,14 @@ LOG_MODULE_REGISTER(canbus);
 #include "mcu_messaging.pb.h"
 #include "messaging.h"
 #include <assert.h>
-#include <canbus/isotp.h>
 #include <device.h>
+#include <drivers/can.h>
 #include <ir_camera_system/ir_camera_system.h>
 #include <pb.h>
 #include <pb_decode.h>
 #include <zephyr.h>
 
 #include <app_config.h>
-
-#define RX_ADDR CONFIG_CAN_ADDRESS_MCU    // MCU
-#define TX_ADDR CONFIG_CAN_ADDRESS_JETSON // Jetson address
 
 #ifndef McuMessage_size
 // Nanopb allows us to specify sizes in order to know the maximum
@@ -29,20 +26,18 @@ LOG_MODULE_REGISTER(canbus);
     "Please define a maximum size to any field that can have a dynamic size, see NanoPb option file"
 #endif
 
+#if McuMessage_size > CAN_MAX_DLEN
+#error McuMessage_size must be <= CAN_MAX_DLEN
+#endif
+
 #define RX_BUF_SIZE McuMessage_size
 
 const struct device *can_dev;
-const struct isotp_fc_opts flow_control_opts = {.bs = 8, .stmin = 0};
 
 #define THREAD_STACK_SIZE_CAN_RX 2048
 
 K_THREAD_STACK_DEFINE(rx_thread_stack, THREAD_STACK_SIZE_CAN_RX);
 static struct k_thread rx_thread_data = {0};
-
-const struct isotp_msg_id rx_addr = {
-    .std_id = RX_ADDR, .id_type = CAN_STANDARD_IDENTIFIER, .use_ext_addr = 0};
-const struct isotp_msg_id tx_addr = {
-    .std_id = TX_ADDR, .id_type = CAN_STANDARD_IDENTIFIER, .use_ext_addr = 0};
 
 static Ack_ErrorCode
 handle_infrared_leds_message(InfraredLEDs leds)
@@ -177,78 +172,65 @@ handle_message(McuMessage *m)
     messaging_push_tx(&ack);
 }
 
-_Noreturn static void
+static const struct zcan_filter recv_queue_filter = {
+    .id_type = CAN_EXTENDED_IDENTIFIER,
+    .rtr = CAN_DATAFRAME,
+    .id = CONFIG_CAN_ADDRESS_MCU,
+    .rtr_mask = 1,
+    .id_mask = CAN_EXT_ID_MASK};
+
+static struct zcan_frame rx_frame;
+
+CAN_DEFINE_MSGQ(recv_queue, 5);
+
+static void
 rx_thread(void *arg1, void *arg2, void *arg3)
 {
     ARG_UNUSED(arg1);
     ARG_UNUSED(arg2);
     ARG_UNUSED(arg3);
 
-    struct net_buf *buf = NULL;
-    int ret, rem_len;
-    struct isotp_recv_ctx recv_ctx = {0};
-    uint8_t rx_buffer[RX_BUF_SIZE] = {0};
-    size_t wr_idx = 0;
+    int ret;
 
-    ret = isotp_bind(&recv_ctx, can_dev, &tx_addr, &rx_addr, &flow_control_opts,
-                     K_FOREVER);
-    __ASSERT(ret == ISOTP_N_OK, "Failed to bind to rx ID %d [%d]",
-             rx_addr.std_id, ret);
+    ret = can_attach_msgq(can_dev, &recv_queue, &recv_queue_filter);
+    if (ret == CAN_NO_FREE_FILTER) {
+        LOG_ERR("Error attaching message queue!");
+        return;
+    }
 
     while (1) {
-        wr_idx = 0;
+        k_msgq_get(&recv_queue, &rx_frame, K_FOREVER);
+        pb_istream_t stream =
+            pb_istream_from_buffer(rx_frame.data, sizeof rx_frame.data);
+        McuMessage data = {0};
 
-        // enter receiving loop
-        // we will not exit until all the bytes are received or timeout
-        do {
-            // get new block (BS)
-            rem_len = isotp_recv_net(&recv_ctx, &buf, K_FOREVER);
-            if (rem_len < ISOTP_N_OK) {
-                LOG_DBG("Receiving error [%d]", rem_len);
-                break;
-            }
-
-            if (wr_idx + buf->len <= sizeof(rx_buffer)) {
-                memcpy(&rx_buffer[wr_idx], buf->data, buf->len);
-                wr_idx += buf->len;
-            } else {
-                // TODO report error somehow (Memfault?)
-                LOG_ERR("CAN frame too long: %u", wr_idx + buf->len);
-            }
-
-            net_buf_unref(buf);
-        } while (rem_len > 0);
-
-        if (rem_len == ISOTP_N_OK) {
-            pb_istream_t stream = pb_istream_from_buffer(rx_buffer, wr_idx);
-            McuMessage data = {0};
-
-            bool decoded = pb_decode(&stream, McuMessage_fields, &data);
-            if (decoded) {
-                handle_message(&data);
-            } else {
-                LOG_ERR("Error parsing data, discarding");
-            }
+        bool decoded = pb_decode_ex(&stream, McuMessage_fields, &data,
+                                    PB_DECODE_DELIMITED);
+        if (decoded) {
+            handle_message(&data);
         } else {
-            LOG_DBG("Data not received: %d", rem_len);
+            LOG_ERR("Error parsing data, discarding");
         }
     }
 }
 
+struct zcan_frame frame = {.id_type = CAN_EXTENDED_IDENTIFIER,
+                           .fd = true,
+                           .rtr = CAN_DATAFRAME,
+                           .id = CONFIG_CAN_ADDRESS_JETSON};
+
 ret_code_t
-canbus_send(const char *data, size_t len, void (*tx_complete_cb)(int, void *))
+canbus_send(const char *data, size_t len,
+            void (*tx_complete_cb)(uint32_t, void *))
 {
-    static struct isotp_send_ctx send_ctx = {0};
+    __ASSERT(CAN_MAX_DLEN >= len, "data too large!");
+    frame.dlc = can_bytes_to_dlc(len);
+    memset(frame.data, 0, sizeof frame.data);
+    memcpy(frame.data, data, len);
 
-    int ret = isotp_send(&send_ctx, can_dev, data, len, &tx_addr, &rx_addr,
-                         tx_complete_cb, NULL);
-    if (ret != ISOTP_N_OK) {
-        LOG_ERR("Error while sending data to ID %d [%d]", tx_addr.std_id, ret);
-
-        return RET_ERROR_INTERNAL;
-    }
-
-    return RET_SUCCESS;
+    return can_send(can_dev, &frame, K_FOREVER, tx_complete_cb, NULL)
+               ? RET_ERROR_INTERNAL
+               : RET_SUCCESS;
 }
 
 ret_code_t
@@ -269,8 +251,7 @@ canbus_init(void)
         return RET_ERROR_NO_MEM;
     }
 
-    LOG_INF("CAN bus init ok: TX addr: 0x%x, RX addr: 0x%x", tx_addr.std_id,
-            rx_addr.std_id);
+    LOG_INF("CAN bus init ok");
 
     return RET_SUCCESS;
 }

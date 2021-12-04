@@ -57,6 +57,14 @@ main(void)
 
     // the target is now up and running
 
+    McuMessage ack = {.which_message = McuMessage_m_message_tag,
+                      .message.m_message.which_payload = McuToJetson_ack_tag,
+                      .message.m_message.payload.ack.ack_number = 1,
+                      .message.m_message.payload.ack.error =
+                          Ack_ErrorCode_FAIL};
+
+    messaging_push_tx(&ack);
+
 #ifdef CONFIG_BOARD_STM32G484_EVAL
     LOG_WRN("Running tests");
 

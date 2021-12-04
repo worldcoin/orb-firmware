@@ -42,7 +42,7 @@ messaging_push_tx(McuMessage *message)
 }
 
 static void
-tx_complete_cb(int error_nr, void *arg)
+tx_complete_cb(uint32_t error_nr, void *arg)
 {
     ARG_UNUSED(arg);
     ARG_UNUSED(error_nr);
