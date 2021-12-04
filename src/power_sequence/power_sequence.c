@@ -39,7 +39,7 @@ check_is_ready(const struct device *dev, const char *name)
 #define SUPPLY_1V8_PG_FLAGS DT_GPIO_FLAGS(SUPPLY_1V8_PG_NODE, gpios)
 
 int
-turn_on_power_supplies(void)
+power_turn_on_essential_supplies(void)
 {
     const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
     const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
@@ -129,7 +129,7 @@ turn_on_power_supplies(void)
 #define POWER_BUTTON_FLAGS DT_GPIO_FLAGS(POWER_BUTTON_NODE, gpios)
 
 int
-wait_for_power_button_press(void)
+power_wait_for_power_button_press(void)
 {
     const struct device *power_button = DEVICE_DT_GET(POWER_BUTTON_CTLR);
 
@@ -190,7 +190,7 @@ wait_for_power_button_press(void)
 #define LTE_GPS_USB_ON 0
 
 int
-turn_on_jetson(void)
+power_turn_on_jetson(void)
 {
     const struct device *sleep_wake = DEVICE_DT_GET(SLEEP_WAKE_CTLR);
     const struct device *power_enable = DEVICE_DT_GET(SLEEP_WAKE_CTLR);
@@ -243,5 +243,33 @@ turn_on_jetson(void)
         ;
     LOG_INF("Reset done");
 
+    return 0;
+}
+
+int
+power_turn_on_super_cap_charger(void)
+{
+    const struct device *supply_super_cap =
+        DEVICE_DT_GET(DT_PATH(supply_super_cap));
+    if (check_is_ready(supply_super_cap, "super cap charger")) {
+        return 1;
+    }
+
+    regulator_enable(supply_super_cap, NULL);
+    LOG_INF("super cap charger enabled");
+    k_msleep(1000);
+    return 0;
+}
+
+int
+power_turn_on_pvcc(void)
+{
+    const struct device *supply_pvcc = DEVICE_DT_GET(DT_PATH(supply_pvcc));
+    if (check_is_ready(supply_pvcc, "pvcc supply")) {
+        return 1;
+    }
+
+    regulator_enable(supply_pvcc, NULL);
+    LOG_INF("pvcc supply enabled");
     return 0;
 }
