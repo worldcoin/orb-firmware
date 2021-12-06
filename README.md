@@ -48,3 +48,9 @@ su-exec root west flash
 ```shell
 pre-commit install -c utils/format/pre-commit-config.yaml
 ```
+
+Clang-format from docker alternative:
+
+```shell
+docker run -v$PWD:$PWD -w$PWD --entrypoint "" mikedld/clang-format sh -c 'find . -name "*.[ch]" | xargs clang-format -i'
+```

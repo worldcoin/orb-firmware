@@ -26,8 +26,9 @@ LOG_MODULE_REGISTER(canbus);
     "Please define a maximum size to any field that can have a dynamic size, see NanoPb option file"
 #endif
 
-#if McuMessage_size > CAN_MAX_DLEN
-#error McuMessage_size must be <= CAN_MAX_DLEN
+// we add a byte indicating message size to the front of an encoded message
+#if McuMessage_size > (CAN_MAX_DLEN - 1)
+#error McuMessage_size must be <= (CAN_MAX_DLEN - 1)
 #endif
 
 #define RX_BUF_SIZE McuMessage_size
