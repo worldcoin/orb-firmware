@@ -265,7 +265,7 @@ ret_code_t
 motors_angle_horizontal(int32_t angle_millidegrees)
 {
     if (angle_millidegrees > 65000 || angle_millidegrees < 25000) {
-        LOG_ERR("Accepted range is [25000;65000]");
+        LOG_ERR("Accepted range is [25000;65000], got %d", angle_millidegrees);
         return RET_ERROR_INVALID_PARAM;
     }
 
@@ -279,7 +279,7 @@ ret_code_t
 motors_angle_vertical(int32_t angle_millidegrees)
 {
     if (angle_millidegrees > 20000 || angle_millidegrees < -20000) {
-        LOG_ERR("Accepted range is [-20000;20000]");
+        LOG_ERR("Accepted range is [-20000;20000], got %d", angle_millidegrees);
         return RET_ERROR_INVALID_PARAM;
     }
 
@@ -390,7 +390,7 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
         }
 
         if (x_first_end != 0 && status & (1 << 24)) {
-            LOG_WRN("Motor %u stalled when trying to reach other end", motor);
+            LOG_ERR("Motor %u stalled when trying to reach other end", motor);
             err_code = RET_ERROR_INVALID_STATE;
             break;
         }

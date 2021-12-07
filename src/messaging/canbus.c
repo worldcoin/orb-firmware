@@ -111,6 +111,19 @@ handle_740nm_brightness_message(Brightness740Nm brightness)
     return ir_camera_system_set_740nm_led_brightness(brightness.brightness);
 }
 
+static Ack_ErrorCode
+handle_mirror_angle_message(MirrorAngle mirror_angle)
+{
+    LOG_DBG("");
+    if (motors_angle_horizontal(mirror_angle.horizontal_angle) != RET_SUCCESS) {
+        return Ack_ErrorCode_FAIL;
+    }
+    if (motors_angle_vertical(mirror_angle.vertical_angle) != RET_SUCCESS) {
+        return Ack_ErrorCode_FAIL;
+    }
+    return Ack_ErrorCode_SUCCESS;
+}
+
 static void
 handle_message(McuMessage *m)
 {
@@ -167,10 +180,8 @@ handle_message(McuMessage *m)
                 m->message.j_message.payload.brightness_740nm_leds);
         break;
     case JetsonToMcu_mirror_angle_tag:
-        motors_angle_horizontal(
-            (int8_t)m->message.j_message.payload.mirror_angle.horizontal_angle);
-        motors_angle_vertical(
-            (int8_t)m->message.j_message.payload.mirror_angle.vertical_angle);
+        ack.message.m_message.payload.ack.error = handle_mirror_angle_message(
+            m->message.j_message.payload.mirror_angle);
         break;
     default:
         LOG_ERR("Unhandled message payload %d!",
