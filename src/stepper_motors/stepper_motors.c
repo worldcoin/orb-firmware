@@ -382,17 +382,25 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 spi_bus_controller, TMC5041_REGISTERS[REG_IDX_XTARGET][motor],
                 (uint32_t)(x_first_end - motors_full_course_steps[motor]));
 
-            // add longer delay before we continue
-            // as we need to wait for the motor to move and removes its stall
-            // detection flag
-            k_msleep(500);
-            continue;
-        }
+            // before we continue we need to wait for the motor to move and
+            // removes its stall detection flag
+            uint32_t t = 10;
+            do {
+                k_msleep(100);
+                status = motor_spi_read(
+                    spi_bus_controller,
+                    TMC5041_REGISTERS[REG_IDX_DRV_STATUS][motor]);
+                LOG_DBG("Status %d 0x%08x", motor, status);
+            } while (status & (1 << 24) || --t == 0);
 
-        if (x_first_end != 0 && status & (1 << 24)) {
-            LOG_ERR("Motor %u stalled when trying to reach other end", motor);
-            err_code = RET_ERROR_INVALID_STATE;
-            break;
+            if (status & (1 << 24)) {
+                LOG_ERR("Motor %u stalled when trying to reach other end",
+                        motor);
+                err_code = RET_ERROR_INVALID_STATE;
+                break;
+            }
+
+            continue;
         }
 
         if (x_first_end != 0 && status & (1 << 31)) {
