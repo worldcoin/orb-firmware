@@ -9,6 +9,7 @@
 #include <zephyr.h>
 
 #include <app_config.h>
+#include <assert.h>
 #include <logging/log.h>
 #include <pb_encode.h>
 LOG_MODULE_REGISTER(messaging);
@@ -21,8 +22,15 @@ K_THREAD_DEFINE(process_tx_messages, THREAD_PROCESS_TX_MESSAGES_STACKSIZE,
                 process_tx_messages_thread, NULL, NULL, NULL,
                 THREAD_PRIORITY_PROCESS_TX_MSG, 0, 0);
 
+#define QUEUE_NUM_ITEMS 8
+#define QUEUE_ALIGN     8
+
+static_assert(QUEUE_ALIGN % 2 == 0, "QUEUE_ALIGN must be a multiple of 2");
+static_assert(sizeof(McuMessage) % QUEUE_ALIGN == 0,
+              "sizeof McuMessage must be a multiple of QUEUE_ALIGN");
+
 // Message queues to pass messages to/from Jetson and Security MCU
-K_MSGQ_DEFINE(tx_msg_queue, sizeof(McuMessage), 8, 4);
+K_MSGQ_DEFINE(tx_msg_queue, sizeof(McuMessage), QUEUE_NUM_ITEMS, QUEUE_ALIGN);
 
 K_SEM_DEFINE(tx_sem, 1, 1);
 
@@ -42,7 +50,7 @@ messaging_push_tx(McuMessage *message)
 }
 
 static void
-tx_complete_cb(int error_nr, void *arg)
+tx_complete_cb(uint32_t error_nr, void *arg)
 {
     ARG_UNUSED(arg);
     ARG_UNUSED(error_nr);
@@ -57,7 +65,7 @@ _Noreturn static void
 process_tx_messages_thread()
 {
     McuMessage new;
-    char tx_buffer[256];
+    static char tx_buffer[McuMessage_size + 1];
 
     while (1) {
         // wait for semaphore to be released when TX done
@@ -73,7 +81,8 @@ process_tx_messages_thread()
         // encode protobuf format
         pb_ostream_t stream =
             pb_ostream_from_buffer(tx_buffer, sizeof(tx_buffer));
-        bool encoded = pb_encode(&stream, McuMessage_fields, &new);
+        bool encoded =
+            pb_encode_ex(&stream, McuMessage_fields, &new, PB_ENCODE_DELIMITED);
         if (encoded) {
             ret_code_t err_code =
                 canbus_send(tx_buffer, stream.bytes_written, tx_complete_cb);
@@ -84,6 +93,8 @@ process_tx_messages_thread()
                 // completion
                 k_sem_give(&tx_sem);
             }
+        } else {
+            LOG_ERR("Error encoding message!");
         }
     }
 }
