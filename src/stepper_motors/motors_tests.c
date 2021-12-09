@@ -8,69 +8,32 @@
 
 #include <app_config.h>
 #include <logging/log.h>
+#include <random/rand32.h>
 LOG_MODULE_REGISTER(motors_test);
 
 K_THREAD_STACK_DEFINE(motors_test_thread_stack, 1024);
 static struct k_thread test_thread_data;
 
-/// This function allows the test of the full CAN bus data pipe using two boards
-/// Below, we test the TX thread while a remote Orb will receive data in its RX
-/// thread \return never
 static void
 test_routine()
 {
-    int8_t angle_vertical = -20;
-    int8_t angle_horizontal = 25;
-    bool motor = true;
     ret_code_t err_code;
 
     // wait for motors to initialize themselves
-    k_msleep(10000);
+    k_msleep(15000);
 
     while (1) {
-        k_msleep(500);
+        motors_auto_homing(MOTOR_HORIZONTAL);
+        motors_auto_homing(MOTOR_VERTICAL);
 
-        /* switch motor */
-        motor = !motor;
+        k_msleep(10000);
 
-        if (motor) {
-            err_code = motors_angle_vertical(angle_vertical * 1000);
-            angle_vertical++;
-        } else {
-            err_code = motors_angle_horizontal(angle_horizontal * 1000);
-            angle_horizontal++;
-        }
-
-        switch (err_code) {
-        case RET_SUCCESS: {
-            /* Do nothing */
-        } break;
-
-        case RET_ERROR_NOT_INITIALIZED: {
-            LOG_ERR("Motor %d not initialized", motor);
-        } break;
-
-        case RET_ERROR_INVALID_STATE: {
-            LOG_ERR("Motor %d invalid state", motor);
-        } break;
-
-        case RET_ERROR_INVALID_PARAM: {
-            if (angle_vertical > 20 && motor) {
-                LOG_INF("Reached vertical end");
-            }
-            if (angle_horizontal > 65 && !motor) {
-                LOG_INF("Reached horizontal end");
-            }
-        } break;
-
-        default: {
-            LOG_WRN("Setting motor %d angle ret: %u", motor, err_code);
-        }
-        }
-
-        if (angle_vertical > 20 && angle_horizontal > 65) {
-            LOG_INF("Ending motor test routine");
-            return;
+        for (int i = 0; i < 10; ++i) {
+            int angle_vertical = (sys_rand32_get() % 40000) - 20000;
+            int angle_horizontal = (sys_rand32_get() % 40000) + 25000;
+            err_code = motors_angle_vertical(angle_vertical);
+            err_code = motors_angle_horizontal(angle_horizontal);
+            k_msleep(1000);
         }
     }
 }
