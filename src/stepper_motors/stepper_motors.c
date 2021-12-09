@@ -7,7 +7,9 @@
 #include <app_config.h>
 #include <compilers.h>
 #include <logging/log.h>
+#include <math.h>
 #include <stdlib.h>
+
 LOG_MODULE_REGISTER(stepper_motors);
 
 K_THREAD_STACK_DEFINE(stack_area_motor_horizontal_init, 256);
@@ -72,6 +74,10 @@ static struct spi_buf_set tx_bufs = {.buffers = &tx, .count = 1};
 const uint32_t motors_full_course_steps[MOTOR_COUNT] = {(300 * 256),
                                                         (500 * 256)};
 const uint8_t motors_stall_guard_threshold[MOTOR_COUNT] = {5, 5};
+const float motors_arm_length[MOTOR_COUNT] = {12.0, 18.71};
+
+const uint32_t steps_per_mm = 12800; // 1mm / 0.4mm (pitch) * (360° / 18° (per
+                                     // step)) * 256 micro-steps
 
 typedef struct {
     int x0; // step at x=0 (middle position)
@@ -248,9 +254,10 @@ motors_set_angle_relative(int32_t d_from_center, motor_t motor)
         return motors_refs[motor].motor_state;
     }
 
-    int32_t steps_per_degree = (int32_t)motors_full_course_steps[motor] / 40;
-    int32_t xtarget = (d_from_center * steps_per_degree) / 1000;
-    xtarget = xtarget + motors_refs[motor].x0;
+    float millimeters =
+        sinf((float)d_from_center * M_PI / 360000.0) * motors_arm_length[motor];
+    int32_t steps = (int32_t)roundf(millimeters * (float)steps_per_mm);
+    int32_t xtarget = motors_refs[motor].x0 + steps;
 
     LOG_INF("Setting motor %u to: %d milli-degrees (%d)", motor, d_from_center,
             xtarget);
@@ -414,7 +421,7 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 
             if (abs(x - (x_first_end - motors_full_course_steps[motor])) >
                 256) {
-                LOG_INF("Didn't reached target: x=%d, should be ~ %d", x,
+                LOG_INF("Didn't reach target: x=%d, should be ~ %d", x,
                         (x_first_end - motors_full_course_steps[motor]));
 
                 err_code = RET_ERROR_INVALID_STATE;
