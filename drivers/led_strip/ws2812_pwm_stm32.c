@@ -137,8 +137,8 @@ struct ws2812_pwm_stm32_config {
     uint32_t num_leds;
 };
 
-static inline uint32_t nsec_to_cycles(uint32_t ns,
-                                      struct ws2812_pwm_stm32_data *data)
+static inline uint32_t
+nsec_to_cycles(uint32_t ns, struct ws2812_pwm_stm32_data *data)
 {
     uint32_t cycles_per_second = data->tim_clk;
 
@@ -173,8 +173,9 @@ static inline uint32_t nsec_to_cycles(uint32_t ns,
 //
 // I.e., we send green, red, and blue
 
-static void rgb_to_dma_pixels(const struct device *dev, struct led_rgb *pixels,
-                              size_t num_pixels)
+static void
+rgb_to_dma_pixels(const struct device *dev, struct led_rgb *pixels,
+                  size_t num_pixels)
 {
     struct ws2812_pwm_stm32_data *data = dev->data;
 
@@ -198,9 +199,9 @@ static void rgb_to_dma_pixels(const struct device *dev, struct led_rgb *pixels,
     }
 }
 
-static int ws2812_pwm_stm32_update_rgb(const struct device *dev,
-                                       struct led_rgb *pixels,
-                                       size_t num_pixels)
+static int
+ws2812_pwm_stm32_update_rgb(const struct device *dev, struct led_rgb *pixels,
+                            size_t num_pixels)
 {
     (void)pixels;
     const struct ws2812_pwm_stm32_config *config = dev->config;
@@ -252,7 +253,8 @@ static int ws2812_pwm_stm32_update_rgb(const struct device *dev,
     // Calculation: (1.25us per bit @ 24 bits per pixel):
     // (1.25 * 24) * 60 + (50us reset pulse) = 1.850ms
     if (k_sem_take(&data->update_sem, K_FOREVER)) {
-        LOG_ERR("semaphore was reset during the waiting period, but we never expect this to happen");
+        LOG_ERR("semaphore was reset during the waiting period, but we never "
+                "expect this to happen");
         return -EAGAIN;
     }
     return 0;
@@ -260,9 +262,9 @@ static int ws2812_pwm_stm32_update_rgb(const struct device *dev,
 
 // This isn't implemented
 
-static int ws2812_pwm_stm32_update_channels(const struct device *dev,
-                                            uint8_t *channels,
-                                            size_t num_channels)
+static int
+ws2812_pwm_stm32_update_channels(const struct device *dev, uint8_t *channels,
+                                 size_t num_channels)
 {
     (void)channels;
     (void)num_channels;
@@ -281,7 +283,8 @@ static const struct led_strip_driver_api ws2812_pwm_stm32_driver_api = {
  *
  * @return 0 on success, error code otherwise.
  */
-static int get_tim_clk(const struct stm32_pclken *pclken, uint32_t *tim_clk)
+static int
+get_tim_clk(const struct stm32_pclken *pclken, uint32_t *tim_clk)
 {
     int r;
     const struct device *clk;
@@ -362,7 +365,8 @@ static int get_tim_clk(const struct stm32_pclken *pclken, uint32_t *tim_clk)
     return 0;
 }
 
-static void timer_wait_isr(const void *arg)
+static void
+timer_wait_isr(const void *arg)
 {
     const struct device *dev = arg;
     const struct ws2812_pwm_stm32_config *config = dev->config;
@@ -377,7 +381,8 @@ static void timer_wait_isr(const void *arg)
     }
 }
 
-static void dma_complete_isr(const void *arg)
+static void
+dma_complete_isr(const void *arg)
 {
     const struct device *dev = arg;
     const struct ws2812_pwm_stm32_config *config = dev->config;
@@ -395,7 +400,8 @@ static void dma_complete_isr(const void *arg)
     }
 }
 
-static int ws2812_pwm_stm32_init(const struct device *dev)
+static int
+ws2812_pwm_stm32_init(const struct device *dev)
 {
     struct ws2812_pwm_stm32_data *data = dev->data;
     const struct ws2812_pwm_stm32_config *config = dev->config;

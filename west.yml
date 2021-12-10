@@ -10,11 +10,11 @@ manifest:
       revision: calibation_wait_adc
       import:
         name-allowlist:
-            - cmsis
-            - hal_stm32
-            - mcuboot
-            - segger
-            - nanopb
+          - cmsis
+          - hal_stm32
+          - mcuboot
+          - segger
+          - nanopb
 
     - name: protobuf-definitions
       revision: main
