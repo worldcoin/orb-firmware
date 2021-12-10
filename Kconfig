@@ -1,0 +1,2 @@
+source "../orb/drivers/Kconfig"
+source "../orb/lib/Kconfig"
