@@ -8,15 +8,15 @@ LOG_MODULE_REGISTER(sound);
 
 #define SOUND_AMP_MUX_NODE DT_PATH(zephyr_user)
 #define SOUND_AMP_MUX_CTLR DT_GPIO_CTLR(SOUND_AMP_MUX_NODE, sound_amp_mux_gpios)
-#define SOUND_AMP_MUX_PIN DT_GPIO_PIN(SOUND_AMP_MUX_NODE, sound_amp_mux_gpios)
+#define SOUND_AMP_MUX_PIN  DT_GPIO_PIN(SOUND_AMP_MUX_NODE, sound_amp_mux_gpios)
 #define SOUND_AMP_MUX_FLAGS                                                    \
     DT_GPIO_FLAGS(SOUND_AMP_MUX_NODE, sound_amp_mux_gpios)
 
-#define MCU 1
+#define MCU    1
 #define JETSON 0
 
-#define SOUND_AMP_I2C DT_NODELABEL(i2c1)
-#define SOUND_AMP_ADDR 0x2c
+#define SOUND_AMP_I2C       DT_NODELABEL(i2c1)
+#define SOUND_AMP_ADDR      0x2c
 #define SOUND_AMP_REG_CTRL2 0x3
 
 int

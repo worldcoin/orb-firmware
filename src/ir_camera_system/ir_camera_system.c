@@ -14,8 +14,8 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(ir_camera_system);
 
-#define MAX_PSC_DIV 65536U
-#define ASSUMED_TIMER_CLOCK_FREQ 170000000
+#define MAX_PSC_DIV                  65536U
+#define ASSUMED_TIMER_CLOCK_FREQ     170000000
 #define ASSUMED_TIMER_CLOCK_FREQ_MHZ 170
 
 #define DT_INST_CLK(inst)                                                      \
@@ -74,7 +74,7 @@ static struct stm32_pclken ir_face_camera_trigger_pclken =
         DT_PARENT(DT_NODELABEL(ir_face_camera_trigger))))
 // END --- IR face
 
-#define CAMERA_TRIGGER_TIMER IR_FACE_CAMERA_TRIGGER_TIMER
+#define CAMERA_TRIGGER_TIMER      IR_FACE_CAMERA_TRIGGER_TIMER
 #define CAMERA_TRIGGER_TIMER_IRQn TIM3_IRQn
 
 // AKA: TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER ==
@@ -125,7 +125,7 @@ static_assert(LED_850NM_HR_TIMER == LED_940NM_HR_TIMER &&
               "850nm and 940nm timers must be the same high resolution timer "
               "and that timer must be HRTIM1");
 
-#define HR_CLEAR_TIMER (TIM_TypeDef *)DT_REG_ADDR(DT_NODELABEL(timers15))
+#define HR_CLEAR_TIMER      (TIM_TypeDef *)DT_REG_ADDR(DT_NODELABEL(timers15))
 #define HR_CLEAR_TIMER_IRQn TIM1_BRK_TIM15_IRQn
 static struct stm32_pclken hr_reset_pclken = {
     .bus = DT_CLOCKS_CELL(DT_NODELABEL(timers15), bus),

@@ -1,3 +1,8 @@
+#include "messaging/messaging.h"
+#include <device.h>
+#include <drivers/gpio.h>
+
+#if CONFIG_BOARD_ORB
 #include "distributor_leds/distributor_leds.h"
 #include "fan/fan.h"
 #include "front_unit_rgb_leds/front_unit_rgb_leds.h"
@@ -8,8 +13,13 @@
 #include <ir_camera_system/ir_camera_system_test.h>
 #endif
 #include "sound/sound.h"
-#include <device.h>
-#include <drivers/gpio.h>
+#include "stepper_motors/motors_tests.h"
+#include "stepper_motors/stepper_motors.h"
+#endif
+
+#if CONFIG_BOARD_STM32G484_EVAL
+#include "messaging/messaging_tests.h"
+#endif
 
 #include <logging/log.h>
 #include <zephyr.h>
@@ -35,22 +45,23 @@ main(void)
     __ASSERT(power_turn_on_jetson() == 0, "Jetson power-on error");
     __ASSERT(turn_on_fan() == 0, "Error turning on fan");
     __ASSERT(init_sound() == 0, "Error initializing sound");
-
-#ifdef CONFIG_BOARD_ORB
     __ASSERT(front_unit_rgb_leds_init() == 0,
              "Error doing front unit RGB LEDs");
     __ASSERT(do_distributor_rgb_leds() == 0,
              "Error doing distributor RGB LEDs");
-#endif
-
     __ASSERT(power_turn_on_super_cap_charger() == 0,
              "Error enabling super cap charger");
     __ASSERT(power_turn_on_pvcc() == 0, "Error turning on pvcc");
     __ASSERT(ir_camera_system_init() == 0,
              "Error initializing IR camera system");
+    __ASSERT(motors_init() == 0, "Error initializing motors");
 
 #ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
     ir_camera_system_test();
+#endif
+
+#ifdef CONFIG_TEST_MOTORS
+    motors_tests_init();
 #endif
 
     messaging_init();
@@ -68,6 +79,6 @@ main(void)
 #ifdef CONFIG_BOARD_STM32G484_EVAL
     LOG_WRN("Running tests");
 
-    tests_messaging_init();
+    messaging_tests_init();
 #endif
 }

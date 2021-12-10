@@ -23,19 +23,19 @@ check_is_ready(const struct device *dev, const char *name)
     return 0;
 }
 
-#define SUPPLY_5V_PG_NODE DT_PATH(supply_5v, power_good)
-#define SUPPLY_5V_PG_CTLR DT_GPIO_CTLR(SUPPLY_5V_PG_NODE, gpios)
-#define SUPPLY_5V_PG_PIN DT_GPIO_PIN(SUPPLY_5V_PG_NODE, gpios)
+#define SUPPLY_5V_PG_NODE  DT_PATH(supply_5v, power_good)
+#define SUPPLY_5V_PG_CTLR  DT_GPIO_CTLR(SUPPLY_5V_PG_NODE, gpios)
+#define SUPPLY_5V_PG_PIN   DT_GPIO_PIN(SUPPLY_5V_PG_NODE, gpios)
 #define SUPPLY_5V_PG_FLAGS DT_GPIO_FLAGS(SUPPLY_5V_PG_NODE, gpios)
 
-#define SUPPLY_3V3_PG_NODE DT_PATH(supply_3v3, power_good)
-#define SUPPLY_3V3_PG_CTLR DT_GPIO_CTLR(SUPPLY_3V3_PG_NODE, gpios)
-#define SUPPLY_3V3_PG_PIN DT_GPIO_PIN(SUPPLY_3V3_PG_NODE, gpios)
+#define SUPPLY_3V3_PG_NODE  DT_PATH(supply_3v3, power_good)
+#define SUPPLY_3V3_PG_CTLR  DT_GPIO_CTLR(SUPPLY_3V3_PG_NODE, gpios)
+#define SUPPLY_3V3_PG_PIN   DT_GPIO_PIN(SUPPLY_3V3_PG_NODE, gpios)
 #define SUPPLY_3V3_PG_FLAGS DT_GPIO_FLAGS(SUPPLY_3V3_PG_NODE, gpios)
 
-#define SUPPLY_1V8_PG_NODE DT_PATH(supply_1v8, power_good)
-#define SUPPLY_1V8_PG_CTLR DT_GPIO_CTLR(SUPPLY_1V8_PG_NODE, gpios)
-#define SUPPLY_1V8_PG_PIN DT_GPIO_PIN(SUPPLY_1V8_PG_NODE, gpios)
+#define SUPPLY_1V8_PG_NODE  DT_PATH(supply_1v8, power_good)
+#define SUPPLY_1V8_PG_CTLR  DT_GPIO_CTLR(SUPPLY_1V8_PG_NODE, gpios)
+#define SUPPLY_1V8_PG_PIN   DT_GPIO_PIN(SUPPLY_1V8_PG_NODE, gpios)
 #define SUPPLY_1V8_PG_FLAGS DT_GPIO_FLAGS(SUPPLY_1V8_PG_NODE, gpios)
 
 int
@@ -120,12 +120,12 @@ power_turn_on_essential_supplies(void)
     return 0;
 }
 
-#define BUTTON_PRESS_TIME_MS 5000
+#define BUTTON_PRESS_TIME_MS    5000
 #define BUTTON_SAMPLE_PERIOD_MS 10
 
-#define POWER_BUTTON_NODE DT_PATH(buttons, power_button)
-#define POWER_BUTTON_CTLR DT_GPIO_CTLR(POWER_BUTTON_NODE, gpios)
-#define POWER_BUTTON_PIN DT_GPIO_PIN(POWER_BUTTON_NODE, gpios)
+#define POWER_BUTTON_NODE  DT_PATH(buttons, power_button)
+#define POWER_BUTTON_CTLR  DT_GPIO_CTLR(POWER_BUTTON_NODE, gpios)
+#define POWER_BUTTON_PIN   DT_GPIO_PIN(POWER_BUTTON_NODE, gpios)
 #define POWER_BUTTON_FLAGS DT_GPIO_FLAGS(POWER_BUTTON_NODE, gpios)
 
 int
@@ -162,32 +162,32 @@ power_wait_for_power_button_press(void)
     return 0;
 }
 
-#define SLEEP_WAKE_NODE DT_PATH(jetson_power_pins, sleep_wake)
-#define SLEEP_WAKE_CTLR DT_GPIO_CTLR(SLEEP_WAKE_NODE, gpios)
-#define SLEEP_WAKE_PIN DT_GPIO_PIN(SLEEP_WAKE_NODE, gpios)
+#define SLEEP_WAKE_NODE  DT_PATH(jetson_power_pins, sleep_wake)
+#define SLEEP_WAKE_CTLR  DT_GPIO_CTLR(SLEEP_WAKE_NODE, gpios)
+#define SLEEP_WAKE_PIN   DT_GPIO_PIN(SLEEP_WAKE_NODE, gpios)
 #define SLEEP_WAKE_FLAGS DT_GPIO_FLAGS(SLEEP_WAKE_NODE, gpios)
-#define SLEEP 0
-#define WAKE 1
+#define SLEEP            0
+#define WAKE             1
 
-#define POWER_ENABLE_NODE DT_PATH(jetson_power_pins, power_enable)
-#define POWER_ENABLE_CTLR DT_GPIO_CTLR(POWER_ENABLE_NODE, gpios)
-#define POWER_ENABLE_PIN DT_GPIO_PIN(POWER_ENABLE_NODE, gpios)
+#define POWER_ENABLE_NODE  DT_PATH(jetson_power_pins, power_enable)
+#define POWER_ENABLE_CTLR  DT_GPIO_CTLR(POWER_ENABLE_NODE, gpios)
+#define POWER_ENABLE_PIN   DT_GPIO_PIN(POWER_ENABLE_NODE, gpios)
 #define POWER_ENABLE_FLAGS DT_GPIO_FLAGS(POWER_ENABLE_NODE, gpios)
-#define ENABLE 1
-#define DISABLE 0
+#define ENABLE             1
+#define DISABLE            0
 
-#define SYSTEM_RESET_NODE DT_PATH(jetson_power_pins, system_reset)
-#define SYSTEM_RESET_CTLR DT_GPIO_CTLR(SYSTEM_RESET_NODE, gpios)
-#define SYSTEM_RESET_PIN DT_GPIO_PIN(SYSTEM_RESET_NODE, gpios)
+#define SYSTEM_RESET_NODE  DT_PATH(jetson_power_pins, system_reset)
+#define SYSTEM_RESET_CTLR  DT_GPIO_CTLR(SYSTEM_RESET_NODE, gpios)
+#define SYSTEM_RESET_PIN   DT_GPIO_PIN(SYSTEM_RESET_NODE, gpios)
 #define SYSTEM_RESET_FLAGS DT_GPIO_FLAGS(SYSTEM_RESET_NODE, gpios)
-#define RESET 1
-#define OUT_OF_RESET 0
+#define RESET              1
+#define OUT_OF_RESET       0
 
-#define LTE_GPS_USB_RESET_NODE DT_PATH(lte_gps_usb_reset)
-#define LTE_GPS_USB_RESET_CTLR DT_GPIO_CTLR(LTE_GPS_USB_RESET_NODE, gpios)
-#define LTE_GPS_USB_RESET_PIN DT_GPIO_PIN(LTE_GPS_USB_RESET_NODE, gpios)
+#define LTE_GPS_USB_RESET_NODE  DT_PATH(lte_gps_usb_reset)
+#define LTE_GPS_USB_RESET_CTLR  DT_GPIO_CTLR(LTE_GPS_USB_RESET_NODE, gpios)
+#define LTE_GPS_USB_RESET_PIN   DT_GPIO_PIN(LTE_GPS_USB_RESET_NODE, gpios)
 #define LTE_GPS_USB_RESET_FLAGS DT_GPIO_FLAGS(LTE_GPS_USB_RESET_NODE, gpios)
-#define LTE_GPS_USB_ON 0
+#define LTE_GPS_USB_ON          0
 
 int
 power_turn_on_jetson(void)

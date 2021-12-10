@@ -4,3 +4,4 @@ BreakBeforeBraces: Linux
 AlwaysBreakAfterReturnType: All
 AlignAfterOpenBracket: Align
 AlignOperands: Align
+AlignConsecutiveMacros: Consecutive

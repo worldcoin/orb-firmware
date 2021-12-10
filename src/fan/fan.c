@@ -7,11 +7,11 @@ LOG_MODULE_REGISTER(fan);
 
 #include "fan.h"
 
-#define FAN_NODE DT_PATH(fan)
-#define FAN_PWM_CTLR DT_PWMS_CTLR(FAN_NODE)
+#define FAN_NODE        DT_PATH(fan)
+#define FAN_PWM_CTLR    DT_PWMS_CTLR(FAN_NODE)
 #define FAN_PWM_CHANNEL DT_PWMS_CHANNEL(FAN_NODE)
-#define FAN_PWM_PERIOD DT_PWMS_PERIOD(FAN_NODE)
-#define FAN_PWM_FLAGS DT_PWMS_FLAGS(FAN_NODE)
+#define FAN_PWM_PERIOD  DT_PWMS_PERIOD(FAN_NODE)
+#define FAN_PWM_FLAGS   DT_PWMS_FLAGS(FAN_NODE)
 
 #define MSG "Checking that fan PWM controller is ready... "
 
