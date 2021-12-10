@@ -1,0 +1,1 @@
+add_subdirectory_ifdef(CONFIG_LED_STRIP led_strip)

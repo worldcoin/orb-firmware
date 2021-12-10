@@ -1,0 +1,344 @@
+/dts-v1/;
+#include <st/g4/stm32g474Xe.dtsi>
+#include <st/g4/stm32g474v(b-c-e)tx-pinctrl.dtsi>
+
+/ {
+	model = "Worldcoin Orb";
+	compatible = "worldcoin,orb";
+
+	chosen {
+		zephyr,console = &usart2;
+		zephyr,shell-uart = &usart2;
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+		zephyr,canbus = &can1;
+	};
+
+    zephyr,user {
+        // This is a mux for who controls the audio amp
+        // 1 == MCU
+        // 0 == Jetson
+        sound-amp-mux-gpios = <&gpioe 10 GPIO_ACTIVE_HIGH>;
+    };
+
+    vbat_sw {
+        compatible = "regulator-fixed-sync", "regulator-fixed";
+        label = "12V VBAT SW";
+        regulator-name = "12v_vbat_sw";
+        enable-gpios = <&gpiof 10 GPIO_ACTIVE_HIGH>;
+
+        // This is attached to a MOSFET to allow the battery
+        // power to be sent to the inputs of:
+        // * 12v supply
+        // * 5v supply
+        // * Supercap charger
+        //
+        // As such, it has no power good pin
+    };
+
+    supply_12v {
+        compatible = "regulator-fixed-sync", "regulator-fixed";
+        label = "12V Supply";
+        regulator-name = "supply_12v";
+        enable-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;
+
+        // Has no power good pin
+    };
+
+    supply_5v {
+        compatible = "regulator-fixed-sync", "regulator-fixed";
+        label = "5V Supply";
+        regulator-name = "supply_5v";
+        enable-gpios = <&gpiob 2 GPIO_ACTIVE_HIGH>;
+
+        power_good {
+            compatible = "gpio-power-good";
+            gpios = <&gpiob 1 GPIO_PULL_UP>;
+        };
+    };
+
+    supply_3v8 {
+        compatible = "regulator-fixed-sync", "regulator-fixed";
+        label = "3.8V Supply";
+        regulator-name = "supply_3v8";
+        enable-gpios = <&gpioe 15 GPIO_ACTIVE_HIGH>;
+    };
+
+    supply_3v3 {
+        compatible = "regulator-fixed-sync", "regulator-fixed";
+        label = "3.3V Supply";
+        regulator-name = "supply_3v3";
+        enable-gpios = <&gpiod 15 GPIO_ACTIVE_HIGH>;
+
+        power_good {
+            compatible = "gpio-power-good";
+            gpios = <&gpioa 12 GPIO_PULL_UP>;
+        };
+    };
+
+    supply_1v8 {
+        compatible = "regulator-fixed-sync", "regulator-fixed";
+        label = "1.8V Supply";
+        regulator-name = "supply_1v8";
+        enable-gpios = <&gpioe 8 GPIO_ACTIVE_HIGH>;
+
+        power_good {
+            compatible = "gpio-power-good";
+            gpios = <&gpioe 7 GPIO_PULL_UP>;
+        };
+    };
+
+    supply_pvcc {
+        compatible = "regulator-fixed-sync", "regulator-fixed";
+        label = "PVCC Supply";
+        regulator-name = "supply_pvcc";
+        enable-gpios = <&gpioc 15 GPIO_ACTIVE_HIGH>;
+    };
+
+    supply_super_cap {
+        compatible = "regulator-fixed-sync", "regulator-fixed";
+        label = "Super cap supply";
+        regulator-name = "supply_super_cap";
+        enable-gpios = <&gpioc 14 GPIO_ACTIVE_HIGH>;
+    };
+
+    fan {
+        compatible = "pwm-fan";
+        pwms = <&fan_pwm 3 10000 PWM_POLARITY_NORMAL>;
+
+        // Currently no tachometer reading, only a 2-wire fan
+    };
+
+    buttons {
+        compatible = "gpio-keys";
+
+        power_button {
+            gpios = <&gpioc 13 GPIO_ACTIVE_LOW>;
+            label = "Power button";
+        };
+    };
+
+    jetson_power_pins {
+        compatible = "gpio-jetson-power";
+        shutdown_request {
+            gpios = <&gpioe 14 GPIO_ACTIVE_LOW>;
+
+            // input
+            // Jetson module uses this to request a shutdown sequence
+        };
+
+        power_enable {
+            gpios = <&gpioe 12 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
+
+            // output
+            // this signals the Jetson module to turn on an off
+        };
+
+        system_reset {
+            gpios = <&gpioe 11 GPIO_ACTIVE_LOW>;
+
+            // bidirectional
+            // drive low to reset
+            // driven by Jetson to indicate power sequence is complete
+        };
+
+        module_sleep {
+            gpios = <&gpiof 2 GPIO_ACTIVE_LOW>;
+
+            // input
+            // when driven low indicates that the module has gone to sleep
+        };
+
+        sleep_wake {
+            gpios = <&gpioe 9 GPIO_ACTIVE_HIGH>;
+
+            // output
+            // drive high to indicate that the Jetson should enter sleep mode
+        };
+    };
+
+    lte_gps_usb_reset {
+        compatible = "gpio-lte-gps-usb";
+        gpios = <&gpiod 3 GPIO_ACTIVE_LOW>;
+    };
+
+    hrtim1: hrtim1@40016800 {
+        compatible = "st,stm32-hr-timers";
+        reg = <0x40016800 0xc00>;
+        clocks = <&rcc STM32_CLOCK_BUS_APB2 0x04000000>;
+    };
+
+    stm-tmp {
+        label = "DIE_TEMP";
+        compatible = "st,stm32-temp";
+        io-channels = <&adc1 16>;
+        status = "okay";
+    };
+};
+
+&adc1 {
+    status = "okay";
+};
+
+&hrtim1 {
+    status = "okay";
+    led_940nm: led_940nm {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&hrtim1_chc1_pb12 &hrtim1_chc2_pb13>;
+    };
+
+    led_850nm: led_850nm {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&hrtim1_chd1_pb14 &hrtim1_chd2_pb15>;
+    };
+};
+
+&timers2 {
+    status = "okay";
+
+    fan_pwm: pwm {
+        status = "okay";
+        pinctrl-0 = <&tim2_ch3_pd7>;
+    };
+};
+
+&timers8 {
+    status = "okay";
+    led_740nm: led_740nm {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&tim8_ch2n_pb0>;
+    };
+};
+
+&timers3 {
+    status = "okay";
+    // AKA CAM3
+    tof_2d_camera_trigger: tof_2d_camera_trigger {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&tim3_ch2_pc7>;
+    };
+
+    // AKA CAM0
+    ir_eye_camera_trigger: ir_eye_camera_trigger {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&tim3_ch3_pc8>;
+    };
+
+    // AKA CAM2
+    ir_face_camera_trigger: ir_face_camera_trigger {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&tim3_ch4_pc9>;
+    };
+};
+
+&timers15 {
+    status = "okay";
+};
+
+&timers20 {
+    status = "okay";
+    front_unit_rgb_leds: front_unit_rgb_leds {
+        compatible = "worldsemi,ws2812-pwm-stm32";
+        pinctrl-0 = <&tim20_ch2_pe3>;
+        timer-channel = <2>;
+        timer-number = <20>;
+        dma-channel = <1>;
+        num-leds = <60>;
+    };
+};
+
+// needed for ws2812 LEDs
+&dma1 {
+    status = "okay";
+};
+
+// needed for ws2812 LEDs
+&dmamux1 {
+    status = "okay";
+};
+
+&clk_hse {
+	clock-frequency = <DT_FREQ_M(24)>;
+	status = "okay";
+};
+
+&pll {
+	div-m = <6>;
+	mul-n = <85>;
+	div-p = <7>;
+	div-q = <2>;
+	div-r = <2>;
+	clocks = <&clk_hse>;
+	status = "okay";
+};
+
+&rcc {
+	clocks = <&pll>;
+	clock-frequency = <DT_FREQ_M(170)>;
+	ahb-prescaler = <1>;
+	apb1-prescaler = <1>;
+	apb2-prescaler = <1>;
+};
+
+&usart2 {
+	pinctrl-0 = <&usart2_tx_pd5 &usart2_rx_pd6>;
+	current-speed = <115200>;
+	status = "okay";
+};
+
+&rtc {
+	status = "okay";
+};
+
+&i2c1 {
+    pinctrl-0 = <&i2c1_scl_pa15 &i2c1_sda_pb9>;
+    status = "okay";
+
+    front_unit_tmp_sensor: tmp112@48 {
+        compatible = "ti,tmp112";
+        reg = <0x48>;
+        label = "TMP112";
+    };
+};
+
+&can1 {
+    pinctrl-0 = <&fdcan1_rx_pd0 &fdcan1_tx_pd1>;
+    bus-speed = <125000>;
+    sjw = <1>;
+    sample-point = <875>;
+    bus-speed-data = <1000000>;
+    sjw-data = <1>;
+    sample-point-data = <875>;
+    status = "okay";
+};
+
+&spi1 {
+    pinctrl-0 = <&spi1_sck_pa5 &spi1_miso_pa6 &spi1_mosi_pa7>;
+    cs-gpios = <&gpioa 3 GPIO_ACTIVE_LOW>;
+    status = "okay";
+
+    motion_controller: motion_controller@0 {
+        compatible = "tmc,5041-spi";
+        label = "tmc_5041_motion_controller";
+        reg = <0>;
+        spi-max-frequency = <4000000>;
+        status = "okay";
+    };
+};
+
+&flash0 {
+	/*
+	 * For more information, see:
+	 * http://docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
+	 */
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+        slot0_partition: partition@0 {
+            label = "image-0";
+            reg = <0x00000000 0x00080000>;
+        };
+	};
+};

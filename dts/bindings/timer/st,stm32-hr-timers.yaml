@@ -1,0 +1,12 @@
+description: STM32 HR timers
+
+compatible: "st,stm32-hr-timers"
+
+include: base.yaml
+
+properties:
+    reg:
+        required: true
+
+    clocks:
+        required: true

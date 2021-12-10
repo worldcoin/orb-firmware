@@ -11,8 +11,8 @@ else ()
 endif ()
 
 # Get our custom boards definitions before loading Zephyr
-get_filename_component(WORKSPACE_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
-set(ORB_BOARD_DEF ${WORKSPACE_DIR}/modules/orb-board-def)
+get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
+set(ORB_BOARD_DEF ${PROJECT_DIR})
 list(APPEND BOARD_ROOT ${ORB_BOARD_DEF})
 list(APPEND DTS_ROOT ${ORB_BOARD_DEF})
 
@@ -30,7 +30,7 @@ else()
 endif()
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
-project(orb-firmware)
+project(orb-main-mcu-firmware)
 
 set(SOURCES_FILES
         src/main.c

@@ -1,0 +1,5 @@
+if LED_STRIP
+
+source "../orb/drivers/led_strip/Kconfig.ws2812_pwm_stm32"
+
+endif # LED_STRIP
