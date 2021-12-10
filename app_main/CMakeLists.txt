@@ -30,7 +30,7 @@ else()
 endif()
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
-project(orb-main-mcu-firmware)
+project(orb-mcu-main-app)
 
 set(SOURCES_FILES
         src/main.c
