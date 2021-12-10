@@ -15,6 +15,7 @@ LOG_MODULE_REGISTER(canbus);
 #include <pb.h>
 #include <pb_decode.h>
 #include <stepper_motors/stepper_motors.h>
+#include <temperature/temperature.h>
 #include <zephyr.h>
 
 #include <app_config.h>
@@ -124,6 +125,15 @@ handle_mirror_angle_message(MirrorAngle mirror_angle)
     return Ack_ErrorCode_SUCCESS;
 }
 
+static Ack_ErrorCode
+handle_temperature_sample_period_message(TemperatureSamplePeriod sample_period)
+{
+    LOG_DBG("Got new temperature sampling period: %ums",
+            sample_period.sample_period_ms);
+    temperature_set_sampling_period_ms(sample_period.sample_period_ms);
+    return Ack_ErrorCode_SUCCESS;
+}
+
 static void
 handle_message(McuMessage *m)
 {
@@ -182,6 +192,11 @@ handle_message(McuMessage *m)
     case JetsonToMcu_mirror_angle_tag:
         ack.message.m_message.payload.ack.error = handle_mirror_angle_message(
             m->message.j_message.payload.mirror_angle);
+        break;
+    case JetsonToMcu_temperature_sample_period_tag:
+        ack.message.m_message.payload.ack.error =
+            handle_temperature_sample_period_message(
+                m->message.j_message.payload.temperature_sample_period);
         break;
     default:
         LOG_ERR("Unhandled message payload %d!",

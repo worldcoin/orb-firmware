@@ -55,6 +55,9 @@ target_sources_ifdef(CONFIG_BOARD_ORB ${TARGET} PRIVATE
 
         src/stepper_motors/stepper_motors.c
         src/stepper_motors/motors_tests.c
+
+        src/temperature/temperature.c
+
         )
 
 set(INCLUDE_DIRS

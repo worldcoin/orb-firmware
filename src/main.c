@@ -21,6 +21,8 @@
 #include "messaging/messaging_tests.h"
 #endif
 
+#include <temperature/temperature.h>
+
 #include <logging/log.h>
 #include <zephyr.h>
 LOG_MODULE_REGISTER(main);
@@ -64,17 +66,9 @@ main(void)
     motors_tests_init();
 #endif
 
+    temperature_init();
+
     messaging_init();
-
-    // the target is now up and running
-
-    McuMessage ack = {.which_message = McuMessage_m_message_tag,
-                      .message.m_message.which_payload = McuToJetson_ack_tag,
-                      .message.m_message.payload.ack.ack_number = 1,
-                      .message.m_message.payload.ack.error =
-                          Ack_ErrorCode_FAIL};
-
-    messaging_push_tx(&ack);
 
 #ifdef CONFIG_BOARD_STM32G484_EVAL
     LOG_WRN("Running tests");
