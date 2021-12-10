@@ -16,11 +16,8 @@ manifest:
             - segger
             - nanopb
 
-    - name: proto2-main-mcu
-      revision: cyril/monorepo
-      path: orb
     - name: protobuf-definitions
       revision: main
       path: modules/orb-protobuf-definitions
   self:
-    path: manifest
+    path: orb
