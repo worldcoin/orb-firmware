@@ -12,8 +12,8 @@
 
 LOG_MODULE_REGISTER(stepper_motors);
 
-K_THREAD_STACK_DEFINE(stack_area_motor_horizontal_init, 256);
-K_THREAD_STACK_DEFINE(stack_area_motor_vertical_init, 256);
+K_THREAD_STACK_DEFINE(stack_area_motor_horizontal_init, 320);
+K_THREAD_STACK_DEFINE(stack_area_motor_vertical_init, 320);
 static struct k_thread thread_data_motor_horizontal;
 static struct k_thread thread_data_motor_vertical;
 static k_tid_t tid_autohoming[MOTOR_COUNT] = {0};
