@@ -1,0 +1,26 @@
+manifest:
+  remotes:
+    - name: worldcoin
+      url-base: git@github.com:worldcoin
+  defaults:
+    remote: worldcoin
+  projects:
+    - name: zephyr
+      remote: worldcoin
+      revision: calibation_wait_adc
+      import:
+        name-allowlist:
+            - cmsis
+            - hal_stm32
+            - mcuboot
+            - segger
+            - nanopb
+
+    - name: proto2-main-mcu
+      revision: cyril/monorepo
+      path: orb
+    - name: protobuf-definitions
+      revision: main
+      path: modules/orb-protobuf-definitions
+  self:
+    path: manifest
