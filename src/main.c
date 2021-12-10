@@ -1,21 +1,17 @@
-#include "messaging/messaging.h"
-#include <device.h>
-#include <drivers/gpio.h>
-
-#if CONFIG_BOARD_ORB
 #include "distributor_leds/distributor_leds.h"
 #include "fan/fan.h"
 #include "front_unit_rgb_leds/front_unit_rgb_leds.h"
 #include "ir_camera_system/ir_camera_system.h"
 #include "messaging/messaging.h"
 #include "power_sequence/power_sequence.h"
+#include <device.h>
+#include <drivers/gpio.h>
 #ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
 #include <ir_camera_system/ir_camera_system_test.h>
 #endif
 #include "sound/sound.h"
 #include "stepper_motors/motors_tests.h"
 #include "stepper_motors/stepper_motors.h"
-#endif
 
 #if CONFIG_BOARD_STM32G484_EVAL
 #include "messaging/messaging_tests.h"
@@ -24,10 +20,6 @@
 #include <logging/log.h>
 #include <zephyr.h>
 LOG_MODULE_REGISTER(main);
-
-#if CONFIG_BOARD_STM32G484_EVAL
-#include "messaging/tests.h"
-#endif
 
 void
 main(void)
