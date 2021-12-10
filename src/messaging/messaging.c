@@ -23,7 +23,7 @@ K_THREAD_DEFINE(process_tx_messages, THREAD_PROCESS_TX_MESSAGES_STACKSIZE,
                 THREAD_PRIORITY_PROCESS_TX_MSG, 0, 0);
 
 #define QUEUE_NUM_ITEMS 8
-#define QUEUE_ALIGN 8
+#define QUEUE_ALIGN     8
 
 static_assert(QUEUE_ALIGN % 2 == 0, "QUEUE_ALIGN must be a multiple of 2");
 static_assert(sizeof(McuMessage) % QUEUE_ALIGN == 0,

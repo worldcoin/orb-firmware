@@ -2,7 +2,7 @@
 // Created by Cyril on 05/10/2021.
 //
 
-#include "tests.h"
+#include "messaging_tests.h"
 #include <logging/log.h>
 LOG_MODULE_REGISTER(cantest);
 
@@ -14,7 +14,7 @@ LOG_MODULE_REGISTER(cantest);
 #include <pb_encode.h>
 #include <zephyr.h>
 
-K_THREAD_STACK_DEFINE(test_thread_stack, 1024);
+K_THREAD_STACK_DEFINE(messaging_test_thread_stack, 1024);
 static struct k_thread test_thread_data;
 
 /// This function allows the test of the full CAN bus data pipe using two boards
@@ -51,12 +51,12 @@ test_can_send()
 }
 
 void
-tests_messaging_init(void)
+messaging_tests_init(void)
 {
-    k_tid_t tid =
-        k_thread_create(&test_thread_data, test_thread_stack,
-                        K_THREAD_STACK_SIZEOF(test_thread_stack), test_can_send,
-                        NULL, NULL, NULL, THREAD_PRIORITY_CAN_RX, 0, K_NO_WAIT);
+    k_tid_t tid = k_thread_create(
+        &test_thread_data, messaging_test_thread_stack,
+        K_THREAD_STACK_SIZEOF(messaging_test_thread_stack), test_can_send, NULL,
+        NULL, NULL, THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
     if (!tid) {
         LOG_ERR("ERROR spawning test_thread thread");
     }

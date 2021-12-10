@@ -37,8 +37,10 @@ set(SOURCES_FILES
 
         src/messaging/canbus.c
         src/messaging/messaging.c
-        src/messaging/tests.c
+        src/messaging/messaging_tests.c
+        )
 
+target_sources_ifdef(CONFIG_BOARD_ORB ${TARGET} PRIVATE
         src/power_sequence/power_sequence.c
         src/fan/fan.c
         src/sound/sound.c
@@ -50,6 +52,12 @@ set(SOURCES_FILES
 
         src/ir_camera_system/ir_camera_system.c
         src/ir_camera_system/ir_camera_system_test.c
+
+        src/stepper_motors/stepper_motors.c
+        src/stepper_motors/motors_tests.c
+
+        src/temperature/temperature.c
+
         )
 
 set(INCLUDE_DIRS

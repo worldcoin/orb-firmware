@@ -14,6 +14,8 @@ LOG_MODULE_REGISTER(canbus);
 #include <ir_camera_system/ir_camera_system.h>
 #include <pb.h>
 #include <pb_decode.h>
+#include <stepper_motors/stepper_motors.h>
+#include <temperature/temperature.h>
 #include <zephyr.h>
 
 #include <app_config.h>
@@ -110,6 +112,28 @@ handle_740nm_brightness_message(Brightness740Nm brightness)
     return ir_camera_system_set_740nm_led_brightness(brightness.brightness);
 }
 
+static Ack_ErrorCode
+handle_mirror_angle_message(MirrorAngle mirror_angle)
+{
+    LOG_DBG("");
+    if (motors_angle_horizontal(mirror_angle.horizontal_angle) != RET_SUCCESS) {
+        return Ack_ErrorCode_FAIL;
+    }
+    if (motors_angle_vertical(mirror_angle.vertical_angle) != RET_SUCCESS) {
+        return Ack_ErrorCode_FAIL;
+    }
+    return Ack_ErrorCode_SUCCESS;
+}
+
+static Ack_ErrorCode
+handle_temperature_sample_period_message(TemperatureSamplePeriod sample_period)
+{
+    LOG_DBG("Got new temperature sampling period: %ums",
+            sample_period.sample_period_ms);
+    temperature_set_sampling_period_ms(sample_period.sample_period_ms);
+    return Ack_ErrorCode_SUCCESS;
+}
+
 static void
 handle_message(McuMessage *m)
 {
@@ -164,6 +188,15 @@ handle_message(McuMessage *m)
         ack.message.m_message.payload.ack.error =
             handle_740nm_brightness_message(
                 m->message.j_message.payload.brightness_740nm_leds);
+        break;
+    case JetsonToMcu_mirror_angle_tag:
+        ack.message.m_message.payload.ack.error = handle_mirror_angle_message(
+            m->message.j_message.payload.mirror_angle);
+        break;
+    case JetsonToMcu_temperature_sample_period_tag:
+        ack.message.m_message.payload.ack.error =
+            handle_temperature_sample_period_message(
+                m->message.j_message.payload.temperature_sample_period);
         break;
     default:
         LOG_ERR("Unhandled message payload %d!",
