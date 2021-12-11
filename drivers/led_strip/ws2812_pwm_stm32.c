@@ -23,10 +23,10 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(worldsemi_ws2812_pwm_stm32);
 
-#define WS2812_PERIOD_NS 1250
+#define WS2812_PERIOD_NS       1250
 #define WS2812_PERIOD_1_BIT_NS 600
 #define WS2812_PERIOD_0_BIT_NS 300
-#define NUM_RESET_PIXELS 41
+#define NUM_RESET_PIXELS       41
 
 #if defined(CONFIG_SOC_SERIES_STM32F3X) ||                                     \
     defined(CONFIG_SOC_SERIES_STM32F7X) ||                                     \
