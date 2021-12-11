@@ -7,7 +7,7 @@ set_property(GLOBAL PROPERTY CSTD gnu11)
 if (DEFINED ENV{BOARD})
     set(BOARD $ENV{BOARD})
 else ()
-    set(BOARD orb)
+    set(BOARD mcu_main)
 endif ()
 
 # Get our custom boards definitions before loading Zephyr
@@ -40,7 +40,7 @@ set(SOURCES_FILES
         src/messaging/messaging_tests.c
         )
 
-target_sources_ifdef(CONFIG_BOARD_ORB ${TARGET} PRIVATE
+target_sources_ifdef(CONFIG_BOARD_MCU_MAIN ${TARGET} PRIVATE
         src/power_sequence/power_sequence.c
         src/fan/fan.c
         src/sound/sound.c

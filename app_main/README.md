@@ -24,7 +24,7 @@ git checkout main
 Compile the app:
 
 ```shell
-west build -b [stm32g484_eval | orb]
+west build -b [stm32g484_eval | mcu_main]
 ```
 
 ### Flashing

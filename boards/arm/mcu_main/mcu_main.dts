@@ -3,8 +3,8 @@
 #include <st/g4/stm32g474v(b-c-e)tx-pinctrl.dtsi>
 
 / {
-	model = "Worldcoin Orb";
-	compatible = "worldcoin,orb";
+	model = "Worldcoin Orb Main MCU";
+	compatible = "worldcoin,mcu_main";
 
 	chosen {
 		zephyr,console = &usart2;
