@@ -1,0 +1,9 @@
+config ORB_LIB_ERRORS
+    bool "Enable the custom Orb errors"
+
+config ORB_APP_ASSERT
+    default y
+    bool "Use debug assertions"
+    help
+        Enabling this option will provide more information about failing assertions such as the filename, line number and error code.
+        Define APP_ASSERT_LOG_ERROR to the logging function if you need.

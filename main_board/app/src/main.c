@@ -28,7 +28,7 @@ main(void)
 {
     LOG_INF("Hello from " CONFIG_BOARD " :)");
 
-#ifdef CONFIG_BOARD_ORB
+#ifdef CONFIG_BOARD_MCU_MAIN
     __ASSERT(power_wait_for_power_button_press() == 0,
              "Error waiting for button");
 #endif

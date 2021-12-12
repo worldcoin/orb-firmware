@@ -1,0 +1,36 @@
+description: |
+  STM32 PWM-based WS2812 LED strip controller
+  We expect this node to be a child of a timer node
+
+compatible: "worldsemi,ws2812-pwm-stm32"
+
+properties:
+  pinctrl-0:
+    type: phandle
+    required: true
+    description: |
+      GPIO pin configuration for PWM output. We expect that the phandle
+      will reference a pincntrl node, e.g.,
+
+          pinctrl-0 = <&tim1_ch1_pa8>
+
+  timer-channel:
+    type: int
+    required: true
+    description: PWM timer output channel
+
+  timer-number:
+    type: int
+    required: true
+    description: PWM timer number
+
+  # We are using DMA channel 1 hard coded for now
+  dma-channel:
+    type: int
+    required: true
+    description: DMA Channel to use
+
+  num-leds:
+    type: int
+    required: true
+    description: Number of LEDs in LED strip

@@ -1,0 +1,9 @@
+---
+description: GPIO pin attached to a power good pin for a power regulator
+
+compatible: "gpio-power-good"
+
+properties:
+  gpios:
+    type: phandle-array
+    required: true

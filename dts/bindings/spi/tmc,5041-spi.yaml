@@ -1,0 +1,5 @@
+description: "TMC 5041 motion controller"
+
+include: spi-device.yaml
+
+compatible: "tmc,5041-spi"

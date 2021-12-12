@@ -1,0 +1,8 @@
+description: STM32 PWM, but worldcoin as to not invoke the stm32 driver
+
+compatible: "worldcoin,stm32-pwm"
+
+properties:
+  pinctrl-0:
+    type: phandles
+    required: true

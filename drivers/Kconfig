@@ -1,0 +1,5 @@
+menu "Device Drivers"
+
+source "../orb/drivers/led_strip/Kconfig"
+
+endmenu

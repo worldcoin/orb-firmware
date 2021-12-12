@@ -1,0 +1,4 @@
+name: orb-drivers
+build:
+  cmake: .
+  kconfig: Kconfig
