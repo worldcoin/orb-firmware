@@ -309,7 +309,16 @@
     front_unit_tmp_sensor: tmp112@48 {
         compatible = "ti,tmp112";
         reg = <0x48>;
-        label = "TMP112";
+        label = "FRONT_UNIT_TEMP_SENSOR";
+    };
+
+    liquid_lens_tmp_sensor: maxim31875@4a {
+        compatible = "maxim,max31875";
+        reg = <0x4a>;
+        label = "LIQUID_LENS_TEMP_SENSOR";
+        extended-mode;
+        conversions-per-second = "0.25";
+        resolution = <8>;
     };
 };
 
