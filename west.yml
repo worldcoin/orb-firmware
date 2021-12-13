@@ -9,7 +9,7 @@ manifest:
   projects:
     - name: zephyr
       remote: pete
-      revision: fix_stm32_adc_calibration
+      revision: implement_max31875_sensor
       import:
         name-allowlist:
           - cmsis
