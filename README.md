@@ -129,30 +129,30 @@ firmware
 
 #### Finally, to Build:
 
-    ```shell
-    cd "$REPO_DIR"/orb/main_board/app/
-    west build
-    ```
+```shell
+cd "$REPO_DIR"/orb/main_board/app/
+west build
+```
 
 #### To Flash:
 
-    ```shell
-    cd "$REPO_DIR"/orb/main_board/app/
-    west flash
-    ```
+```shell
+cd "$REPO_DIR"/orb/main_board/app/
+west flash
+```
 
 if in the Docker container:
 
-    ```shell
-    cd "$REPO_DIR"/orb/main_board/app/
-    su-exec root west flash
-    ```
+```shell
+cd "$REPO_DIR"/orb/main_board/app/
+su-exec root west flash
+```
 
 ## Contributing
 
 ### Formatting
 
-    ```shell
-    cd "$REPO_DIR"/orb/main_board/app/
-    pre-commit install -c utils/format/pre-commit-config.yaml
-    ```
+```shell
+cd "$REPO_DIR"/orb/main_board/app/
+pre-commit install -c utils/format/pre-commit-config.yaml
+```
