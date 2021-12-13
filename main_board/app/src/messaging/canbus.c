@@ -11,6 +11,7 @@ LOG_MODULE_REGISTER(canbus);
 #include <assert.h>
 #include <device.h>
 #include <drivers/can.h>
+#include <fan/fan.h>
 #include <ir_camera_system/ir_camera_system.h>
 #include <pb.h>
 #include <pb_decode.h>
@@ -134,6 +135,16 @@ handle_temperature_sample_period_message(TemperatureSamplePeriod sample_period)
     return Ack_ErrorCode_SUCCESS;
 }
 
+static Ack_ErrorCode
+handle_fan_speed(FanSpeed fan_speed)
+{
+    if (fan_speed.percentage > 100) {
+        return Ack_ErrorCode_RANGE;
+    }
+    fan_set_speed(fan_speed.percentage);
+    return Ack_ErrorCode_SUCCESS;
+}
+
 static void
 handle_message(McuMessage *m)
 {
@@ -197,6 +208,10 @@ handle_message(McuMessage *m)
         ack.message.m_message.payload.ack.error =
             handle_temperature_sample_period_message(
                 m->message.j_message.payload.temperature_sample_period);
+        break;
+    case JetsonToMcu_fan_speed_tag:
+        ack.message.m_message.payload.ack.error =
+            handle_fan_speed(m->message.j_message.payload.fan_speed);
         break;
     default:
         LOG_ERR("Unhandled message payload %d!",
