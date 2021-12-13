@@ -18,6 +18,7 @@ shell:
 		-v $(HOME)/.ssh:$(HOME)/.ssh:ro \
 		-v $(HOME)/.ccache:$(HOME)/.ccache \
 		-v $(REPO_DIR):$(REPO_DIR) \
+		-e REPO_DIR=$(REPO_DIR) \
 		-w $(REPO_DIR) \
 		$(DOCKER_TAG) \
 		/bin/bash
