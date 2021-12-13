@@ -15,16 +15,30 @@ LOG_MODULE_REGISTER(fan);
 
 #define MSG "Checking that fan PWM controller is ready... "
 
-int
-turn_on_fan(void)
+const struct device *fan_pwm = DEVICE_DT_GET(FAN_PWM_CTLR);
+
+void
+fan_set_speed(uint32_t percentage)
 {
-    const struct device *fan_pwm = DEVICE_DT_GET(FAN_PWM_CTLR);
+    if (!device_is_ready(fan_pwm)) {
+        return;
+    }
+
+    percentage = MIN(percentage, 100);
+    LOG_INF("Switching fan to %d%% speed", percentage);
+    pwm_pin_set_nsec(fan_pwm, FAN_PWM_CHANNEL, FAN_PWM_PERIOD,
+                     (FAN_PWM_PERIOD * percentage) / 100, FAN_PWM_FLAGS);
+}
+
+int
+fan_init(void)
+{
     if (!device_is_ready(fan_pwm)) {
         LOG_ERR(MSG " no");
         return 1;
     }
     LOG_INF(MSG " yes");
-    LOG_INF("Switching fan to 100%% speed");
-    return pwm_pin_set_nsec(fan_pwm, FAN_PWM_CHANNEL, FAN_PWM_PERIOD,
-                            FAN_PWM_PERIOD, FAN_PWM_FLAGS);
+
+    fan_set_speed(25);
+    return 0;
 }

@@ -36,7 +36,7 @@ main(void)
     LOG_INF("Booting system");
 
     __ASSERT(power_turn_on_jetson() == 0, "Jetson power-on error");
-    __ASSERT(turn_on_fan() == 0, "Error turning on fan");
+    __ASSERT(fan_init() == 0, "Error turning on fan");
     __ASSERT(init_sound() == 0, "Error initializing sound");
     __ASSERT(front_unit_rgb_leds_init() == 0,
              "Error doing front unit RGB LEDs");
