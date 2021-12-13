@@ -2,12 +2,14 @@ manifest:
   remotes:
     - name: worldcoin
       url-base: git@github.com:worldcoin
+    - name: pete
+      url-base: git@github.com:pdietl
   defaults:
     remote: worldcoin
   projects:
     - name: zephyr
-      remote: worldcoin
-      revision: calibation_wait_adc
+      remote: pete
+      revision: fix_stm32_adc_calibration
       import:
         name-allowlist:
           - cmsis

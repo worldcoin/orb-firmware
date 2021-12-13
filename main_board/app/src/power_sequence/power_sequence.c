@@ -1,3 +1,5 @@
+#include <app_config.h>
+#include <assert.h>
 #include <device.h>
 #include <drivers/gpio.h>
 #include <drivers/regulator.h>
@@ -39,8 +41,10 @@ check_is_ready(const struct device *dev, const char *name)
 #define SUPPLY_1V8_PG_FLAGS DT_GPIO_FLAGS(SUPPLY_1V8_PG_NODE, gpios)
 
 int
-power_turn_on_essential_supplies(void)
+power_turn_on_essential_supplies(const struct device *dev)
 {
+    ARG_UNUSED(dev);
+
     const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
     const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
     const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
@@ -117,8 +121,18 @@ power_turn_on_essential_supplies(void)
     while (!gpio_pin_get(supply_1v8_pg, SUPPLY_1V8_PG_PIN))
         ;
     LOG_INF("1.8V power supply good");
+
+    k_busy_wait(5000);
+
     return 0;
 }
+
+static_assert(ESSENTIAL_POWER_SUPPLIES_INIT_PRIORITY == 55,
+              "update the integer literal here");
+
+// This need to be after regulators but before I2C
+// We must use an integer literal. Thanks C macros!
+SYS_INIT(power_turn_on_essential_supplies, POST_KERNEL, 55);
 
 #define BUTTON_PRESS_TIME_MS    5000
 #define BUTTON_SAMPLE_PERIOD_MS 10

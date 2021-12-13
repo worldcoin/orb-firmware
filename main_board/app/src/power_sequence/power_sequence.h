@@ -2,8 +2,6 @@
 #define POWER_SEQUENCE_H
 
 int
-power_turn_on_essential_supplies(void);
-int
 power_turn_on_super_cap_charger(void);
 int
 power_turn_on_pvcc(void);
