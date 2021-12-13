@@ -35,7 +35,6 @@ main(void)
 
     LOG_INF("Booting system");
 
-    __ASSERT(power_turn_on_essential_supplies() == 0, "Power sequencing error");
     __ASSERT(power_turn_on_jetson() == 0, "Jetson power-on error");
     __ASSERT(turn_on_fan() == 0, "Error turning on fan");
     __ASSERT(init_sound() == 0, "Error initializing sound");

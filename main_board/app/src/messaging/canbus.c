@@ -227,8 +227,8 @@ rx_thread(void *arg1, void *arg2, void *arg3)
     int ret;
 
     ret = can_attach_msgq(can_dev, &recv_queue, &recv_queue_filter);
-    if (ret == CAN_NO_FREE_FILTER) {
-        LOG_ERR("Error attaching message queue!");
+    if (ret < 0) {
+        LOG_ERR("Error attaching message queue (%d)!", ret);
         return;
     }
 
