@@ -12,6 +12,7 @@ LOG_MODULE_REGISTER(canbus);
 #include <device.h>
 #include <drivers/can.h>
 #include <fan/fan.h>
+#include <front_unit_rgb_leds/front_unit_rgb_leds.h>
 #include <ir_camera_system/ir_camera_system.h>
 #include <pb.h>
 #include <pb_decode.h>
@@ -145,6 +146,23 @@ handle_fan_speed(FanSpeed fan_speed)
     return Ack_ErrorCode_SUCCESS;
 }
 
+static Ack_ErrorCode
+handle_user_leds_pattern(UserLEDsPattern pattern)
+{
+    front_unit_rgb_leds_set_pattern(pattern.pattern);
+    return Ack_ErrorCode_SUCCESS;
+}
+
+static Ack_ErrorCode
+handle_user_leds_brightness(UserLEDsBrightness brightness)
+{
+    if (brightness.brightness > 255) {
+        return Ack_ErrorCode_RANGE;
+    }
+    front_unit_rgb_leds_set_brightness(brightness.brightness);
+    return Ack_ErrorCode_SUCCESS;
+}
+
 static void
 handle_message(McuMessage *m)
 {
@@ -212,6 +230,14 @@ handle_message(McuMessage *m)
     case JetsonToMcu_fan_speed_tag:
         ack.message.m_message.payload.ack.error =
             handle_fan_speed(m->message.j_message.payload.fan_speed);
+        break;
+    case JetsonToMcu_user_leds_pattern_tag:
+        ack.message.m_message.payload.ack.error = handle_user_leds_pattern(
+            m->message.j_message.payload.user_leds_pattern);
+        break;
+    case JetsonToMcu_user_leds_brightness_tag:
+        ack.message.m_message.payload.ack.error = handle_user_leds_brightness(
+            m->message.j_message.payload.user_leds_brightness);
         break;
     default:
         LOG_ERR("Unhandled message payload %d!",

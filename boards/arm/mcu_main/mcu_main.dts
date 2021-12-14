@@ -253,7 +253,7 @@
         timer-channel = <2>;
         timer-number = <20>;
         dma-channel = <1>;
-        num-leds = <60>;
+        num-leds = <233>;
     };
 };
 
