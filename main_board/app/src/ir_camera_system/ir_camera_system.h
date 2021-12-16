@@ -1,12 +1,13 @@
 #ifndef IR_CAMERA_SYSTEM
 #define IR_CAMERA_SYSTEM
 
+#include <errors.h>
 #include <mcu_messaging.pb.h>
 #include <sys/util.h>
 
 #define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US 5000
 
-int
+ret_code_t
 ir_camera_system_init(void);
 
 void
@@ -36,12 +37,13 @@ InfraredLEDs_Wavelength
 ir_camera_system_get_enabled_leds(void);
 
 // 0 - 100%
-Ack_ErrorCode
+ret_code_t
 ir_camera_system_set_740nm_led_brightness(uint32_t percentage);
 
 void
 ir_camera_system_set_fps(uint16_t fps);
-Ack_ErrorCode
+
+ret_code_t
 ir_camera_system_set_on_time_us(uint16_t on_time_us);
 
 #endif // IR_CAMERA_SYSTEM

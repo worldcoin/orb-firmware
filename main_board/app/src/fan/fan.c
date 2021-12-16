@@ -30,15 +30,15 @@ fan_set_speed(uint32_t percentage)
                      (FAN_PWM_PERIOD * percentage) / 100, FAN_PWM_FLAGS);
 }
 
-int
+ret_code_t
 fan_init(void)
 {
     if (!device_is_ready(fan_pwm)) {
         LOG_ERR(MSG " no");
-        return 1;
+        return RET_ERROR_INTERNAL;
     }
     LOG_INF(MSG " yes");
 
     fan_set_speed(25);
-    return 0;
+    return RET_SUCCESS;
 }

@@ -53,7 +53,12 @@ handle_led_on_time_message(McuMessage *msg)
         msg->message.j_message.payload.led_on_time.on_duration_us;
 
     LOG_DBG("Got LED on time message = %uus", on_time_us);
-    send_ack(ir_camera_system_set_on_time_us(on_time_us), get_ack_num(msg));
+    ret_code_t ret = ir_camera_system_set_on_time_us(on_time_us);
+    if (ret == RET_SUCCESS) {
+        send_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    } else {
+        send_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+    }
 }
 
 static void
@@ -121,12 +126,23 @@ handle_740nm_brightness_message(McuMessage *msg)
 {
     MAKE_ASSERTS(JetsonToMcu_brightness_740nm_leds_tag);
 
+    ret_code_t ret;
     uint32_t brightness =
         msg->message.j_message.payload.brightness_740nm_leds.brightness;
 
-    LOG_DBG("");
-    send_ack(ir_camera_system_set_740nm_led_brightness(brightness),
-             get_ack_num(msg));
+    if (brightness > 100) {
+        LOG_ERR("Got brightness of %u out of range [0;100]", brightness);
+        send_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+    } else {
+        LOG_DBG("Got brightness message: %u%%", brightness);
+
+        ret = ir_camera_system_set_740nm_led_brightness(brightness);
+        if (ret == RET_SUCCESS) {
+            send_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        } else {
+            send_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        }
+    }
 }
 
 static void

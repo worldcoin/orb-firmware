@@ -2,8 +2,9 @@
 #define FRONT_UNIT_RGB_LEDS_H
 
 #include "mcu_messaging.pb.h"
+#include <errors.h>
 
-int
+ret_code_t
 front_unit_rgb_leds_init(void);
 
 void

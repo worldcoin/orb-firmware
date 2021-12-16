@@ -72,7 +72,7 @@ front_unit_rgb_leds_set_brightness(uint32_t brightness)
     k_sem_give(&sem);
 }
 
-int
+ret_code_t
 front_unit_rgb_leds_init(void)
 {
     const struct device *led_strip =
@@ -80,7 +80,7 @@ front_unit_rgb_leds_init(void)
 
     if (!device_is_ready(led_strip)) {
         LOG_ERR("Front unit LED strip not ready!");
-        return 1;
+        return RET_ERROR_INTERNAL;
     }
 
     k_tid_t tid = k_thread_create(
@@ -90,5 +90,5 @@ front_unit_rgb_leds_init(void)
 
     k_thread_name_set(tid, "User RGB LED");
 
-    return 0;
+    return RET_SUCCESS;
 }
