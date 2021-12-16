@@ -32,7 +32,7 @@ These repositories are enumerated in the [west.yml](west.yml) file.
 
    ```shell
    cd "$REPO_DIR"
-   west init -m git@github.com:worldcoin/proto2-main-mcu.git --mr main
+   west init -m git@github.com:worldcoin/proto2-mcu.git --mr main
    ```
 
    This will create a directory called `orb`.
@@ -61,7 +61,13 @@ A reminder that these steps assume your host machine is running Ubuntu 20.04.
 These instructions are mainly just an adaptation of the instructions in the
 [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting_started/index.html).
 
-5. Follow these instructions for [installing dependencies](https://docs.zephyrproject.org/latest/getting_started/index.html#install-dependencies).
+5. Install the dependencies
+   - Follow these instructions for [installing dependencies](https://docs.zephyrproject.org/latest/getting_started/index.html#install-dependencies).
+   - Or install the Conda environment provided [here](utils/env/environment.yml). Make sure to set the variables.
+   ```shell
+    conda env create -f orb/utils/env/environement.yml
+    conda activate worldcoin
+   ```
 
 6. Export CMake packages.
 
@@ -90,6 +96,14 @@ These instructions are mainly just an adaptation of the instructions in the
    chmod +x /tmp/zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run
    /tmp/zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run -- -d "$INSTALL_LOC"
    rm /tmp/zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run
+   ```
+   
+   For the Conda environment:
+
+   ```shell
+    # Set the environment variable to point towards the installed toolchain
+    # Do no include the trailing `/bin` in GNUARMEMB_TOOLCHAIN_PATH 
+    conda env config vars set GNUARMEMB_TOOLCHAIN_PATH=/path/to/your/toolchain/
    ```
 
 9. Install udev rules to allow for flashing as a non-root user.

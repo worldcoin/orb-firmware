@@ -1,23 +1,28 @@
 name: worldcoin
 channels:
-  - fouge
+  - fouge # for openocd on macos-arm64
   - litex-hub
   - memfault
   - conda-forge
 dependencies:
   - make
   - python=3.9
-  - conda-forge::cmake
+  - cmake
   - pyserial
   - ccache
   - protobuf
-  - gcc-arm-none-eabi
   - ninja
   - pthread-stubs
-  - openocd
   - gperf
   - clang-format
   - pre-commit
+  - libusb
+  - openocd
+  - pip
   - pip:
       - west
       - pyserial
+      - pyocd
+variables:
+  ZEPHYR_TOOLCHAIN_VARIANT: gnuarmemb
+  GNUARMEMB_TOOLCHAIN_PATH: $(CONDA_PREFIX)
