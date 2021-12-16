@@ -62,8 +62,10 @@ These instructions are mainly just an adaptation of the instructions in the
 [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting_started/index.html).
 
 5. Install the dependencies
+
    - Follow these instructions for [installing dependencies](https://docs.zephyrproject.org/latest/getting_started/index.html#install-dependencies).
    - Or install the Conda environment provided [here](utils/env/environment.yml). Make sure to set the variables.
+
    ```shell
     conda env create -f orb/utils/env/environement.yml
     conda activate worldcoin
@@ -97,12 +99,12 @@ These instructions are mainly just an adaptation of the instructions in the
    /tmp/zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run -- -d "$INSTALL_LOC"
    rm /tmp/zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run
    ```
-   
+
    For the Conda environment:
 
    ```shell
     # Set the environment variable to point towards the installed toolchain
-    # Do no include the trailing `/bin` in GNUARMEMB_TOOLCHAIN_PATH 
+    # Do no include the trailing `/bin` in GNUARMEMB_TOOLCHAIN_PATH
     conda env config vars set GNUARMEMB_TOOLCHAIN_PATH=/path/to/your/toolchain/
    ```
 
@@ -167,6 +169,6 @@ su-exec root west flash
 ### Formatting
 
 ```shell
-cd "$REPO_DIR"/orb/main_board/app/
+cd "$REPO_DIR"/orb/
 pre-commit install -c utils/format/pre-commit-config.yaml
 ```
