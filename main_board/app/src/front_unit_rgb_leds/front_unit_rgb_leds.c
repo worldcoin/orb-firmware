@@ -83,9 +83,12 @@ front_unit_rgb_leds_init(void)
         return 1;
     }
 
-    k_thread_create(&thread_data, stack_area, K_THREAD_STACK_SIZEOF(stack_area),
-                    thread_entry_point, (void *)led_strip, NULL, NULL,
-                    THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS, 0, K_NO_WAIT);
+    k_tid_t tid = k_thread_create(
+        &thread_data, stack_area, K_THREAD_STACK_SIZEOF(stack_area),
+        thread_entry_point, (void *)led_strip, NULL, NULL,
+        THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS, 0, K_NO_WAIT);
+
+    k_thread_name_set(tid, "User RGB LED");
 
     return 0;
 }
