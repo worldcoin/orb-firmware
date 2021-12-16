@@ -34,6 +34,7 @@ set(SOURCES_FILES
 
         src/messaging/canbus.c
         src/messaging/messaging.c
+        src/messaging/incoming_message_handling.c
         src/messaging/messaging_tests.c
         )
 
