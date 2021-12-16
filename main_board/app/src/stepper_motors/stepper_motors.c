@@ -271,8 +271,11 @@ motors_set_angle_relative(int32_t d_from_center, motor_t motor)
 ret_code_t
 motors_angle_horizontal(int32_t angle_millidegrees)
 {
-    if (angle_millidegrees > 65000 || angle_millidegrees < 25000) {
-        LOG_ERR("Accepted range is [25000;65000], got %d", angle_millidegrees);
+    if (angle_millidegrees > MOTORS_ANGLE_HORIZONTAL_MAX ||
+        angle_millidegrees < MOTORS_ANGLE_HORIZONTAL_MIN) {
+        LOG_ERR("Accepted range is [%u;%u], got %d",
+                MOTORS_ANGLE_HORIZONTAL_MIN, MOTORS_ANGLE_HORIZONTAL_MAX,
+                angle_millidegrees);
         return RET_ERROR_INVALID_PARAM;
     }
 
@@ -285,8 +288,10 @@ motors_angle_horizontal(int32_t angle_millidegrees)
 ret_code_t
 motors_angle_vertical(int32_t angle_millidegrees)
 {
-    if (angle_millidegrees > 20000 || angle_millidegrees < -20000) {
-        LOG_ERR("Accepted range is [-20000;20000], got %d", angle_millidegrees);
+    if (angle_millidegrees > MOTORS_ANGLE_VERTICAL_MAX ||
+        angle_millidegrees < MOTORS_ANGLE_VERTICAL_MIN) {
+        LOG_ERR("Accepted range is [%d;%d], got %d", MOTORS_ANGLE_VERTICAL_MIN,
+                MOTORS_ANGLE_VERTICAL_MAX, angle_millidegrees);
         return RET_ERROR_INVALID_PARAM;
     }
 

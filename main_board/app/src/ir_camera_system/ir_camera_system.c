@@ -564,15 +564,15 @@ setup_740nm(void)
     return 0;
 }
 
-Ack_ErrorCode
+ret_code_t
 ir_camera_system_set_740nm_led_brightness(uint32_t percentage)
 {
     if (percentage > 100) {
-        return Ack_ErrorCode_RANGE;
+        return RET_ERROR_INVALID_PARAM;
     }
 
     LL_TIM_OC_SetCompareCH2(LED_740NM_TIMER, (65535U * percentage) / 100);
-    return Ack_ErrorCode_SUCCESS;
+    return RET_SUCCESS;
 }
 
 static void
@@ -603,17 +603,17 @@ ir_camera_system_set_fps(uint16_t fps)
     setup_timer_settings_change();
 }
 
-Ack_ErrorCode
+ret_code_t
 ir_camera_system_set_on_time_us(uint16_t on_time_us)
 {
     if (on_time_us > IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US) {
-        return Ack_ErrorCode_RANGE;
+        return RET_ERROR_INVALID_PARAM;
     }
     global_timer_settings = timer_settings_from_on_time_us(on_time_us);
     LOG_INF("FPS: %u", global_timer_settings.fps);
     setup_timer_settings_change();
     LL_TIM_ClearFlag_UPDATE(CAMERA_TRIGGER_TIMER);
-    return Ack_ErrorCode_SUCCESS;
+    return RET_SUCCESS;
 }
 
 #define CONFIG_HRTIMER_EVENT(event, source)                                    \
@@ -761,7 +761,7 @@ ir_camera_system_2d_tof_camera_is_enabled(void)
     return enable_2d_tof_camera;
 }
 
-int
+ret_code_t
 ir_camera_system_init(void)
 {
     int r = 0;
@@ -769,26 +769,26 @@ ir_camera_system_init(void)
     r = enable_clocks_and_configure_pins();
     if (r < 0) {
         LOG_ERR("Error enabling clocks and configuring pins");
-        return r;
+        return RET_ERROR_INTERNAL;
     }
 
     r = setup_740nm();
     if (r < 0) {
         LOG_ERR("Error setting up 740nm IR LEDs");
-        return r;
+        return RET_ERROR_INTERNAL;
     }
 
     r = setup_940nm_850nm_common();
     if (r < 0) {
         LOG_ERR("Error setting up 940nm and 850nm IR LEDs");
-        return r;
+        return RET_ERROR_INTERNAL;
     }
 
     r = setup_camera_triggers();
     if (r < 0) {
         LOG_ERR("Error setting up IR camera triggers");
-        return r;
+        return RET_ERROR_INTERNAL;
     }
 
-    return r;
+    return RET_SUCCESS;
 }

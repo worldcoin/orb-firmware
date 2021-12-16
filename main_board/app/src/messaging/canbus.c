@@ -6,18 +6,12 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(canbus);
 
+#include "incoming_message_handling.h"
 #include "mcu_messaging.pb.h"
 #include "messaging.h"
-#include <assert.h>
 #include <device.h>
 #include <drivers/can.h>
-#include <fan/fan.h>
-#include <front_unit_rgb_leds/front_unit_rgb_leds.h>
-#include <ir_camera_system/ir_camera_system.h>
-#include <pb.h>
 #include <pb_decode.h>
-#include <stepper_motors/stepper_motors.h>
-#include <temperature/temperature.h>
 #include <zephyr.h>
 
 #include <app_config.h>
@@ -43,209 +37,6 @@ const struct device *can_dev;
 
 K_THREAD_STACK_DEFINE(rx_thread_stack, THREAD_STACK_SIZE_CAN_RX);
 static struct k_thread rx_thread_data = {0};
-
-static Ack_ErrorCode
-handle_infrared_leds_message(InfraredLEDs leds)
-{
-    LOG_DBG("Got LED wavelength message = %d", leds.wavelength);
-    ir_camera_system_enable_leds(leds.wavelength);
-    return Ack_ErrorCode_SUCCESS;
-}
-
-static Ack_ErrorCode
-handle_led_on_time_message(LedOnTimeUs on_time)
-{
-    LOG_DBG("Got LED on time message = %u", on_time.on_duration_us);
-    return ir_camera_system_set_on_time_us(on_time.on_duration_us);
-}
-
-static Ack_ErrorCode
-handle_start_triggering_ir_eye_camera_message(void)
-{
-    LOG_DBG("");
-    ir_camera_system_enable_ir_eye_camera();
-    return Ack_ErrorCode_SUCCESS;
-}
-
-static Ack_ErrorCode
-handle_stop_triggering_ir_eye_camera_message(void)
-{
-    LOG_DBG("");
-    ir_camera_system_disable_ir_eye_camera();
-    return Ack_ErrorCode_SUCCESS;
-}
-
-static Ack_ErrorCode
-handle_start_triggering_ir_face_camera_message(void)
-{
-    LOG_DBG("");
-    ir_camera_system_enable_ir_face_camera();
-    return Ack_ErrorCode_SUCCESS;
-}
-
-static Ack_ErrorCode
-handle_stop_triggering_ir_face_camera_message(void)
-{
-    LOG_DBG("");
-    ir_camera_system_disable_ir_face_camera();
-    return Ack_ErrorCode_SUCCESS;
-}
-
-static Ack_ErrorCode
-handle_start_triggering_2dtof_camera_message(void)
-{
-    LOG_DBG("");
-    ir_camera_system_enable_2d_tof_camera();
-    return Ack_ErrorCode_SUCCESS;
-}
-
-static Ack_ErrorCode
-handle_stop_triggering_2dtof_camera_message(void)
-{
-    LOG_DBG("");
-    ir_camera_system_disable_2d_tof_camera();
-    return Ack_ErrorCode_SUCCESS;
-}
-
-static Ack_ErrorCode
-handle_740nm_brightness_message(Brightness740Nm brightness)
-{
-    LOG_DBG("");
-    return ir_camera_system_set_740nm_led_brightness(brightness.brightness);
-}
-
-static Ack_ErrorCode
-handle_mirror_angle_message(MirrorAngle mirror_angle)
-{
-    LOG_DBG("");
-    if (motors_angle_horizontal(mirror_angle.horizontal_angle) != RET_SUCCESS) {
-        return Ack_ErrorCode_FAIL;
-    }
-    if (motors_angle_vertical(mirror_angle.vertical_angle) != RET_SUCCESS) {
-        return Ack_ErrorCode_FAIL;
-    }
-    return Ack_ErrorCode_SUCCESS;
-}
-
-static Ack_ErrorCode
-handle_temperature_sample_period_message(TemperatureSamplePeriod sample_period)
-{
-    LOG_DBG("Got new temperature sampling period: %ums",
-            sample_period.sample_period_ms);
-    temperature_set_sampling_period_ms(sample_period.sample_period_ms);
-    return Ack_ErrorCode_SUCCESS;
-}
-
-static Ack_ErrorCode
-handle_fan_speed(FanSpeed fan_speed)
-{
-    if (fan_speed.percentage > 100) {
-        return Ack_ErrorCode_RANGE;
-    }
-    fan_set_speed(fan_speed.percentage);
-    return Ack_ErrorCode_SUCCESS;
-}
-
-static Ack_ErrorCode
-handle_user_leds_pattern(UserLEDsPattern pattern)
-{
-    front_unit_rgb_leds_set_pattern(pattern.pattern);
-    return Ack_ErrorCode_SUCCESS;
-}
-
-static Ack_ErrorCode
-handle_user_leds_brightness(UserLEDsBrightness brightness)
-{
-    if (brightness.brightness > 255) {
-        return Ack_ErrorCode_RANGE;
-    }
-    front_unit_rgb_leds_set_brightness(brightness.brightness);
-    return Ack_ErrorCode_SUCCESS;
-}
-
-static void
-handle_message(McuMessage *m)
-{
-    McuMessage ack = {.which_message = McuMessage_m_message_tag,
-                      .message.m_message.which_payload = McuToJetson_ack_tag,
-                      .message.m_message.payload.ack.ack_number =
-                          m->message.j_message.ack_number,
-                      .message.m_message.payload.ack.error =
-                          Ack_ErrorCode_FAIL};
-
-    if (m->which_message != McuMessage_j_message_tag) {
-        LOG_INF("Got message not intended for MCU. Dropping.");
-        return;
-    }
-
-    LOG_DBG("Got a message: %d", m->message.j_message.which_payload);
-
-    switch (m->message.j_message.which_payload) {
-    case JetsonToMcu_infrared_leds_tag:
-        ack.message.m_message.payload.ack.error = handle_infrared_leds_message(
-            m->message.j_message.payload.infrared_leds);
-        break;
-    case JetsonToMcu_led_on_time_tag:
-        ack.message.m_message.payload.ack.error = handle_led_on_time_message(
-            m->message.j_message.payload.led_on_time);
-        break;
-    case JetsonToMcu_start_triggering_ir_eye_camera_tag:
-        ack.message.m_message.payload.ack.error =
-            handle_start_triggering_ir_eye_camera_message();
-        break;
-    case JetsonToMcu_stop_triggering_ir_eye_camera_tag:
-        ack.message.m_message.payload.ack.error =
-            handle_stop_triggering_ir_eye_camera_message();
-        break;
-    case JetsonToMcu_start_triggering_ir_face_camera_tag:
-        ack.message.m_message.payload.ack.error =
-            handle_start_triggering_ir_face_camera_message();
-        break;
-    case JetsonToMcu_stop_triggering_ir_face_camera_tag:
-        ack.message.m_message.payload.ack.error =
-            handle_stop_triggering_ir_face_camera_message();
-        break;
-    case JetsonToMcu_start_triggering_2dtof_camera_tag:
-        ack.message.m_message.payload.ack.error =
-            handle_start_triggering_2dtof_camera_message();
-        break;
-    case JetsonToMcu_stop_triggering_2dtof_camera_tag:
-        ack.message.m_message.payload.ack.error =
-            handle_stop_triggering_2dtof_camera_message();
-        break;
-    case JetsonToMcu_brightness_740nm_leds_tag:
-        ack.message.m_message.payload.ack.error =
-            handle_740nm_brightness_message(
-                m->message.j_message.payload.brightness_740nm_leds);
-        break;
-    case JetsonToMcu_mirror_angle_tag:
-        ack.message.m_message.payload.ack.error = handle_mirror_angle_message(
-            m->message.j_message.payload.mirror_angle);
-        break;
-    case JetsonToMcu_temperature_sample_period_tag:
-        ack.message.m_message.payload.ack.error =
-            handle_temperature_sample_period_message(
-                m->message.j_message.payload.temperature_sample_period);
-        break;
-    case JetsonToMcu_fan_speed_tag:
-        ack.message.m_message.payload.ack.error =
-            handle_fan_speed(m->message.j_message.payload.fan_speed);
-        break;
-    case JetsonToMcu_user_leds_pattern_tag:
-        ack.message.m_message.payload.ack.error = handle_user_leds_pattern(
-            m->message.j_message.payload.user_leds_pattern);
-        break;
-    case JetsonToMcu_user_leds_brightness_tag:
-        ack.message.m_message.payload.ack.error = handle_user_leds_brightness(
-            m->message.j_message.payload.user_leds_brightness);
-        break;
-    default:
-        LOG_ERR("Unhandled message payload %d!",
-                m->message.j_message.which_payload);
-    }
-
-    messaging_push_tx(&ack);
-}
 
 static const struct zcan_filter recv_queue_filter = {
     .id_type = CAN_EXTENDED_IDENTIFIER,
@@ -282,7 +73,7 @@ rx_thread(void *arg1, void *arg2, void *arg3)
         bool decoded = pb_decode_ex(&stream, McuMessage_fields, &data,
                                     PB_DECODE_DELIMITED);
         if (decoded) {
-            handle_message(&data);
+            handle_incoming_message(&data);
         } else {
             LOG_ERR("Error parsing data, discarding");
         }
