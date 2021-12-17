@@ -11,6 +11,10 @@
 
 LOG_MODULE_REGISTER(incoming_message_handling);
 
+volatile bool auto_homing_in_progress = false;
+static K_THREAD_STACK_DEFINE(auto_homing_stack, 128);
+static struct k_thread auto_homing_thread;
+
 #define MAKE_ASSERTS(tag)                                                      \
     __ASSERT_NO_MSG(msg->which_message == McuMessage_j_message_tag);           \
     __ASSERT_NO_MSG(msg->message.j_message.which_payload == tag);
@@ -30,6 +34,43 @@ send_ack(Ack_ErrorCode error, uint32_t ack_number)
                       .message.m_message.payload.ack.error = error};
     messaging_push_tx(&ack);
 }
+
+void
+auto_homing_thread_entry_point(void *a, void *b, void *c)
+{
+    ARG_UNUSED(b);
+    ARG_UNUSED(c);
+
+    uint32_t ack_num = (uint32_t)a;
+    ret_code_t ret;
+    struct k_thread *horiz = NULL, *vert = NULL;
+
+    ret = motors_auto_homing(MOTOR_HORIZONTAL, horiz);
+    if (ret == RET_ERROR_BUSY) {
+        send_ack(Ack_ErrorCode_IN_PROGRESS, ack_num);
+        goto leave;
+    }
+
+    ret = motors_auto_homing(MOTOR_VERTICAL, vert);
+    if (ret == RET_ERROR_BUSY) {
+        send_ack(Ack_ErrorCode_IN_PROGRESS, ack_num);
+        goto leave;
+    }
+
+    k_thread_join(horiz, K_FOREVER);
+    k_thread_join(vert, K_FOREVER);
+
+    if (motors_homed_successfully()) {
+        send_ack(Ack_ErrorCode_SUCCESS, ack_num);
+    } else {
+        send_ack(Ack_ErrorCode_FAIL, ack_num);
+    }
+
+leave:
+    auto_homing_in_progress = false;
+}
+
+// Handlers
 
 static void
 handle_infrared_leds_message(McuMessage *msg)
@@ -250,6 +291,22 @@ handle_user_leds_brightness(McuMessage *msg)
     }
 }
 
+static void
+handle_do_homing(McuMessage *msg)
+{
+    MAKE_ASSERTS(JetsonToMcu_do_homing_tag);
+
+    if (auto_homing_in_progress) {
+        send_ack(Ack_ErrorCode_IN_PROGRESS, get_ack_num(msg));
+    } else {
+        auto_homing_in_progress = true;
+        k_thread_create(&auto_homing_thread, auto_homing_stack,
+                        K_THREAD_STACK_SIZEOF(auto_homing_thread),
+                        auto_homing_thread_entry_point,
+                        (void *)get_ack_num(msg), NULL, NULL, 4, 0, K_NO_WAIT);
+    }
+}
+
 typedef void (*hm_callback)(McuMessage *msg);
 
 // These functions ARE NOT allowed to block!
@@ -274,7 +331,8 @@ static const hm_callback handle_message_callbacks[] = {
         handle_temperature_sample_period_message,
     [JetsonToMcu_fan_speed_tag] = handle_fan_speed,
     [JetsonToMcu_user_leds_pattern_tag] = handle_user_leds_pattern,
-    [JetsonToMcu_user_leds_brightness_tag] = handle_user_leds_brightness};
+    [JetsonToMcu_user_leds_brightness_tag] = handle_user_leds_brightness,
+    [JetsonToMcu_do_homing_tag] = handle_do_homing};
 
 static_assert(
     ARRAY_SIZE(handle_message_callbacks) <= 30,
