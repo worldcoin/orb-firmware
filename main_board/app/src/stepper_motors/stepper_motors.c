@@ -16,7 +16,7 @@ K_THREAD_STACK_DEFINE(stack_area_motor_horizontal_init, 320);
 K_THREAD_STACK_DEFINE(stack_area_motor_vertical_init, 320);
 static struct k_thread thread_data_motor_horizontal;
 static struct k_thread thread_data_motor_vertical;
-static k_tid_t tid_autohoming[MOTOR_COUNT] = {0};
+static struct k_sem homing_in_progress_sem[MOTOR_COUNT];
 
 // SPI w/ TMC5041
 #define SPI_DEVICE          DT_NODELABEL(motion_controller)
@@ -459,35 +459,44 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
         // todo raise event motor issue
     }
 
-    tid_autohoming[motor] = NULL;
+    k_sem_give(homing_in_progress_sem + motor);
+}
+
+bool
+motors_homed_successfully(void)
+{
+    return motors_refs[MOTOR_HORIZONTAL].motor_state == RET_SUCCESS &&
+           motors_refs[MOTOR_VERTICAL].motor_state == RET_SUCCESS;
 }
 
 ret_code_t
-motors_auto_homing(motor_t motor)
+motors_auto_homing(motor_t motor, struct k_thread *thread_ret)
 {
     __ASSERT(motor <= MOTOR_COUNT, "Wrong motor number");
 
-    if (tid_autohoming[motor] != NULL) {
-        LOG_ERR("Motor %u auto-homing already in progress", motor);
-        return RET_ERROR_FORBIDDEN;
+    if (k_sem_take(homing_in_progress_sem + motor, K_NO_WAIT) == -EBUSY) {
+        LOG_WRN("Motor %u auto-homing already in progress", motor);
+        return RET_ERROR_BUSY;
     }
 
     if (motor == MOTOR_HORIZONTAL) {
-        tid_autohoming[motor] = k_thread_create(
-            &thread_data_motor_horizontal, stack_area_motor_horizontal_init,
-            K_THREAD_STACK_SIZEOF(stack_area_motor_horizontal_init),
-            motors_auto_homing_thread, (void *)MOTOR_HORIZONTAL, NULL, NULL,
-            THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
+        if (thread_ret) {
+            thread_ret = &thread_data_motor_horizontal;
+        }
+        k_thread_create(&thread_data_motor_horizontal,
+                        stack_area_motor_horizontal_init,
+                        K_THREAD_STACK_SIZEOF(stack_area_motor_horizontal_init),
+                        motors_auto_homing_thread, (void *)MOTOR_HORIZONTAL,
+                        NULL, NULL, THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
     } else {
-        tid_autohoming[motor] = k_thread_create(
-            &thread_data_motor_vertical, stack_area_motor_vertical_init,
-            K_THREAD_STACK_SIZEOF(stack_area_motor_vertical_init),
-            motors_auto_homing_thread, (void *)MOTOR_VERTICAL, NULL, NULL,
-            THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
-    }
-
-    if (tid_autohoming[motor] == NULL) {
-        return RET_ERROR_INTERNAL;
+        if (thread_ret) {
+            thread_ret = &thread_data_motor_vertical;
+        }
+        k_thread_create(&thread_data_motor_vertical,
+                        stack_area_motor_vertical_init,
+                        K_THREAD_STACK_SIZEOF(stack_area_motor_vertical_init),
+                        motors_auto_homing_thread, (void *)MOTOR_VERTICAL, NULL,
+                        NULL, THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
     }
 
     return RET_SUCCESS;
@@ -518,11 +527,14 @@ motors_init(void)
         return RET_ERROR_INVALID_STATE;
     }
 
+    k_sem_init(homing_in_progress_sem + MOTOR_HORIZONTAL, 1, 1);
+    k_sem_init(homing_in_progress_sem + MOTOR_VERTICAL, 1, 1);
+
     motors_refs[MOTOR_HORIZONTAL].motor_state = RET_ERROR_NOT_INITIALIZED;
     motors_refs[MOTOR_VERTICAL].motor_state = RET_ERROR_NOT_INITIALIZED;
 
-    motors_auto_homing(MOTOR_HORIZONTAL);
-    motors_auto_homing(MOTOR_VERTICAL);
+    motors_auto_homing(MOTOR_HORIZONTAL, NULL);
+    motors_auto_homing(MOTOR_VERTICAL, NULL);
 
     return RET_SUCCESS;
 }

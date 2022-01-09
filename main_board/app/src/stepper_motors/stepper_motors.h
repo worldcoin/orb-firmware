@@ -2,6 +2,7 @@
 #define STEPPER_MOTORS_H
 
 #include <errors.h>
+#include <zephyr.h>
 
 typedef enum { MOTOR_VERTICAL = 0, MOTOR_HORIZONTAL, MOTOR_COUNT } motor_t;
 
@@ -46,7 +47,7 @@ motors_angle_vertical(int32_t angle_millidegrees);
  * * RET_ERROR_FORBIDDEN auto-homing already in progress
  */
 ret_code_t
-motors_auto_homing(motor_t motor);
+motors_auto_homing(motor_t motor, struct k_thread *thread_ret);
 
 /**
  * Initiliazing motors
@@ -58,5 +59,8 @@ motors_auto_homing(motor_t motor);
  */
 ret_code_t
 motors_init(void);
+
+bool
+motors_homed_successfully(void);
 
 #endif // STEPPER_MOTORS_H
