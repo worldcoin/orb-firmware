@@ -292,6 +292,22 @@ handle_user_leds_brightness(McuMessage *msg)
 }
 
 static void
+handle_fps(McuMessage *msg)
+{
+    MAKE_ASSERTS(JetsonToMcu_led_on_time_tag);
+
+    uint16_t fps = (uint16_t)msg->message.j_message.payload.fps.fps;
+
+    LOG_DBG("Got FPS message = %u", fps);
+    ret_code_t ret = ir_camera_system_set_fps(fps);
+    if (ret == RET_SUCCESS) {
+        send_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    } else {
+        send_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+    }
+}
+
+static void
 handle_do_homing(McuMessage *msg)
 {
     MAKE_ASSERTS(JetsonToMcu_do_homing_tag);
@@ -332,6 +348,7 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_fan_speed_tag] = handle_fan_speed,
     [JetsonToMcu_user_leds_pattern_tag] = handle_user_leds_pattern,
     [JetsonToMcu_user_leds_brightness_tag] = handle_user_leds_brightness,
+    [JetsonToMcu_fps_tag] = handle_fps,
     [JetsonToMcu_do_homing_tag] = handle_do_homing};
 
 static_assert(

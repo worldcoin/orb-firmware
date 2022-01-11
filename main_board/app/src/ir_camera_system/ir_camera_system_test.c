@@ -89,26 +89,45 @@ test_camera_triggers_and_leds_changing_fps(void)
 {
     LOG_INF("Executing test %s", __func__);
 
+    // reset values
+    ir_camera_system_set_fps(0);
+
+    // set FPS = 30
+    // on-time duration = 3333us
     ir_camera_system_set_fps(30);
 
-    ir_camera_system_enable_ir_face_camera();
+    ir_camera_system_enable_ir_eye_camera();
     ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_940NM);
 
     k_msleep(1000);
 
+    // decrease FPS <=> increase period
+    // shouldn't change on-time duration: still 3333us
     ir_camera_system_set_fps(15);
-
     k_msleep(1000);
 
+    // increase FPS to 50
+    // should change on-time duration to new settings
+    // in order to keep 10% duty cycle
+    // on-time duration: 2000us
+    ir_camera_system_set_fps(50);
+    k_msleep(1000);
+
+    // decrease on-time duration
+    // shouldn't change FPS = 50 (<10% duty cycle)
+    ir_camera_system_set_on_time_us(1000);
+    k_msleep(1000);
+
+    // increase on-time duration to 4000us
+    // FPS will be changed to 25 to keep duty cycle < 10%
+    ir_camera_system_set_on_time_us(4000);
+    k_msleep(1000);
+
+    // turn off
     ir_camera_system_set_fps(0);
-
     k_msleep(1000);
 
-    ir_camera_system_set_fps(30);
-
-    k_msleep(1000);
-
-    ir_camera_system_disable_ir_face_camera();
+    ir_camera_system_disable_ir_eye_camera();
     ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_NONE);
 }
 

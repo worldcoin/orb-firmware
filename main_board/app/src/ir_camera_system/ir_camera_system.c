@@ -10,13 +10,10 @@
 #include <soc.h>
 
 #include "ir_camera_system.h"
+#include "ir_camera_timer_settings.h"
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(ir_camera_system);
-
-#define MAX_PSC_DIV                  65536U
-#define ASSUMED_TIMER_CLOCK_FREQ     170000000
-#define ASSUMED_TIMER_CLOCK_FREQ_MHZ 170
 
 #define DT_INST_CLK(inst)                                                      \
     {                                                                          \
@@ -27,14 +24,6 @@ LOG_MODULE_REGISTER(ir_camera_system);
 struct pin_control {
     const struct soc_gpio_pinctrl *pins;
     size_t len;
-};
-
-struct timer_settings {
-    uint16_t fps;
-    uint16_t psc;
-    uint16_t arr;
-    uint16_t ccr;
-    uint16_t on_time_in_us;
 };
 
 // I expect all camera triggers to be on the same timer, but with different
@@ -125,8 +114,8 @@ static_assert(LED_850NM_HR_TIMER == LED_940NM_HR_TIMER &&
               "850nm and 940nm timers must be the same high resolution timer "
               "and that timer must be HRTIM1");
 
-#define HR_CLEAR_TIMER      (TIM_TypeDef *)DT_REG_ADDR(DT_NODELABEL(timers15))
-#define HR_CLEAR_TIMER_IRQn TIM1_BRK_TIM15_IRQn
+#define CLEAR_TIMER      (TIM_TypeDef *)DT_REG_ADDR(DT_NODELABEL(timers15))
+#define CLEAR_TIMER_IRQn TIM1_BRK_TIM15_IRQn
 static struct stm32_pclken hr_reset_pclken = {
     .bus = DT_CLOCKS_CELL(DT_NODELABEL(timers15), bus),
     .enr = DT_CLOCKS_CELL(DT_NODELABEL(timers15), bits)};
@@ -157,7 +146,7 @@ static_assert(ARRAY_SIZE(pin_controls) == ARRAY_SIZE(all_pclken),
               "Each array must be the same length");
 // END --- combined
 
-static struct timer_settings global_timer_settings;
+static struct ir_camera_timer_settings global_timer_settings;
 
 #define LED_940NM 3
 #define LED_850NM 4
@@ -315,46 +304,6 @@ enable_clocks_and_configure_pins(void)
     return r;
 }
 
-struct timer_settings
-timer_settings_from_on_time_us(uint16_t on_time_us)
-{
-    struct timer_settings ts;
-
-    if (on_time_us == 0) {
-        ts = (struct timer_settings){0};
-    } else {
-        ts.on_time_in_us =
-            MIN(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US, on_time_us);
-        ts.fps = 100000.0 / ts.on_time_in_us;
-        ts.psc = ASSUMED_TIMER_CLOCK_FREQ / (MAX_PSC_DIV * ts.fps);
-        ts.arr = ASSUMED_TIMER_CLOCK_FREQ / ((ts.psc + 1) * ts.fps);
-        ts.ccr =
-            (ASSUMED_TIMER_CLOCK_FREQ_MHZ * ts.on_time_in_us) / (ts.psc + 1);
-    }
-
-    return ts;
-}
-
-struct timer_settings
-timer_settings_from_fps(uint16_t fps)
-{
-    struct timer_settings ts;
-
-    if (fps == 0) {
-        ts = (struct timer_settings){0};
-    } else {
-        ts.fps = MIN(fps, 1000);
-        ts.on_time_in_us =
-            MIN(100000.0 / ts.fps, IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US);
-        ts.psc = ASSUMED_TIMER_CLOCK_FREQ / (MAX_PSC_DIV * ts.fps);
-        ts.arr = ASSUMED_TIMER_CLOCK_FREQ / ((ts.psc + 1) * ts.fps);
-        ts.ccr =
-            (ASSUMED_TIMER_CLOCK_FREQ_MHZ * ts.on_time_in_us) / (ts.psc + 1);
-    }
-
-    return ts;
-}
-
 #define SET_OUTPUT_EVENT_SOURCE_CONFIG(set_event)                              \
     LL_HRTIM_OUT_SetOutputSetSrc(HR_TIMER, LL_HRTIM_OUTPUT_TC1, set_event);    \
     LL_HRTIM_OUT_SetOutputSetSrc(HR_TIMER, LL_HRTIM_OUTPUT_TC2, set_event);    \
@@ -437,8 +386,8 @@ ISR_DIRECT_DECLARE(set_fps_isr)
     }
 
     if (global_timer_settings.fps != 0) {
-        LL_TIM_SetPrescaler(HR_CLEAR_TIMER, global_timer_settings.psc);
-        LL_TIM_SetAutoReload(HR_CLEAR_TIMER, global_timer_settings.ccr);
+        LL_TIM_SetPrescaler(CLEAR_TIMER, global_timer_settings.psc);
+        LL_TIM_SetAutoReload(CLEAR_TIMER, global_timer_settings.ccr);
     } else {
         SET_OUTPUT_EVENT_SOURCE_CONFIG(LL_HRTIM_OUTPUTSET_NONE);
     }
@@ -448,7 +397,7 @@ ISR_DIRECT_DECLARE(set_fps_isr)
 
 ISR_DIRECT_DECLARE(hrtim_clear_isr)
 {
-    LL_TIM_ClearFlag_UPDATE(HR_CLEAR_TIMER);
+    LL_TIM_ClearFlag_UPDATE(CLEAR_TIMER);
 
     // These operations are equivalent to calling LL_HRTIM_OUT_ForceLevel()
     HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_C].RSTx1R = HRTIM_RST1R_SRT;
@@ -578,7 +527,7 @@ ir_camera_system_set_740nm_led_brightness(uint32_t percentage)
 static void
 setup_timer_settings_change()
 {
-    static struct timer_settings old_timer_settings = {0};
+    static struct ir_camera_timer_settings old_timer_settings = {0};
 
     // Auto-reload preload is enabled. This means that the auto-reload preload
     // register is deposited into the auto-reload register only on a timer
@@ -596,11 +545,19 @@ setup_timer_settings_change()
     old_timer_settings = global_timer_settings;
 }
 
-void
+ret_code_t
 ir_camera_system_set_fps(uint16_t fps)
 {
-    global_timer_settings = timer_settings_from_fps(fps);
+    if (fps > 60) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    global_timer_settings =
+        timer_settings_from_fps(fps, &global_timer_settings);
     setup_timer_settings_change();
+    LL_TIM_ClearFlag_UPDATE(CAMERA_TRIGGER_TIMER);
+
+    return RET_SUCCESS;
 }
 
 ret_code_t
@@ -609,10 +566,12 @@ ir_camera_system_set_on_time_us(uint16_t on_time_us)
     if (on_time_us > IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US) {
         return RET_ERROR_INVALID_PARAM;
     }
-    global_timer_settings = timer_settings_from_on_time_us(on_time_us);
-    LOG_INF("FPS: %u", global_timer_settings.fps);
+
+    global_timer_settings =
+        timer_settings_from_on_time_us(on_time_us, &global_timer_settings);
     setup_timer_settings_change();
     LL_TIM_ClearFlag_UPDATE(CAMERA_TRIGGER_TIMER);
+
     return RET_SUCCESS;
 }
 
@@ -658,25 +617,25 @@ setup_940nm_850nm_common(void)
     init.Autoreload = 0;
     init.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
 
-    if (LL_TIM_Init(HR_CLEAR_TIMER, &init) != SUCCESS) {
+    if (LL_TIM_Init(CLEAR_TIMER, &init) != SUCCESS) {
         LOG_ERR("Could not initialize HR clear timer");
         return -EIO;
     }
 
-    if (IS_TIM_BREAK_INSTANCE(HR_CLEAR_TIMER)) {
-        LL_TIM_EnableAllOutputs(HR_CLEAR_TIMER);
+    if (IS_TIM_BREAK_INSTANCE(CLEAR_TIMER)) {
+        LL_TIM_EnableAllOutputs(CLEAR_TIMER);
     }
 
-    LL_TIM_SetOnePulseMode(HR_CLEAR_TIMER, LL_TIM_ONEPULSEMODE_SINGLE);
+    LL_TIM_SetOnePulseMode(CLEAR_TIMER, LL_TIM_ONEPULSEMODE_SINGLE);
 
-    LL_TIM_SetUpdateSource(HR_CLEAR_TIMER, LL_TIM_UPDATESOURCE_COUNTER);
+    LL_TIM_SetUpdateSource(CLEAR_TIMER, LL_TIM_UPDATESOURCE_COUNTER);
 
-    LL_TIM_SetSlaveMode(HR_CLEAR_TIMER, LL_TIM_SLAVEMODE_COMBINED_RESETTRIGGER);
-    LL_TIM_SetTriggerInput(HR_CLEAR_TIMER, LL_TIM_TS_ITR2); // timer 3
+    LL_TIM_SetSlaveMode(CLEAR_TIMER, LL_TIM_SLAVEMODE_COMBINED_RESETTRIGGER);
+    LL_TIM_SetTriggerInput(CLEAR_TIMER, LL_TIM_TS_ITR2); // timer 3
 
-    IRQ_DIRECT_CONNECT(HR_CLEAR_TIMER_IRQn, 2, hrtim_clear_isr, 0);
-    irq_enable(HR_CLEAR_TIMER_IRQn);
-    LL_TIM_EnableIT_UPDATE(HR_CLEAR_TIMER);
+    IRQ_DIRECT_CONNECT(CLEAR_TIMER_IRQn, 2, hrtim_clear_isr, 0);
+    irq_enable(CLEAR_TIMER_IRQn);
+    LL_TIM_EnableIT_UPDATE(CLEAR_TIMER);
 
     return 0;
 }

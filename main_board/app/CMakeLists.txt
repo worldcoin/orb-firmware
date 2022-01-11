@@ -49,6 +49,7 @@ target_sources_ifdef(CONFIG_BOARD_MCU_MAIN ${TARGET} PRIVATE
         src/distributor_leds/distributor_leds.c
 
         src/ir_camera_system/ir_camera_system.c
+        src/ir_camera_system/ir_camera_timer_settings.c
         src/ir_camera_system/ir_camera_system_test.c
 
         src/stepper_motors/stepper_motors.c

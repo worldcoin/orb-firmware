@@ -5,8 +5,6 @@
 #include <mcu_messaging.pb.h>
 #include <sys/util.h>
 
-#define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US 5000
-
 ret_code_t
 ir_camera_system_init(void);
 
@@ -40,9 +38,31 @@ ir_camera_system_get_enabled_leds(void);
 ret_code_t
 ir_camera_system_set_740nm_led_brightness(uint32_t percentage);
 
-void
+/**
+ * Set cameras' Frames-Per-Second value
+ * Settings are computed to turn on IR LEDs with a duty cycle of 10% and maximum
+ * on-time of 5ms
+ * If LED are turned off, a duty cycle of 10% will be applied or max 5ms
+ * LED on-time is modified accordingly to keep a duty cycle <= 10%, max 5ms.
+ * @param fps Frames-Per-Second, maximum is 60
+ * @return error code:
+ *   - RET_ERROR_INVALID_PARAM: FPS value isn't valid
+ *   - RET_SUCCESS: new settings applied
+ */
+ret_code_t
 ir_camera_system_set_fps(uint16_t fps);
 
+/**
+ * Set IR LEDs on duration
+ * Settings are computed to keep duty cycle <= 10%, or maximum on-time of 5ms
+ * If LEDs are turned off, a duty cycle of 10% will be applied to set the FPS.
+ * The FPS is modified accordingly to keep a duty cycle <= 10% in case
+ * \c on_time_us is too large to keep the duty cycle <= 10%
+ * @param on_time_us LED on duration, maximum is 5000
+ * @return error code:
+ *    - RET_ERROR_INVALID_PARAM: \c on_time_us isn't valid (> 5000?)
+ *    - RET_SUCCESS: new settings applied
+ */
 ret_code_t
 ir_camera_system_set_on_time_us(uint16_t on_time_us);
 
