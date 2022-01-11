@@ -12,15 +12,19 @@ LOG_MODULE_REGISTER(temperature);
 struct sensor_and_channel {
     const struct device *sensor;
     enum sensor_channel channel;
+    Temperature_TemperatureSource temperature_source;
 };
 
 const struct sensor_and_channel sensors_and_channels[] = {
     {.sensor = DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor)),
-     .channel = SENSOR_CHAN_AMBIENT_TEMP},
+     .channel = SENSOR_CHAN_AMBIENT_TEMP,
+     .temperature_source = Temperature_TemperatureSource_FRONT_UNIT},
     {.sensor = DEVICE_DT_GET(DT_PATH(stm_tmp)),
-     .channel = SENSOR_CHAN_DIE_TEMP},
+     .channel = SENSOR_CHAN_DIE_TEMP,
+     .temperature_source = Temperature_TemperatureSource_MAIN_MCU},
     {.sensor = DEVICE_DT_GET(DT_NODELABEL(liquid_lens_tmp_sensor)),
-     .channel = SENSOR_CHAN_AMBIENT_TEMP}};
+     .channel = SENSOR_CHAN_AMBIENT_TEMP,
+     .temperature_source = Temperature_TemperatureSource_LIQUID_LENS}};
 
 static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_TEMPERATURE);
 static struct k_thread thread_data;
@@ -74,7 +78,7 @@ sample_and_report_temperature(
                                   sensor_and_channel->channel);
     if (!ret) {
         msg.message.m_message.payload.temperature.source =
-            Temperature_TemperatureSource_MAIN_MCU;
+            sensor_and_channel->temperature_source;
         msg.message.m_message.payload.temperature.temperature_c = temp;
         messaging_push_tx(&msg);
     }
