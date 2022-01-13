@@ -41,13 +41,16 @@ motors_angle_vertical(int32_t angle_millidegrees);
 /**
  * Perform auto-homing
  * @param motor (0 or 1)
+ * @param thread_ret return a pointer to the thread info about thew spawned
+ * auto-homing thread. This intended to be used for waiting on auto-homing to
+ * finish
  * @return
  * * RET_SUCCESS auto-homing has started
  * * RET_ERROR_INTERNAL unable to spawn auto-homing thread
  * * RET_ERROR_FORBIDDEN auto-homing already in progress
  */
 ret_code_t
-motors_auto_homing(motor_t motor, struct k_thread *thread_ret);
+motors_auto_homing(motor_t motor, struct k_thread **thread_ret);
 
 /**
  * Initiliazing motors
