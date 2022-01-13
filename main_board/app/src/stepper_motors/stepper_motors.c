@@ -470,7 +470,7 @@ motors_homed_successfully(void)
 }
 
 ret_code_t
-motors_auto_homing(motor_t motor, struct k_thread *thread_ret)
+motors_auto_homing(motor_t motor, struct k_thread **thread_ret)
 {
     __ASSERT(motor <= MOTOR_COUNT, "Wrong motor number");
 
@@ -481,7 +481,7 @@ motors_auto_homing(motor_t motor, struct k_thread *thread_ret)
 
     if (motor == MOTOR_HORIZONTAL) {
         if (thread_ret) {
-            thread_ret = &thread_data_motor_horizontal;
+            *thread_ret = &thread_data_motor_horizontal;
         }
         k_thread_create(&thread_data_motor_horizontal,
                         stack_area_motor_horizontal_init,
@@ -490,7 +490,7 @@ motors_auto_homing(motor_t motor, struct k_thread *thread_ret)
                         NULL, NULL, THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
     } else {
         if (thread_ret) {
-            thread_ret = &thread_data_motor_vertical;
+            *thread_ret = &thread_data_motor_vertical;
         }
         k_thread_create(&thread_data_motor_vertical,
                         stack_area_motor_vertical_init,
