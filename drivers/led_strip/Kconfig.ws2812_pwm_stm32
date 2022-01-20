@@ -1,3 +1,3 @@
 config WS2812_PWM_STM32
     bool "Enable the STM32 PWM driver"
-    depends on DMA_STM32 && DYNAMIC_INTERRUPTS
+    depends on DMA_STM32 && DYNAMIC_INTERRUPTS && LED_STRIP
