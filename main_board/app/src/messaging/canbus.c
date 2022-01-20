@@ -47,7 +47,7 @@ static const struct zcan_filter recv_queue_filter = {
 
 static struct zcan_frame rx_frame;
 
-CAN_DEFINE_MSGQ(recv_queue, 5);
+CAN_MSGQ_DEFINE(recv_queue, 5);
 
 static void
 rx_thread(void *arg1, void *arg2, void *arg3)
@@ -58,7 +58,7 @@ rx_thread(void *arg1, void *arg2, void *arg3)
 
     int ret;
 
-    ret = can_attach_msgq(can_dev, &recv_queue, &recv_queue_filter);
+    ret = can_add_rx_filter_msgq(can_dev, &recv_queue, &recv_queue_filter);
     if (ret < 0) {
         LOG_ERR("Error attaching message queue (%d)!", ret);
         return;
@@ -86,8 +86,7 @@ struct zcan_frame frame = {.id_type = CAN_EXTENDED_IDENTIFIER,
                            .id = CONFIG_CAN_ADDRESS_JETSON};
 
 ret_code_t
-canbus_send(const char *data, size_t len,
-            void (*tx_complete_cb)(uint32_t, void *))
+canbus_send(const char *data, size_t len, void (*tx_complete_cb)(int, void *))
 {
     __ASSERT(CAN_MAX_DLEN >= len, "data too large!");
     frame.dlc = can_bytes_to_dlc(len);

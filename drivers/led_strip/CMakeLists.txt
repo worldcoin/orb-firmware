@@ -1,1 +1,3 @@
-zephyr_sources_ifdef(CONFIG_WS2812_PWM_STM32 ws2812_pwm_stm32.c)
+zephyr_library_amend()
+
+zephyr_library_sources_ifdef(CONFIG_WS2812_PWM_STM32 ws2812_pwm_stm32.c)
