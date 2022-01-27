@@ -7,7 +7,7 @@ set_property(GLOBAL PROPERTY CSTD gnu11)
 if (DEFINED ENV{BOARD})
     set(BOARD $ENV{BOARD})
 else ()
-    set(BOARD mcu_main)
+    set(BOARD mcu_main_v30)
 endif ()
 
 list(APPEND BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../)
@@ -38,7 +38,7 @@ set(SOURCES_FILES
         src/messaging/messaging_tests.c
         )
 
-target_sources_ifdef(CONFIG_BOARD_MCU_MAIN ${TARGET} PRIVATE
+target_sources_ifdef(CONFIG_BOARD_MCU_MAIN_V30 ${TARGET} PRIVATE
         src/power_sequence/power_sequence.c
         src/fan/fan.c
         src/sound/sound.c

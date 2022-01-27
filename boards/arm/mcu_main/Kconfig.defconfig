@@ -1,6 +1,6 @@
 # STM32G474RE main MCU board configuration
 
-if BOARD_MCU_MAIN
+if BOARD_MCU_MAIN_V30
 
 config BOARD
 	default "mcu_main"
@@ -9,4 +9,4 @@ config SPI_STM32_INTERRUPT
 	default y
 	depends on SPI
 
-endif # BOARD_MCU_MAIN
+endif # BOARD_MCU_MAIN_V30
