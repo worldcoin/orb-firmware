@@ -76,7 +76,7 @@ static struct spi_buf_set tx_bufs = {.buffers = &tx, .count = 1};
 #define MOTOR_FS_VMAX   800000
 
 const uint32_t motors_full_course_steps[MOTOR_COUNT] = {(300 * 256),
-                                                        (550 * 256)};
+                                                        (500 * 256)};
 const uint8_t motors_stall_guard_threshold[MOTOR_COUNT] = {5, 5};
 const float motors_arm_length[MOTOR_COUNT] = {12.0, 18.71};
 
