@@ -135,7 +135,7 @@ handle_start_triggering_ir_face_camera_message(McuMessage *msg)
 static void
 handle_stop_triggering_ir_face_camera_message(McuMessage *msg)
 {
-    MAKE_ASSERTS(JetsonToMcu_start_triggering_ir_face_camera_tag);
+    MAKE_ASSERTS(JetsonToMcu_stop_triggering_ir_face_camera_tag);
 
     LOG_DBG("");
     ir_camera_system_disable_ir_face_camera();
