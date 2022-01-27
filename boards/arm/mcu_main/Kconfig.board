@@ -1,3 +1,7 @@
 config BOARD_MCU_MAIN_V30
 	bool "Orb main microcontroller"
 	depends on SOC_STM32G474XX
+
+config BOARD_MCU_MAIN_V31
+	bool "Orb main microcontroller"
+	depends on SOC_STM32G474XX

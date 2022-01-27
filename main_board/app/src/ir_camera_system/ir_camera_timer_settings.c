@@ -108,7 +108,7 @@ timer_settings_from_fps(uint16_t fps,
     // than the current duration
     if (ts.on_time_in_us < current_settings->on_time_in_us ||
         current_settings->on_time_in_us == 0) {
-        LOG_INF("On-time duration modified based on FPS: was %u, now %u; for "
+        LOG_INF("On-time duration modified based on FPS: was %u, now %uus; for "
                 "new fps: %u",
                 current_settings->on_time_in_us, ts.on_time_in_us, ts.fps);
     } else if (current_settings->psc != ts.psc) {

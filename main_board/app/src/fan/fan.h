@@ -7,7 +7,4 @@
 void
 fan_set_speed(uint32_t percentage);
 
-ret_code_t
-fan_init(void);
-
 #endif // FAN_H

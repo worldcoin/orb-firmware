@@ -7,7 +7,7 @@ set_property(GLOBAL PROPERTY CSTD gnu11)
 if (DEFINED ENV{BOARD})
     set(BOARD $ENV{BOARD})
 else ()
-    set(BOARD mcu_main_v30)
+    set(BOARD mcu_main_v31)
 endif ()
 
 list(APPEND BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../)
@@ -19,9 +19,9 @@ list(APPEND DTS_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../)
 # the list).
 if(DTC_OVERLAY_FILE)
     set(DTC_OVERLAY_FILE
-            "${DTC_OVERLAY_FILE} ${CMAKE_CURRENT_LIST_DIR}/dts.overlay"
-            CACHE STRING "" FORCE
-            )
+        "${DTC_OVERLAY_FILE} ${CMAKE_CURRENT_LIST_DIR}/dts.overlay"
+        CACHE STRING "" FORCE
+        )
 else()
     set(DTC_OVERLAY_FILE dts.overlay)
 endif()
@@ -30,39 +30,44 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(orb-mcu-main-app)
 
 set(SOURCES_FILES
-        src/main.c
+    src/main.c
 
-        src/messaging/canbus.c
-        src/messaging/messaging.c
-        src/messaging/incoming_message_handling.c
-        src/messaging/messaging_tests.c
-        )
+    src/messaging/canbus.c
+    src/messaging/messaging.c
+    src/messaging/incoming_message_handling.c
+    src/messaging/messaging_tests.c
+
+    src/power_sequence/power_sequence.c
+    src/fan/fan.c
+    src/sound/sound.c
+
+    src/front_unit_rgb_leds/front_unit_rgb_leds.c
+    src/front_unit_rgb_leds/front_unit_led_patterns.c
+
+    src/distributor_leds/distributor_leds.c
+
+    src/ir_camera_system/ir_camera_timer_settings.c
+    src/ir_camera_system/ir_camera_system_test.c
+
+    src/stepper_motors/stepper_motors.c
+    src/stepper_motors/motors_tests.c
+
+    src/temperature/temperature.c
+
+    )
 
 target_sources_ifdef(CONFIG_BOARD_MCU_MAIN_V30 ${TARGET} PRIVATE
-        src/power_sequence/power_sequence.c
-        src/fan/fan.c
-        src/sound/sound.c
+    src/ir_camera_system/ir_camera_system_v30.c
+    )
 
-        src/front_unit_rgb_leds/front_unit_rgb_leds.c
-        src/front_unit_rgb_leds/front_unit_led_patterns.c
-
-        src/distributor_leds/distributor_leds.c
-
-        src/ir_camera_system/ir_camera_system.c
-        src/ir_camera_system/ir_camera_timer_settings.c
-        src/ir_camera_system/ir_camera_system_test.c
-
-        src/stepper_motors/stepper_motors.c
-        src/stepper_motors/motors_tests.c
-
-        src/temperature/temperature.c
-
-        )
+target_sources_ifdef(CONFIG_BOARD_MCU_MAIN_V31 ${TARGET} PRIVATE
+    src/ir_camera_system/ir_camera_system_v31.c
+    )
 
 set(INCLUDE_DIRS
-        include
-        src
-        )
+    include
+    src
+    )
 
 target_sources(${TARGET} PRIVATE ${SOURCES_FILES})
 target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIRS})
