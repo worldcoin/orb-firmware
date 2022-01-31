@@ -345,7 +345,7 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 
     uint32_t status;
     motors_refs[motor].auto_homing_state = AH_LOOKING_FIRST_END;
-    // timeout to detect fist end = 5 seconds
+    // timeout to detect first end = 5 seconds
     // = maximum time to go from one side to the other during auto-homing + some
     // delay
     const uint32_t loop_delay_ms = 100;
