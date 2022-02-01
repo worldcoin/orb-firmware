@@ -105,3 +105,11 @@
         channels = <1 2>;
     };
 };
+
+&i2c1 {
+    main_board_tmp_sensor: tmp112@49 {
+        compatible = "ti,tmp112";
+        reg = <0x49>;
+        label = "MAIN_BOARD_TEMP_SENSOR";
+    };
+};
