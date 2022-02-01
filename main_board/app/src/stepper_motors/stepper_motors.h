@@ -12,6 +12,9 @@ typedef enum { MOTOR_VERTICAL = 0, MOTOR_HORIZONTAL, MOTOR_COUNT } motor_t;
 #define MOTORS_ANGLE_VERTICAL_MIN (-20000)
 #define MOTORS_ANGLE_VERTICAL_MAX (20000)
 
+#define MOTOR_DRV_STATUS_STALLGUARD (1 << 24)
+#define MOTOR_DRV_STATUS_STANDSTILL (1 << 31)
+
 /**
  * Set horizontal angle
  * @param angle_millidegrees millidegrees, accepted range is [25000;65000]

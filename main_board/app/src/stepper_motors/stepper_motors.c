@@ -31,7 +31,9 @@ static struct k_sem homing_in_progress_sem[MOTOR_COUNT];
 #define REG_INPUT         0x04
 
 typedef enum tmc5041_registers_e {
+    REG_IDX_RAMPMODE,
     REG_IDX_XACTUAL,
+    REG_IDX_VACTUAL,
     REG_IDX_VSTART,
     REG_IDX_VMAX,
     REG_IDX_XTARGET,
@@ -43,7 +45,9 @@ typedef enum tmc5041_registers_e {
 } tmc5041_registers_t;
 
 const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][MOTOR_COUNT] = {
+    {0x20, 0x40}, // RAMPMODE
     {0x21, 0x41}, // XACTUAL
+    {0x22, 0x42}, // VACTUAL
     {0x23, 0x43}, // VSTART
     {0x27, 0x47}, // VMAX
     {0x2D, 0x4D}, // XTARGET
@@ -79,9 +83,17 @@ const float motors_arm_length[MOTOR_COUNT] = {12.0, 18.71};
 const uint32_t steps_per_mm = 12800; // 1mm / 0.4mm (pitch) * (360° / 18° (per
                                      // step)) * 256 micro-steps
 
+enum motor_autohoming_state {
+    AH_LOOKING_FIRST_END = 0,
+    AH_WAIT_STANDSTILL = 1,
+    AH_GO_OTHER_END = 2,
+    AH_SUCCESS,
+    AH_FAIL,
+};
 typedef struct {
     int x0; // step at x=0 (middle position)
     int x_current;
+    enum motor_autohoming_state auto_homing_state;
     uint32_t motor_state;
 } motors_refs_t;
 
@@ -90,9 +102,8 @@ static motors_refs_t motors_refs[MOTOR_COUNT] = {0};
 const uint64_t motor_init_for_velocity_mode[MOTOR_COUNT][11] = {
     {0x8000000008,
      0xEC000100C5, // 0x6C CHOPCONF
-     0xB000011000, // IHOLD_IRUN reg, bytes from left to right: I_HOLD=0,
-                   // I_RUN=16, IHOLDDELAY=1
-     0xAC00002710,
+     0xB000011000, // IHOLD_IRUN reg, bytes: [IHOLDDELAY|IRUN|IHOLD]
+     0xAC00000010, // TZEROWAIT
      0x90000401C8, // PWMCONF
      0xB200061A80,
      0xB100000000 +
@@ -100,13 +111,12 @@ const uint64_t motor_init_for_velocity_mode[MOTOR_COUNT][11] = {
                                 // reaches that velocity. Let's use ~VMAX/2
      0xA600001388,
      0xA700000000 + MOTOR_INIT_VMAX, // VMAX
-     0xB400000000 | (1 << 10),       // SW_MODE sg_stop
-     0xA000000001},
+     0xB400000000 | (4 << 10),       // SW_MODE sg_stop
+     0xA000000001}, // RAMPMODE velocity mode to +VMAX using AMAX
     {0x8000000008,
      0xFC000100C5, // 0x6C CHOPCONF
-     0xD000011000, // IHOLD_IRUN reg, bytes from left to right: I_HOLD=0,
-                   // I_RUN=16, IHOLDDELAY=1
-     0xCC00002710,
+     0xD000011000, // IHOLD_IRUN reg, bytes: [IHOLDDELAY|IRUN|IHOLD]
+     0xCC00000010, // TZEROWAIT
      0x98000401C8, // PWMCONF
      0xD200061A80,
      0xD100000000 +
@@ -114,8 +124,8 @@ const uint64_t motor_init_for_velocity_mode[MOTOR_COUNT][11] = {
                                 // reaches that velocity. Let's use ~VMAX/2
      0xC600001388,
      0xC700000000 + MOTOR_INIT_VMAX, // VMAX
-     0xD400000000 | (1 << 10),       // SW_MODE sg_stop
-     0xC000000001}};
+     0xD400000000 | (4 << 10),       // SW_MODE sg_stop
+     0xC000000001}}; // RAMPMODE velocity mode to +VMAX using AMAX
 
 const uint64_t position_mode_initial_phase[MOTOR_COUNT][8] = {
     {
@@ -300,7 +310,7 @@ motors_angle_vertical(int32_t angle_millidegrees)
 
 /**
  * @brief Perform auto-homing
- *
+ * See TMC5041 DATASHEET (Rev. 1.14 / 2020-JUN-12) page 58
  * This thread sets the motor state after auto-homing procedure
  *
  * @param p1 motor number, casted as uint32_t
@@ -334,46 +344,48 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                             ARRAY_SIZE(motor_init_for_velocity_mode[motor]));
 
     uint32_t status;
-    int32_t x_first_end = 0;
-    // timeout to detect first end
-    // in unit of 250ms = 5 seconds
+    motors_refs[motor].auto_homing_state = AH_LOOKING_FIRST_END;
+    // timeout to detect first end = 5 seconds
     // = maximum time to go from one side to the other during auto-homing + some
     // delay
-    uint32_t timeout = 20;
+    const uint32_t loop_delay_ms = 100;
+    int32_t timeout = 5000 / loop_delay_ms;
 
     while (1) {
         status = motor_spi_read(spi_bus_controller,
                                 TMC5041_REGISTERS[REG_IDX_DRV_STATUS][motor]);
-        LOG_DBG("Status %d 0x%08x", motor, status);
+        LOG_DBG("Status %d 0x%08x, SG=%u", motor, status, (status & 0x1F));
 
         // motor stall detection done by checking either:
         // - motor stopped by using sg_stop (status flag)
         // OR
         // - timeout==0 means the motor is blocked in end course (didn't move at
         // all, preventing sg_stop from working)
-        if (x_first_end == 0 && (status & (1 << 24) || --timeout == 0)) {
+        if (motors_refs[motor].auto_homing_state == AH_LOOKING_FIRST_END &&
+            (status & MOTOR_DRV_STATUS_STALLGUARD || timeout == 0)) {
             if (timeout == 0) {
                 LOG_WRN("Timeout while looking for first end on motor %d",
                         motor);
             }
 
+            // timeout motion by using a position ramping command.
             // stop motor
+            motor_spi_send_commands(
+                spi_bus_controller, position_mode_full_speed[motor],
+                ARRAY_SIZE(position_mode_full_speed[motor]));
+
+            motors_refs[motor].auto_homing_state = AH_WAIT_STANDSTILL;
+        }
+
+        // Wait until the motor is in standstill again by polling the
+        // actual velocity VACTUAL or checking vzero or the standstill flag
+        if (motors_refs[motor].auto_homing_state == AH_WAIT_STANDSTILL &&
+            status & MOTOR_DRV_STATUS_STANDSTILL) {
+            LOG_INF("Motor %u reached first end pos", motor);
+
+            // write xactual = 0
             motor_spi_write(spi_bus_controller,
-                            TMC5041_REGISTERS[REG_IDX_VMAX][motor], 0x0);
-
-            // read current position at least twice to make sure motor is
-            // stopped
-            x_first_end = 0;
-            int32_t x = 0;
-            do {
-                x_first_end = x;
-                x = (int32_t)motor_spi_read(
-                    spi_bus_controller,
-                    TMC5041_REGISTERS[REG_IDX_XACTUAL][motor]);
-                k_msleep(10);
-            } while (x_first_end != x);
-
-            LOG_INF("Motor %u stalled. First end pos: %d", motor, x_first_end);
+                            TMC5041_REGISTERS[REG_IDX_XACTUAL][motor], 0x0);
 
             // disable sg_stop
             motor_spi_write(spi_bus_controller,
@@ -390,15 +402,15 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 ARRAY_SIZE(position_mode_initial_phase[motor]));
 
             // ready to move, let's go to the other end
-            motor_spi_write(
-                spi_bus_controller, TMC5041_REGISTERS[REG_IDX_XTARGET][motor],
-                (uint32_t)(x_first_end - motors_full_course_steps[motor]));
+            motor_spi_write(spi_bus_controller,
+                            TMC5041_REGISTERS[REG_IDX_XTARGET][motor],
+                            (uint32_t)(-motors_full_course_steps[motor]));
 
             // before we continue we need to wait for the motor to move and
             // removes its stall detection flag
             uint32_t t = 10;
             do {
-                k_msleep(100);
+                k_msleep(loop_delay_ms);
                 status = motor_spi_read(
                     spi_bus_controller,
                     TMC5041_REGISTERS[REG_IDX_DRV_STATUS][motor]);
@@ -412,10 +424,12 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 break;
             }
 
+            motors_refs[motor].auto_homing_state = AH_GO_OTHER_END;
             continue;
         }
 
-        if (x_first_end != 0 && status & (1 << 31)) {
+        if (motors_refs[motor].auto_homing_state == AH_GO_OTHER_END &&
+            status & MOTOR_DRV_STATUS_STANDSTILL) {
             motor_spi_read(spi_bus_controller,
                            TMC5041_REGISTERS[REG_IDX_RAMP_STAT][motor]);
 
@@ -424,16 +438,21 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 spi_bus_controller, TMC5041_REGISTERS[REG_IDX_XACTUAL][motor]);
             LOG_INF("Motor %u reached other end, pos %d", motor, x);
 
-            if (abs(x - (x_first_end - motors_full_course_steps[motor])) >
-                256) {
-                LOG_INF("Didn't reach target: x=%d, should be ~ %d", x,
-                        (x_first_end - motors_full_course_steps[motor]));
+            if (abs(x - (-motors_full_course_steps[motor])) > 256) {
+                LOG_ERR("Motor %u didn't reach target: x=%d, should be ~ %d",
+                        motor, x, (-motors_full_course_steps[motor]));
 
+                motors_refs[motor].auto_homing_state = AH_FAIL;
                 err_code = RET_ERROR_INVALID_STATE;
                 break;
             }
 
-            motors_refs[motor].x0 = x + (motors_full_course_steps[motor] / 2);
+            motors_refs[motor].auto_homing_state = AH_SUCCESS;
+
+            // write xactual = 0
+            motor_spi_write(spi_bus_controller,
+                            TMC5041_REGISTERS[REG_IDX_XACTUAL][motor], 0x0);
+            motors_refs[motor].x0 = (motors_full_course_steps[motor] / 2);
 
             LOG_INF("Motor %u, x0: %d", motor, motors_refs[motor].x0);
 
@@ -449,7 +468,8 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
             break;
         }
 
-        k_msleep(250);
+        --timeout;
+        k_msleep(loop_delay_ms);
     }
 
     // keep auto-homing state
@@ -474,7 +494,7 @@ motors_auto_homing(motor_t motor, struct k_thread **thread_ret)
 {
     __ASSERT(motor <= MOTOR_COUNT, "Wrong motor number");
 
-    if (k_sem_take(homing_in_progress_sem + motor, K_NO_WAIT) == -EBUSY) {
+    if (k_sem_take(&homing_in_progress_sem[motor], K_NO_WAIT) == -EBUSY) {
         LOG_WRN("Motor %u auto-homing already in progress", motor);
         return RET_ERROR_BUSY;
     }
@@ -527,14 +547,14 @@ motors_init(void)
         return RET_ERROR_INVALID_STATE;
     }
 
-    k_sem_init(homing_in_progress_sem + MOTOR_HORIZONTAL, 1, 1);
-    k_sem_init(homing_in_progress_sem + MOTOR_VERTICAL, 1, 1);
+    k_sem_init(&homing_in_progress_sem[MOTOR_HORIZONTAL], 1, 1);
+    k_sem_init(&homing_in_progress_sem[MOTOR_VERTICAL], 1, 1);
 
     motors_refs[MOTOR_HORIZONTAL].motor_state = RET_ERROR_NOT_INITIALIZED;
     motors_refs[MOTOR_VERTICAL].motor_state = RET_ERROR_NOT_INITIALIZED;
 
-    motors_auto_homing(MOTOR_HORIZONTAL, NULL);
-    motors_auto_homing(MOTOR_VERTICAL, NULL);
+    //    motors_auto_homing(MOTOR_HORIZONTAL, NULL);
+    //    motors_auto_homing(MOTOR_VERTICAL, NULL);
 
     return RET_SUCCESS;
 }
