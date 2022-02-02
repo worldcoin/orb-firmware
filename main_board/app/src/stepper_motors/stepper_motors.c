@@ -553,8 +553,8 @@ motors_init(void)
     motors_refs[MOTOR_HORIZONTAL].motor_state = RET_ERROR_NOT_INITIALIZED;
     motors_refs[MOTOR_VERTICAL].motor_state = RET_ERROR_NOT_INITIALIZED;
 
-    //    motors_auto_homing(MOTOR_HORIZONTAL, NULL);
-    //    motors_auto_homing(MOTOR_VERTICAL, NULL);
+    motors_auto_homing(MOTOR_HORIZONTAL, NULL);
+    motors_auto_homing(MOTOR_VERTICAL, NULL);
 
     return RET_SUCCESS;
 }
