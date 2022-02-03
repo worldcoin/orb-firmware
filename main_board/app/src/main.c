@@ -28,18 +28,17 @@ main(void)
 {
     LOG_INF("Hello from " CONFIG_BOARD " :)");
 
-#ifdef CONFIG_BOARD_MCU_MAIN
     __ASSERT(power_wait_for_power_button_press() == 0,
              "Error waiting for button");
-#endif
 
     LOG_INF("Booting system");
 
     __ASSERT(power_turn_on_jetson() == 0, "Jetson power-on error");
-    __ASSERT(fan_init() == 0, "Error turning on fan");
     __ASSERT(init_sound() == 0, "Error initializing sound");
+
     __ASSERT(front_unit_rgb_leds_init() == 0,
              "Error doing front unit RGB LEDs");
+
     __ASSERT(do_distributor_rgb_leds() == 0,
              "Error doing distributor RGB LEDs");
     __ASSERT(power_turn_on_super_cap_charger() == 0,

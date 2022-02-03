@@ -19,6 +19,13 @@ const struct sensor_and_channel sensors_and_channels[] = {
     {.sensor = DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor)),
      .channel = SENSOR_CHAN_AMBIENT_TEMP,
      .temperature_source = Temperature_TemperatureSource_FRONT_UNIT},
+
+#ifdef CONFIG_BOARD_MCU_MAIN_V31
+    {.sensor = DEVICE_DT_GET(DT_NODELABEL(main_board_tmp_sensor)),
+     .channel = SENSOR_CHAN_AMBIENT_TEMP,
+     .temperature_source = Temperature_TemperatureSource_MAIN_BOARD},
+#endif
+
     {.sensor = DEVICE_DT_GET(DT_PATH(stm_tmp)),
      .channel = SENSOR_CHAN_DIE_TEMP,
      .temperature_source = Temperature_TemperatureSource_MAIN_MCU},
