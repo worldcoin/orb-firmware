@@ -3,16 +3,16 @@
 #include <st/g4/stm32g474v(b-c-e)tx-pinctrl.dtsi>
 
 / {
-	model = "Worldcoin Orb Main MCU";
-	compatible = "worldcoin,mcu_main";
+    model = "Worldcoin Orb Main MCU";
+    compatible = "worldcoin,mcu_main";
 
-	chosen {
-		zephyr,console = &usart2;
-		zephyr,shell-uart = &usart2;
-		zephyr,sram = &sram0;
-		zephyr,flash = &flash0;
-		zephyr,canbus = &can1;
-	};
+    chosen {
+        zephyr,console = &usart2;
+        zephyr,shell-uart = &usart2;
+        zephyr,sram = &sram0;
+        zephyr,flash = &flash0;
+        zephyr,canbus = &can1;
+    };
 
     zephyr,user {
         // This is a mux for who controls the audio amp
@@ -32,8 +32,6 @@
         // * 12v supply
         // * 5v supply
         // * Supercap charger
-        //
-        // As such, it has no power good pin
     };
 
     supply_12v {
@@ -41,20 +39,12 @@
         label = "12V Supply";
         regulator-name = "supply_12v";
         enable-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;
-
-        // Has no power good pin
     };
 
     supply_5v {
         compatible = "regulator-fixed-sync", "regulator-fixed";
         label = "5V Supply";
         regulator-name = "supply_5v";
-        enable-gpios = <&gpiob 2 GPIO_ACTIVE_HIGH>;
-
-        power_good {
-            compatible = "gpio-power-good";
-            gpios = <&gpiob 1 GPIO_PULL_UP>;
-        };
     };
 
     supply_3v8 {
@@ -69,11 +59,6 @@
         label = "3.3V Supply";
         regulator-name = "supply_3v3";
         enable-gpios = <&gpiod 15 GPIO_ACTIVE_HIGH>;
-
-        power_good {
-            compatible = "gpio-power-good";
-            gpios = <&gpioa 12 GPIO_PULL_UP>;
-        };
     };
 
     supply_1v8 {
@@ -81,32 +66,18 @@
         label = "1.8V Supply";
         regulator-name = "supply_1v8";
         enable-gpios = <&gpioe 8 GPIO_ACTIVE_HIGH>;
-
-        power_good {
-            compatible = "gpio-power-good";
-            gpios = <&gpioe 7 GPIO_PULL_UP>;
-        };
     };
 
     supply_pvcc {
         compatible = "regulator-fixed-sync", "regulator-fixed";
         label = "PVCC Supply";
         regulator-name = "supply_pvcc";
-        enable-gpios = <&gpioc 15 GPIO_ACTIVE_HIGH>;
     };
 
     supply_super_cap {
         compatible = "regulator-fixed-sync", "regulator-fixed";
         label = "Super cap supply";
         regulator-name = "supply_super_cap";
-        enable-gpios = <&gpioc 14 GPIO_ACTIVE_HIGH>;
-    };
-
-    fan {
-        compatible = "pwm-fan";
-        pwms = <&fan_pwm 3 10000 PWM_POLARITY_NORMAL>;
-
-        // Currently no tachometer reading, only a 2-wire fan
     };
 
     buttons {
@@ -128,8 +99,6 @@
         };
 
         power_enable {
-            gpios = <&gpioe 12 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
-
             // output
             // this signals the Jetson module to turn on an off
         };
@@ -150,8 +119,6 @@
         };
 
         sleep_wake {
-            gpios = <&gpioe 9 GPIO_ACTIVE_HIGH>;
-
             // output
             // drive high to indicate that the Jetson should enter sleep mode
         };
@@ -182,64 +149,6 @@
     pinctrl-names = "default";
 };
 
-&hrtim1 {
-    status = "okay";
-    led_940nm: led_940nm {
-        compatible = "worldcoin,stm32-pwm";
-        pinctrl-0 = <&hrtim1_chc1_pb12 &hrtim1_chc2_pb13>;
-        pinctrl-names = "default";
-    };
-
-    led_850nm: led_850nm {
-        compatible = "worldcoin,stm32-pwm";
-        pinctrl-0 = <&hrtim1_chd1_pb14 &hrtim1_chd2_pb15>;
-        pinctrl-names = "default";
-    };
-};
-
-&timers2 {
-    status = "okay";
-
-    fan_pwm: pwm {
-        status = "okay";
-        pinctrl-0 = <&tim2_ch3_pd7>;
-        pinctrl-names = "default";
-    };
-};
-
-&timers8 {
-    status = "okay";
-    led_740nm: led_740nm {
-        compatible = "worldcoin,stm32-pwm";
-        pinctrl-0 = <&tim8_ch2n_pb0>;
-        pinctrl-names = "default";
-    };
-};
-
-&timers3 {
-    status = "okay";
-    // AKA CAM3
-    tof_2d_camera_trigger: tof_2d_camera_trigger {
-        compatible = "worldcoin,stm32-pwm";
-        pinctrl-0 = <&tim3_ch2_pc7>;
-        pinctrl-names = "default";
-    };
-
-    // AKA CAM0
-    ir_eye_camera_trigger: ir_eye_camera_trigger {
-        compatible = "worldcoin,stm32-pwm";
-        pinctrl-0 = <&tim3_ch3_pc8>;
-        pinctrl-names = "default";
-    };
-
-    // AKA CAM2
-    ir_face_camera_trigger: ir_face_camera_trigger {
-        compatible = "worldcoin,stm32-pwm";
-        pinctrl-0 = <&tim3_ch4_pc9>;
-        pinctrl-names = "default";
-    };
-};
-
 &timers15 {
     status = "okay";
 };
@@ -268,37 +177,37 @@
 };
 
 &clk_hse {
-	clock-frequency = <DT_FREQ_M(24)>;
-	status = "okay";
+    clock-frequency = <DT_FREQ_M(24)>;
+    status = "okay";
 };
 
 &pll {
-	div-m = <6>;
-	mul-n = <85>;
-	div-p = <7>;
-	div-q = <2>;
-	div-r = <2>;
-	clocks = <&clk_hse>;
-	status = "okay";
+    div-m = <6>;
+    mul-n = <85>;
+    div-p = <7>;
+    div-q = <2>;
+    div-r = <2>;
+    clocks = <&clk_hse>;
+    status = "okay";
 };
 
 &rcc {
-	clocks = <&pll>;
-	clock-frequency = <DT_FREQ_M(170)>;
-	ahb-prescaler = <1>;
-	apb1-prescaler = <1>;
-	apb2-prescaler = <1>;
+    clocks = <&pll>;
+    clock-frequency = <DT_FREQ_M(170)>;
+    ahb-prescaler = <1>;
+    apb1-prescaler = <1>;
+    apb2-prescaler = <1>;
 };
 
 &usart2 {
-	pinctrl-0 = <&usart2_tx_pd5 &usart2_rx_pd6>;
+    pinctrl-0 = <&usart2_tx_pd5 &usart2_rx_pd6>;
     pinctrl-names = "default";
-	current-speed = <115200>;
-	status = "okay";
+    current-speed = <115200>;
+    status = "okay";
 };
 
 &rtc {
-	status = "okay";
+    status = "okay";
 };
 
 &i2c1 {
@@ -350,18 +259,18 @@
 };
 
 &flash0 {
-	/*
-	 * For more information, see:
-	 * http://docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
-	 */
-	partitions {
-		compatible = "fixed-partitions";
-		#address-cells = <1>;
-		#size-cells = <1>;
+    /*
+     * For more information, see:
+     * http://docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
+     */
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
 
         slot0_partition: partition@0 {
             label = "image-0";
             reg = <0x00000000 0x00080000>;
         };
-	};
+    };
 };

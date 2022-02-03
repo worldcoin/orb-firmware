@@ -25,6 +25,8 @@ check_is_ready(const struct device *dev, const char *name)
     return 0;
 }
 
+#ifdef CONFIG_BOARD_MCU_MAIN_V30
+
 #define SUPPLY_5V_PG_NODE  DT_PATH(supply_5v, power_good)
 #define SUPPLY_5V_PG_CTLR  DT_GPIO_CTLR(SUPPLY_5V_PG_NODE, gpios)
 #define SUPPLY_5V_PG_PIN   DT_GPIO_PIN(SUPPLY_5V_PG_NODE, gpios)
@@ -40,6 +42,8 @@ check_is_ready(const struct device *dev, const char *name)
 #define SUPPLY_1V8_PG_PIN   DT_GPIO_PIN(SUPPLY_1V8_PG_NODE, gpios)
 #define SUPPLY_1V8_PG_FLAGS DT_GPIO_FLAGS(SUPPLY_1V8_PG_NODE, gpios)
 
+#endif
+
 int
 power_turn_on_essential_supplies(const struct device *dev)
 {
@@ -48,22 +52,28 @@ power_turn_on_essential_supplies(const struct device *dev)
     const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
     const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
     const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
-    const struct device *supply_5v_pg = DEVICE_DT_GET(SUPPLY_5V_PG_CTLR);
     const struct device *supply_3v8 = DEVICE_DT_GET(DT_PATH(supply_3v8));
     const struct device *supply_3v3 = DEVICE_DT_GET(DT_PATH(supply_3v3));
-    const struct device *supply_3v3_pg = DEVICE_DT_GET(SUPPLY_3V3_PG_CTLR);
     const struct device *supply_1v8 = DEVICE_DT_GET(DT_PATH(supply_1v8));
+
+#ifdef CONFIG_BOARD_MCU_MAIN_V30
+    const struct device *supply_5v_pg = DEVICE_DT_GET(SUPPLY_5V_PG_CTLR);
+    const struct device *supply_3v3_pg = DEVICE_DT_GET(SUPPLY_3V3_PG_CTLR);
     const struct device *supply_1v8_pg = DEVICE_DT_GET(SUPPLY_1V8_PG_CTLR);
+#endif
 
     if (check_is_ready(vbat_sw_regulator, "VBAT SW") ||
         check_is_ready(supply_12v, "12V supply") ||
         check_is_ready(supply_5v, "5V supply") ||
-        check_is_ready(supply_5v_pg, "5V supply power good pin") ||
         check_is_ready(supply_3v8, "3.8V supply") ||
         check_is_ready(supply_3v3, "3.3V supply") ||
-        check_is_ready(supply_3v3_pg, "3.3V supply power good pin") ||
-        check_is_ready(supply_1v8, "1.8V supply") ||
-        check_is_ready(supply_1v8_pg, "1.8V supply power good pin")) {
+        check_is_ready(supply_1v8, "1.8V supply")
+#ifdef CONFIG_BOARD_MCU_MAIN_V30
+        || check_is_ready(supply_3v3_pg, "3.3V supply power good pin") ||
+        check_is_ready(supply_5v_pg, "5V supply power good pin") ||
+        check_is_ready(supply_1v8_pg, "1.8V supply power good pin")
+#endif
+    ) {
         return 1;
     }
 
@@ -73,31 +83,41 @@ power_turn_on_essential_supplies(const struct device *dev)
 
     regulator_enable(supply_12v, NULL);
     LOG_INF("12V power supply enabled");
-    k_msleep(100);
+    k_msleep(2000);
 
+#ifdef CONFIG_BOARD_MCU_MAIN_V30
     if (gpio_pin_configure(supply_5v_pg, SUPPLY_5V_PG_PIN,
                            SUPPLY_5V_PG_FLAGS | GPIO_INPUT)) {
         LOG_ERR("Error configuring 5v pg pin!");
         return 1;
     }
+#endif
 
     regulator_enable(supply_5v, NULL);
     LOG_INF("5V power supply enabled");
+
+#ifdef CONFIG_BOARD_MCU_MAIN_V30
     LOG_INF("Waiting on power good...");
     // Wait forever, because if we can't enable this then we can't turn on
     // anything else
     while (!gpio_pin_get(supply_5v_pg, SUPPLY_5V_PG_PIN))
         ;
     LOG_INF("5V power supply good");
+#else
+    k_msleep(100);
+#endif
 
+#ifdef CONFIG_BOARD_MCU_MAIN_V30
     if (gpio_pin_configure(supply_3v3_pg, SUPPLY_3V3_PG_PIN,
                            SUPPLY_3V3_PG_FLAGS | GPIO_INPUT)) {
         LOG_ERR("Error configuring 3.3v pg pin!");
         return 1;
     }
+#endif
 
     regulator_enable(supply_3v3, NULL);
     LOG_INF("3.3V power supply enabled");
+#ifdef CONFIG_BOARD_MCU_MAIN_V30
     LOG_INF("Waiting on power good...");
     // Wait forever, because if we can't enable this then we can't turn on the
     // fan. If we can't turn on the fan, then we don't want to turn on
@@ -105,22 +125,32 @@ power_turn_on_essential_supplies(const struct device *dev)
     while (!gpio_pin_get(supply_3v3_pg, SUPPLY_3V3_PG_PIN))
         ;
     LOG_INF("3.3V power supply good");
+#else
+    k_msleep(100);
+#endif
 
     regulator_enable(supply_3v8, NULL);
     LOG_INF("3.8V power supply enabled");
 
+#ifdef CONFIG_BOARD_MCU_MAIN_V30
     if (gpio_pin_configure(supply_1v8_pg, SUPPLY_1V8_PG_PIN,
                            SUPPLY_1V8_PG_FLAGS | GPIO_INPUT)) {
         LOG_ERR("Error configuring 1.8 pg pin!");
         return 1;
     }
+#endif
 
     regulator_enable(supply_1v8, NULL);
     LOG_INF("1.8V power supply enabled");
+
+#ifdef CONFIG_BOARD_MCU_MAIN_V30
     LOG_INF("Waiting on power good...");
     while (!gpio_pin_get(supply_1v8_pg, SUPPLY_1V8_PG_PIN))
         ;
     LOG_INF("1.8V power supply good");
+#else
+    k_msleep(100);
+#endif
 
     k_busy_wait(5000);
 
@@ -218,12 +248,6 @@ power_turn_on_jetson(void)
         return 1;
     }
 
-    if (gpio_pin_configure(sleep_wake, SLEEP_WAKE_PIN,
-                           SLEEP_WAKE_FLAGS | GPIO_OUTPUT)) {
-        LOG_ERR("Error configuring sleep wake pin!");
-        return 1;
-    }
-
     if (gpio_pin_configure(power_enable, POWER_ENABLE_PIN,
                            POWER_ENABLE_FLAGS | GPIO_OUTPUT)) {
         LOG_ERR("Error configuring power enable pin!");
@@ -236,6 +260,20 @@ power_turn_on_jetson(void)
         return 1;
     }
 
+    LOG_INF("Enabling Jetson power");
+    gpio_pin_set(power_enable, POWER_ENABLE_PIN, ENABLE);
+
+    LOG_INF("Waiting for reset done signal from Jetson");
+    while (gpio_pin_get(system_reset, SYSTEM_RESET_PIN) != OUT_OF_RESET)
+        ;
+    LOG_INF("Reset done");
+
+    if (gpio_pin_configure(sleep_wake, SLEEP_WAKE_PIN,
+                           SLEEP_WAKE_FLAGS | GPIO_OUTPUT)) {
+        LOG_ERR("Error configuring sleep wake pin!");
+        return 1;
+    }
+
     if (gpio_pin_configure(lte_gps_usb_reset, LTE_GPS_USB_RESET_PIN,
                            LTE_GPS_USB_RESET_FLAGS | GPIO_OUTPUT)) {
         LOG_ERR("Error configuring LTE/GPS/USB reset pin!");
@@ -244,18 +282,9 @@ power_turn_on_jetson(void)
 
     LOG_INF("Setting Jetson to WAKE mode");
     gpio_pin_set(sleep_wake, SLEEP_WAKE_PIN, WAKE);
-    k_msleep(300);
 
     LOG_INF("Enabling LTE, GPS, and USB");
     gpio_pin_set(lte_gps_usb_reset, LTE_GPS_USB_RESET_PIN, LTE_GPS_USB_ON);
-
-    LOG_INF("Enabling Jetson power");
-    gpio_pin_set(power_enable, POWER_ENABLE_PIN, ENABLE);
-
-    LOG_INF("Waiting for reset done signal from Jetson");
-    while (gpio_pin_get(system_reset, SYSTEM_RESET_PIN) != OUT_OF_RESET)
-        ;
-    LOG_INF("Reset done");
 
     return 0;
 }

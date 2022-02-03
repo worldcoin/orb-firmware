@@ -38,11 +38,19 @@ test_camera_triggers(void)
 
     k_msleep(1000);
 
+    ir_camera_system_enable_2d_tof_camera();
+
+    k_msleep(1000);
+
     ir_camera_system_disable_ir_eye_camera();
 
     k_msleep(1000);
 
     ir_camera_system_disable_ir_face_camera();
+
+    k_msleep(1000);
+
+    ir_camera_system_disable_2d_tof_camera();
 }
 
 static void
@@ -71,6 +79,46 @@ test_camera_triggers_with_fps_changing(void)
     k_msleep(1000);
 
     ir_camera_system_set_fps(10);
+
+    k_msleep(1000);
+
+    ir_camera_system_set_fps(1);
+    ir_camera_system_set_fps(5);
+    ir_camera_system_set_fps(10);
+    ir_camera_system_set_fps(20);
+
+    ir_camera_system_disable_ir_eye_camera();
+    ir_camera_system_disable_ir_face_camera();
+    ir_camera_system_disable_2d_tof_camera();
+}
+
+static void
+test_camera_triggers_with_fps_changing_and_cameras_enable_and_disable(void)
+{
+    ir_camera_system_set_fps(30);
+
+    k_msleep(1000);
+
+    ir_camera_system_enable_ir_eye_camera();
+
+    k_msleep(1000);
+
+    ir_camera_system_set_fps(0);
+
+    k_msleep(1000);
+
+    ir_camera_system_set_fps(5);
+    ir_camera_system_enable_ir_face_camera();
+
+    k_msleep(1000);
+
+    ir_camera_system_set_fps(60);
+    ir_camera_system_enable_2d_tof_camera();
+
+    k_msleep(1000);
+
+    ir_camera_system_set_fps(10);
+    ir_camera_system_disable_ir_eye_camera();
 
     k_msleep(1000);
 
@@ -172,6 +220,7 @@ test_leds(void)
 
 static void (*tests[])(void) = {
     test_camera_triggers, test_camera_triggers_with_fps_changing,
+    test_camera_triggers_with_fps_changing_and_cameras_enable_and_disable,
     test_camera_triggers_and_leds_changing_fps, test_leds};
 
 static void

@@ -143,32 +143,31 @@ firmware
 └── zephyr
 ```
 
-#### Finally, to Build:
+#### Finally, to Build and Flash
 
-```shell
-cd "$REPO_DIR"/orb/main_board/app/
-west build
-```
+See the board-specific docs:
 
-#### To Flash:
-
-```shell
-cd "$REPO_DIR"/orb/main_board/app/
-west flash
-```
-
-if in the Docker container:
-
-```shell
-cd "$REPO_DIR"/orb/main_board/app/
-su-exec root west flash
-```
+- https://github.com/worldcoin/proto2-mcu/tree/main/main_board/app#readme
 
 ## Contributing
 
-### Formatting
+### Pre-commit hooks
 
 ```shell
-cd "$REPO_DIR"/orb/
 pre-commit install -c utils/format/pre-commit-config.yaml
+```
+
+### Check Formatting
+
+Manually:
+
+```shell
+cd "$REPO_DIR" && pre-commit run --all-files --config utils/format/pre-commit-config.yaml
+```
+
+Using Docker:
+
+```shell
+cd "$REPO_DIR"/orb/utils/docker
+make format
 ```
