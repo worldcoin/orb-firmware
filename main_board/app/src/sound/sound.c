@@ -12,6 +12,18 @@ LOG_MODULE_REGISTER(sound);
 #define SOUND_AMP_MUX_FLAGS                                                    \
     DT_GPIO_FLAGS(SOUND_AMP_MUX_NODE, sound_amp_mux_gpios)
 
+#ifdef CONFIG_BOARD_MCU_MAIN_V31
+
+#define LEVEL_SHIFTER_EN_NODE DT_PATH(zephyr_user)
+#define LEVEL_SHIFTER_EN_CTLR                                                  \
+    DT_GPIO_CTLR(LEVEL_SHIFTER_EN_NODE, level_shifter_enable_gpios)
+#define LEVEL_SHIFTER_EN_PIN                                                   \
+    DT_GPIO_PIN(LEVEL_SHIFTER_EN_NODE, level_shifter_enable_gpios)
+#define LEVEL_SHIFTER_EN_FLAGS                                                 \
+    DT_GPIO_FLAGS(LEVEL_SHIFTER_EN_NODE, level_shifter_enable_gpios)
+
+#endif
+
 #define MCU    1
 #define JETSON 0
 
@@ -22,6 +34,26 @@ LOG_MODULE_REGISTER(sound);
 int
 init_sound(void)
 {
+#ifdef CONFIG_BOARD_MCU_MAIN_V31
+
+    const struct device *level_shifter_en =
+        DEVICE_DT_GET(LEVEL_SHIFTER_EN_CTLR);
+
+    if (!device_is_ready(level_shifter_en)) {
+        LOG_ERR("Level shifter enable is not ready!");
+        return 1;
+    }
+
+    if (gpio_pin_configure(level_shifter_en, LEVEL_SHIFTER_EN_PIN,
+                           LEVEL_SHIFTER_EN_FLAGS | GPIO_OUTPUT)) {
+        LOG_ERR("Error configuring level shifter enable pin!");
+        return 1;
+    }
+
+    gpio_pin_set(level_shifter_en, LEVEL_SHIFTER_EN_PIN, 1);
+
+#endif
+
     const struct device *sound_mux = DEVICE_DT_GET(SOUND_AMP_MUX_CTLR);
     const struct device *sound_i2c = DEVICE_DT_GET(SOUND_AMP_I2C);
 

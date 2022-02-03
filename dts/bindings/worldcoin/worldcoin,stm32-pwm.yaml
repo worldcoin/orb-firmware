@@ -6,3 +6,6 @@ properties:
   pinctrl-0:
     type: phandles
     required: true
+  channels:
+    type: array
+    required: false
