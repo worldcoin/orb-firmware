@@ -4,7 +4,7 @@
 
 / {
     supply_5v {
-        enable-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&gpiob 2 GPIO_ACTIVE_HIGH>;
         power_good {
             compatible = "gpio-power-good";
             gpios = <&gpiob 1 GPIO_PULL_UP>;
