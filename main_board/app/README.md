@@ -21,6 +21,9 @@ git checkout main
 
 ### Compiling and Flashing
 
+If you don't have development keys already created locally, then run
+`./generate_dev_keys` while in the directory "$REPO_DIR"/utils/ota/
+
 You have two options: use the Makefile w/ Docker or do it manually.
 
 > ⚠️ Make sure to have the [bootloader flashed](../../bootloader_main/README.md) before.

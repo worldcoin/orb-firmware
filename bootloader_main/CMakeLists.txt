@@ -270,7 +270,7 @@ if (CONFIG_BOOT_ENCRYPT_EC256)
     set(ENC_KEY_FILE ${PROJECT_DIR}/utils/ota/enc-ec256-priv.pem)
 
     if (NOT EXISTS ${ENC_KEY_FILE})
-        message(FATAL_ERROR "Cannot find private key file, you can generate one using:\n$ openssl ecparam -name prime256v1 -genkey -noout -out ${ENC_KEY_FILE}")
+        message(FATAL_ERROR "Cannot find private key file, you can generate local dev keys by running ./generate_dev_keys WHILE IN the ${PROJECT_DIR}/utils/ota/ directory")
     else ()
         set(GENERATED_ENC_PRIVKEY ${CMAKE_CURRENT_SOURCE_DIR}/share/autogen-enc-privkey.c)
         add_custom_command(

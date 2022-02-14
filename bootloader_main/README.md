@@ -7,6 +7,9 @@ and follow the instructions in the README.md.
 
 ## Compiling and Flashing
 
+If you don't have development keys already created locally, then run
+`./generate_dev_keys` while in the directory "$REPO_DIR"/utils/ota/
+
 Make sure you are in `"$REPO_DIR"/orb/bootloader_main/` directory.
 Compile the bootloader:
 
