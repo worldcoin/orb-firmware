@@ -1,0 +1,22 @@
+#!/bin/bash
+
+set -eu
+
+if [ $# -lt 2 ]; then
+    echo "Usage: $0 <HEX_FILE> <HEX_FILE> [HEX_FILE...]"
+    echo
+    echo "Combine at least two hex files into one."
+    echo "Writes to standard out."
+    exit 1
+fi
+
+f=$(mktemp)
+
+for arg; do
+    cat "$arg" >> "$f"
+done
+
+sed -i '/^:00000001FF/d' "$f"
+echo ':00000001FF' >> "$f"
+
+cat "$f"
