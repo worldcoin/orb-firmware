@@ -35,6 +35,8 @@
 
 #elif defined(__GNUC__)
 
+#include "cmsis_gcc.h"
+
 #ifndef __ASM
 #define __ASM __asm
 #endif

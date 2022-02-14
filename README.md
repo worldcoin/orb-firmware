@@ -1,10 +1,16 @@
 # proto2-firmware
 
-West workspace for proto2 firmware
+West workspace for proto2 firmware.
+
+This repo contains Firmware for the several microcontrollers
+present in the Orb, Proto2:
+
+- ☀️ Main board microcontroller
+- 🚨 Security board microcontroller
 
 ## Setting Up Development Environment
 
-You can set up your development environment directly on your machine or you may use the provided Docker image.
+You can set up your development environment directly on your machine, or you may use the provided Docker image.
 The [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting_started/index.html)
 only has instructions for Ubuntu, MacOS, and Windows.
 For this guide's description of setting up a native build environment
@@ -18,9 +24,11 @@ These repositories are enumerated in the [west.yml](west.yml) file.
 ### Generic Steps
 
 1. Install the `west` meta-tool.
+
    ```shell
    pip3 install west
    ```
+
 2. Create an empty directory where we will put our projects and dependencies. We assume that you set an environmental variable called `REPO_DIR`. I like to set this to `$HOME/firmware`.
 
    ```shell
@@ -38,6 +46,7 @@ These repositories are enumerated in the [west.yml](west.yml) file.
    This will create a directory called `orb`.
 
 4. Now import all projects and dependencies.
+
    ```shell
    west update
    ```
@@ -147,7 +156,17 @@ firmware
 
 See the board-specific docs:
 
-- https://github.com/worldcoin/proto2-mcu/tree/main/main_board/app#readme
+- ☀️ [Main board](main_board/app/README.md)
+- 🚨 [Security board](sec_board/app/README.md)
+
+#### Logging
+
+Print out the bootloader and application logs using:
+
+```shell
+# replace /dev/ttyxxx with your UART device
+python "$REPO_DIR"/orb/utils/debug/uart_dump.py -p /dev/ttyxxx -b 115200
+```
 
 ## Contributing
 

@@ -92,7 +92,7 @@
     jetson_power_pins {
         compatible = "gpio-jetson-power";
         shutdown_request {
-            gpios = <&gpioe 14 GPIO_ACTIVE_LOW>;
+            gpios = <&gpioe 13 GPIO_ACTIVE_LOW>;
 
             // input
             // Jetson module uses this to request a shutdown sequence
@@ -155,6 +155,7 @@
 
 &timers20 {
     status = "okay";
+
     front_unit_rgb_leds: front_unit_rgb_leds {
         compatible = "worldsemi,ws2812-pwm-stm32";
         pinctrl-0 = <&tim20_ch2_pe3>;
@@ -260,6 +261,7 @@
 
 &flash0 {
     /*
+     * Base address: 0x8000000
      * For more information, see:
      * http://docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
      */
@@ -268,9 +270,35 @@
         #address-cells = <1>;
         #size-cells = <1>;
 
-        slot0_partition: partition@0 {
+        /* 48KiB for bootloader */
+        boot_partition: partition@0 {
+            label = "mcuboot";
+            reg = <0x00000000 0x0000C000>;
+            read-only;
+        };
+
+        /* 224KiB per slot */
+        // 0x800C000
+        slot0_partition: partition@C000 {
             label = "image-0";
-            reg = <0x00000000 0x00080000>;
+            reg = <0x0000C000 0x00038000>;
+        };
+        // 0x8044000
+        slot1_partition: partition@44000 {
+            label = "image-1";
+            reg = <0x00044000 0x00038000>;
+        };
+
+        /* 8KiB scratch */
+        scratch_partition: partition@7C000 {
+            label = "image-scratch";
+            reg = <0x0007C000 0x00002000>;
+        };
+
+        /* final 8KiB reserved for app storage partition */
+        storage_partition: partition@7E000 {
+            label = "storage";
+            reg = <0x0007E000 0x00002000>;
         };
     };
 };

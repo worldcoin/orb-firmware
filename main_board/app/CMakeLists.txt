@@ -1,6 +1,34 @@
 cmake_minimum_required(VERSION 3.20.0)
 set(TARGET app)
 
+get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../ ABSOLUTE)
+get_filename_component(WORKSPACE_DIR ${PROJECT_DIR} DIRECTORY)
+
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+    message(STATUS "Maximum optimization for speed")
+
+    # Add configuration file to overwrite debug configuration
+    list(APPEND OVERLAY_CONFIG "release.conf")
+else ()
+    message(STATUS "Minimal optimization, debug info included, logging enabled")
+    #-fsanitize=undefined -fsanitize-undefined-trap-on-error
+    add_compile_options(-Og -g)
+    add_compile_definitions(DEBUG)
+
+    list(APPEND OVERLAY_CONFIG "debug.conf")
+endif ()
+
+# Generate version for the current project
+# CMake will re-run if file "VERSION" changes
+include(${PROJECT_DIR}/utils/cmake/version.cmake)
+application_version(APP_VERSION)
+message(STATUS "Application version: ${APP_VERSION}")
+set_property(
+        DIRECTORY
+        APPEND
+        PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/VERSION
+)
+
 set_property(GLOBAL PROPERTY CSTD gnu11)
 
 # default board is orb
@@ -10,14 +38,15 @@ else ()
     set(BOARD mcu_main_v31)
 endif ()
 
-list(APPEND BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../)
-list(APPEND DTS_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../)
+# Get our custom boards definitions before loading Zephyr
+list(APPEND BOARD_ROOT ${PROJECT_DIR})
+list(APPEND DTS_ROOT ${PROJECT_DIR})
 
 # Add a common dts overlay necessary to ensure the app is linked into,
 # and fits inside, the slot0 partition. (If the user specified a
 # DTC_OVERLAY_FILE on the CMake command line, we need to append onto
 # the list).
-if(DTC_OVERLAY_FILE)
+if (DTC_OVERLAY_FILE)
     set(DTC_OVERLAY_FILE
         "${DTC_OVERLAY_FILE} ${CMAKE_CURRENT_LIST_DIR}/dts.overlay"
         CACHE STRING "" FORCE
@@ -27,10 +56,14 @@ else()
 endif()
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
-project(orb-mcu-main-app)
+project(orb-mcu-main-app VERSION 0.1.0)
 
 set(SOURCES_FILES
     src/main.c
+
+    src/dfu/dfu.c
+    src/dfu/flash_map_extended.c
+    src/dfu/tests.c
 
     src/messaging/canbus.c
     src/messaging/messaging.c
@@ -53,7 +86,6 @@ set(SOURCES_FILES
     src/stepper_motors/motors_tests.c
 
     src/temperature/temperature.c
-
     )
 
 target_sources_ifdef(CONFIG_BOARD_MCU_MAIN_V30 ${TARGET} PRIVATE
@@ -73,4 +105,18 @@ target_sources(${TARGET} PRIVATE ${SOURCES_FILES})
 target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIRS})
 
 # link with Zephyr modules below
-zephyr_link_libraries(ORB_PROTOBUF_DEFINITIONS_LIB)
+# - modules/orb-protobuf-definitions: data format definitions and serializer/deserializer for messages between MCU, Jetson and Security MCU
+# - bootloader/mcuboot/boot/bootutil: public functions to access/modify mcuboot data from the application
+zephyr_link_libraries(ORB_PROTOBUF_DEFINITIONS_LIB MCUBOOT_BOOTUTIL)
+
+# specific target to test firmware update
+# this target loads the new image in secondary slot and resets the target
+# the bootloader will then swap the images before launching the new image as a Test
+set(SIGNED_ENCRYPTED_BINARY ${CMAKE_BINARY_DIR}/zephyr/zephyr.signed.encrypted.bin)
+add_custom_target(
+        openocd_load_encrypted_sec_slot
+        DEPENDS zephyr_final
+        COMMAND openocd -f ${WORKSPACE_DIR}/orb/boards/arm/mcu_main/support/openocd.cfg -c "tcl_port disabled" -c "gdb_port disabled" -c "tcl_port disabled" -c "program \"${SIGNED_ENCRYPTED_BINARY}\" 0x8044000" -c reset -c shutdown
+        # TODO flash "image OK" flags at the end of the secondary slot to mark image as pending
+        COMMENT "Loading signed+encrypted binary into secondary slot"
+)

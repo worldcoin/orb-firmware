@@ -9,6 +9,7 @@
 #ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
 #include <ir_camera_system/ir_camera_system_test.h>
 #endif
+#include "messaging/incoming_message_handling.h"
 #include "sound/sound.h"
 #include "stepper_motors/motors_tests.h"
 #include "stepper_motors/stepper_motors.h"
@@ -20,8 +21,10 @@
 #include <temperature/temperature.h>
 
 #include <logging/log.h>
-#include <zephyr.h>
 LOG_MODULE_REGISTER(main);
+#include <dfu/dfu.h>
+#include <dfu/tests.h>
+#include <zephyr.h>
 
 void
 main(void)
@@ -41,6 +44,7 @@ main(void)
 
     __ASSERT(do_distributor_rgb_leds() == 0,
              "Error doing distributor RGB LEDs");
+
     __ASSERT(power_turn_on_super_cap_charger() == 0,
              "Error enabling super cap charger");
     __ASSERT(power_turn_on_pvcc() == 0, "Error turning on pvcc");
@@ -48,21 +52,53 @@ main(void)
              "Error initializing IR camera system");
     __ASSERT(motors_init() == 0, "Error initializing motors");
 
+    // init messaging first
+    // temperature module depends on messaging
+    messaging_init();
+    dfu_init();
+    temperature_init();
+
 #ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
     ir_camera_system_test();
 #endif
-
 #ifdef CONFIG_TEST_MOTORS
     motors_tests_init();
 #endif
-
-    temperature_init();
-
-    messaging_init();
-
 #ifdef CONFIG_BOARD_STM32G484_EVAL
     LOG_WRN("Running tests");
 
     messaging_tests_init();
 #endif
+#ifdef CONFIG_TEST_DFU
+    tests_dfu_init();
+#endif
+
+    // we consider the image working if no errors were reported before
+    // Jetson sent first messages, and we didn't report any error
+    bool jetson_up_and_running = false;
+    while (1) {
+        k_msleep(20000);
+
+        // as soon as the Jetson sends the first message, send firmware version
+        // come back after the delay above and another message from the Jetson
+        // to confirm the image
+        if (!jetson_up_and_running && incoming_message_acked_counter() > 0) {
+            dfu_versions_send();
+
+            if (app_assert_count()) {
+                // do not confirm image
+                return;
+            }
+
+            jetson_up_and_running = true;
+            continue;
+        }
+
+        if (jetson_up_and_running && incoming_message_acked_counter() > 1) {
+            // the orb is now up and running
+            dfu_primary_confirm();
+
+            return;
+        }
+    }
 }

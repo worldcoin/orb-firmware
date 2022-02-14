@@ -73,7 +73,7 @@ rx_thread(void *arg1, void *arg2, void *arg3)
         bool decoded = pb_decode_ex(&stream, McuMessage_fields, &data,
                                     PB_DECODE_DELIMITED);
         if (decoded) {
-            handle_incoming_message(&data);
+            incoming_message_handle(&data);
         } else {
             LOG_ERR("Error parsing data, discarding");
         }

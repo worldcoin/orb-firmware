@@ -6,10 +6,22 @@
 #include <stdio.h>
 #include <zephyr.h>
 
+#include <core_cm4.h>
+#include <errors.h>
 #include <logging/log.h>
 LOG_MODULE_REGISTER(power_sequence);
 
 #include "power_sequence.h"
+
+K_THREAD_STACK_DEFINE(reboot_thread_stack, THREAD_STACK_SIZE_POWER_MANAGEMENT);
+static struct k_thread reboot_thread_data;
+
+static const struct device *supply_3v3 = DEVICE_DT_GET(DT_PATH(supply_3v3));
+static const struct device *supply_1v8 = DEVICE_DT_GET(DT_PATH(supply_1v8));
+
+K_SEM_DEFINE(sem_reboot, 0, 1);
+static bool reboot_pending_shutdown_req_line = false;
+static uint32_t reboot_delay_s = 0;
 
 #define FORMAT_STRING "Checking that %s is ready... "
 
@@ -53,8 +65,6 @@ power_turn_on_essential_supplies(const struct device *dev)
     const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
     const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
     const struct device *supply_3v8 = DEVICE_DT_GET(DT_PATH(supply_3v8));
-    const struct device *supply_3v3 = DEVICE_DT_GET(DT_PATH(supply_3v3));
-    const struct device *supply_1v8 = DEVICE_DT_GET(DT_PATH(supply_1v8));
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
     const struct device *supply_5v_pg = DEVICE_DT_GET(SUPPLY_5V_PG_CTLR);
@@ -227,37 +237,102 @@ power_wait_for_power_button_press(void)
 #define RESET              1
 #define OUT_OF_RESET       0
 
+#define SHUTDOWN_REQUEST_NODE DT_PATH(jetson_power_pins, shutdown_request)
+#define SHUTDOWN_REQUEST_CTLR DT_GPIO_CTLR(SHUTDOWN_REQUEST_NODE, gpios)
+
 #define LTE_GPS_USB_RESET_NODE  DT_PATH(lte_gps_usb_reset)
 #define LTE_GPS_USB_RESET_CTLR  DT_GPIO_CTLR(LTE_GPS_USB_RESET_NODE, gpios)
 #define LTE_GPS_USB_RESET_PIN   DT_GPIO_PIN(LTE_GPS_USB_RESET_NODE, gpios)
 #define LTE_GPS_USB_RESET_FLAGS DT_GPIO_FLAGS(LTE_GPS_USB_RESET_NODE, gpios)
 #define LTE_GPS_USB_ON          0
 
+static const struct gpio_dt_spec shutdown_pin =
+    GPIO_DT_SPEC_GET_OR(SHUTDOWN_REQUEST_NODE, gpios, {0});
+static const struct device *power_enable = DEVICE_DT_GET(SLEEP_WAKE_CTLR);
+static const struct device *system_reset = DEVICE_DT_GET(SYSTEM_RESET_CTLR);
+
+/// SHUTDOWN_REQ interrupt callback
+/// From the Jetson Datasheet DS-10184-001 § 2.6.2 Power Down
+///     > When the baseboard sees low SHUTDOWN_REQ*, it should deassert POWER_EN
+///     as soon as possible.
+static void
+shutdown_requested(const struct device *dev, struct gpio_callback *cb,
+                   uint32_t pins)
+{
+    if (pins & BIT(shutdown_pin.pin)) {
+        gpio_pin_set(power_enable, POWER_ENABLE_PIN, DISABLE);
+
+        if (reboot_pending_shutdown_req_line) {
+            // offload reboot to low-priority power management thread
+            reboot_delay_s = 1;
+            k_sem_give(&sem_reboot);
+        } else {
+            LOG_INF("Jetson shut down");
+        }
+    }
+}
+
+static void
+reboot_thread()
+{
+    k_sem_take(&sem_reboot, K_FOREVER);
+
+    if (reboot_pending_shutdown_req_line) {
+        // From the Jetson Datasheet DS-10184-001 § 2.6.2 Power Down:
+        //  > Once POWER_EN is deasserted, the module will assert SYS_RESET*,
+        //  and the baseboard may shut down. SoC 3.3V I/O must reach 0.5V or
+        //  lower at most 1.5ms after SYS_RESET* is asserted. SoC 1.8V I/O must
+        //  reach 0.5V or lower at most 4ms after SYS_RESET* is asserted.
+        while (gpio_pin_get(system_reset, SYSTEM_RESET_PIN) != RESET)
+            ;
+
+        regulator_disable(supply_3v3);
+        regulator_disable(supply_1v8);
+
+        // the jetson has been turned off following the specs, we can now
+        // wait `reboot_delay_s` to reset
+    }
+
+    LOG_INF("Rebooting in %u seconds", reboot_delay_s);
+
+    k_msleep(reboot_delay_s * 1000);
+    NVIC_SystemReset();
+}
+
 int
 power_turn_on_jetson(void)
 {
+    static struct gpio_callback shutdown_cb_data;
+
     const struct device *sleep_wake = DEVICE_DT_GET(SLEEP_WAKE_CTLR);
-    const struct device *power_enable = DEVICE_DT_GET(SLEEP_WAKE_CTLR);
-    const struct device *system_reset = DEVICE_DT_GET(SYSTEM_RESET_CTLR);
+    const struct device *shutdown_request =
+        DEVICE_DT_GET(SHUTDOWN_REQUEST_CTLR);
     const struct device *lte_gps_usb_reset =
         DEVICE_DT_GET(LTE_GPS_USB_RESET_CTLR);
 
     if (check_is_ready(sleep_wake, "sleep wake pin") ||
         check_is_ready(power_enable, "power enable pin") ||
-        check_is_ready(system_reset, "system reset pin")) {
-        return 1;
+        check_is_ready(system_reset, "system reset pin") ||
+        check_is_ready(shutdown_request, "Shutdown request pin")) {
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    if (gpio_pin_configure(sleep_wake, SLEEP_WAKE_PIN,
+                           SLEEP_WAKE_FLAGS | GPIO_OUTPUT)) {
+        LOG_ERR("Error configuring sleep wake pin!");
+        return RET_ERROR_INTERNAL;
     }
 
     if (gpio_pin_configure(power_enable, POWER_ENABLE_PIN,
                            POWER_ENABLE_FLAGS | GPIO_OUTPUT)) {
         LOG_ERR("Error configuring power enable pin!");
-        return 1;
+        return RET_ERROR_INTERNAL;
     }
 
     if (gpio_pin_configure(system_reset, SYSTEM_RESET_PIN,
                            SYSTEM_RESET_FLAGS | GPIO_INPUT)) {
         LOG_ERR("Error configuring system reset pin!");
-        return 1;
+        return RET_ERROR_INTERNAL;
     }
 
     LOG_INF("Enabling Jetson power");
@@ -271,13 +346,13 @@ power_turn_on_jetson(void)
     if (gpio_pin_configure(sleep_wake, SLEEP_WAKE_PIN,
                            SLEEP_WAKE_FLAGS | GPIO_OUTPUT)) {
         LOG_ERR("Error configuring sleep wake pin!");
-        return 1;
+        return RET_ERROR_INTERNAL;
     }
 
     if (gpio_pin_configure(lte_gps_usb_reset, LTE_GPS_USB_RESET_PIN,
                            LTE_GPS_USB_RESET_FLAGS | GPIO_OUTPUT)) {
         LOG_ERR("Error configuring LTE/GPS/USB reset pin!");
-        return 1;
+        return RET_ERROR_INTERNAL;
     }
 
     LOG_INF("Setting Jetson to WAKE mode");
@@ -286,7 +361,43 @@ power_turn_on_jetson(void)
     LOG_INF("Enabling LTE, GPS, and USB");
     gpio_pin_set(lte_gps_usb_reset, LTE_GPS_USB_RESET_PIN, LTE_GPS_USB_ON);
 
-    return 0;
+    // Jetson is launched, we can now activate shutdown detection
+    int ret;
+
+    ret = gpio_pin_configure_dt(&shutdown_pin, GPIO_INPUT);
+    if (ret != 0) {
+        LOG_ERR("Error %d: failed to configure %s pin %d", ret,
+                shutdown_pin.port->name, shutdown_pin.pin);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret =
+        gpio_pin_interrupt_configure_dt(&shutdown_pin, GPIO_INT_EDGE_TO_ACTIVE);
+    if (ret != 0) {
+        LOG_ERR("Error %d: failed to configure interrupt on %s pin %d", ret,
+                shutdown_pin.port->name, shutdown_pin.pin);
+        return RET_ERROR_INTERNAL;
+    }
+
+    gpio_init_callback(&shutdown_cb_data, shutdown_requested,
+                       BIT(shutdown_pin.pin));
+    ret = gpio_add_callback(shutdown_pin.port, &shutdown_cb_data);
+    if (ret != 0) {
+        LOG_ERR("Error %d: failed to add callback on %s pin %d", ret,
+                shutdown_pin.port->name, shutdown_pin.pin);
+        return RET_ERROR_INTERNAL;
+    }
+
+    k_tid_t tid = k_thread_create(
+        &reboot_thread_data, reboot_thread_stack,
+        K_THREAD_STACK_SIZEOF(reboot_thread_stack), reboot_thread, NULL, NULL,
+        NULL, THREAD_PRIORITY_POWER_MANAGEMENT, 0, K_NO_WAIT);
+    if (!tid) {
+        LOG_ERR("ERROR spawning reboot thread");
+        return RET_ERROR_INTERNAL;
+    }
+
+    return RET_SUCCESS;
 }
 
 int
@@ -295,13 +406,13 @@ power_turn_on_super_cap_charger(void)
     const struct device *supply_super_cap =
         DEVICE_DT_GET(DT_PATH(supply_super_cap));
     if (check_is_ready(supply_super_cap, "super cap charger")) {
-        return 1;
+        return RET_ERROR_INVALID_STATE;
     }
 
     regulator_enable(supply_super_cap, NULL);
     LOG_INF("super cap charger enabled");
     k_msleep(1000);
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -309,10 +420,38 @@ power_turn_on_pvcc(void)
 {
     const struct device *supply_pvcc = DEVICE_DT_GET(DT_PATH(supply_pvcc));
     if (check_is_ready(supply_pvcc, "pvcc supply")) {
-        return 1;
+        return RET_ERROR_INVALID_STATE;
     }
 
     regulator_enable(supply_pvcc, NULL);
     LOG_INF("pvcc supply enabled");
-    return 0;
+    return RET_SUCCESS;
+}
+
+int
+power_reset(uint32_t delay_s)
+{
+    if (reboot_delay_s) {
+        // already in progress
+        return RET_ERROR_INVALID_STATE;
+    } else {
+        power_reboot_clear_pending();
+        reboot_delay_s = delay_s;
+
+        k_sem_give(&sem_reboot);
+    }
+
+    return RET_SUCCESS;
+}
+
+void
+power_reboot_set_pending(void)
+{
+    reboot_pending_shutdown_req_line = true;
+}
+
+void
+power_reboot_clear_pending(void)
+{
+    reboot_pending_shutdown_req_line = false;
 }

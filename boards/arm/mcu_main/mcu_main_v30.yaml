@@ -1,5 +1,5 @@
 ---
-identifier: orb
+identifier: mcu_main
 name: Worldcoin Orb
 type: mcu
 arch: arm
