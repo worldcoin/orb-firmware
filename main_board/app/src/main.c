@@ -8,6 +8,7 @@
 #ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
 #include <ir_camera_system/ir_camera_system_test.h>
 #endif
+#include "liquid_lens/liquid_lens.h"
 #include "messaging/incoming_message_handling.h"
 #include "sound/sound.h"
 #include "stepper_motors/motors_tests.h"
@@ -52,6 +53,7 @@ main(void)
     __ASSERT(ir_camera_system_init() == 0,
              "Error initializing IR camera system");
     __ASSERT(motors_init() == 0, "Error initializing motors");
+    __ASSERT(liquid_lens_init() == 0, "Error initializing liquid lens");
 
     // init messaging first
     // temperature module depends on messaging

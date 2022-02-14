@@ -129,6 +129,11 @@
         gpios = <&gpiod 3 GPIO_ACTIVE_LOW>;
     };
 
+    liquid_lens_en {
+        compatible = "gpio-liquid-lens-en";
+        gpios = <&gpiod 2 GPIO_ACTIVE_HIGH>;
+    };
+
     hrtim1: hrtim1@40016800 {
         compatible = "st,stm32-hr-timers";
         reg = <0x40016800 0xc00>;
@@ -149,8 +154,21 @@
     pinctrl-names = "default";
 };
 
-&timers15 {
+// used by liquid_lens module
+&adc3 {
+    status = "disabled";
+    pinctrl-0 = <&adc3_in10_pd13 &adc3_in11_pd14>;
+    pinctrl-names = "default";
+};
+
+&hrtim1 {
     status = "okay";
+
+    liquid_lens: liquid_lens {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&hrtim1_cha1_pa8 &hrtim1_cha2_pa9 &hrtim1_chb1_pa10 &hrtim1_chb2_pa11>;
+        pinctrl-names = "default";
+    };
 };
 
 &timers20 {
@@ -169,6 +187,10 @@
 
 // needed for ws2812 LEDs
 &dma1 {
+    status = "okay";
+};
+
+&dma2 {
     status = "okay";
 };
 

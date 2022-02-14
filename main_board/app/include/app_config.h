@@ -39,6 +39,10 @@
 // main thread priority                 10
 // logging thread priority              14
 
+// Liquid Lens
+#define THREAD_PRIORITY_LIQUID_LENS   8
+#define THREAD_STACK_SIZE_LIQUID_LENS 512
+
 #define ESSENTIAL_POWER_SUPPLIES_INIT_PRIORITY 55
 #define FAN_INIT_PRIORITY                      54
 

@@ -6,6 +6,7 @@
 #include <fan/fan.h>
 #include <front_unit_rgb_leds/front_unit_rgb_leds.h>
 #include <ir_camera_system/ir_camera_system.h>
+#include <liquid_lens/liquid_lens.h>
 #include <logging/log.h>
 #include <stepper_motors/stepper_motors.h>
 #include <temperature/temperature.h>
@@ -463,6 +464,32 @@ handle_do_homing(McuMessage *msg)
     }
 }
 
+static void
+handle_liquid_lens(McuMessage *msg)
+{
+    MAKE_ASSERTS(JetsonToMcu_liquid_lens_tag);
+
+    int32_t current = msg->message.j_message.payload.liquid_lens.current;
+    bool enable = msg->message.j_message.payload.liquid_lens.enable;
+
+    if (current < -400 || current > 400) {
+        LOG_ERR("Got liquid lens current value of %d out of range [-400,400]",
+                current);
+        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+    } else {
+        LOG_DBG("Got liquid lens current value of %d", current);
+        liquid_set_target_current_ma(current);
+
+        if (enable) {
+            liquid_lens_enable();
+        } else {
+            liquid_lens_disable();
+        }
+
+        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    }
+}
+
 typedef void (*hm_callback)(McuMessage *msg);
 
 // These functions ARE NOT allowed to block!
@@ -492,6 +519,7 @@ static const hm_callback handle_message_callbacks[] = {
         handle_temperature_sample_period_message,
     [JetsonToMcu_fan_speed_tag] = handle_fan_speed,
     [JetsonToMcu_fps_tag] = handle_fps,
+    [JetsonToMcu_liquid_lens_tag] = handle_liquid_lens,
     [JetsonToMcu_fw_image_check_tag] = handle_fw_img_crc,
     [JetsonToMcu_fw_image_secondary_activate_tag] = handle_fw_img_sec_activate,
 };

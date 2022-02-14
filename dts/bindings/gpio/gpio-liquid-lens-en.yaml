@@ -1,0 +1,9 @@
+---
+description: GPIO pin to enable liquid lens gate drivers
+
+compatible: "gpio-liquid-lens-en"
+
+properties:
+  gpios:
+    type: phandle-array
+    required: true

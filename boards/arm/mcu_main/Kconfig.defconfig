@@ -4,6 +4,9 @@ config SPI_STM32_INTERRUPT
 	default y
 	depends on SPI
 
+config USE_STM32_LL_ADC
+	default y
+
 if BOARD_MCU_MAIN_V30
 
 config BOARD

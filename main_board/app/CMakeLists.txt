@@ -86,6 +86,8 @@ set(SOURCES_FILES
 
     src/temperature/temperature.c
 
+    src/liquid_lens/liquid_lens.c
+
     src/version/version.c
     )
 
