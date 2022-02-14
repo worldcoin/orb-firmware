@@ -1,0 +1,33 @@
+config ORB_LIB_CAN_MCU_MESSAGE
+    bool "Enable the CAN messaging with protobuf McuMessage"
+    depends on ORB_PROTOBUF_DEFINITIONS_LIB
+
+config CAN_ADDRESS_MCU
+    hex "CAN address to receive data"
+    default 1
+    depends on ORB_LIB_CAN_MCU_MESSAGE
+
+config CAN_ADDRESS_DEFAULT_REMOTE
+    hex "Default CAN address to send data to"
+    default 0x80
+    depends on ORB_LIB_CAN_MCU_MESSAGE
+
+config ORB_LIB_THREAD_PRIORITY_CANBUS_RX
+    int "CAN bus RX thread priority"
+    default 5
+    depends on ORB_LIB_CAN_MCU_MESSAGE
+
+config ORB_LIB_THREAD_STACK_SIZE_CANBUS_RX
+    int "Stack size for CAN RX thread"
+    default 2048
+    depends on ORB_LIB_CAN_MCU_MESSAGE
+
+config ORB_LIB_THREAD_PRIORITY_CANBUS_TX
+    int "CAN bus TX thread priority"
+    default 5
+    depends on ORB_LIB_CAN_MCU_MESSAGE
+
+config ORB_LIB_THREAD_STACK_SIZECANBUS_TX
+    int "Stack size for CAN TX thread"
+    default 1024
+    depends on ORB_LIB_CAN_MCU_MESSAGE

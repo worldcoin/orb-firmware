@@ -1,0 +1,12 @@
+config ORB_LIB_DFU
+    bool "Enable the Device Firmware Upgrade lib"
+
+config ORB_LIB_DFU_THREAD_PRIORITY
+    int "Block processing thread priority, including Flash operations"
+    default 10
+    depends on ORB_LIB_DFU
+
+config ORB_LIB_DFU_THREAD_STACK_SIZE
+    int "Stack size for block processing thread"
+    default 512
+    depends on ORB_LIB_DFU

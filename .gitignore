@@ -6,10 +6,6 @@ build/
 .docker_image_built
 *.egg-info/
 
-# generated files
-version.h
-orb/se_core/se_key.s
-
 # Windows
 win/
 .dll

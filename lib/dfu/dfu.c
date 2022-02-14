@@ -1,15 +1,11 @@
 #include "dfu.h"
 #include "bootutil/bootutil.h"
-#include "bootutil/image.h"
 #include "compilers.h"
 #include "errno.h"
-#include "messaging/incoming_message_handling.h"
-#include "power_sequence/power_sequence.h"
-#include <app_config.h>
 #include <devicetree.h>
+#include <errors.h>
 #include <flash_map_backend/flash_map_backend.h>
 #include <logging/log.h>
-#include <messaging/messaging.h>
 #include <storage/flash_map.h>
 #include <sys/crc.h>
 #include <zephyr.h>
@@ -19,7 +15,7 @@ LOG_MODULE_REGISTER(dfu);
 static void
 process_dfu_blocks_thread();
 
-K_THREAD_STACK_DEFINE(dfu_thread_stack, THREAD_STACK_SIZE_DFU_PROCESS_BLOCK);
+K_THREAD_STACK_DEFINE(dfu_thread_stack, CONFIG_ORB_LIB_DFU_THREAD_STACK_SIZE);
 static struct k_thread dfu_thread_data = {0};
 static k_tid_t tid_dfu = NULL;
 
@@ -74,6 +70,8 @@ static struct {
     uint32_t flash_offset;
 } dfu_state __ALIGN(8) = {0};
 
+static void (*dfu_block_process_cb)(uint32_t ack, int err) = NULL;
+
 // 1 producer and 1 consumer sharing dfu_state
 // we need two semaphores
 K_SEM_DEFINE(sem_dfu_free_space, 1, 1);
@@ -85,8 +83,11 @@ K_SEM_DEFINE(sem_dfu_full, 0, 1);
  */
 int
 dfu_load(uint32_t current_block_number, uint32_t block_count,
-         const uint8_t *data, size_t size, uint32_t ack_number)
+         const uint8_t *data, size_t size, uint32_t ack_number,
+         void (*process_cb)(uint32_t ack, int err))
 {
+    dfu_block_process_cb = process_cb;
+
     // check params first
     if ((current_block_number != 0 &&
          current_block_number != dfu_state.block_number + 1) ||
@@ -110,15 +111,19 @@ dfu_load(uint32_t current_block_number, uint32_t block_count,
         dfu_state.flash_offset = 0;
         dfu_state.wr_idx = 0;
 
-        // create higher-priority processing task now if it doesn't exist
+        // create processing task now if it doesn't exist
+        // priority set by Kconfig: CONFIG_ORB_LIB_DFU_THREAD_PRIORITY
         if (tid_dfu == NULL) {
             tid_dfu = k_thread_create(&dfu_thread_data, dfu_thread_stack,
                                       K_THREAD_STACK_SIZEOF(dfu_thread_stack),
                                       process_dfu_blocks_thread, NULL, NULL,
-                                      NULL, THREAD_PRIORITY_DFU_PROCESS_BLOCK,
+                                      NULL, CONFIG_ORB_LIB_DFU_THREAD_PRIORITY,
                                       0, K_NO_WAIT);
             if (!tid_dfu) {
                 LOG_ERR("ERROR spawning dfu thread");
+            } else {
+                LOG_INF("DFU processing task, prio %u",
+                        CONFIG_ORB_LIB_DFU_THREAD_PRIORITY);
             }
         }
     }
@@ -181,8 +186,10 @@ process_dfu_blocks_thread()
                             dfu_state.block_count * DFU_BLOCK_SIZE_MAX,
                             image_slot_size);
 
-                    incoming_message_ack(Ack_ErrorCode_RANGE,
-                                         dfu_state.last_ack_number);
+                    if (dfu_block_process_cb != NULL) {
+                        dfu_block_process_cb(dfu_state.last_ack_number,
+                                             RET_ERROR_INVALID_PARAM);
+                    }
                     break;
                 }
             }
@@ -222,8 +229,10 @@ process_dfu_blocks_thread()
                 if (err_code != 0) {
                     LOG_ERR("Unable to erase sector, err %i", err_code);
 
-                    incoming_message_ack(Ack_ErrorCode_RANGE,
-                                         dfu_state.last_ack_number);
+                    if (dfu_block_process_cb != NULL) {
+                        dfu_block_process_cb(dfu_state.last_ack_number,
+                                             RET_ERROR_INTERNAL);
+                    }
                     break;
                 }
             }
@@ -236,8 +245,10 @@ process_dfu_blocks_thread()
             if (err_code) {
                 LOG_ERR("Unable to write into Flash, err %i", err_code);
 
-                incoming_message_ack(Ack_ErrorCode_FAIL,
-                                     dfu_state.last_ack_number);
+                if (dfu_block_process_cb != NULL) {
+                    dfu_block_process_cb(dfu_state.last_ack_number,
+                                         RET_ERROR_INTERNAL);
+                }
                 break;
             } else if (dfu_state.wr_idx >= bytes_to_write) {
                 // copy remaining bytes at the beginning of the buffer
@@ -258,7 +269,9 @@ process_dfu_blocks_thread()
         // dfu_state has been consumed, semaphore can be freed
         k_sem_give(&sem_dfu_free_space);
 
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, dfu_state.last_ack_number);
+        if (dfu_block_process_cb != NULL) {
+            dfu_block_process_cb(dfu_state.last_ack_number, RET_SUCCESS);
+        }
     }
 }
 
@@ -273,9 +286,6 @@ dfu_secondary_activate(bool permanent)
     int ret = boot_set_pending(permanent);
     if (ret == 0) {
         LOG_INF("The second image will be loaded after reset");
-
-        // wait for Jetson to shut down before we can reboot
-        power_reboot_set_pending();
     } else {
         LOG_ERR("Unable to mark secondary slot as pending");
     }
@@ -333,32 +343,20 @@ dfu_primary_confirm()
 }
 
 int
-dfu_versions_send()
+dfu_version_primary_get(struct image_version *ih_ver)
 {
-    McuMessage versions = {
-        .which_message = McuMessage_m_message_tag,
-        .message.m_message.which_payload = McuToJetson_versions_tag,
-        .message.m_message.payload.versions.has_primary_app = true,
-        .message.m_message.payload.versions.primary_app.major =
-            primary_slot->ih_ver.iv_major,
-        .message.m_message.payload.versions.primary_app.minor =
-            primary_slot->ih_ver.iv_minor,
-        .message.m_message.payload.versions.primary_app.patch =
-            primary_slot->ih_ver.iv_revision,
-        .message.m_message.payload.versions.has_secondary_app = true,
-        .message.m_message.payload.versions.secondary_app.major =
-            secondary_slot->ih_ver.iv_major,
-        .message.m_message.payload.versions.secondary_app.minor =
-            secondary_slot->ih_ver.iv_minor,
-        .message.m_message.payload.versions.secondary_app.patch =
-            secondary_slot->ih_ver.iv_revision,
-#if defined(CONFIG_BOARD_MCU_MAIN_V30)
-        .message.m_message.payload.versions.hardware_version = 30,
-#elif defined(CONFIG_BOARD_MCU_MAIN_V31)
-        .message.m_message.payload.versions.hardware_version = 31,
-#endif
-    };
-    return messaging_push_tx(&versions);
+    memcpy(ih_ver, &primary_slot->ih_ver, sizeof(struct image_version));
+
+    return 0;
+}
+
+int
+dfu_version_secondary_get(struct image_version *ih_ver)
+{
+    // TODO check that image in secondary slot is valid
+    memcpy(ih_ver, &secondary_slot->ih_ver, sizeof(struct image_version));
+
+    return 0;
 }
 
 int

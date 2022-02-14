@@ -15,7 +15,7 @@ Compile the bootloader:
 
 ```shell
 # Passing the board is mandatory to build the bootloader
-west build -b [mcu_main_v30 | mcu_main_v31]
+west build -b [mcu_main_v30 | mcu_main_v31 | mcu_sec]
 ```
 
 Flash the bootloader, before the application:

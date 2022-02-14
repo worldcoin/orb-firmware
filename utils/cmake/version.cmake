@@ -1,13 +1,13 @@
 function(application_version app_version)
     file(READ ${CMAKE_CURRENT_SOURCE_DIR}/VERSION ver)
 
-    string(REGEX MATCH "VERSION_MAJOR = ([0-9]*)" _ ${ver})
+    string(REGEX MATCH "VERSION_MAJOR=([0-9]*)" _ ${ver})
     set(PROJECT_VERSION_MAJOR ${CMAKE_MATCH_1})
 
-    string(REGEX MATCH "VERSION_MINOR = ([0-9]*)" _ ${ver})
+    string(REGEX MATCH "VERSION_MINOR=([0-9]*)" _ ${ver})
     set(PROJECT_VERSION_MINOR ${CMAKE_MATCH_1})
 
-    string(REGEX MATCH "VERSION_PATCH = ([0-9]*)" _ ${ver})
+    string(REGEX MATCH "VERSION_PATCH=([0-9]*)" _ ${ver})
     set(PROJECT_VERSION_PATCH ${CMAKE_MATCH_1})
 
     set(CURRENT_VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})

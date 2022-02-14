@@ -53,20 +53,19 @@ if (DTC_OVERLAY_FILE)
         )
 else()
     set(DTC_OVERLAY_FILE dts.overlay)
-endif()
+endif ()
+
+# In case we don't use West to build, add our local modules to the list
+list(APPEND ZEPHYR_EXTRA_MODULES ${PROJECT_DIR})
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
-project(orb-mcu-main-app VERSION 0.1.0)
+project(orb-mcu-main-app)
 
 set(SOURCES_FILES
     src/main.c
 
-    src/dfu/dfu.c
-    src/dfu/flash_map_extended.c
     src/dfu/tests.c
 
-    src/messaging/canbus.c
-    src/messaging/messaging.c
     src/messaging/incoming_message_handling.c
     src/messaging/messaging_tests.c
 
@@ -86,6 +85,8 @@ set(SOURCES_FILES
     src/stepper_motors/motors_tests.c
 
     src/temperature/temperature.c
+
+    src/version/version.c
     )
 
 target_sources_ifdef(CONFIG_BOARD_MCU_MAIN_V30 ${TARGET} PRIVATE
@@ -107,7 +108,13 @@ target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIRS})
 # link with Zephyr modules below
 # - modules/orb-protobuf-definitions: data format definitions and serializer/deserializer for messages between MCU, Jetson and Security MCU
 # - bootloader/mcuboot/boot/bootutil: public functions to access/modify mcuboot data from the application
-zephyr_link_libraries(ORB_PROTOBUF_DEFINITIONS_LIB MCUBOOT_BOOTUTIL)
+if (CONFIG_ORB_PROTOBUF_DEFINITIONS_LIB)
+    zephyr_link_libraries(ORB_PROTOBUF_DEFINITIONS_LIB)
+    # dependency below doesn't have to be forced if using West but must be added when using CMake only
+    # to build zephyr_final
+    add_dependencies(zephyr_final generate_proto_files)
+endif ()
+zephyr_link_libraries_ifdef(CONFIG_MCUBOOT_BOOTUTIL_LIB MCUBOOT_BOOTUTIL)
 
 # specific target to test firmware update
 # this target loads the new image in secondary slot and resets the target

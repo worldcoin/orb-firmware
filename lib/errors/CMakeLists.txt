@@ -1,7 +1,5 @@
-zephyr_interface_library_named(orb-lib-errors)
-
-zephyr_library_sources_ifdef(CONFIG_ORB_APP_ASSERT
+zephyr_sources_ifdef(CONFIG_ORB_APP_ASSERT
         app_assert.c
         )
 
-zephyr_include_directories(include)
+zephyr_include_directories_ifdef(CONFIG_ORB_APP_ASSERT include)

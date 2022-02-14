@@ -6,8 +6,7 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(cantest);
 
-#include "canbus.h"
-#include "messaging.h"
+#include "can_messaging.h"
 #include <app_config.h>
 #include <errors.h>
 #include <mcu_messaging.pb.h>
@@ -44,7 +43,7 @@ test_can_send()
             packet;
 
         // queue new tx message to test the full TX thread
-        err = messaging_push_tx(&data_to_serialize);
+        err = can_messaging_push_tx(&data_to_serialize);
 
         packet++;
     }

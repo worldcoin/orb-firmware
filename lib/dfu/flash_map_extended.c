@@ -8,7 +8,7 @@
 #include <drivers/flash.h>
 #include <zephyr.h>
 
-#include <dfu/flash_map_backend.h>
+#include <flash_map_backend/flash_map_backend.h>
 #include <sysflash/sysflash.h>
 
 #include <logging/log.h>

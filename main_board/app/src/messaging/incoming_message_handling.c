@@ -1,6 +1,6 @@
 #include "incoming_message_handling.h"
-#include "dfu/dfu.h"
-#include "messaging.h"
+#include "can_messaging.h"
+#include "dfu.h"
 #include "power_sequence/power_sequence.h"
 #include <assert.h>
 #include <fan/fan.h>
@@ -42,9 +42,36 @@ incoming_message_ack(Ack_ErrorCode error, uint32_t ack_number)
                       .message.m_message.which_payload = McuToJetson_ack_tag,
                       .message.m_message.payload.ack.ack_number = ack_number,
                       .message.m_message.payload.ack.error = error};
-    messaging_push_tx(&ack);
-
+    can_messaging_push_tx(&ack);
     ++message_counter;
+}
+
+/// Convert error codes to ack codes
+static void
+handle_err_code(uint32_t ack_number, int err)
+{
+    switch (err) {
+    case RET_SUCCESS:
+        incoming_message_ack(Ack_ErrorCode_SUCCESS, ack_number);
+        break;
+
+    case RET_ERROR_INVALID_PARAM:
+    case RET_ERROR_NOT_FOUND:
+        incoming_message_ack(Ack_ErrorCode_RANGE, ack_number);
+        break;
+
+    case RET_ERROR_BUSY:
+    case RET_ERROR_INVALID_STATE:
+        incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, ack_number);
+        break;
+
+    case RET_ERROR_FORBIDDEN:
+        incoming_message_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, ack_number);
+        break;
+
+    default:
+        incoming_message_ack(Ack_ErrorCode_FAIL, ack_number);
+    }
 }
 
 void
@@ -359,6 +386,9 @@ handle_fw_img_sec_activate(McuMessage *msg)
         incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
     } else {
         incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+
+        // wait for Jetson to shut down before we can reboot
+        power_reboot_set_pending();
     }
 }
 
@@ -392,7 +422,7 @@ handle_dfu_block_message(McuMessage *msg)
                  msg->message.j_message.payload.dfu_block.block_count,
                  msg->message.j_message.payload.dfu_block.image_block.bytes,
                  msg->message.j_message.payload.dfu_block.image_block.size,
-                 msg->message.j_message.ack_number);
+                 msg->message.j_message.ack_number, handle_err_code);
 
     // if the operation is not over,
     // the DFU module will handle acknowledgement

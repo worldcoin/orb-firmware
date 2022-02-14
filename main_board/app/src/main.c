@@ -2,7 +2,6 @@
 #include "fan/fan.h"
 #include "front_unit_rgb_leds/front_unit_rgb_leds.h"
 #include "ir_camera_system/ir_camera_system.h"
-#include "messaging/messaging.h"
 #include "power_sequence/power_sequence.h"
 #include <device.h>
 #include <drivers/gpio.h>
@@ -13,6 +12,7 @@
 #include "sound/sound.h"
 #include "stepper_motors/motors_tests.h"
 #include "stepper_motors/stepper_motors.h"
+#include "version/version.h"
 
 #if CONFIG_BOARD_STM32G484_EVAL
 #include "messaging/messaging_tests.h"
@@ -22,7 +22,8 @@
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(main);
-#include <dfu/dfu.h>
+#include <can_messaging.h>
+#include <dfu.h>
 #include <dfu/tests.h>
 #include <zephyr.h>
 
@@ -54,7 +55,7 @@ main(void)
 
     // init messaging first
     // temperature module depends on messaging
-    messaging_init();
+    can_messaging_init(incoming_message_handle);
     dfu_init();
     temperature_init();
 
@@ -83,7 +84,7 @@ main(void)
         // come back after the delay above and another message from the Jetson
         // to confirm the image
         if (!jetson_up_and_running && incoming_message_acked_counter() > 0) {
-            dfu_versions_send();
+            version_send();
 
             if (app_assert_count()) {
                 // do not confirm image

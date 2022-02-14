@@ -1,4 +1,6 @@
-name: orb-drivers
+name: orb-modules
 build:
   cmake: .
   kconfig: Kconfig
+  depends:
+    - orb-protobuf-definitions
