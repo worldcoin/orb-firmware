@@ -1,14 +1,13 @@
 #include <app_config.h>
+#include <arch/cpu.h>
 #include <assert.h>
 #include <device.h>
 #include <drivers/gpio.h>
 #include <drivers/regulator.h>
-#include <stdio.h>
-#include <zephyr.h>
-
-#include <core_cm4.h>
 #include <errors.h>
 #include <logging/log.h>
+#include <stdio.h>
+#include <zephyr.h>
 LOG_MODULE_REGISTER(power_sequence);
 
 #include "power_sequence.h"
