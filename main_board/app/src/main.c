@@ -15,6 +15,10 @@
 #include "stepper_motors/stepper_motors.h"
 #include "version/version.h"
 
+#ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
+#include "heartbeat.h"
+#endif
+
 #if CONFIG_BOARD_STM32G484_EVAL
 #include "messaging/messaging_tests.h"
 #endif

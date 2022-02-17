@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <fan/fan.h>
 #include <front_unit_rgb_leds/front_unit_rgb_leds.h>
+#include <heartbeat.h>
 #include <ir_camera_system/ir_camera_system.h>
 #include <liquid_lens/liquid_lens.h>
 #include <logging/log.h>
@@ -490,6 +491,22 @@ handle_liquid_lens(McuMessage *msg)
     }
 }
 
+static void
+handle_heartbeat(McuMessage *msg)
+{
+    MAKE_ASSERTS(JetsonToMcu_heartbeat_tag);
+
+    LOG_DBG("Got heartbeat");
+    int ret = heartbeat_boom(
+        msg->message.j_message.payload.heartbeat.timeout_seconds);
+
+    if (ret == RET_SUCCESS) {
+        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    } else {
+        incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+    }
+}
+
 typedef void (*hm_callback)(McuMessage *msg);
 
 // These functions ARE NOT allowed to block!
@@ -522,10 +539,11 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_liquid_lens_tag] = handle_liquid_lens,
     [JetsonToMcu_fw_image_check_tag] = handle_fw_img_crc,
     [JetsonToMcu_fw_image_secondary_activate_tag] = handle_fw_img_sec_activate,
+    [JetsonToMcu_heartbeat_tag] = handle_heartbeat,
 };
 
 static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 30,
+    ARRAY_SIZE(handle_message_callbacks) <= 31,
     "It seems like the `handle_message_callbacks` array is too large");
 
 void
