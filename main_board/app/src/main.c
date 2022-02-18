@@ -77,7 +77,7 @@ main(void)
     // Jetson sent first messages, and we didn't report any error
     bool jetson_up_and_running = false;
     while (1) {
-        k_msleep(20000);
+        k_msleep(10000);
 
         // as soon as the Jetson sends the first message, send firmware version
         // come back after the delay above and another message from the Jetson
