@@ -47,19 +47,15 @@
     };
 };
 
-&timers1 {
+&timers3 {
     status = "okay";
 
     led_740nm: led_740nm {
         compatible = "worldcoin,stm32-pwm";
-        pinctrl-0 = <&tim1_ch2n_pb0>;
+        pinctrl-0 = <&tim3_ch3_pb0>;
         pinctrl-names = "default";
-        channels = <2>;
+        channels = <3>;
     };
-};
-
-&timers3 {
-    status = "okay";
 
     led_940nm: led_940nm {
         compatible = "worldcoin,stm32-pwm";

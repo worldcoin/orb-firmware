@@ -1,4 +1,5 @@
 #include "ir_camera_timer_settings.h"
+#include "kernel.h"
 #include <logging/log.h>
 #include <sys/util.h>
 LOG_MODULE_REGISTER(ir_camera_timer_settings);
@@ -97,7 +98,10 @@ timer_settings_from_on_time_us(
     }
 
     if (ret == RET_SUCCESS) {
+        // make copy operation atomic
+        int key = irq_lock();
         *new_settings = ts;
+        irq_unlock(key);
     }
 
     return ret;
@@ -173,7 +177,10 @@ timer_settings_from_fps(uint16_t fps,
     }
 
     if (ret == RET_SUCCESS) {
+        // make copy operation atomic
+        int key = irq_lock();
         *new_settings = ts;
+        irq_unlock(key);
     }
     return ret;
 }
@@ -186,4 +193,42 @@ timer_settings_print(const struct ir_camera_timer_settings *settings)
     LOG_DBG("arr           = %5u", settings->arr);
     LOG_DBG("ccr           = %5u", settings->ccr);
     LOG_DBG("on_time_in_us = %5u", settings->on_time_in_us);
+}
+
+ret_code_t
+timer_740nm_ccr_from_on_time_us(
+    uint32_t on_time_us,
+    const struct ir_camera_timer_settings *current_settings,
+    struct ir_camera_timer_settings *new_settings)
+{
+    // can't compute new settings if FPS is not set
+    if (current_settings->fps == 0 && on_time_us != 0) {
+        new_settings->ccr_740nm = 0;
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    // All we need to verify is that the on time does not imply
+    // a duty cycle > 45%.
+    // If a duty cycle of > 45% would occur, then clamp it at 45%
+
+    // would be 1_000_000 / fps to get us, but we run the leds at 2x frequency
+    // of fps, so 1/2 it = 500000.0
+    uint32_t forty_five_percent_of_current_period_us =
+        (uint32_t)(500000.0 / current_settings->fps * 0.45);
+
+    // apply psc and arr for current FPS
+    struct ir_camera_timer_settings ts;
+    ts = *current_settings;
+    ts.psc = ASSUMED_TIMER_CLOCK_FREQ / (MAX_PSC_DIV * ts.fps);
+    ts.arr = ASSUMED_TIMER_CLOCK_FREQ / ((ts.psc + 1) * ts.fps);
+    ts.ccr_740nm = (ASSUMED_TIMER_CLOCK_FREQ_MHZ *
+                    MIN(forty_five_percent_of_current_period_us, on_time_us)) /
+                   (ts.psc + 1);
+
+    // make copy operation atomic
+    int key = irq_lock();
+    *new_settings = ts;
+    irq_unlock(key);
+
+    return RET_SUCCESS;
 }

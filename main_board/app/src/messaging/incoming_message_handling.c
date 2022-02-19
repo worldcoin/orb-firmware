@@ -174,6 +174,23 @@ handle_led_on_time_message(McuMessage *msg)
 }
 
 static void
+handle_led_on_time_740nm_message(McuMessage *msg)
+{
+    MAKE_ASSERTS(JetsonToMcu_led_on_time_740nm_tag);
+
+    uint32_t on_time_us =
+        msg->message.j_message.payload.led_on_time_740nm.on_duration_us;
+
+    LOG_DBG("Got LED on time for 740nm message = %uus", on_time_us);
+    ret_code_t ret = ir_camera_system_set_on_time_740nm_us(on_time_us);
+    if (ret == RET_SUCCESS) {
+        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    } else {
+        incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+    }
+}
+
+static void
 handle_start_triggering_ir_eye_camera_message(McuMessage *msg)
 {
     MAKE_ASSERTS(JetsonToMcu_start_triggering_ir_eye_camera_tag);
@@ -594,7 +611,7 @@ static const hm_callback handle_message_callbacks[] = {
 };
 
 static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 33,
+    ARRAY_SIZE(handle_message_callbacks) <= 40,
     "It seems like the `handle_message_callbacks` array is too large");
 
 void
