@@ -1,0 +1,3 @@
+config ORB_I2C_SCAN
+    default n
+    bool "Use library for scanning for I2C devices"
