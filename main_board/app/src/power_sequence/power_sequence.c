@@ -182,9 +182,13 @@ SYS_INIT(power_turn_on_essential_supplies, POST_KERNEL, 55);
 #define POWER_BUTTON_FLAGS DT_GPIO_FLAGS(POWER_BUTTON_NODE, gpios)
 
 int
-power_wait_for_power_button_press(void)
+power_wait_for_power_button_press(const struct device *dev)
 {
+    ARG_UNUSED(dev);
+
     const struct device *power_button = DEVICE_DT_GET(POWER_BUTTON_CTLR);
+
+    LOG_INF("Hello from " CONFIG_BOARD " :)");
 
     if (!device_is_ready(power_button)) {
         LOG_ERR("power button is not ready!");
@@ -212,8 +216,17 @@ power_wait_for_power_button_press(void)
         k_msleep(BUTTON_SAMPLE_PERIOD_MS);
     }
 
+    LOG_INF("Booting system...");
+
     return 0;
 }
+
+static_assert(WAIT_FOR_BUTTON_PRESS_PRIORITY == 53,
+              "update the integer literal here");
+
+// Gate turning on power supplies on button press
+// We must use an integer literal. Thanks C macros!
+SYS_INIT(power_wait_for_power_button_press, POST_KERNEL, 53);
 
 #define SLEEP_WAKE_NODE  DT_PATH(jetson_power_pins, sleep_wake)
 #define SLEEP_WAKE_CTLR  DT_GPIO_CTLR(SLEEP_WAKE_NODE, gpios)

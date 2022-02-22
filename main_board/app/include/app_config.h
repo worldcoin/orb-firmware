@@ -45,6 +45,7 @@
 
 #define ESSENTIAL_POWER_SUPPLIES_INIT_PRIORITY 55
 #define FAN_INIT_PRIORITY                      54
+#define WAIT_FOR_BUTTON_PRESS_PRIORITY         53
 
 ///////////////////////////////////////
 /// CAN bus config                  ///

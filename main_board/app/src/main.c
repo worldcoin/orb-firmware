@@ -31,13 +31,6 @@ LOG_MODULE_REGISTER(main);
 void
 main(void)
 {
-    LOG_INF("Hello from " CONFIG_BOARD " :)");
-
-    __ASSERT(power_wait_for_power_button_press() == 0,
-             "Error waiting for button");
-
-    LOG_INF("Booting system");
-
     __ASSERT(power_turn_on_jetson() == 0, "Jetson power-on error");
     __ASSERT(init_sound() == 0, "Error initializing sound");
 
