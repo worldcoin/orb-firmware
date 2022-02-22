@@ -61,7 +61,7 @@ heartbeat_boom(uint32_t delay_s)
             return RET_ERROR_INTERNAL;
         }
 
-        // make sure timeout handler is init
+        // make sure timeout handler is initialized
         if (heartbeat_timeout_cb == NULL) {
             heartbeat_timeout_cb = timeout_default_handler;
         }
