@@ -35,9 +35,7 @@ thread_entry_point()
         if (k_sleep(K_SECONDS(global_delay_s)) == 0) {
             // turn off heartbeat monitoring
             global_delay_s = 0;
-            if (heartbeat_timeout_cb != NULL) {
-                heartbeat_timeout_cb();
-            }
+            heartbeat_timeout_cb();
         }
 
         // turn off heartbeat if global_delay_s set to 0
