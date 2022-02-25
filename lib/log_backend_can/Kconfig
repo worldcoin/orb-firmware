@@ -1,0 +1,4 @@
+config ORB_LIB_LOG_BACKEND_CAN
+    default y
+    bool "Send logs over the CAN bus"
+	depends on LOG

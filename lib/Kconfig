@@ -4,6 +4,10 @@ menu "CAN messaging"
 source "../orb/lib/can_mcu_message/Kconfig"
 endmenu
 
+menu "Logs over CAN"
+source "../orb/lib/log_backend_can/Kconfig"
+endmenu
+
 menu "Error handling"
 source "../orb/lib/errors/Kconfig"
 endmenu
