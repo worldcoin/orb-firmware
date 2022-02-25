@@ -206,30 +206,6 @@ handle_stop_triggering_2dtof_camera_message(McuMessage *msg)
 }
 
 static void
-handle_740nm_brightness_message(McuMessage *msg)
-{
-    MAKE_ASSERTS(JetsonToMcu_brightness_740nm_leds_tag);
-
-    ret_code_t ret;
-    uint32_t brightness =
-        msg->message.j_message.payload.brightness_740nm_leds.brightness;
-
-    if (brightness > 100) {
-        LOG_ERR("Got brightness of %u out of range [0;100]", brightness);
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
-    } else {
-        LOG_DBG("Got brightness message: %u%%", brightness);
-
-        ret = ir_camera_system_set_740nm_led_brightness(brightness);
-        if (ret == RET_SUCCESS) {
-            incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
-        } else {
-            incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
-        }
-    }
-}
-
-static void
 handle_reboot_message(McuMessage *msg)
 {
     MAKE_ASSERTS(JetsonToMcu_reboot_tag);
@@ -523,7 +499,6 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_user_leds_pattern_tag] = handle_user_leds_pattern,
     [JetsonToMcu_user_leds_brightness_tag] = handle_user_leds_brightness,
     [JetsonToMcu_dfu_block_tag] = handle_dfu_block_message,
-    [JetsonToMcu_brightness_740nm_leds_tag] = handle_740nm_brightness_message,
     [JetsonToMcu_start_triggering_ir_eye_camera_tag] =
         handle_start_triggering_ir_eye_camera_message,
     [JetsonToMcu_stop_triggering_ir_eye_camera_tag] =
