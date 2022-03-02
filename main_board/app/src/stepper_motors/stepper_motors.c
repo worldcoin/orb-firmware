@@ -50,8 +50,11 @@ static struct spi_buf_set tx_bufs = {.buffers = &tx, .count = 1};
 #define MOTOR_FS_VMAX   800000
 #define IHOLDDELAY      (1 << 16)
 
-// initial values
-const uint8_t motor_irun_sgt[MOTOR_COUNT][2] = {{0x10, 5}, {0x12, 6}};
+// initial values [IRUN, SGT]
+const uint8_t motor_irun_sgt[MOTOR_COUNT][2] = {
+    {0x12, 5}, // vertical
+    {0x11, 5}, // horizontal
+};
 
 typedef enum tmc5041_registers_e {
     REG_IDX_RAMPMODE,
@@ -83,7 +86,7 @@ const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][MOTOR_COUNT] = {
 };
 
 const uint32_t motors_full_course_minimum_steps[MOTOR_COUNT] = {(300 * 256),
-                                                                (500 * 256)};
+                                                                (300 * 256)};
 const float motors_arm_length[MOTOR_COUNT] = {12.0, 18.71};
 
 const uint32_t steps_per_mm = 12800; // 1mm / 0.4mm (pitch) * (360° / 18° (per
@@ -425,7 +428,7 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
     // autohoming timeout to detect both ends = 5 seconds
     // = maximum time to go from one side to the other during auto-homing + some
     // delay
-    const uint32_t loop_delay_ms = 200;
+    const uint32_t loop_delay_ms = 50;
     int32_t timeout = 5000 / loop_delay_ms;
 
     motors_refs[motor].auto_homing_state = AH_UNINIT;
@@ -543,7 +546,7 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 
             // before we continue we need to wait for the motor to move and
             // removes its stall detection flag
-            uint32_t t = 10;
+            uint32_t t = 1000 / loop_delay_ms;
             do {
                 k_msleep(loop_delay_ms);
                 status = motor_spi_read(
