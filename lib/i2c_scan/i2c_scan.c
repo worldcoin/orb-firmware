@@ -31,6 +31,7 @@ i2c_scan_and_log(const struct device *i2c_dev)
             if (!ret) {
                 LOG_INF("Found device at address 0x%02x / %s", i,
                         int_to_binary_str(i));
+                k_msleep(200);
             }
         }
         LOG_INF("I2C scan done.");
