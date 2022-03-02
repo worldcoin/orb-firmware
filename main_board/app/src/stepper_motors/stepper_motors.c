@@ -46,7 +46,7 @@ static struct spi_buf_set tx_bufs = {.buffers = &tx, .count = 1};
 
 // Motors configuration
 #define MOTOR_INIT_VMAX 200000
-#define MTOR_INIT_AMAX  (MOTOR_INIT_VMAX / 20)
+#define MOTOR_INIT_AMAX (MOTOR_INIT_VMAX / 20)
 #define MOTOR_FS_VMAX   800000
 #define IHOLDDELAY      (1 << 16)
 
@@ -124,7 +124,7 @@ const uint64_t motor_init_for_velocity_mode[MOTOR_COUNT][8] = {
         0xB100000000 + (MOTOR_INIT_VMAX * 9 /
                         10), // VCOOLTHRS: StallGuard enabled when motor
                              // reaches that velocity
-        0xA600000000 + MTOR_INIT_AMAX,  // AMAX = acceleration and deceleration
+        0xA600000000 + MOTOR_INIT_AMAX, // AMAX = acceleration and deceleration
                                         // in velocity mode
         0xA700000000 + MOTOR_INIT_VMAX, // VMAX target velocity
         0xB400000000 |
@@ -141,7 +141,7 @@ const uint64_t motor_init_for_velocity_mode[MOTOR_COUNT][8] = {
         0xD100000000 + (MOTOR_INIT_VMAX * 9 /
                         10), // VCOOLTHRS: StallGuard enabled when motor
                              // reaches that velocity
-        0xC600000000 + MTOR_INIT_AMAX,  // AMAX = acceleration and deceleration
+        0xC600000000 + MOTOR_INIT_AMAX, // AMAX = acceleration and deceleration
                                         // in velocity mode
         0xC700000000 + MOTOR_INIT_VMAX, // VMAX target velocity
         0xD400000000 |
