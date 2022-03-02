@@ -1,10 +1,10 @@
 #include "temperature.h"
 #include <app_config.h>
 #include <assert.h>
+#include <can_messaging.h>
 #include <device.h>
 #include <drivers/sensor.h>
 #include <logging/log.h>
-#include <messaging/messaging.h>
 #include <sys_clock.h>
 #include <zephyr.h>
 LOG_MODULE_REGISTER(temperature);
@@ -87,7 +87,7 @@ sample_and_report_temperature(
         msg.message.m_message.payload.temperature.source =
             sensor_and_channel->temperature_source;
         msg.message.m_message.payload.temperature.temperature_c = temp;
-        messaging_push_tx(&msg);
+        can_messaging_push_tx(&msg);
     }
 }
 

@@ -5,37 +5,54 @@
 #ifndef ORB_FIRMWARE_APP_MAIN_INCLUDE_APP_CONFIG_H
 #define ORB_FIRMWARE_APP_MAIN_INCLUDE_APP_CONFIG_H
 
-// Threads priorities
+///////////////////////////////////////
+/// Threads ordered by priorities   ///
+///////////////////////////////////////
 
-// work queue                           CONFIG_SYSTEM_WORKQUEUE_PRIORITY = -1
-#define THREAD_PRIORITY_CAN_RX         5
-#define THREAD_PRIORITY_PROCESS_TX_MSG 7
-#define THREAD_PRIORITY_MOTORS_INIT    8
-#define THREAD_PRIORITY_TESTS          9
-// main thread priority                 10 // set as
-// logging thread priority              14
+// work queue CONFIG_SYSTEM_WORKQUEUE_PRIORITY = -1
+
+/// See other threads configured with KConfig: CONFIG_ORB_LIB_THREAD_*
+
+// Power management thread
+#define THREAD_PRIORITY_POWER_MANAGEMENT   3
+#define THREAD_STACK_SIZE_POWER_MANAGEMENT 256
 
 // Front unit RGB LEDs
-#define THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS   4
-#define THREAD_STACK_SIZE_FRONT_UNIT_RGB_LEDS 256
-
-// IR camera system test
-#define THREAD_PRIORITY_IR_CAMERA_SYSTEM_TEST   4
-#define THREAD_STACK_SIZE_IR_CAMERA_SYSTEM_TEST 512
+#define THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS   6
+#define THREAD_STACK_SIZE_FRONT_UNIT_RGB_LEDS 512
 
 // Temperature
-#define THREAD_PRIORITY_TEMPERATURE   7
-#define THREAD_STACK_SIZE_TEMPERATURE 512
+#define THREAD_PRIORITY_TEMPERATURE   8
+#define THREAD_STACK_SIZE_TEMPERATURE 1024
+
+#define THREAD_PRIORITY_MOTORS_INIT 8
+
+// Testing threads
+// - CAN
+// - DFU
+#define THREAD_PRIORITY_TESTS 9
+
+// IR camera system test
+#define THREAD_PRIORITY_IR_CAMERA_SYSTEM_TEST   9
+#define THREAD_STACK_SIZE_IR_CAMERA_SYSTEM_TEST 512
+
+// main thread priority                 10
+// logging thread priority              14
+
+// Liquid Lens
+#define THREAD_PRIORITY_LIQUID_LENS   8
+#define THREAD_STACK_SIZE_LIQUID_LENS 512
 
 #define ESSENTIAL_POWER_SUPPLIES_INIT_PRIORITY 55
 #define FAN_INIT_PRIORITY                      54
+#define WAIT_FOR_BUTTON_PRESS_PRIORITY         53
+
+///////////////////////////////////////
+/// CAN bus config                  ///
+///////////////////////////////////////
 
 #ifndef CONFIG_CAN_ADDRESS_MCU
 #define CONFIG_CAN_ADDRESS_MCU 0x01
-#endif
-
-#ifndef CONFIG_CAN_ADDRESS_JETSON
-#define CONFIG_CAN_ADDRESS_JETSON 0x80
 #endif
 
 #endif // ORB_FIRMWARE_APP_MAIN_INCLUDE_APP_CONFIG_H

@@ -1,15 +1,17 @@
 mainmenu "Application configuration"
 
-comment "App-specific configuration options"
+config ORB_PROTOBUF_DEFINITIONS_LIB
+    default y
+    bool "Orb Protobuf definitions"
+    depends on NANOPB
 
 # Shared libraries used on Orb
 config ORB_MCU_LIBRARIES_LIB
     default y
-    bool "Import Orb libraries"
+    bool "Orb shared components"
 
-config ORB_PROTOBUF_DEFINITIONS_LIB
-    default y
-    bool "Import Orb Protobuf definitions"
-    depends on NANOPB
+if ORB_MCU_LIBRARIES_LIB
+source "../orb/Kconfig"
+endif
 
 source "Kconfig.zephyr"

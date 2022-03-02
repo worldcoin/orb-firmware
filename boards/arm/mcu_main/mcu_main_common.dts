@@ -92,7 +92,7 @@
     jetson_power_pins {
         compatible = "gpio-jetson-power";
         shutdown_request {
-            gpios = <&gpioe 14 GPIO_ACTIVE_LOW>;
+            gpios = <&gpioe 13 GPIO_ACTIVE_LOW>;
 
             // input
             // Jetson module uses this to request a shutdown sequence
@@ -129,6 +129,11 @@
         gpios = <&gpiod 3 GPIO_ACTIVE_LOW>;
     };
 
+    liquid_lens_en {
+        compatible = "gpio-liquid-lens-en";
+        gpios = <&gpiod 2 GPIO_ACTIVE_HIGH>;
+    };
+
     hrtim1: hrtim1@40016800 {
         compatible = "st,stm32-hr-timers";
         reg = <0x40016800 0xc00>;
@@ -149,12 +154,26 @@
     pinctrl-names = "default";
 };
 
-&timers15 {
+// used by liquid_lens module
+&adc3 {
+    status = "disabled";
+    pinctrl-0 = <&adc3_in10_pd13 &adc3_in11_pd14>;
+    pinctrl-names = "default";
+};
+
+&hrtim1 {
     status = "okay";
+
+    liquid_lens: liquid_lens {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&hrtim1_cha1_pa8 &hrtim1_cha2_pa9 &hrtim1_chb1_pa10 &hrtim1_chb2_pa11>;
+        pinctrl-names = "default";
+    };
 };
 
 &timers20 {
     status = "okay";
+
     front_unit_rgb_leds: front_unit_rgb_leds {
         compatible = "worldsemi,ws2812-pwm-stm32";
         pinctrl-0 = <&tim20_ch2_pe3>;
@@ -168,6 +187,10 @@
 
 // needed for ws2812 LEDs
 &dma1 {
+    status = "okay";
+};
+
+&dma2 {
     status = "okay";
 };
 
@@ -260,6 +283,7 @@
 
 &flash0 {
     /*
+     * Base address: 0x8000000
      * For more information, see:
      * http://docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
      */
@@ -268,9 +292,35 @@
         #address-cells = <1>;
         #size-cells = <1>;
 
-        slot0_partition: partition@0 {
+        /* 48KiB for bootloader */
+        boot_partition: partition@0 {
+            label = "mcuboot";
+            reg = <0x00000000 0x0000C000>;
+            read-only;
+        };
+
+        /* 224KiB per slot */
+        // 0x800C000
+        slot0_partition: partition@C000 {
             label = "image-0";
-            reg = <0x00000000 0x00080000>;
+            reg = <0x0000C000 0x00038000>;
+        };
+        // 0x8044000
+        slot1_partition: partition@44000 {
+            label = "image-1";
+            reg = <0x00044000 0x00038000>;
+        };
+
+        /* 8KiB scratch */
+        scratch_partition: partition@7C000 {
+            label = "image-scratch";
+            reg = <0x0007C000 0x00002000>;
+        };
+
+        /* final 8KiB reserved for app storage partition */
+        storage_partition: partition@7E000 {
+            label = "storage";
+            reg = <0x0007E000 0x00002000>;
         };
     };
 };

@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -eu
+
+openssl ecparam -name prime256v1 -genkey -noout -out enc-ec256-priv.pem
+openssl ec -in enc-ec256-priv.pem -pubout -out enc-ec256-pub.pem
+openssl ecparam -name prime256v1 -genkey -noout -out root-ec-p256.pem

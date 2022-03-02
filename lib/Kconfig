@@ -1,1 +1,15 @@
+if ORB_MCU_LIBRARIES_LIB
+
+menu "CAN messaging"
+source "../orb/lib/can_mcu_message/Kconfig"
+endmenu
+
+menu "Error handling"
 source "../orb/lib/errors/Kconfig"
+endmenu
+
+menu "Device Firmware Upgrade"
+source "../orb/lib/dfu/Kconfig"
+endmenu
+
+endif

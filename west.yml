@@ -9,7 +9,7 @@ manifest:
   projects:
     - name: zephyr
       remote: pete
-      revision: implement_max31875_sensor
+      revision: combined
       import:
         name-allowlist:
           - cmsis

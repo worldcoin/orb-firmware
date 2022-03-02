@@ -6,10 +6,6 @@ build/
 .docker_image_built
 *.egg-info/
 
-# generated files
-version.h
-orb/se_core/se_key.s
-
 # Windows
 win/
 .dll
@@ -24,3 +20,7 @@ _htmresc/
 # board-specific OpenOCD config that shouldn't be tracked
 # copy-pasted from utils/debug/my_board.cfg.template
 utils/debug/my_board.cfg
+
+utils/ota/enc-ec256-priv.pem
+utils/ota/enc-ec256-pub.pem
+utils/ota/root-ec-p256.pem

@@ -27,7 +27,15 @@ void
 app_assert_handler(int32_t error_code, uint32_t line_num,
                    const uint8_t *p_file_name);
 
+uint32_t
+app_assert_count();
+
 #ifdef DEBUG
+/**@brief Macro for calling error handler function if supplied error code any
+ * other than 0.
+ *
+ * @param[in] ERR_CODE Error code supplied to the error handler.
+ */
 #define APP_ASSERT(ERR_CODE)                                                   \
     do {                                                                       \
         const uint32_t LOCAL_ERR_CODE = (ERR_CODE);                            \
@@ -35,6 +43,20 @@ app_assert_handler(int32_t error_code, uint32_t line_num,
             app_assert_handler((ERR_CODE), __LINE__, (uint8_t *)__FILE__);     \
         }                                                                      \
     } while (0)
+
+/**@brief Macro for calling error handler function if supplied boolean value is
+ * false.
+ *
+ * @param[in] BOOLEAN_VALUE Boolean value to be evaluated.
+ */
+#define APP_ASSERT_BOOL(BOOLEAN_VALUE)                                         \
+    do {                                                                       \
+        const uint32_t LOCAL_BOOLEAN_VALUE = (BOOLEAN_VALUE);                  \
+        if (!LOCAL_BOOLEAN_VALUE) {                                            \
+            app_assert_handler(0, __LINE__, (uint8_t *)__FILE__);              \
+        }                                                                      \
+    } while (0)
+
 #else
 #define APP_ASSERT(ERR_CODE)
 #endif

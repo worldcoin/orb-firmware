@@ -1,2 +1,11 @@
+if ORB_MCU_LIBRARIES_LIB
+
+menu "Orb drivers"
 source "../orb/drivers/Kconfig"
+endmenu
+
+menu "Orb libraries"
 source "../orb/lib/Kconfig"
+endmenu
+
+endif

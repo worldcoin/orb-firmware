@@ -580,6 +580,8 @@ ir_camera_system_set_on_time_us(uint16_t on_time_us)
     LL_HRTIM_EE_SetSensitivity(HR_TIMER, event,                                \
                                LL_HRTIM_EE_SENSITIVITY_RISINGEDGE)
 
+// TODO decouple hrtim1 initialization from here, as hrtim1 is now shared
+// between ir_camera_system and liquid_lens.
 static int
 setup_940nm_850nm_common(void)
 {

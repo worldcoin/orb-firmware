@@ -59,7 +59,12 @@ fan_init(const struct device *dev)
     }
     LOG_INF(MSG "yes");
 
-    fan_set_speed(0);
+#ifdef CONFIG_BOARD_MCU_MAIN_V30
+    fan_set_speed(40);
+#else
+    fan_set_speed(1);
+#endif
+
     return RET_SUCCESS;
 }
 
