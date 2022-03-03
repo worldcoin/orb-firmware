@@ -52,8 +52,8 @@ static struct spi_buf_set tx_bufs = {.buffers = &tx, .count = 1};
 
 // initial values [IRUN, SGT]
 const uint8_t motor_irun_sgt[MOTOR_COUNT][2] = {
-    {0x12, 5}, // vertical
-    {0x13, 6}, // horizontal
+    {0x11, 5}, // vertical
+    {0x11, 5}, // horizontal
 };
 
 typedef enum tmc5041_registers_e {
@@ -468,6 +468,7 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
         } else if (motors_refs[motor].auto_homing_state == AH_INITIAL_SHIFT &&
                    (status & MOTOR_DRV_STATUS_STANDSTILL)) {
             // motor is away from mechanical barrier
+            LOG_INF("Motor %u away from mechanical barrier", motor);
 
             // clear events
             // the motor can be re-enabled by reading RAMP_STAT
@@ -508,13 +509,15 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 // if not, we might be stuck, retry procedure while changing
                 // direction
 
-                LOG_WRN("Seems like IRUN/SGT need tuning motor %u", motor);
+                LOG_WRN("Motor %u stalls quickly, increasing IRUN/SGT", motor);
 
                 // invert directions for autohoming in order to make sure we are
                 // not stuck
                 first_direction = -first_direction;
                 increase_irun_current(motor);
                 motors_refs[motor].auto_homing_state = AH_UNINIT;
+            } else {
+                LOG_INF("Motor %u stalled", motor);
             }
         } else if (motors_refs[motor].auto_homing_state == AH_WAIT_STANDSTILL &&
                    status & MOTOR_DRV_STATUS_STANDSTILL) {
