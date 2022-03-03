@@ -12,12 +12,20 @@
 
 LOG_MODULE_REGISTER(stepper_motors);
 
-K_THREAD_STACK_DEFINE(stack_area_motor_horizontal_init, 600);
-K_THREAD_STACK_DEFINE(stack_area_motor_vertical_init, 600);
+K_THREAD_STACK_DEFINE(stack_area_motor_horizontal_init, 700);
+K_THREAD_STACK_DEFINE(stack_area_motor_vertical_init, 700);
 
 static struct k_thread thread_data_motor_horizontal;
 static struct k_thread thread_data_motor_vertical;
 static struct k_sem homing_in_progress_sem[MOTOR_COUNT];
+
+// To get motor driver status, we need to poll its register (interrupt pins not
+// connected)
+// Below are timing definitions
+#define AUTOHOMING_POLL_DELAY_MS 50
+#define AUTOHOMING_TIMEOUT_MS    7000
+#define AUTOHOMING_TIMEOUT_LOOP_COUNT                                          \
+    (AUTOHOMING_TIMEOUT_MS / AUTOHOMING_POLL_DELAY_MS)
 
 // SPI w/ TMC5041
 #define SPI_DEVICE          DT_NODELABEL(motion_controller)
@@ -113,8 +121,6 @@ typedef struct {
 
 static motors_refs_t motors_refs[MOTOR_COUNT] = {0};
 
-#define SW_MODE_SG_ENABLE (1 << 10)
-
 /// One direction with stall guard detection
 /// Velocity mode
 const uint64_t motor_init_for_velocity_mode[MOTOR_COUNT][8] = {
@@ -131,8 +137,8 @@ const uint64_t motor_init_for_velocity_mode[MOTOR_COUNT][8] = {
         0xA600000000 + MOTOR_INIT_AMAX, // AMAX = acceleration and deceleration
                                         // in velocity mode
         0xA700000000 + MOTOR_INIT_VMAX, // VMAX target velocity
-        0xB400000000 |
-            SW_MODE_SG_ENABLE, // SW_MODE sg_stop enable stop using stallguard
+        0xB400000000 | MOTOR_DRV_SW_MODE_SG_STOP, // SW_MODE sg_stop enable stop
+                                                  // using stallguard
     },
 
     // Horizontal motor
@@ -148,9 +154,9 @@ const uint64_t motor_init_for_velocity_mode[MOTOR_COUNT][8] = {
         0xC600000000 + MOTOR_INIT_AMAX, // AMAX = acceleration and deceleration
                                         // in velocity mode
         0xC700000000 + MOTOR_INIT_VMAX, // VMAX target velocity
-        0xD400000000 |
-            SW_MODE_SG_ENABLE, // SW_MODE sg_stop enable stop using stallguard
-    }};                        // RAMPMODE velocity mode to +VMAX using AMAX
+        0xD400000000 | MOTOR_DRV_SW_MODE_SG_STOP, // SW_MODE sg_stop enable stop
+                                                  // using stallguard
+    }}; // RAMPMODE velocity mode to +VMAX using AMAX
 
 const uint64_t position_mode_initial_phase[MOTOR_COUNT][10] = {
     {
@@ -207,27 +213,68 @@ const uint64_t position_mode_full_speed[MOTOR_COUNT][8] = {
         0xC000000000,                 // RAMPMODE = 0 position move
     }};
 
-// Adding 2 to IRUN adds 1 to SGT value
+/// Decrease sensitivity in three steps
+/// First, decrease current without modifying SGT
+/// Second, increase SGT but revert current to normal
+/// Third, decrease current with SGT increased
+/// \param motor
 static void
-increase_irun_current(motor_t motor)
+decrease_stall_sensivity(motor_t motor)
 {
-    if (motors_refs[motor].velocity_mode_current < 0x1E) {
-        motors_refs[motor].velocity_mode_current += 2;
-        motors_refs[motor].stall_guard_threshold += 1;
+    if (motors_refs[motor].velocity_mode_current == motor_irun_sgt[motor][0] &&
+        motors_refs[motor].stall_guard_threshold == motor_irun_sgt[motor][1]) {
+        motors_refs[motor].velocity_mode_current = motor_irun_sgt[motor][0] - 1;
+        motors_refs[motor].stall_guard_threshold = motor_irun_sgt[motor][1];
+    } else if (motors_refs[motor].velocity_mode_current ==
+                   (motor_irun_sgt[motor][0] - 1) &&
+               motors_refs[motor].stall_guard_threshold ==
+                   motor_irun_sgt[motor][1]) {
+        motors_refs[motor].velocity_mode_current = motor_irun_sgt[motor][0];
+        motors_refs[motor].stall_guard_threshold = motor_irun_sgt[motor][1] + 1;
+    } else if (motors_refs[motor].velocity_mode_current ==
+                   motor_irun_sgt[motor][0] &&
+               motors_refs[motor].stall_guard_threshold ==
+                   motor_irun_sgt[motor][1] + 1) {
+        motors_refs[motor].velocity_mode_current = motor_irun_sgt[motor][0] - 1;
+        motors_refs[motor].stall_guard_threshold = motor_irun_sgt[motor][1] + 1;
     } else {
-        LOG_ERR("Cannot increase current");
+        LOG_WRN("Out of options to decrease sensitivity");
     }
+    LOG_DBG("Motor %u: IRUN: 0x%02x, SGT: %u", motor,
+            motors_refs[motor].velocity_mode_current,
+            motors_refs[motor].stall_guard_threshold);
 }
 
+/// Increase sensitivity in three steps
+/// First, increase current without modifying SGT
+/// Second, decrease SGT but revert current to normal
+/// Third, increase current with SGT decreased
+/// \param motor
 static void
-decrease_irun_current(motor_t motor)
+increase_stall_sensitivity(motor_t motor)
 {
-    if (motors_refs[motor].velocity_mode_current > 0x0E) {
-        motors_refs[motor].velocity_mode_current -= 2;
-        motors_refs[motor].stall_guard_threshold -= 1;
+    if (motors_refs[motor].velocity_mode_current == motor_irun_sgt[motor][0] &&
+        motors_refs[motor].stall_guard_threshold == motor_irun_sgt[motor][1]) {
+        motors_refs[motor].velocity_mode_current = motor_irun_sgt[motor][0] + 1;
+        motors_refs[motor].stall_guard_threshold = motor_irun_sgt[motor][1];
+    } else if (motors_refs[motor].velocity_mode_current ==
+                   (motor_irun_sgt[motor][0] + 1) &&
+               motors_refs[motor].stall_guard_threshold ==
+                   motor_irun_sgt[motor][1]) {
+        motors_refs[motor].velocity_mode_current = motor_irun_sgt[motor][0];
+        motors_refs[motor].stall_guard_threshold = motor_irun_sgt[motor][1] - 1;
+    } else if (motors_refs[motor].velocity_mode_current ==
+                   motor_irun_sgt[motor][0] &&
+               motors_refs[motor].stall_guard_threshold ==
+                   motor_irun_sgt[motor][1] - 1) {
+        motors_refs[motor].velocity_mode_current = motor_irun_sgt[motor][0] + 1;
+        motors_refs[motor].stall_guard_threshold = motor_irun_sgt[motor][1] - 1;
     } else {
-        LOG_ERR("Cannot decrease current");
+        LOG_WRN("Out of options to increase sensitivity");
     }
+    LOG_DBG("Motor %u: IRUN: 0x%02x, SGT: %u", motor,
+            motors_refs[motor].velocity_mode_current,
+            motors_refs[motor].stall_guard_threshold);
 }
 static void
 reset_irun_sgt(motor_t motor)
@@ -425,13 +472,7 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
     reset_irun_sgt(motor);
 
     LOG_INF("Initializing motor %u", motor);
-
-    // autohoming timeout to detect both ends = 5 seconds
-    // = maximum time to go from one side to the other during auto-homing + some
-    // delay
-    const uint32_t loop_delay_ms = 50;
-    int32_t timeout = 5000 / loop_delay_ms;
-
+    int32_t timeout = 0;
     motors_refs[motor].auto_homing_state = AH_UNINIT;
     uint32_t loop_count = 0;
     uint32_t loop_count_last_step = 0;
@@ -444,6 +485,8 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 (status & 0x1F), motors_refs[motor].auto_homing_state);
 
         if (motors_refs[motor].auto_homing_state == AH_UNINIT) {
+            timeout = AUTOHOMING_TIMEOUT_LOOP_COUNT;
+
             // VSTART
             motor_spi_write(spi_bus_controller,
                             TMC5041_REGISTERS[REG_IDX_VSTART][motor], 0x0);
@@ -497,25 +540,24 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 
             if (timeout == 0) {
                 LOG_WRN("Timeout while looking for first end on motor %d, "
-                        "decreasing SGT",
+                        "increasing stall detection sensitivity",
                         motor);
 
-                timeout = 5000 / loop_delay_ms;
-
                 first_direction = -first_direction;
-                decrease_irun_current(motor);
+                increase_stall_sensitivity(motor);
                 motors_refs[motor].auto_homing_state = AH_UNINIT;
             } else if (loop_count - loop_count_last_step < 3) {
                 // check that the motor moved for at least 200ms
                 // if not, we might be stuck, retry procedure while changing
                 // direction
 
-                LOG_WRN("Motor %u stalls quickly, increasing IRUN/SGT", motor);
+                LOG_WRN("Motor %u stalls quickly, decrease stall sensitivity",
+                        motor);
 
                 // invert directions for autohoming in order to make sure we are
                 // not stuck
                 first_direction = -first_direction;
-                increase_irun_current(motor);
+                decrease_stall_sensivity(motor);
                 motors_refs[motor].auto_homing_state = AH_UNINIT;
             } else {
                 LOG_INF("Motor %u stalled", motor);
@@ -527,14 +569,8 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 
             LOG_INF("Motor %u reached first end pos", motor);
 
-            // stop the motor (VMAX in velocity mode)
-            motor_spi_write(spi_bus_controller,
-                            TMC5041_REGISTERS[REG_IDX_VMAX][motor], 0x0);
-
             motor_spi_write(spi_bus_controller,
                             TMC5041_REGISTERS[REG_IDX_SW_MODE][motor], 0);
-
-            k_msleep(100);
 
             // write xactual = 0
             motor_spi_write(spi_bus_controller,
@@ -549,16 +585,17 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 
             // before we continue we need to wait for the motor to move and
             // removes its stall detection flag
-            uint32_t t = 1000 / loop_delay_ms;
+            // timeout after 1 second
+            uint32_t t = 1000 / AUTOHOMING_POLL_DELAY_MS;
             do {
-                k_msleep(loop_delay_ms);
+                k_msleep(AUTOHOMING_POLL_DELAY_MS);
                 status = motor_spi_read(
                     spi_bus_controller,
                     TMC5041_REGISTERS[REG_IDX_DRV_STATUS][motor]);
                 LOG_DBG("Status %d 0x%08x", motor, status);
             } while (status & MOTOR_DRV_STATUS_STALLGUARD || --t == 0);
 
-            if (status & (1 << 24)) {
+            if (status & MOTOR_DRV_STATUS_STALLGUARD) {
                 LOG_ERR("Motor %u stalled when trying to reach other end",
                         motor);
                 err_code = RET_ERROR_INVALID_STATE;
@@ -568,6 +605,10 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
             motors_refs[motor].auto_homing_state = AH_GO_OTHER_END;
         } else if (motors_refs[motor].auto_homing_state == AH_GO_OTHER_END &&
                    ((status & MOTOR_DRV_STATUS_STALLGUARD) || timeout == 0)) {
+            if (timeout == 0) {
+                LOG_ERR("TIMEOUT 0");
+            }
+
             motor_spi_read(spi_bus_controller,
                            TMC5041_REGISTERS[REG_IDX_RAMP_STAT][motor]);
 
@@ -626,7 +667,7 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 
         --timeout;
         loop_count += 1;
-        k_msleep(loop_delay_ms);
+        k_msleep(AUTOHOMING_POLL_DELAY_MS);
     }
 
     // keep auto-homing state
