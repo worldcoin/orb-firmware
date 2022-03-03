@@ -53,7 +53,7 @@ static struct spi_buf_set tx_bufs = {.buffers = &tx, .count = 1};
 // initial values [IRUN, SGT]
 const uint8_t motor_irun_sgt[MOTOR_COUNT][2] = {
     {0x12, 5}, // vertical
-    {0x11, 5}, // horizontal
+    {0x13, 6}, // horizontal
 };
 
 typedef enum tmc5041_registers_e {
