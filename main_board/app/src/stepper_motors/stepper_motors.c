@@ -225,7 +225,7 @@ decrease_irun_current(motor_t motor)
         motors_refs[motor].velocity_mode_current -= 2;
         motors_refs[motor].stall_guard_threshold -= 1;
     } else {
-        LOG_ERR("Cannot increase current");
+        LOG_ERR("Cannot decrease current");
     }
 }
 static void
@@ -498,11 +498,10 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                         "decreasing SGT",
                         motor);
 
-                //                decrease_irun_current(motor);
                 timeout = 5000 / loop_delay_ms;
 
                 first_direction = -first_direction;
-                motors_refs[motor].stall_guard_threshold--;
+                decrease_irun_current(motor);
                 motors_refs[motor].auto_homing_state = AH_UNINIT;
             } else if (loop_count - loop_count_last_step < 3) {
                 // check that the motor moved for at least 200ms
