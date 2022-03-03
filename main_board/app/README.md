@@ -11,7 +11,7 @@ with a branch called `manifest-rev`. If you want to work on the repo, make sure
 to checkout the `main` branch and branch from there.
 
 ```shell
-cd $REPO_DIR"/orb
+cd "$REPO_DIR"/orb
 git remote add origin git@github.com:worldcoin/proto2-mcu.git
 git fetch
 git checkout main
@@ -21,8 +21,13 @@ git checkout main
 
 ### Compiling and Flashing
 
-If you don't have development keys already created locally, then run
-`./generate_dev_keys` while in the directory "$REPO_DIR"/utils/ota/
+If you don't have development keys already created locally, then run the
+`./generate_dev_keys` script:
+
+```shell
+cd "$REPO_DIR"/orb/utils/ota
+./generate_dev_keys
+```
 
 You have two options: use the Makefile w/ Docker or do it manually.
 
