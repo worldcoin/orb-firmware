@@ -2,13 +2,12 @@
 
 ## Getting started
 
-Go to [the workspace repository](https://github.com/worldcoin/proto2-firmware)
-and follow the instructions in the README.md.
+First, follow the instructions in the [top-level README.md](../README.md).
 
 ## Compiling and Flashing
 
 If you don't have development keys already created locally, then run
-`./generate_dev_keys` while in the directory "$REPO_DIR"/utils/ota/
+`./generate_dev_keys` while in the directory `"$REPO_DIR"/utils/ota/`.
 
 Make sure you are in `"$REPO_DIR"/orb/bootloader_main/` directory.
 Compile the bootloader:
@@ -17,6 +16,10 @@ Compile the bootloader:
 # Passing the board is mandatory to build the bootloader
 west build -b [mcu_main_v30 | mcu_main_v31 | mcu_sec]
 ```
+
+- `mcu_main_v30`: Mainboard 3.0, used on Proto2 Orb
+- `mcu_main_v31`: Mainboard 3.1, used on EVT Orb
+- `mcu_sec`: security MCU, any version
 
 Flash the bootloader, before the application:
 

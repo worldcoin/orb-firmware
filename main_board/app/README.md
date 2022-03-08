@@ -1,14 +1,13 @@
-# Proto2 Main MCU application
+# Main MCU application
 
 ## Getting started
 
 ### Download the source
 
-First, follow the instructions in the [top-level README.md](https://github.com/worldcoin/proto2-mcu/tree/support_evt#readme).
+First, follow the instructions in the [top-level README.md](../../README.md).
 
-Once downloaded, West will checkout this repository in the `orb` directory
-with a branch called `manifest-rev`. If you want to work on the repo, make sure
-to checkout the `main` branch and branch from there.
+Once downloaded, West will check out this repository in the `orb` directory with a branch called `manifest-rev`. If you
+want to work on the repo, make sure to check out the `main` branch and branch from there.
 
 ```shell
 cd "$REPO_DIR"/orb
@@ -21,17 +20,9 @@ git checkout main
 
 ### Compiling and Flashing
 
-If you don't have development keys already created locally, then run the
-`./generate_dev_keys` script:
+Let's build and run the application: you have two options: use the Makefile w/ Docker or do it manually.
 
-```shell
-cd "$REPO_DIR"/orb/utils/ota
-./generate_dev_keys
-```
-
-You have two options: use the Makefile w/ Docker or do it manually.
-
-> ⚠️ Make sure to have the [bootloader flashed](../../bootloader_main/README.md) before.
+> ⚠️ Make sure to have the [bootloader flashed](../../bootloader_main/README.md) before flashing the application.
 
 #### With Makefile
 
@@ -44,8 +35,7 @@ To Flash: `make mcu-flash`
 
 #### Manually
 
-Make sure you are in `"$REPO_DIR"/orb/main_board/app/` directory.
-Compile the app:
+Make sure you are in `"$REPO_DIR"/orb/main_board/app/` directory. Compile the app:
 
 ```shell
 # 'west build' defaults to mcu_main_v31
@@ -69,7 +59,22 @@ su-exec root west flash
 
 ## Misc Documentation
 
-### Timer alloctions:
+### Memory map
+
+| Region                              | Location   | Size  |
+| ----------------------------------- | ---------- | ----- |
+| [Bootloader](../../bootloader_main) | 0x00000000 | 48kB  |
+| Application Primary Slot            | 0x0000C000 | 224kB |
+| Application Secondary Slot          | 0x00044000 | 224kB |
+| Scratch partition                   | 0x0007C000 | 8kB   |
+| Persistent storage                  | 0x0007E000 | 8kB   |
+
+### Keys
+
+Firmware images are signed and encrypted. If you don't have development keys already created locally, then run
+`./generate_dev_keys` while in the directory `"$REPO_DIR"/utils/ota/`.
+
+### Timer allocations:
 
 | Peripheral                     | Pin  | Timer | Timer Channel |
 | ------------------------------ | ---- | ----- | ------------- |

@@ -1,25 +1,23 @@
 # proto2-firmware
 
-West workspace for proto2 firmware.
+West workspace for microcontrollers' firmware.
 
-This repo contains Firmware for the several microcontrollers
-present in the Orb, Proto2:
+This repo contains Firmware for the several microcontrollers present in the Orb:
 
 - ☀️ Main board microcontroller
+  - Anything related to board supplies and controlling sensors on the Orb
 - 🚨 Security board microcontroller
+  - Anything related to security: signing data and anti-fraud sensors
 
 ## Setting Up Development Environment
 
 You can set up your development environment directly on your machine, or you may use the provided Docker image.
 The [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting_started/index.html)
-only has instructions for Ubuntu, MacOS, and Windows.
-For this guide's description of setting up a native build environment
-(i.e., not using a Docker container), we assume your host machine is running
-Ubuntu 20.04.
-If you are not using Ubuntu 20.04, your mileage may vary.
-Note that all of these steps assume that you have an SSH key set up properly
-with Github and that you have access to all of the MCU repos.
-These repositories are enumerated in the [west.yml](west.yml) file.
+only has instructions for Ubuntu, MacOS, and Windows. For this guide's description of setting up a native build
+environment
+(i.e., not using a Docker container), we assume your host machine is running Ubuntu 20.04. If you are not using Ubuntu
+20.04, your mileage may vary. Note that all of these steps assume that you have an SSH key set up properly with Github
+and that you have access to all of the MCU repos. These repositories are enumerated in the [west.yml](west.yml) file.
 
 ### Generic Steps
 
@@ -29,7 +27,8 @@ These repositories are enumerated in the [west.yml](west.yml) file.
    pip3 install west
    ```
 
-2. Create an empty directory where we will put our projects and dependencies. We assume that you set an environmental variable called `REPO_DIR`. I like to set this to `$HOME/firmware`.
+2. Create an empty directory where we will put our projects and dependencies. We assume that you set an environmental
+   variable called `REPO_DIR`. I like to set this to `$HOME/firmware`.
 
    ```shell
    export REPO_DIR=$HOME/firmware # This env var is used inside the Docker Makefile, hence the need for `export`
@@ -66,19 +65,20 @@ These repositories are enumerated in the [west.yml](west.yml) file.
 
 #### Native-specific Steps
 
-A reminder that these steps assume your host machine is running Ubuntu 20.04.
-These instructions are mainly just an adaptation of the instructions in the
+A reminder that these steps assume your host machine is running Ubuntu 20.04. These instructions are mainly just an
+adaptation of the instructions in the
 [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting_started/index.html).
 
 5. Install the dependencies
 
-   - Follow these instructions for [installing dependencies](https://docs.zephyrproject.org/latest/getting_started/index.html#install-dependencies).
+   - Follow these instructions
+     for [installing dependencies](https://docs.zephyrproject.org/latest/getting_started/index.html#install-dependencies)
+     .
    - Or install the Conda environment provided [here](utils/env/environment.yml). Make sure to set the variables.
-
-   ```shell
-    conda env create -f orb/utils/env/environement.yml
-    conda activate worldcoin
-   ```
+     ```shell
+     conda env create -f orb/utils/env/environement.yml
+     conda activate worldcoin
+     ```
 
 6. Export CMake packages.
 
@@ -94,6 +94,7 @@ These instructions are mainly just an adaptation of the instructions in the
    ```
 
 8. Install a toolchain.
+
    Zephyr provides toolchains for the following host architectures:
 
    - `aarch64`
