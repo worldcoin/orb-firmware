@@ -31,7 +31,12 @@
 
     fan_main {
         compatible = "pwm-fan";
-        pwms = <&fan_main_pwm 1 10000 PWM_POLARITY_NORMAL>;
+        pwms = <&fan_main_and_aux_pwm 1 10000 PWM_POLARITY_NORMAL>;
+    };
+
+    fan_aux {
+        compatible = "pwm-fan";
+        pwms = <&fan_main_and_aux_pwm 2 10000 PWM_POLARITY_NORMAL>;
     };
 };
 
@@ -60,9 +65,9 @@
 &timers5 {
     status = "okay";
 
-    fan_main_pwm: pwm {
+    fan_main_and_aux_pwm: pwm {
         status = "okay";
-        pinctrl-0 = <&tim5_ch1_pb2>;
+        pinctrl-0 = <&tim5_ch1_pb2 &tim5_ch2_pa1>;
         pinctrl-names = "default";
     };
 };

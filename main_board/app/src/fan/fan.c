@@ -10,19 +10,30 @@ LOG_MODULE_REGISTER(fan);
 #include "fan.h"
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
-#define FAN_NODE DT_PATH(fan)
+#define FAN_MAIN_NODE DT_PATH(fan)
 #else
-#define FAN_NODE DT_PATH(fan_main)
-#endif
+// Main board 3.1
+#define FAN_MAIN_NODE       DT_PATH(fan_main)
+// Aux fan
+#define FAN_AUX_NODE        DT_PATH(fan_aux)
+#define FAN_AUX_PWM_CTLR    DT_PWMS_CTLR(FAN_AUX_NODE)
+#define FAN_AUX_PWM_CHANNEL DT_PWMS_CHANNEL(FAN_AUX_NODE)
+#endif // CONFIG_BOARD_MCU_MAIN_V30
 
-#define FAN_PWM_CTLR    DT_PWMS_CTLR(FAN_NODE)
-#define FAN_PWM_CHANNEL DT_PWMS_CHANNEL(FAN_NODE)
-#define FAN_PWM_PERIOD  DT_PWMS_PERIOD(FAN_NODE)
-#define FAN_PWM_FLAGS   DT_PWMS_FLAGS(FAN_NODE)
+#define FAN_MAIN_PWM_CTLR    DT_PWMS_CTLR(FAN_MAIN_NODE)
+#define FAN_MAIN_PWM_CHANNEL DT_PWMS_CHANNEL(FAN_MAIN_NODE)
+#define FAN_PWM_PERIOD       DT_PWMS_PERIOD(FAN_MAIN_NODE)
+#define FAN_PWM_FLAGS        DT_PWMS_FLAGS(FAN_MAIN_NODE)
 
 #define MSG "Checking that fan PWM controller is ready... "
 
-const struct device *fan_pwm = DEVICE_DT_GET(FAN_PWM_CTLR);
+const struct device *fan_pwm = DEVICE_DT_GET(FAN_MAIN_PWM_CTLR);
+
+#ifdef CONFIG_BOARD_MCU_MAIN_V31
+static_assert(DEVICE_DT_GET(FAN_MAIN_PWM_CTLR) ==
+                  DEVICE_DT_GET(FAN_AUX_PWM_CTLR),
+              "We expect the main and aux fan to use the same timer");
+#endif
 
 void
 fan_set_speed(uint32_t percentage)
@@ -44,8 +55,13 @@ fan_set_speed(uint32_t percentage)
     percentage = 100 - percentage;
 #endif
 
-    pwm_pin_set_nsec(fan_pwm, FAN_PWM_CHANNEL, FAN_PWM_PERIOD,
+    pwm_pin_set_nsec(fan_pwm, FAN_MAIN_PWM_CHANNEL, FAN_PWM_PERIOD,
                      (FAN_PWM_PERIOD * percentage) / 100, FAN_PWM_FLAGS);
+
+#ifdef CONFIG_BOARD_MCU_MAIN_V31
+    pwm_pin_set_nsec(fan_pwm, FAN_AUX_PWM_CHANNEL, FAN_PWM_PERIOD,
+                     (FAN_PWM_PERIOD * percentage) / 100, FAN_PWM_FLAGS);
+#endif
 }
 
 int
@@ -70,7 +86,7 @@ fan_init(const struct device *dev)
 
 static_assert(FAN_INIT_PRIORITY == 54, "update the integer literal here");
 
-// Init this before we init the power supplies, so that
+// Init this before we initialize the power supplies, so that
 // the fan is not blasting at 100%, which is the hardware
 // default.
 // We must use an integer literal. Thanks C macros!

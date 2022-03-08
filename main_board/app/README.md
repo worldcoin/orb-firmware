@@ -10,7 +10,7 @@ Once downloaded, West will check out this repository in the `orb` directory with
 want to work on the repo, make sure to check out the `main` branch and branch from there.
 
 ```shell
-cd $REPO_DIR"/orb
+cd "$REPO_DIR"/orb
 git remote add origin git@github.com:worldcoin/proto2-mcu.git
 git fetch
 git checkout main
