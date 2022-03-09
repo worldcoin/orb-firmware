@@ -48,6 +48,20 @@ else
 override MCU_DIR := $(REPO_DIR)/$(MCU_DIR)
 endif
 
+# If the first argument is "main"...
+ifeq (main,$(firstword $(MAKECMDGOALS)))
+override MCU_DIR := $(REPO_DIR)/orb/main_board/app
+main:
+	@echo "Board: main"
+endif
+
+# If the first argument is "sec"...
+ifeq (sec,$(firstword $(MAKECMDGOALS)))
+override MCU_DIR := $(REPO_DIR)/orb/sec_board/app
+sec:
+	@echo "Board: security"
+endif
+
 ifdef BOARD
 BOARD_CMD := -b $(BOARD)
 endif
