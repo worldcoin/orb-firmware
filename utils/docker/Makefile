@@ -84,6 +84,11 @@ mcu-flash:
 mcu-clean:
 	cd $(MCU_DIR) && rm -rf build
 
+.PHONY: mcu-tests
+mcu-tests:
+	$(DOCKER_CMD) /bin/bash -c -- \
+		'source zephyr/zephyr-env.sh && cd $(MCU_DIR) && twister -T . -vv -c'
+
 .PHONY: format
 format:
 	$(DOCKER_CMD) /bin/bash -c -- \
