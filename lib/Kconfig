@@ -12,6 +12,10 @@ menu "Device Firmware Upgrade"
 source "../orb/lib/dfu/Kconfig"
 endmenu
 
+menu "Health monitoring"
+source "../orb/lib/health_monitoring/Kconfig"
+endmenu
+
 menu "I2C Scanning"
 source "../orb/lib/i2c_scan/Kconfig"
 endmenu
