@@ -342,10 +342,21 @@ reboot_thread()
 
     LOG_INF("Rebooting in %u seconds", reboot_delay_s);
 
+    struct boot_swap_state secondary_slot = {0};
+    boot_read_swap_state_by_id(FLASH_AREA_IMAGE_SECONDARY(0), &secondary_slot);
+    LOG_DBG("Secondary Magic: %u, swap type: %u, image_ok: %u",
+            secondary_slot.magic, secondary_slot.swap_type,
+            secondary_slot.image_ok);
+
     k_msleep(reboot_delay_s * 1000);
 
-    front_unit_rgb_leds_set_pattern(
-        UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_ONLY_CENTER);
+    // check if a new firmware image is about to be installed
+    // turn on center LEDs in white during update
+    if (secondary_slot.magic == BOOT_MAGIC_GOOD) {
+        front_unit_rgb_leds_set_pattern(
+            UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_ONLY_CENTER);
+        k_msleep(500);
+    }
 
     NVIC_SystemReset();
 }
