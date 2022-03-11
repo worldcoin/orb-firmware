@@ -13,6 +13,7 @@
 LOG_MODULE_REGISTER(power_sequence);
 
 #include "button/button.h"
+#include "front_unit_rgb_leds/front_unit_rgb_leds.h"
 #include "power_sequence.h"
 
 K_THREAD_STACK_DEFINE(reboot_thread_stack, THREAD_STACK_SIZE_POWER_MANAGEMENT);
@@ -342,6 +343,10 @@ reboot_thread()
     LOG_INF("Rebooting in %u seconds", reboot_delay_s);
 
     k_msleep(reboot_delay_s * 1000);
+
+    front_unit_rgb_leds_set_pattern(
+        UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_ONLY_CENTER);
+
     NVIC_SystemReset();
 }
 
