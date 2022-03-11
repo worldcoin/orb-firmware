@@ -30,7 +30,7 @@ static struct k_sem homing_in_progress_sem[MOTOR_COUNT];
 // before starting auto-homing, we drive to motor in the opposite direction
 // of the first end reached with stall detection, to make sure the motor is not
 // close from the first end
-#define AUTOHOMING_AWAY_FROM_BARRIER_STEPS ((int32_t)10000)
+#define AUTOHOMING_AWAY_FROM_BARRIER_STEPS ((int32_t)20000)
 
 // SPI w/ TMC5041
 #define SPI_DEVICE          DT_NODELABEL(motion_controller)
