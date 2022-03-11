@@ -138,6 +138,8 @@ handle_led_on_time_message(McuMessage *msg)
     ret_code_t ret = ir_camera_system_set_on_time_us(on_time_us);
     if (ret == RET_SUCCESS) {
         incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    } else if (ret == RET_ERROR_INVALID_PARAM) {
+        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
     } else {
         incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
     }
@@ -405,6 +407,8 @@ handle_fps(McuMessage *msg)
     ret_code_t ret = ir_camera_system_set_fps(fps);
     if (ret == RET_SUCCESS) {
         incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    } else if (ret == RET_ERROR_INVALID_PARAM) {
+        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
     } else {
         incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
     }

@@ -548,31 +548,43 @@ setup_timer_settings_change()
 ret_code_t
 ir_camera_system_set_fps(uint16_t fps)
 {
-    if (fps > 60) {
-        return RET_ERROR_INVALID_PARAM;
+    ret_code_t ret;
+
+    if (fps > IR_CAMERA_SYSTEM_MAX_FPS) {
+        ret = RET_ERROR_INVALID_PARAM;
+    } else {
+        ret = timer_settings_from_fps(fps, &global_timer_settings,
+                                      &global_timer_settings);
+        if (ret != RET_SUCCESS) {
+            LOG_ERR("Error setting FPS");
+        } else {
+            setup_timer_settings_change();
+            LL_TIM_ClearFlag_UPDATE(CAMERA_TRIGGER_TIMER);
+        }
     }
 
-    global_timer_settings =
-        timer_settings_from_fps(fps, &global_timer_settings);
-    setup_timer_settings_change();
-    LL_TIM_ClearFlag_UPDATE(CAMERA_TRIGGER_TIMER);
-
-    return RET_SUCCESS;
+    return ret;
 }
 
 ret_code_t
 ir_camera_system_set_on_time_us(uint16_t on_time_us)
 {
+    ret_code_t ret;
+
     if (on_time_us > IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US) {
-        return RET_ERROR_INVALID_PARAM;
+        ret = RET_ERROR_INVALID_PARAM;
+    } else {
+        ret = timer_settings_from_on_time_us(on_time_us, &global_timer_settings,
+                                             &global_timer_settings);
+        if (ret != RET_SUCCESS) {
+            LOG_ERR("Error setting on-time");
+        } else {
+            setup_timer_settings_change();
+            LL_TIM_ClearFlag_UPDATE(CAMERA_TRIGGER_TIMER);
+        }
     }
 
-    global_timer_settings =
-        timer_settings_from_on_time_us(on_time_us, &global_timer_settings);
-    setup_timer_settings_change();
-    LL_TIM_ClearFlag_UPDATE(CAMERA_TRIGGER_TIMER);
-
-    return RET_SUCCESS;
+    return ret;
 }
 
 #define CONFIG_HRTIMER_EVENT(event, source)                                    \

@@ -651,29 +651,41 @@ ir_camera_system_init(void)
 ret_code_t
 ir_camera_system_set_fps(uint16_t fps)
 {
-    if (fps > 60) {
-        return RET_ERROR_INVALID_PARAM;
+    ret_code_t ret;
+
+    if (fps > IR_CAMERA_SYSTEM_MAX_FPS) {
+        ret = RET_ERROR_INVALID_PARAM;
+    } else {
+        ret = timer_settings_from_fps(fps, &global_timer_settings,
+                                      &global_timer_settings);
+        if (ret != RET_SUCCESS) {
+            LOG_ERR("Error setting new FPS");
+        } else {
+            apply_new_timer_settings();
+        }
     }
 
-    global_timer_settings =
-        timer_settings_from_fps(fps, &global_timer_settings);
-    apply_new_timer_settings();
-
-    return RET_SUCCESS;
+    return ret;
 }
 
 ret_code_t
 ir_camera_system_set_on_time_us(uint16_t on_time_us)
 {
+    ret_code_t ret;
+
     if (on_time_us > IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US) {
-        return RET_ERROR_INVALID_PARAM;
+        ret = RET_ERROR_INVALID_PARAM;
+    } else {
+        ret = timer_settings_from_on_time_us(on_time_us, &global_timer_settings,
+                                             &global_timer_settings);
+        if (ret != RET_SUCCESS) {
+            LOG_ERR("Error setting new on-time");
+        } else {
+            apply_new_timer_settings();
+        }
     }
 
-    global_timer_settings =
-        timer_settings_from_on_time_us(on_time_us, &global_timer_settings);
-    apply_new_timer_settings();
-
-    return RET_SUCCESS;
+    return ret;
 }
 
 void
