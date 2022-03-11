@@ -1,6 +1,8 @@
+#include "sysflash/sysflash.h"
 #include <app_config.h>
 #include <arch/cpu.h>
 #include <assert.h>
+#include <bootutil/bootutil.h>
 #include <device.h>
 #include <drivers/gpio.h>
 #include <drivers/regulator.h>
@@ -208,33 +210,47 @@ power_wait_for_power_button_press(const struct device *dev)
 
     LOG_INF("Hello from " CONFIG_BOARD " :)");
 
-    if (!device_is_ready(power_button)) {
-        LOG_ERR("power button is not ready!");
-        return 1;
-    }
+    // read image status to know whether we are waiting for user to press
+    // the button
+    struct boot_swap_state primary_slot = {0};
+    boot_read_swap_state_by_id(FLASH_AREA_IMAGE_PRIMARY(0), &primary_slot);
 
-    if (gpio_pin_configure(power_button, POWER_BUTTON_PIN,
-                           POWER_BUTTON_FLAGS | GPIO_INPUT)) {
-        LOG_ERR("Error configuring power button!");
-        return 1;
-    }
+    LOG_DBG("Magic: %u, swap type: %u, image_ok: %u", primary_slot.magic,
+            primary_slot.swap_type, primary_slot.image_ok);
 
-    LOG_INF("Waiting for button press of " TOSTR(BUTTON_PRESS_TIME_MS) "ms");
-    for (size_t i = 0; i < (BUTTON_PRESS_TIME_MS / BUTTON_SAMPLE_PERIOD_MS);
-         ++i) {
-        if (!gpio_pin_get(power_button, POWER_BUTTON_PIN)) {
-            if (i > 1) {
-                LOG_INF("Press stopped.");
+    // image is waiting to be confirmed, so boot Jetson without further ado
+    if (primary_slot.image_ok != BOOT_FLAG_UNSET) {
+        if (!device_is_ready(power_button)) {
+            LOG_ERR("power button is not ready!");
+            return 1;
+        }
+
+        if (gpio_pin_configure(power_button, POWER_BUTTON_PIN,
+                               POWER_BUTTON_FLAGS | GPIO_INPUT)) {
+            LOG_ERR("Error configuring power button!");
+            return 1;
+        }
+
+        LOG_INF(
+            "Waiting for button press of " TOSTR(BUTTON_PRESS_TIME_MS) "ms");
+        for (size_t i = 0; i < (BUTTON_PRESS_TIME_MS / BUTTON_SAMPLE_PERIOD_MS);
+             ++i) {
+            if (!gpio_pin_get(power_button, POWER_BUTTON_PIN)) {
+                if (i > 1) {
+                    LOG_INF("Press stopped.");
+                }
+                i = 0;
             }
-            i = 0;
+            if (i == 1) {
+                LOG_INF("Press started.");
+            }
+            k_msleep(BUTTON_SAMPLE_PERIOD_MS);
         }
-        if (i == 1) {
-            LOG_INF("Press started.");
-        }
-        k_msleep(BUTTON_SAMPLE_PERIOD_MS);
-    }
 
-    LOG_INF("Booting system...");
+        LOG_INF("Booting system...");
+    } else {
+        LOG_INF("Booting system (firmware image to be confirmed)...");
+    }
 
     return 0;
 }
