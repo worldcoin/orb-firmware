@@ -117,7 +117,7 @@ enum motor_autohoming_state {
 };
 typedef struct {
     int32_t x0; // step at x=0 (middle position)
-    int32_t full_course;
+    uint32_t full_course;
     uint8_t velocity_mode_current;
     uint8_t stall_guard_threshold;
     enum motor_autohoming_state auto_homing_state;
@@ -515,7 +515,8 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
             (motors_refs[motor].auto_homing_state == AH_LOOKING_FIRST_END ||
              motors_refs[motor].auto_homing_state == AH_GO_OTHER_END)) {
             if (sg < (avg * 0.75)) {
-                LOG_WRN("Motor %u STALL, avg %u, sg %u", motor, avg, sg);
+                LOG_DBG("Motor %u stall detection, avg %u, sg %u", motor, avg,
+                        sg);
                 stall_detected = true;
             }
             last_stall_guard_values[last_stall_guard_index] = sg;
@@ -708,8 +709,11 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 motor_spi_write(spi_bus_controller,
                                 TMC5041_REGISTERS[REG_IDX_XACTUAL][motor], 0x0);
                 motors_refs[motor].x0 = (-x / 2);
-                motors_refs[motor].full_course = abs(x) / 2;
+                motors_refs[motor].full_course = abs(x);
 
+                // WRN to send log over CAN
+                LOG_WRN("Motor %u range: %u", motor,
+                        motors_refs[motor].full_course);
                 LOG_INF("Motor %u, x0: %d", motor, motors_refs[motor].x0);
 
                 // go to middle position
