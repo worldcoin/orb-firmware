@@ -202,12 +202,52 @@ SYS_INIT(power_turn_on_essential_supplies, POST_KERNEL, 55);
 #define POWER_BUTTON_PIN   DT_GPIO_PIN(POWER_BUTTON_NODE, gpios)
 #define POWER_BUTTON_FLAGS DT_GPIO_FLAGS(POWER_BUTTON_NODE, gpios)
 
+static int
+power_wait_for_power_button_press(void)
+{
+    const struct device *power_button = DEVICE_DT_GET(POWER_BUTTON_CTLR);
+
+    if (!device_is_ready(power_button)) {
+        LOG_ERR("power button is not ready!");
+        return 1;
+    }
+
+    if (gpio_pin_configure(power_button, POWER_BUTTON_PIN,
+                           POWER_BUTTON_FLAGS | GPIO_INPUT)) {
+        LOG_ERR("Error configuring power button!");
+        return 1;
+    }
+
+    LOG_INF("Waiting for button press of " TOSTR(BUTTON_PRESS_TIME_MS) "ms");
+    for (size_t i = 0; i < (BUTTON_PRESS_TIME_MS / BUTTON_SAMPLE_PERIOD_MS);
+         ++i) {
+        if (!gpio_pin_get(power_button, POWER_BUTTON_PIN)) {
+            if (i > 1) {
+                LOG_INF("Press stopped.");
+            }
+            i = 0;
+        }
+        if (i == 1) {
+            LOG_INF("Press started.");
+        }
+        k_msleep(BUTTON_SAMPLE_PERIOD_MS);
+    }
+
+    return 0;
+}
+
+/**
+ * Decide whether to wait for user to press the button to start the Orb
+ * or to directly boot the Orb (after fresh update)
+ * @param dev
+ * @return error code
+ */
 int
-power_wait_for_power_button_press(const struct device *dev)
+app_init_state(const struct device *dev)
 {
     ARG_UNUSED(dev);
 
-    const struct device *power_button = DEVICE_DT_GET(POWER_BUTTON_CTLR);
+    int ret = 0;
 
     LOG_INF("Hello from " CONFIG_BOARD " :)");
 
@@ -219,49 +259,25 @@ power_wait_for_power_button_press(const struct device *dev)
     LOG_DBG("Magic: %u, swap type: %u, image_ok: %u", primary_slot.magic,
             primary_slot.swap_type, primary_slot.image_ok);
 
-    // image is waiting to be confirmed, so boot Jetson without further ado
+    // if FW image is confirmed, gate turning on power supplies on button press
+    // otherwise, application have been updated and not confirmed, boot Jetson
     if (primary_slot.image_ok != BOOT_FLAG_UNSET) {
-        if (!device_is_ready(power_button)) {
-            LOG_ERR("power button is not ready!");
-            return 1;
-        }
-
-        if (gpio_pin_configure(power_button, POWER_BUTTON_PIN,
-                               POWER_BUTTON_FLAGS | GPIO_INPUT)) {
-            LOG_ERR("Error configuring power button!");
-            return 1;
-        }
-
-        LOG_INF(
-            "Waiting for button press of " TOSTR(BUTTON_PRESS_TIME_MS) "ms");
-        for (size_t i = 0; i < (BUTTON_PRESS_TIME_MS / BUTTON_SAMPLE_PERIOD_MS);
-             ++i) {
-            if (!gpio_pin_get(power_button, POWER_BUTTON_PIN)) {
-                if (i > 1) {
-                    LOG_INF("Press stopped.");
-                }
-                i = 0;
-            }
-            if (i == 1) {
-                LOG_INF("Press started.");
-            }
-            k_msleep(BUTTON_SAMPLE_PERIOD_MS);
-        }
-
-        LOG_INF("Booting system...");
+        ret = power_wait_for_power_button_press();
     } else {
-        LOG_INF("Booting system (firmware image to be confirmed)...");
+        LOG_INF("Firmware image not confirmed");
     }
+    LOG_INF("Booting system...");
 
-    return 0;
+    return ret;
 }
 
 static_assert(WAIT_FOR_BUTTON_PRESS_PRIORITY == 53,
               "update the integer literal here");
 
-// Gate turning on power supplies on button press
+// Gate turning on power supplies on button press or if image isn't confirmed
+// (freshly updated)
 // We must use an integer literal. Thanks C macros!
-SYS_INIT(power_wait_for_power_button_press, POST_KERNEL, 53);
+SYS_INIT(app_init_state, POST_KERNEL, 53);
 
 #define SLEEP_WAKE_NODE  DT_PATH(jetson_power_pins, sleep_wake)
 #define SLEEP_WAKE_CTLR  DT_GPIO_CTLR(SLEEP_WAKE_NODE, gpios)
