@@ -2,14 +2,11 @@ manifest:
   remotes:
     - name: worldcoin
       url-base: git@github.com:worldcoin
-    - name: pete
-      url-base: git@github.com:pdietl
   defaults:
     remote: worldcoin
   projects:
     - name: zephyr
-      remote: pete
-      revision: combined
+      revision: d356280b5432cad22983ad13aa154645187c37d1
       import:
         name-allowlist:
           - cmsis

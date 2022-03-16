@@ -19,6 +19,7 @@
         // 1 == MCU
         // 0 == Jetson
         sound-amp-mux-gpios = <&gpioe 10 GPIO_ACTIVE_HIGH>;
+        i2c_clock_gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
     };
 
     vbat_sw {

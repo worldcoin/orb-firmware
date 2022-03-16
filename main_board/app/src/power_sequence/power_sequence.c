@@ -36,6 +36,11 @@ check_is_ready(const struct device *dev, const char *name)
     return 0;
 }
 
+#define I2C_CLOCK_NODE  DT_PATH(zephyr_user)
+#define I2C_CLOCK_CTLR  DT_GPIO_CTLR(I2C_CLOCK_NODE, i2c_clock_gpios)
+#define I2C_CLOCK_PIN   DT_GPIO_PIN(I2C_CLOCK_NODE, i2c_clock_gpios)
+#define I2C_CLOCK_FLAGS DT_GPIO_FLAGS(I2C_CLOCK_NODE, i2c_clock_gpios)
+
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
 
 #define SUPPLY_5V_PG_NODE  DT_PATH(supply_5v, power_good)
@@ -64,6 +69,7 @@ power_turn_on_essential_supplies(const struct device *dev)
     const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
     const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
     const struct device *supply_3v8 = DEVICE_DT_GET(DT_PATH(supply_3v8));
+    const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
     const struct device *supply_5v_pg = DEVICE_DT_GET(SUPPLY_5V_PG_CTLR);
@@ -86,13 +92,25 @@ power_turn_on_essential_supplies(const struct device *dev)
         return 1;
     }
 
+    // We configure this pin here before we enable 3.3v supply
+    // just so that we can disable the automatically-enabled pull-up.
+    // We must do this because providing a voltage to the 3.3v power supply
+    // output before it is online can trigger the safety circuit.
+    //
+    // After this is configured, the I2C initialization will run and
+    // re-configure this pin as SCL.
+    if (gpio_pin_configure(i2c_clock, I2C_CLOCK_PIN,
+                           GPIO_OUTPUT | I2C_CLOCK_FLAGS)) {
+        LOG_ERR("Error configuring I2C clock pin!");
+        return 1;
+    }
+
     regulator_enable(vbat_sw_regulator, NULL);
     LOG_INF("VBAT SW enabled");
     k_msleep(100);
 
     regulator_enable(supply_12v, NULL);
     LOG_INF("12V power supply enabled");
-    k_msleep(2000);
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
     if (gpio_pin_configure(supply_5v_pg, SUPPLY_5V_PG_PIN,
@@ -160,8 +178,6 @@ power_turn_on_essential_supplies(const struct device *dev)
 #else
     k_msleep(100);
 #endif
-
-    k_busy_wait(5000);
 
     return 0;
 }
