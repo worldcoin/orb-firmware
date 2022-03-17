@@ -1,0 +1,9 @@
+---
+description: GPIO pin to enable 3.3V to 1.8V level shifter
+
+compatible: "gpio-level-shift-en"
+
+properties:
+  gpios:
+    type: phandle-array
+    required: true

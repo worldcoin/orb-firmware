@@ -27,9 +27,15 @@ K_MSGQ_DEFINE(tx_msg_queue, sizeof(McuMessage), QUEUE_NUM_ITEMS, QUEUE_ALIGN);
 
 K_SEM_DEFINE(tx_sem, 1, 1);
 
+static bool is_init = false;
+
 ret_code_t
 can_messaging_push_tx(McuMessage *message)
 {
+    if (!is_init) {
+        return RET_ERROR_INVALID_STATE;
+    }
+
     // make sure data "header" is correctly set
     message->version = Version_VERSION_0;
 
@@ -122,6 +128,8 @@ canbus_tx_init(void)
         LOG_ERR("CAN: Device driver not found.");
         return RET_ERROR_NOT_FOUND;
     }
+
+    is_init = true;
 
     return RET_SUCCESS;
 }
