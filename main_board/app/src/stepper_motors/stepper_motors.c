@@ -495,12 +495,12 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
     uint16_t sg = 0;
     uint16_t avg = 0;
     bool stall_detected = false;
+    int32_t attempt = 0;
 
     LOG_INF("Initializing motor %u", motor);
     reset_irun_sgt(motor);
 
-    while (motors_refs[motor].auto_homing_state != AH_FAIL &&
-           motors_refs[motor].auto_homing_state != AH_SUCCESS) {
+    while (attempt < 2 && motors_refs[motor].auto_homing_state != AH_SUCCESS) {
         status = motor_spi_read(spi_bus_controller,
                                 TMC5041_REGISTERS[REG_IDX_DRV_STATUS][motor]);
         sg = status & 0x1FF;
@@ -705,11 +705,9 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 // verify that motor moved at least
                 // `motors_full_course_minimum_steps`
                 if (abs(x) < motors_full_course_minimum_steps[motor]) {
-                    LOG_ERR("Motor %u didn't reach target: x=%d, should be at "
-                            "least %d",
-                            motor, x,
-                            (motors_full_course_minimum_steps[motor] *
-                             first_direction));
+                    LOG_ERR("Motor %u range: %u, should be > %u", motor, abs(x),
+                            abs(motors_full_course_minimum_steps[motor] *
+                                first_direction));
 
                     motors_refs[motor].auto_homing_state = AH_FAIL;
                     err_code = RET_ERROR_INVALID_STATE;
@@ -744,6 +742,11 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
         case AH_SUCCESS:
             break;
         case AH_FAIL:
+            // - full range not detected
+            // - stall detected far from second end
+            motors_refs[motor].auto_homing_state = AH_UNINIT;
+            reset_irun_sgt(motor);
+            attempt++;
             break;
         }
 
