@@ -439,6 +439,8 @@ to_one_direction(motor_t motor, bool positive_direction)
     uint8_t current = motors_refs[motor].velocity_mode_current;
     uint8_t sgt = motors_refs[motor].stall_guard_threshold;
 
+    LOG_DBG("Current: %u, sgt: %u", current, sgt);
+
     if (current >= 32) {
         APP_ASSERT(RET_ERROR_INVALID_PARAM);
     }
@@ -571,6 +573,17 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 
                 motors_refs[motor].auto_homing_state = AH_LOOKING_FIRST_END;
                 loop_count_last_step = loop_count;
+
+                // before we continue we need to wait for the motor to
+                // remove its stallguard flag
+                uint32_t t = 200 / AUTOHOMING_POLL_DELAY_MS;
+                do {
+                    k_msleep(AUTOHOMING_POLL_DELAY_MS);
+                    status = motor_spi_read(
+                        spi_bus_controller,
+                        TMC5041_REGISTERS[REG_IDX_DRV_STATUS][motor]);
+                    LOG_DBG("Status %d 0x%08x", motor, status);
+                } while (status & MOTOR_DRV_STATUS_STALLGUARD || --t == 0);
             }
             break;
         case AH_LOOKING_FIRST_END:
