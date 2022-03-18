@@ -1,6 +1,8 @@
 #ifndef POWER_SEQUENCE_H
 #define POWER_SEQUENCE_H
 
+#include "stdint.h"
+
 int
 power_turn_on_super_cap_charger(void);
 int
