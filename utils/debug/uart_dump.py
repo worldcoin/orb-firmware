@@ -58,6 +58,8 @@ def main(argv):
     # find "[00000000]" or [00:00:00.000,000]
     timestamp_re = re.compile(r'(\[[0-9]{8}\])')
     formatted_timestamp_re = re.compile(r'(\[([0-9]{2}.){3}[0-9]{3}\,[0-9]{3}\])')
+    # find color codes
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
     ser = Serial(port, 115200)
     print("🎧 Listening UART (8N1 {}) on {}".format(baud_rate, port))
@@ -72,6 +74,9 @@ def main(argv):
             to_print = line.decode('utf-8').rstrip()
         except Exception as err:
             print("ERROR: {}".format(err))
+
+        # remove colors to set custom ones below
+        to_print = ansi_escape.sub('', to_print)
 
         text_color = colors.END
         if to_print.__contains__("<err>"):
