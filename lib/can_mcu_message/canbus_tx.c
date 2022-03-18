@@ -29,6 +29,11 @@ K_SEM_DEFINE(tx_sem, 1, 1);
 
 static bool is_init = false;
 
+/// Send new message
+/// ⚠️ Do not print log message in this function if
+/// CONFIG_ORB_LIB_LOG_BACKEND_CAN is defined
+/// \param message
+/// \return RET_SUCCESS on success, error code otherwise
 ret_code_t
 can_messaging_push_tx(McuMessage *message)
 {
@@ -41,7 +46,12 @@ can_messaging_push_tx(McuMessage *message)
 
     int ret = k_msgq_put(&tx_msg_queue, message, K_NO_WAIT);
     if (ret) {
+
+#ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
         LOG_ERR("Too many tx messages");
+#else
+        printk("<err> too many tx messages\r\n");
+#endif
         return RET_ERROR_BUSY;
     }
 
@@ -108,14 +118,21 @@ process_tx_messages_thread()
             ret_code_t err_code =
                 send(tx_buffer, stream.bytes_written, tx_complete_cb, dest);
             if (err_code != RET_SUCCESS) {
+#ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
                 LOG_WRN("Error sending message");
-
+#else
+                printk("<wrn> Error encoding message!\r\n");
+#endif
                 // release semaphore, we are not waiting for
                 // completion
                 k_sem_give(&tx_sem);
             }
         } else {
+#ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
             LOG_ERR("Error encoding message!");
+#else
+            printk("<err> Error encoding message!\r\n");
+#endif
         }
     }
 }
