@@ -17,6 +17,7 @@ can_message_out(uint8_t *data, size_t length, void *ctx)
     McuMessage log = {.which_message = McuMessage_m_message_tag,
                       .message.m_message.which_payload = McuToJetson_log_tag,
                       .message.m_message.payload.log.log = {0}};
+    // keep NULL termination character at the end so subtract one to array size
     memcpy(log.message.m_message.payload.log.log, data,
            MIN(length, sizeof(log.message.m_message.payload.log) - 1));
 
