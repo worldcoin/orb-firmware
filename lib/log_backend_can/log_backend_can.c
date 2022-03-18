@@ -7,7 +7,6 @@
 #include "mcu_messaging.pb.h"
 #include <logging/log.h>
 #include <logging/log_backend.h>
-#include <logging/log_backend_std.h>
 LOG_MODULE_REGISTER(log_can);
 
 static bool panic_mode = false;
@@ -45,10 +44,16 @@ is_panic_mode(void)
 static void
 process(const struct log_backend *const backend, union log_msg2_generic *msg)
 {
-    if (log_msg2_get_level(&msg->log) == LOG_LEVEL_WRN ||
-        log_msg2_get_level(&msg->log) == LOG_LEVEL_ERR) {
-        log_output_msg2_process(&log_output_can, &msg->log, 0);
+    if (panic_mode) {
+        return;
     }
+
+    if (log_msg2_get_level(&msg->log) != LOG_LEVEL_WRN &&
+        log_msg2_get_level(&msg->log) != LOG_LEVEL_ERR) {
+        return;
+    }
+
+    log_output_msg2_process(&log_output_can, &msg->log, 0);
 }
 
 static void
