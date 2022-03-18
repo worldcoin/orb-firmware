@@ -531,6 +531,8 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
         switch (motors_refs[motor].auto_homing_state) {
 
         case AH_UNINIT: {
+            // reset values
+            err_code = RET_SUCCESS;
             timeout = AUTOHOMING_TIMEOUT_LOOP_COUNT;
 
             // VSTART
