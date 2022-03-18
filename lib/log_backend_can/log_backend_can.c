@@ -54,7 +54,10 @@ process(const struct log_backend *const backend, union log_msg2_generic *msg)
         return;
     }
 
-    log_output_msg2_process(&log_output_can, &msg->log, 0);
+    // flags :
+    // - no color
+    // - print level <wrn> or <err>
+    log_output_msg2_process(&log_output_can, &msg->log, LOG_OUTPUT_FLAG_LEVEL);
 }
 
 static void
