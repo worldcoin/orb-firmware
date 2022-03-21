@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.20.0)
 set(TARGET app)
 
+# Options
+option(TEST_IR_CAMERA_SYSTEM "Run the IR camera system tests instead of the normal application on boot" OFF)
+if (TEST_IR_CAMERA_SYSTEM)
+    add_compile_definitions(CONFIG_TEST_IR_CAMERA_SYSTEM)
+endif()
+
 get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../ ABSOLUTE)
 get_filename_component(WORKSPACE_DIR ${PROJECT_DIR} DIRECTORY)
 
