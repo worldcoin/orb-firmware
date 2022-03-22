@@ -1,7 +1,3 @@
-//
-// Created by Cyril on 28/10/2021.
-//
-
 #include <bootutil/sign_key.h>
 #include <mcuboot_config/mcuboot_config.h>
 

@@ -1,7 +1,3 @@
-//
-// Created by Cyril on 22/10/2021.
-//
-
 #include "motors_tests.h"
 #include "stepper_motors.h"
 #include <zephyr.h>

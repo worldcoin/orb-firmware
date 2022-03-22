@@ -1,7 +1,3 @@
-//
-// Created by Cyril on 22/12/2021.
-//
-
 #ifndef FIRMWARE_TIMER_SETTINGS_H
 #define FIRMWARE_TIMER_SETTINGS_H
 

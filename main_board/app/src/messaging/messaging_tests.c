@@ -1,7 +1,3 @@
-//
-// Created by Cyril on 05/10/2021.
-//
-
 #include "messaging_tests.h"
 #include <logging/log.h>
 LOG_MODULE_REGISTER(cantest);
