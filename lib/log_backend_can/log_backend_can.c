@@ -49,12 +49,12 @@ process(const struct log_backend *const backend, union log_msg2_generic *msg)
         return;
     }
 
-    if (log_msg2_get_level(&msg->log) != LOG_LEVEL_WRN &&
-        log_msg2_get_level(&msg->log) != LOG_LEVEL_ERR) {
+    if (log_msg2_get_level(&msg->log) > CONFIG_ORB_LIB_LOG_BACKEND_LEVEL ||
+        log_msg2_get_level(&msg->log) == LOG_LEVEL_NONE) {
         return;
     }
 
-    // flags :
+    // override flags :
     // - no color
     // - print level <wrn> or <err>
     log_output_msg2_process(&log_output_can, &msg->log, LOG_OUTPUT_FLAG_LEVEL);
@@ -77,7 +77,9 @@ panic(struct log_backend const *const backend)
 static void
 dropped(const struct log_backend *const backend, uint32_t cnt)
 {
-    // TODO add specific error message sent to Jetson when CAN tx queue is full
+#if CONFIG_ORB_LIB_LOG_BACKEND_LEVEL < LOG_LEVEL_WRN
+#warning printing info and debug logs can lead to dropped messages, please consider implementing this handler
+#endif
 }
 
 const struct log_backend_api log_backend_can_api = {

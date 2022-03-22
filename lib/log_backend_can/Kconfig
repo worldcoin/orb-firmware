@@ -2,3 +2,18 @@ config ORB_LIB_LOG_BACKEND_CAN
     default y
     bool "Send logs over the CAN bus"
 	depends on LOG
+
+config ORB_LIB_LOG_BACKEND_LEVEL
+	int "CAN backend log level"
+	default 2
+	range 0 4
+	help
+	  Sets log level for CAN backend. When
+	  set to 0 it means log will not be activated.
+	  Levels are:
+
+	  - 0 OFF, do not write
+	  - 1 ERROR, only write LOG_LEVEL_ERR
+	  - 2 WARNING, write LOG_LEVEL_WRN
+	  - 3 INFO, write LOG_LEVEL_INFO
+	  - 4 DEBUG, write LOG_LEVEL_DBG
