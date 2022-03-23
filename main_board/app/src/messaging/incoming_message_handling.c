@@ -9,6 +9,7 @@
 #include <ir_camera_system/ir_camera_system.h>
 #include <liquid_lens/liquid_lens.h>
 #include <logging/log.h>
+#include <stdlib.h>
 #include <stepper_motors/stepper_motors.h>
 #include <temperature/temperature.h>
 #include <zephyr.h>
@@ -203,30 +204,6 @@ handle_stop_triggering_2dtof_camera_message(McuMessage *msg)
     LOG_DBG("");
     ir_camera_system_disable_2d_tof_camera();
     incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
-}
-
-static void
-handle_740nm_brightness_message(McuMessage *msg)
-{
-    MAKE_ASSERTS(JetsonToMcu_brightness_740nm_leds_tag);
-
-    ret_code_t ret;
-    uint32_t brightness =
-        msg->message.j_message.payload.brightness_740nm_leds.brightness;
-
-    if (brightness > 100) {
-        LOG_ERR("Got brightness of %u out of range [0;100]", brightness);
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
-    } else {
-        LOG_DBG("Got brightness message: %u%%", brightness);
-
-        ret = ir_camera_system_set_740nm_led_brightness(brightness);
-        if (ret == RET_SUCCESS) {
-            incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
-        } else {
-            incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
-        }
-    }
 }
 
 static void
@@ -511,6 +488,41 @@ handle_heartbeat(McuMessage *msg)
     }
 }
 
+static void
+handle_mirror_angle_relative_message(McuMessage *msg)
+{
+    MAKE_ASSERTS(JetsonToMcu_mirror_angle_relative_tag);
+
+    int32_t horizontal_angle =
+        msg->message.j_message.payload.mirror_angle_relative.horizontal_angle;
+    int32_t vertical_angle =
+        msg->message.j_message.payload.mirror_angle_relative.vertical_angle;
+
+    if (abs(horizontal_angle) > MOTORS_ANGLE_HORIZONTAL_RANGE) {
+        LOG_ERR("Horizontal angle of %u out of range (max %u)",
+                horizontal_angle, MOTORS_ANGLE_HORIZONTAL_RANGE);
+        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        return;
+    }
+    if (abs(vertical_angle) > MOTORS_ANGLE_VERTICAL_RANGE) {
+        LOG_ERR("Vertical angle of %u out of range (max %u)", vertical_angle,
+                MOTORS_ANGLE_VERTICAL_RANGE);
+        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        return;
+    }
+
+    LOG_DBG("Got relative mirror angle message, vert: %d, horiz: %u",
+            vertical_angle, horizontal_angle);
+
+    if (motors_angle_horizontal_relative(horizontal_angle) != RET_SUCCESS) {
+        incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+    } else if (motors_angle_vertical_relative(vertical_angle) != RET_SUCCESS) {
+        incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+    } else {
+        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    }
+}
+
 typedef void (*hm_callback)(McuMessage *msg);
 
 // These functions ARE NOT allowed to block!
@@ -523,7 +535,6 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_user_leds_pattern_tag] = handle_user_leds_pattern,
     [JetsonToMcu_user_leds_brightness_tag] = handle_user_leds_brightness,
     [JetsonToMcu_dfu_block_tag] = handle_dfu_block_message,
-    [JetsonToMcu_brightness_740nm_leds_tag] = handle_740nm_brightness_message,
     [JetsonToMcu_start_triggering_ir_eye_camera_tag] =
         handle_start_triggering_ir_eye_camera_message,
     [JetsonToMcu_stop_triggering_ir_eye_camera_tag] =
@@ -544,10 +555,12 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_fw_image_check_tag] = handle_fw_img_crc,
     [JetsonToMcu_fw_image_secondary_activate_tag] = handle_fw_img_sec_activate,
     [JetsonToMcu_heartbeat_tag] = handle_heartbeat,
+    [JetsonToMcu_mirror_angle_relative_tag] =
+        handle_mirror_angle_relative_message,
 };
 
 static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 31,
+    ARRAY_SIZE(handle_message_callbacks) <= 33,
     "It seems like the `handle_message_callbacks` array is too large");
 
 void

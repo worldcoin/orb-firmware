@@ -1,4 +1,6 @@
 #include "stepper_motors.h"
+#include "can_messaging.h"
+#include "mcu_messaging.pb.h"
 #include <device.h>
 #include <drivers/spi.h>
 #include <sys/byteorder.h>
@@ -99,8 +101,14 @@ const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][MOTOR_COUNT] = {
     {0x6F, 0x7F}, // DRV_STATUS
 };
 
+// minimum number of microsteps for 40º range
+// - vertical = 210*256 microsteps
+//   but can mechanically do up to 300*256 easily. Usually around 110000
+//   microsteps are detected on vertical motor.
+// - horizontal = 325*256 microsteps. Usually around 115000 microsteps are
+// detected.
 const uint32_t motors_full_course_minimum_steps[MOTOR_COUNT] = {(300 * 256),
-                                                                (300 * 256)};
+                                                                (325 * 256)};
 const float motors_arm_length[MOTOR_COUNT] = {12.0, 18.71};
 
 const uint32_t steps_per_mm = 12800; // 1mm / 0.4mm (pitch) * (360° / 18° (per
@@ -403,6 +411,37 @@ motors_set_angle_relative(int32_t d_from_center, motor_t motor)
     return RET_SUCCESS;
 }
 
+static ret_code_t
+motors_angle_relative(int32_t angle_millidegrees, motor_t motor)
+{
+    int32_t x = (int32_t)motor_spi_read(
+        spi_bus_controller, TMC5041_REGISTERS[REG_IDX_XACTUAL][motor]);
+
+    int32_t steps =
+        (int32_t)roundf(sinf((float)angle_millidegrees * M_PI / 360000.0) *
+                        motors_arm_length[motor] * (float)steps_per_mm);
+    int32_t xtarget = x + steps;
+
+    LOG_DBG("Moving motor %u from x=%i to xtarget=%i (%i.%iº)", motor, x,
+            xtarget, angle_millidegrees / 1000, angle_millidegrees % 1000);
+    motor_spi_write(spi_bus_controller,
+                    TMC5041_REGISTERS[REG_IDX_XTARGET][motor], xtarget);
+
+    return RET_SUCCESS;
+}
+
+ret_code_t
+motors_angle_horizontal_relative(int32_t angle_millidegrees)
+{
+    return motors_angle_relative(angle_millidegrees, MOTOR_HORIZONTAL);
+}
+
+ret_code_t
+motors_angle_vertical_relative(int32_t angle_millidegrees)
+{
+    return motors_angle_relative(angle_millidegrees, MOTOR_VERTICAL);
+}
+
 ret_code_t
 motors_angle_horizontal(int32_t angle_millidegrees)
 {
@@ -683,7 +722,11 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 timeout == 0) {
 
                 if (timeout == 0) {
-                    LOG_ERR("TIMEOUT 0");
+                    LOG_ERR("Timeout to other end");
+
+                    motors_refs[motor].auto_homing_state = AH_FAIL;
+                    err_code = RET_ERROR_INVALID_STATE;
+                    break;
                 }
 
                 // stop the motor (VMAX in velocity mode)
@@ -707,9 +750,11 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 // verify that motor moved at least
                 // `motors_full_course_minimum_steps`
                 if (abs(x) < motors_full_course_minimum_steps[motor]) {
-                    LOG_ERR("Motor %u range: %u, should be > %u", motor, abs(x),
-                            abs(motors_full_course_minimum_steps[motor] *
-                                first_direction));
+                    LOG_ERR(
+                        "Motor %u range: %u microsteps, must be more than %u",
+                        motor, abs(x),
+                        abs(motors_full_course_minimum_steps[motor] *
+                            first_direction));
 
                     motors_refs[motor].auto_homing_state = AH_FAIL;
                     err_code = RET_ERROR_INVALID_STATE;
@@ -725,19 +770,28 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 motors_refs[motor].full_course = abs(x);
 
                 // WRN to send log over CAN
-                LOG_WRN("Motor %u range: %u", motor,
+                LOG_WRN("Motor %u range: %u microsteps", motor,
                         motors_refs[motor].full_course);
-                LOG_INF("Motor %u, x0: %d", motor, motors_refs[motor].x0);
+                LOG_INF("Motor %u, x0: %d microsteps", motor,
+                        motors_refs[motor].x0);
+
+                McuMessage msg = {
+                    .which_message = McuMessage_m_message_tag,
+                    .message.m_message.which_payload =
+                        McuToJetson_motor_range_tag,
+                    .message.m_message.payload.motor_range.which_motor =
+                        (motor == MOTOR_VERTICAL ? MotorRange_Motor_VERTICAL
+                                                 : MotorRange_Motor_HORIZONTAL),
+                    .message.m_message.payload.motor_range.range_microsteps =
+                        motors_refs[motor].full_course};
+                can_messaging_push_tx(&msg);
 
                 // go to middle position
+                // setting in positioning mode after this loop
+                // will drive the motor
                 motor_spi_write(spi_bus_controller,
                                 TMC5041_REGISTERS[REG_IDX_XTARGET][motor],
                                 motors_refs[motor].x0);
-
-                motor_spi_send_commands(
-                    spi_bus_controller, position_mode_full_speed[motor],
-                    ARRAY_SIZE(position_mode_full_speed[motor]));
-
                 break;
             }
             break;
@@ -756,6 +810,10 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
         loop_count += 1;
         k_msleep(AUTOHOMING_POLL_DELAY_MS);
     }
+
+    // in any case, we want the motor to be in positioning mode
+    motor_spi_send_commands(spi_bus_controller, position_mode_full_speed[motor],
+                            ARRAY_SIZE(position_mode_full_speed[motor]));
 
     // keep auto-homing state
     motors_refs[motor].motor_state = err_code;
@@ -840,6 +898,15 @@ motors_init(void)
     motors_refs[MOTOR_HORIZONTAL].motor_state = RET_ERROR_NOT_INITIALIZED;
     motors_refs[MOTOR_VERTICAL].motor_state = RET_ERROR_NOT_INITIALIZED;
 
+    // Set motor in positioning mode
+    motor_spi_send_commands(
+        spi_bus_controller, position_mode_full_speed[MOTOR_HORIZONTAL],
+        ARRAY_SIZE(position_mode_full_speed[MOTOR_HORIZONTAL]));
+    motor_spi_send_commands(
+        spi_bus_controller, position_mode_full_speed[MOTOR_VERTICAL],
+        ARRAY_SIZE(position_mode_full_speed[MOTOR_VERTICAL]));
+
+    // auto-home after boot
     motors_auto_homing(MOTOR_HORIZONTAL, NULL);
     motors_auto_homing(MOTOR_VERTICAL, NULL);
 

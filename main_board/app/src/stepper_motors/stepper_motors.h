@@ -8,9 +8,13 @@ typedef enum { MOTOR_VERTICAL = 0, MOTOR_HORIZONTAL, MOTOR_COUNT } motor_t;
 
 #define MOTORS_ANGLE_HORIZONTAL_MIN (25000)
 #define MOTORS_ANGLE_HORIZONTAL_MAX (65000)
+#define MOTORS_ANGLE_HORIZONTAL_RANGE                                          \
+    (MOTORS_ANGLE_HORIZONTAL_MAX - MOTORS_ANGLE_HORIZONTAL_MIN)
 
 #define MOTORS_ANGLE_VERTICAL_MIN (-20000)
 #define MOTORS_ANGLE_VERTICAL_MAX (20000)
+#define MOTORS_ANGLE_VERTICAL_RANGE                                            \
+    (MOTORS_ANGLE_VERTICAL_MAX - MOTORS_ANGLE_VERTICAL_MIN)
 
 #define MOTOR_DRV_STATUS_STALLGUARD (1 << 24)
 #define MOTOR_DRV_STATUS_STANDSTILL (1 << 31)
@@ -42,6 +46,22 @@ motors_angle_horizontal(int32_t angle_millidegrees);
  */
 ret_code_t
 motors_angle_vertical(int32_t angle_millidegrees);
+
+/**
+ * Set horizontal angle relative to current position
+ * @param angle_millidegrees
+ * @return
+ */
+ret_code_t
+motors_angle_horizontal_relative(int32_t angle_millidegrees);
+
+/**
+ * Set vertical angle relative to current position
+ * @param angle_millidegrees
+ * @return
+ */
+ret_code_t
+motors_angle_vertical_relative(int32_t angle_millidegrees);
 
 /**
  * Perform auto-homing
