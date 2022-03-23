@@ -109,6 +109,8 @@ const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][MOTOR_COUNT] = {
 // detected.
 const uint32_t motors_full_course_minimum_steps[MOTOR_COUNT] = {(300 * 256),
                                                                 (325 * 256)};
+const uint32_t motors_full_course_maximum_steps[MOTOR_COUNT] = {(500 * 256),
+                                                                (500 * 256)};
 const float motors_arm_length[MOTOR_COUNT] = {12.0, 18.71};
 
 const uint32_t steps_per_mm = 12800; // 1mm / 0.4mm (pitch) * (360° / 18° (per
@@ -180,7 +182,6 @@ const uint64_t position_mode_initial_phase[MOTOR_COUNT][10] = {
         0xEC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
                       // (spreadCycle)
         0xB000011000, // IHOLD_IRUN reg, bytes: [IHOLDDELAY|IRUN|IHOLD]
-
         0xA4000003E8, // A1 = 1000 first acceleration
         0xA50000C350, // V1 = 50 000 Acceleration threshold, velocity V1
         0xA6000001F4, // AMAX = 500 Acceleration above V1
@@ -194,7 +195,6 @@ const uint64_t position_mode_initial_phase[MOTOR_COUNT][10] = {
         0xFC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
                       // (spreadCycle)
         0xD000011000, // IHOLD_IRUN reg, bytes: [IHOLDDELAY|IRUN|IHOLD]
-
         0xC4000003E8, // A1 = 1000 first acceleration
         0xC50000C350, // V1 = 50 000 Acceleration threshold, velocity V1
         0xC6000001F4, // AMAX = 500 Acceleration above V1
@@ -206,8 +206,11 @@ const uint64_t position_mode_initial_phase[MOTOR_COUNT][10] = {
                                         // Ready to move
     }};
 
-const uint64_t position_mode_full_speed[MOTOR_COUNT][8] = {
+const uint64_t position_mode_full_speed[MOTOR_COUNT][10] = {
     {
+        0xEC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
+                      // (spreadCycle)
+        0xB000011000, // IHOLD_IRUN reg, bytes: [IHOLDDELAY|IRUN|IHOLD]
         0xA400008000, // A1 first acceleration
         0xA500000000 +
             MOTOR_FS_VMAX * 3 / 4,    // V1 Acceleration threshold, velocity V1
@@ -219,6 +222,9 @@ const uint64_t position_mode_full_speed[MOTOR_COUNT][8] = {
         0xA000000000,                 // RAMPMODE = 0 position move
     },
     {
+        0xFC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
+                      // (spreadCycle)
+        0xD000011000, // IHOLD_IRUN reg, bytes: [IHOLDDELAY|IRUN|IHOLD]
         0xC400008000, // A1 first acceleration
         0xC500000000 +
             MOTOR_FS_VMAX * 3 / 4,    // V1 Acceleration threshold, velocity V1
@@ -825,15 +831,8 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
     k_sem_give(homing_in_progress_sem + motor);
 }
 
-bool
-motors_homed_successfully(void)
-{
-    return motors_refs[MOTOR_HORIZONTAL].motor_state == RET_SUCCESS &&
-           motors_refs[MOTOR_VERTICAL].motor_state == RET_SUCCESS;
-}
-
 ret_code_t
-motors_auto_homing(motor_t motor, struct k_thread **thread_ret)
+motors_auto_homing_stall_detection(motor_t motor, struct k_thread **thread_ret)
 {
     __ASSERT(motor <= MOTOR_COUNT, "Wrong motor number");
 
@@ -861,6 +860,153 @@ motors_auto_homing(motor_t motor, struct k_thread **thread_ret)
             K_THREAD_STACK_SIZEOF(stack_area_motor_vertical_init),
             motors_auto_homing_thread, (void *)MOTOR_VERTICAL, NULL, NULL,
             THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
+        k_thread_name_set(tid, "motors_auto_homing_vertical");
+    }
+
+    return RET_SUCCESS;
+}
+
+bool
+motors_homed_successfully(void)
+{
+    return motors_refs[MOTOR_HORIZONTAL].motor_state == RET_SUCCESS &&
+           motors_refs[MOTOR_VERTICAL].motor_state == RET_SUCCESS;
+}
+
+static void
+motors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
+{
+    uint32_t motor = (uint32_t)p1;
+    uint32_t status = 0;
+    int32_t timeout = AUTOHOMING_TIMEOUT_LOOP_COUNT;
+
+    motors_refs[motor].auto_homing_state = AH_UNINIT;
+    while (motors_refs[motor].auto_homing_state != AH_SUCCESS && timeout) {
+        status = motor_spi_read(spi_bus_controller,
+                                TMC5041_REGISTERS[REG_IDX_DRV_STATUS][motor]);
+
+        LOG_DBG("Status %d 0x%08x, state %u", motor, status,
+                motors_refs[motor].auto_homing_state);
+
+        switch (motors_refs[motor].auto_homing_state) {
+        case AH_UNINIT: {
+            // write xactual = 0
+            motor_spi_write(spi_bus_controller,
+                            TMC5041_REGISTERS[REG_IDX_XACTUAL][motor], 0x0);
+
+            motor_spi_send_commands(
+                spi_bus_controller, position_mode_full_speed[motor],
+                ARRAY_SIZE(position_mode_full_speed[motor]));
+            int32_t steps = motors_full_course_maximum_steps[motor];
+            LOG_WRN("Steps to one end: %i", steps);
+            motor_spi_write(spi_bus_controller,
+                            TMC5041_REGISTERS[REG_IDX_XTARGET][motor],
+                            (uint32_t)steps);
+            motors_refs[motor].auto_homing_state = AH_LOOKING_FIRST_END;
+        } break;
+
+        case AH_LOOKING_FIRST_END: {
+            if (status & MOTOR_DRV_STATUS_STANDSTILL) {
+                // write xactual = 0
+                motor_spi_write(spi_bus_controller,
+                                TMC5041_REGISTERS[REG_IDX_XACTUAL][motor], 0x0);
+
+                motors_refs[motor].x0 = -55000;
+                motors_refs[motor].full_course = abs(motors_refs[motor].x0 * 2);
+
+                // go to middle position
+                motor_spi_write(spi_bus_controller,
+                                TMC5041_REGISTERS[REG_IDX_XTARGET][motor],
+                                (uint32_t)motors_refs[motor].x0);
+
+                motors_refs[motor].auto_homing_state = AH_WAIT_STANDSTILL;
+            }
+        } break;
+        case AH_INITIAL_SHIFT:
+            break;
+        case AH_WAIT_STANDSTILL: {
+            if (status & MOTOR_DRV_STATUS_STANDSTILL) {
+                // WRN to send log over CAN
+                LOG_WRN("Motor %u range: %u microsteps", motor,
+                        motors_refs[motor].full_course);
+                LOG_INF("Motor %u, x0: %d microsteps", motor,
+                        motors_refs[motor].x0);
+
+                McuMessage msg = {
+                    .which_message = McuMessage_m_message_tag,
+                    .message.m_message.which_payload =
+                        McuToJetson_motor_range_tag,
+                    .message.m_message.payload.motor_range.which_motor =
+                        (motor == MOTOR_VERTICAL ? MotorRange_Motor_VERTICAL
+                                                 : MotorRange_Motor_HORIZONTAL),
+                    .message.m_message.payload.motor_range.range_microsteps =
+                        motors_refs[motor].full_course};
+                can_messaging_push_tx(&msg);
+
+                motors_refs[motor].auto_homing_state = AH_SUCCESS;
+            }
+        } break;
+        case AH_GO_OTHER_END:
+            break;
+        case AH_SUCCESS:
+            break;
+        case AH_FAIL:
+            break;
+        }
+
+        --timeout;
+        k_msleep(AUTOHOMING_POLL_DELAY_MS);
+    }
+
+    // in any case, we want the motor to be in positioning mode
+    motor_spi_send_commands(spi_bus_controller, position_mode_full_speed[motor],
+                            ARRAY_SIZE(position_mode_full_speed[motor]));
+
+    // keep auto-homing state
+    if (timeout == 0) {
+        motors_refs[motor].motor_state = RET_ERROR_INVALID_STATE;
+    } else {
+        motors_refs[motor].motor_state = RET_SUCCESS;
+    }
+
+    k_sem_give(homing_in_progress_sem + motor);
+}
+
+ret_code_t
+motors_auto_homing_one_end(motor_t motor, struct k_thread **thread_ret)
+{
+    __ASSERT(motor <= MOTOR_COUNT, "Wrong motor number");
+
+    if (k_sem_take(&homing_in_progress_sem[motor], K_NO_WAIT) == -EBUSY) {
+        LOG_WRN("Motor %u auto-homing already in progress", motor);
+        return RET_ERROR_BUSY;
+    }
+
+    if (motor == MOTOR_HORIZONTAL) {
+        if (thread_ret) {
+            *thread_ret = &thread_data_motor_horizontal;
+        }
+        k_tid_t tid = k_thread_create(
+            &thread_data_motor_horizontal, stack_area_motor_horizontal_init,
+            K_THREAD_STACK_SIZEOF(stack_area_motor_horizontal_init),
+            motors_auto_homing_one_end_thread, (void *)MOTOR_HORIZONTAL, NULL,
+            NULL, THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
+        k_thread_name_set(tid, "motors_auto_homing_horizontal");
+    } else {
+        if (thread_ret) {
+            *thread_ret = &thread_data_motor_vertical;
+        }
+
+        k_timeout_t delay = (motors_refs[MOTOR_VERTICAL].motor_state ==
+                                     RET_ERROR_NOT_INITIALIZED
+                                 ? K_MSEC(2000)
+                                 : K_NO_WAIT);
+
+        k_tid_t tid = k_thread_create(
+            &thread_data_motor_vertical, stack_area_motor_vertical_init,
+            K_THREAD_STACK_SIZEOF(stack_area_motor_vertical_init),
+            motors_auto_homing_one_end_thread, (void *)MOTOR_VERTICAL, NULL,
+            NULL, THREAD_PRIORITY_MOTORS_INIT, 0, delay);
         k_thread_name_set(tid, "motors_auto_homing_vertical");
     }
 
@@ -907,8 +1053,8 @@ motors_init(void)
         ARRAY_SIZE(position_mode_full_speed[MOTOR_VERTICAL]));
 
     // auto-home after boot
-    motors_auto_homing(MOTOR_HORIZONTAL, NULL);
-    motors_auto_homing(MOTOR_VERTICAL, NULL);
+    motors_auto_homing_one_end(MOTOR_HORIZONTAL, NULL);
+    motors_auto_homing_one_end(MOTOR_VERTICAL, NULL);
 
     return RET_SUCCESS;
 }

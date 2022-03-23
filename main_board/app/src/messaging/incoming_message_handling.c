@@ -84,19 +84,46 @@ auto_homing_thread_entry_point(void *a, void *b, void *c)
     ARG_UNUSED(c);
 
     uint32_t ack_num = (uint32_t)a;
+    PerformMirrorHoming_Mode mode = (PerformMirrorHoming_Mode)b;
+    PerformMirrorHoming_Mirror mirror = (PerformMirrorHoming_Mirror)c;
+
     ret_code_t ret;
     struct k_thread *horiz = NULL, *vert = NULL;
 
-    ret = motors_auto_homing(MOTOR_HORIZONTAL, &horiz);
-    if (ret == RET_ERROR_BUSY) {
-        incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, ack_num);
-        goto leave;
-    }
-
-    ret = motors_auto_homing(MOTOR_VERTICAL, &vert);
-    if (ret == RET_ERROR_BUSY) {
-        incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, ack_num);
-        goto leave;
+    if (mode == PerformMirrorHoming_Mode_STALL_DETECTION) {
+        if (mirror == PerformMirrorHoming_Mirror_BOTH ||
+            mirror == PerformMirrorHoming_Mirror_HORIZONTAL) {
+            ret = motors_auto_homing_stall_detection(MOTOR_HORIZONTAL, &horiz);
+            if (ret == RET_ERROR_BUSY) {
+                incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, ack_num);
+                goto leave;
+            }
+        }
+        if (mirror == PerformMirrorHoming_Mirror_BOTH ||
+            mirror == PerformMirrorHoming_Mirror_VERTICAL) {
+            ret = motors_auto_homing_stall_detection(MOTOR_VERTICAL, &vert);
+            if (ret == RET_ERROR_BUSY) {
+                incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, ack_num);
+                goto leave;
+            }
+        }
+    } else if (mode == PerformMirrorHoming_Mode_ONE_BLOCKING_END) {
+        if (mirror == PerformMirrorHoming_Mirror_BOTH ||
+            mirror == PerformMirrorHoming_Mirror_HORIZONTAL) {
+            ret = motors_auto_homing_one_end(MOTOR_HORIZONTAL, &horiz);
+            if (ret == RET_ERROR_BUSY) {
+                incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, ack_num);
+                goto leave;
+            }
+        }
+        if (mirror == PerformMirrorHoming_Mirror_BOTH ||
+            mirror == PerformMirrorHoming_Mirror_VERTICAL) {
+            ret = motors_auto_homing_one_end(MOTOR_VERTICAL, &vert);
+            if (ret == RET_ERROR_BUSY) {
+                incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, ack_num);
+                goto leave;
+            }
+        }
     }
 
     k_thread_join(horiz, K_FOREVER);
@@ -435,6 +462,12 @@ handle_do_homing(McuMessage *msg)
 {
     MAKE_ASSERTS(JetsonToMcu_do_homing_tag);
 
+    PerformMirrorHoming_Mode mode =
+        msg->message.j_message.payload.do_homing.homing_mode;
+    PerformMirrorHoming_Mirror mirror =
+        msg->message.j_message.payload.do_homing.mirror;
+    LOG_DBG("Got do autohoming message, mode = %u, mirror = %u", mode, mirror);
+
     if (auto_homing_in_progress) {
         incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, get_ack_num(msg));
     } else {
@@ -442,7 +475,8 @@ handle_do_homing(McuMessage *msg)
         k_thread_create(&auto_homing_thread, auto_homing_stack,
                         K_THREAD_STACK_SIZEOF(auto_homing_stack),
                         auto_homing_thread_entry_point,
-                        (void *)get_ack_num(msg), NULL, NULL, 4, 0, K_NO_WAIT);
+                        (void *)get_ack_num(msg), (void *)mode, (void *)mirror,
+                        4, 0, K_NO_WAIT);
     }
 }
 

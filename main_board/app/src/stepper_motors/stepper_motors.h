@@ -64,18 +64,35 @@ ret_code_t
 motors_angle_vertical_relative(int32_t angle_millidegrees);
 
 /**
- * Perform auto-homing
- * @param motor (0 or 1)
- * @param thread_ret return a pointer to the thread info about thew spawned
- * auto-homing thread. This intended to be used for waiting on auto-homing to
- * finish
+ * Perform auto-homing using stall detection to detect both ends and go to the
+ * center based on measured range.
+ * @param motor MOTOR_VERTICAL or MOTOR_HORIZONTAL
+ * @param thread_ret optional, return a pointer to the thread info about thew
+ * spawned auto-homing thread. This intended to be used for waiting on
+ * auto-homing to finish
  * @return
  * * RET_SUCCESS auto-homing has started
  * * RET_ERROR_INTERNAL unable to spawn auto-homing thread
  * * RET_ERROR_FORBIDDEN auto-homing already in progress
  */
 ret_code_t
-motors_auto_homing(motor_t motor, struct k_thread **thread_ret);
+motors_auto_homing_stall_detection(motor_t motor, struct k_thread **thread_ret);
+
+/**
+ * Perform auto-homing by going to one end using the maximum nunmber of steps
+ * in the available mechanical range, then to center using half the range
+ * This method does not allow for blockers detection
+ * @param motor MOTOR_VERTICAL or MOTOR_HORIZONTAL
+ * @param thread_ret optional, return a pointer to the thread info about thew
+ * spawned auto-homing thread. This intended to be used for waiting on
+ * auto-homing to finish
+ * @return
+ * * RET_SUCCESS auto-homing has started
+ * * RET_ERROR_INTERNAL unable to spawn auto-homing thread
+ * * RET_ERROR_FORBIDDEN auto-homing already in progress
+ */
+ret_code_t
+motors_auto_homing_one_end(motor_t motor, struct k_thread **thread_ret);
 
 /**
  * Initiliazing motors
