@@ -20,6 +20,13 @@
     };
 
     jetson_power_pins {
+        shutdown_request {
+            gpios = <&gpiob 7 GPIO_ACTIVE_LOW>;
+
+            // input
+            // Jetson module uses this to request a shutdown sequence
+        };
+
         power_enable {
             gpios = <&gpioe 12 GPIO_ACTIVE_HIGH>;
         };

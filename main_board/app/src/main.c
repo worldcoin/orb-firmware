@@ -8,6 +8,7 @@
 #ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
 #include <ir_camera_system/ir_camera_system_test.h>
 #endif
+#include "button/button.h"
 #include "liquid_lens/liquid_lens.h"
 #include "messaging/incoming_message_handling.h"
 #include "sound/sound.h"
@@ -66,6 +67,7 @@ main(void)
     can_messaging_init(incoming_message_handle);
     dfu_init();
     temperature_init();
+    button_init();
 
 #ifdef CONFIG_TEST_MOTORS
     motors_tests_init();

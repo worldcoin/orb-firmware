@@ -83,6 +83,7 @@ set(SOURCES_FILES
     src/front_unit_rgb_leds/front_unit_led_patterns.c
 
     src/distributor_leds/distributor_leds.c
+    src/button/button.c
 
     src/ir_camera_system/ir_camera_timer_settings.c
     src/ir_camera_system/ir_camera_system_test.c
