@@ -1,7 +1,3 @@
-//
-// Created by Cyril on 22/12/2021.
-//
-
 #ifndef FIRMWARE_TIMER_SETTINGS_H
 #define FIRMWARE_TIMER_SETTINGS_H
 
@@ -20,6 +16,9 @@ struct ir_camera_timer_settings {
     uint16_t ccr; // on-time in timer unit (FREQ/(PSC+1))
     uint16_t on_time_in_us;
 };
+
+void
+timer_settings_print(const struct ir_camera_timer_settings *settings);
 
 ret_code_t
 timer_settings_from_on_time_us(

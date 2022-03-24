@@ -1,7 +1,3 @@
-//
-// Created by Cyril on 05/10/2021.
-//
-
 #ifndef ORB_FIRMWARE_APP_MAIN_INCLUDE_APP_CONFIG_H
 #define ORB_FIRMWARE_APP_MAIN_INCLUDE_APP_CONFIG_H
 

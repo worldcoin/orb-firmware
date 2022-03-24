@@ -10,6 +10,7 @@
 #include <zephyr.h>
 LOG_MODULE_REGISTER(power_sequence);
 
+#include "button/button.h"
 #include "power_sequence.h"
 
 K_THREAD_STACK_DEFINE(reboot_thread_stack, THREAD_STACK_SIZE_POWER_MANAGEMENT);
@@ -21,6 +22,7 @@ static const struct device *supply_1v8 = DEVICE_DT_GET(DT_PATH(supply_1v8));
 K_SEM_DEFINE(sem_reboot, 0, 1);
 static bool reboot_pending_shutdown_req_line = false;
 static uint32_t reboot_delay_s = 0;
+static struct gpio_callback shutdown_cb_data;
 
 #define FORMAT_STRING "Checking that %s is ready... "
 
@@ -291,7 +293,7 @@ shutdown_requested(const struct device *dev, struct gpio_callback *cb,
         gpio_pin_set(power_enable, POWER_ENABLE_PIN, DISABLE);
 
         if (reboot_pending_shutdown_req_line) {
-            // offload reboot to low-priority power management thread
+            // offload reboot to power management thread
             reboot_delay_s = 1;
             k_sem_give(&sem_reboot);
         } else {
@@ -327,11 +329,58 @@ reboot_thread()
     NVIC_SystemReset();
 }
 
+static int
+shutdown_req_init()
+{
+    // Jetson is launched, we can now activate shutdown detection
+    int ret;
+
+    ret = gpio_pin_configure_dt(&shutdown_pin, GPIO_INPUT);
+    if (ret != 0) {
+        LOG_ERR("Error %d: failed to configure %s pin %d", ret,
+                shutdown_pin.port->name, shutdown_pin.pin);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret =
+        gpio_pin_interrupt_configure_dt(&shutdown_pin, GPIO_INT_EDGE_TO_ACTIVE);
+    if (ret != 0) {
+        LOG_ERR("Error %d: failed to configure interrupt on %s pin %d", ret,
+                shutdown_pin.port->name, shutdown_pin.pin);
+        return RET_ERROR_INTERNAL;
+    }
+
+    gpio_init_callback(&shutdown_cb_data, shutdown_requested,
+                       BIT(shutdown_pin.pin));
+    ret = gpio_add_callback(shutdown_pin.port, &shutdown_cb_data);
+    if (ret != 0) {
+        LOG_ERR("Error %d: failed to add callback on %s pin %d", ret,
+                shutdown_pin.port->name, shutdown_pin.pin);
+        return RET_ERROR_INTERNAL;
+    }
+
+    return RET_SUCCESS;
+}
+
+__unused static int
+shutdown_req_uninit()
+{
+    int ret = gpio_pin_interrupt_configure_dt(&shutdown_pin, GPIO_INT_DISABLE);
+    if (ret) {
+        LOG_ERR("Error disabling shutdown req interrupt");
+        return ret;
+    }
+
+    ret = gpio_remove_callback(shutdown_pin.port, &shutdown_cb_data);
+    if (ret) {
+        LOG_ERR("Error removing shutdown req interrupt");
+    }
+    return ret;
+}
+
 int
 power_turn_on_jetson(void)
 {
-    static struct gpio_callback shutdown_cb_data;
-
     const struct device *sleep_wake = DEVICE_DT_GET(SLEEP_WAKE_CTLR);
     const struct device *shutdown_request =
         DEVICE_DT_GET(SHUTDOWN_REQUEST_CTLR);
@@ -389,33 +438,14 @@ power_turn_on_jetson(void)
     LOG_INF("Enabling LTE, GPS, and USB");
     gpio_pin_set(lte_gps_usb_reset, LTE_GPS_USB_RESET_PIN, LTE_GPS_USB_ON);
 
-    // Jetson is launched, we can now activate shutdown detection
-    int ret;
+#ifdef CONFIG_BOARD_MCU_MAIN_V31
+    // mainboard 3.0 uses PC13 and PE13 for shutdown request line and power
+    // button, so we enable interrupt on shutdown line only when necessary, see
+    // power_reboot_set_pending()
+    shutdown_req_init();
+#endif
 
-    ret = gpio_pin_configure_dt(&shutdown_pin, GPIO_INPUT);
-    if (ret != 0) {
-        LOG_ERR("Error %d: failed to configure %s pin %d", ret,
-                shutdown_pin.port->name, shutdown_pin.pin);
-        return RET_ERROR_INTERNAL;
-    }
-
-    ret =
-        gpio_pin_interrupt_configure_dt(&shutdown_pin, GPIO_INT_EDGE_TO_ACTIVE);
-    if (ret != 0) {
-        LOG_ERR("Error %d: failed to configure interrupt on %s pin %d", ret,
-                shutdown_pin.port->name, shutdown_pin.pin);
-        return RET_ERROR_INTERNAL;
-    }
-
-    gpio_init_callback(&shutdown_cb_data, shutdown_requested,
-                       BIT(shutdown_pin.pin));
-    ret = gpio_add_callback(shutdown_pin.port, &shutdown_cb_data);
-    if (ret != 0) {
-        LOG_ERR("Error %d: failed to add callback on %s pin %d", ret,
-                shutdown_pin.port->name, shutdown_pin.pin);
-        return RET_ERROR_INTERNAL;
-    }
-
+    // Spawn reboot thread
     k_tid_t tid = k_thread_create(
         &reboot_thread_data, reboot_thread_stack,
         K_THREAD_STACK_SIZEOF(reboot_thread_stack), reboot_thread, NULL, NULL,
@@ -475,6 +505,12 @@ power_reset(uint32_t delay_s)
 void
 power_reboot_set_pending(void)
 {
+#ifdef CONFIG_BOARD_MCU_MAIN_V30
+    // uninit button on GPIOC13 to allow enabling GPIOE13 interrupt
+    button_uninit();
+    shutdown_req_init();
+#endif
+
     reboot_pending_shutdown_req_line = true;
 }
 
@@ -482,4 +518,9 @@ void
 power_reboot_clear_pending(void)
 {
     reboot_pending_shutdown_req_line = false;
+
+#ifdef CONFIG_BOARD_MCU_MAIN_V30
+    shutdown_req_uninit();
+    button_init();
+#endif
 }

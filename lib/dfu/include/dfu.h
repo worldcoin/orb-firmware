@@ -1,7 +1,3 @@
-//
-// Created by Cyril on 12/11/2021.
-//
-
 #ifndef ORB_FIRMWARE_APP_MAIN_SRC_DFU_DFU_H
 #define ORB_FIRMWARE_APP_MAIN_SRC_DFU_DFU_H
 

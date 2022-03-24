@@ -145,7 +145,7 @@ test_on_time_with_corresponding_max_fps_plus_1(void)
 }
 
 static void
-test_on_time_set_valid_then_set_fps_to_zero_on_time_should_not_change(void)
+test_on_time_set_valid_then_set_fps_to_zero_on_time_should_be_zeroed(void)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -171,7 +171,7 @@ test_on_time_set_valid_then_set_fps_to_zero_on_time_should_not_change(void)
     zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
     zassert_not_equal(0, ts.ccr, "must not be 0, actual %u", ts.ccr);
 
-    // check that the on-time is preserved and FPS-related settings are cleared
+    // check that the on-time is zeroed and FPS-related settings are cleared
     fps = 0;
     ret = timer_settings_from_fps(fps, &ts, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
@@ -179,7 +179,7 @@ test_on_time_set_valid_then_set_fps_to_zero_on_time_should_not_change(void)
     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
     zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
     zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_not_equal(0, ts.ccr, "must not be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
 
     fps = 30;
     ret = timer_settings_from_fps(fps, &ts, &ts);
@@ -548,7 +548,7 @@ test_main(void)
             test_on_time_set_valid_then_increase_to_another_valid_value),
         ztest_unit_test(test_on_time_set_valid_then_lower_on_time),
         ztest_unit_test(
-            test_on_time_set_valid_then_set_fps_to_zero_on_time_should_not_change),
+            test_on_time_set_valid_then_set_fps_to_zero_on_time_should_be_zeroed),
         ztest_unit_test(test_on_time_with_corresponding_max_fps_plus_1),
         ztest_unit_test(test_on_time_with_corresponding_max_fps),
         ztest_unit_test(test_on_time_set_0us_with_0_fps),

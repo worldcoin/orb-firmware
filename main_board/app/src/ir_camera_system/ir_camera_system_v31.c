@@ -269,6 +269,16 @@ enable_clocks_and_configure_pins(void)
     return r;
 }
 
+static void
+zero_led_ccrs(void)
+{
+    set_timer_compare[LED_850NM_TIMER_LEFT_CHANNEL - 1](LED_850NM_TIMER, 0);
+    set_timer_compare[LED_850NM_TIMER_RIGHT_CHANNEL - 1](LED_850NM_TIMER, 0);
+    set_timer_compare[LED_940NM_TIMER_LEFT_CHANNEL - 1](LED_940NM_TIMER, 0);
+    set_timer_compare[LED_940NM_TIMER_RIGHT_CHANNEL - 1](LED_940NM_TIMER, 0);
+    set_timer_compare[LED_740NM_TIMER_CHANNEL - 1](LED_740NM_TIMER, 0);
+}
+
 static int
 setup_camera_triggers(void)
 {
@@ -389,6 +399,8 @@ ir_camera_system_set_740nm_led_brightness(uint32_t percentage)
 static void
 set_ccr_ir_leds(void)
 {
+    zero_led_ccrs();
+
     switch (enabled_led_wavelength) {
     case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
         set_timer_compare[LED_850NM_TIMER_LEFT_CHANNEL - 1](
@@ -465,7 +477,7 @@ apply_new_timer_settings()
     // register is deposited into the auto-reload register only on a timer
     // update, which will never occur if the auto-reload value was previously
     // zero. So in that case, we manually issue an update event.
-    if (old_timer_settings.fps == 0) {
+    if (old_timer_settings.arr == 0) {
         LL_TIM_GenerateEvent_UPDATE(CAMERA_TRIGGER_TIMER);
     }
 
@@ -663,6 +675,7 @@ ir_camera_system_set_fps(uint16_t fps)
         } else {
             apply_new_timer_settings();
         }
+        timer_settings_print(&global_timer_settings);
     }
 
     return ret;
@@ -683,6 +696,7 @@ ir_camera_system_set_on_time_us(uint16_t on_time_us)
         } else {
             apply_new_timer_settings();
         }
+        timer_settings_print(&global_timer_settings);
     }
 
     return ret;
@@ -693,14 +707,7 @@ ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength)
 {
     unsigned key = irq_lock();
 
-    set_timer_compare[LED_850NM_TIMER_LEFT_CHANNEL - 1](LED_850NM_TIMER, 0);
-    set_timer_compare[LED_850NM_TIMER_RIGHT_CHANNEL - 1](LED_850NM_TIMER, 0);
-    set_timer_compare[LED_940NM_TIMER_LEFT_CHANNEL - 1](LED_940NM_TIMER, 0);
-    set_timer_compare[LED_940NM_TIMER_RIGHT_CHANNEL - 1](LED_940NM_TIMER, 0);
-    set_timer_compare[LED_740NM_TIMER_CHANNEL - 1](LED_740NM_TIMER, 0);
-
     enabled_led_wavelength = wavelength;
-
     set_ccr_ir_leds();
 
     irq_unlock(key);

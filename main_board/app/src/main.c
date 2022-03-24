@@ -8,6 +8,7 @@
 #ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
 #include <ir_camera_system/ir_camera_system_test.h>
 #endif
+#include "button/button.h"
 #include "liquid_lens/liquid_lens.h"
 #include "messaging/incoming_message_handling.h"
 #include "sound/sound.h"
@@ -32,6 +33,15 @@ LOG_MODULE_REGISTER(main);
 #include <dfu/tests.h>
 #include <zephyr.h>
 
+#ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
+void
+main()
+{
+    __ASSERT(ir_camera_system_init() == 0,
+             "Error initializing IR camera system");
+    ir_camera_system_test();
+}
+#else // CONFIG_TEST_IR_CAMERA_SYSTEM
 void
 main(void)
 {
@@ -57,10 +67,8 @@ main(void)
     can_messaging_init(incoming_message_handle);
     dfu_init();
     temperature_init();
+    button_init();
 
-#ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
-    ir_camera_system_test();
-#endif
 #ifdef CONFIG_TEST_MOTORS
     motors_tests_init();
 #endif
@@ -102,3 +110,5 @@ main(void)
         }
     }
 }
+
+#endif // CONFIG_TEST_IR_CAMERA_SYSTEM

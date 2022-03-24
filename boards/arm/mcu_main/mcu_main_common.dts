@@ -92,12 +92,6 @@
 
     jetson_power_pins {
         compatible = "gpio-jetson-power";
-        shutdown_request {
-            gpios = <&gpioe 13 GPIO_ACTIVE_LOW>;
-
-            // input
-            // Jetson module uses this to request a shutdown sequence
-        };
 
         power_enable {
             // output

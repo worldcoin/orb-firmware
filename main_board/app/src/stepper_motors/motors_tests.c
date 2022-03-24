@@ -1,7 +1,3 @@
-//
-// Created by Cyril on 22/10/2021.
-//
-
 #include "motors_tests.h"
 #include "stepper_motors.h"
 #include <zephyr.h>
@@ -28,13 +24,12 @@ test_routine()
 
         k_msleep(10000);
 
-        for (int i = 0; i < 10; ++i) {
-            int angle_vertical = (sys_rand32_get() % 40000) - 20000;
-            int angle_horizontal = (sys_rand32_get() % 40000) + 25000;
-            err_code = motors_angle_vertical(angle_vertical);
-            err_code = motors_angle_horizontal(angle_horizontal);
-            k_msleep(1000);
-        }
+        // set to random position before restarting auto-homing
+        int angle_vertical = (sys_rand32_get() % 40000) - 20000;
+        int angle_horizontal = (sys_rand32_get() % 40000) + 25000;
+        err_code = motors_angle_vertical(angle_vertical);
+        err_code = motors_angle_horizontal(angle_horizontal);
+        k_msleep(1000);
     }
 }
 

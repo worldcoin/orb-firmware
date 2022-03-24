@@ -1,7 +1,3 @@
-//
-// Created by Cyril on 12/11/2021.
-//
-
 #include "tests.h"
 #include <logging/log.h>
 #define LOG_LEVEL LOG_LEVEL_DBG

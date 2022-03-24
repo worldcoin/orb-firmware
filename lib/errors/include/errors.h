@@ -1,7 +1,3 @@
-//
-// Created by Cyril on 17/06/2021.
-//
-
 #ifndef FIRMWARE_ORB_APP_INCLUDE_ERRORS_H
 #define FIRMWARE_ORB_APP_INCLUDE_ERRORS_H
 

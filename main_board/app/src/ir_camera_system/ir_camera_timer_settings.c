@@ -117,6 +117,7 @@ timer_settings_from_fps(uint16_t fps,
         ts.fps = 0;
         ts.psc = 0;
         ts.arr = 0;
+        ts.ccr = 0;
     } else if (fps > IR_CAMERA_SYSTEM_MAX_FPS) {
         ret = RET_ERROR_INVALID_PARAM;
     } else if (current_settings->on_time_in_us == 0) {
@@ -175,4 +176,14 @@ timer_settings_from_fps(uint16_t fps,
         *new_settings = ts;
     }
     return ret;
+}
+
+void
+timer_settings_print(const struct ir_camera_timer_settings *settings)
+{
+    LOG_DBG("fps           = %5u", settings->fps);
+    LOG_DBG("psc           = %5u", settings->psc);
+    LOG_DBG("arr           = %5u", settings->arr);
+    LOG_DBG("ccr           = %5u", settings->ccr);
+    LOG_DBG("on_time_in_us = %5u", settings->on_time_in_us);
 }

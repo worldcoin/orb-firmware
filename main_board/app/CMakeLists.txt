@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.20.0)
 set(TARGET app)
 
+# Options
+option(TEST_IR_CAMERA_SYSTEM "Run the IR camera system tests instead of the normal application on boot" OFF)
+if (TEST_IR_CAMERA_SYSTEM)
+    add_compile_definitions(CONFIG_TEST_IR_CAMERA_SYSTEM)
+endif()
+
 get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../ ABSOLUTE)
 get_filename_component(WORKSPACE_DIR ${PROJECT_DIR} DIRECTORY)
 
@@ -77,6 +83,7 @@ set(SOURCES_FILES
     src/front_unit_rgb_leds/front_unit_led_patterns.c
 
     src/distributor_leds/distributor_leds.c
+    src/button/button.c
 
     src/ir_camera_system/ir_camera_timer_settings.c
     src/ir_camera_system/ir_camera_system_test.c
