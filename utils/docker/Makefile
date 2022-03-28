@@ -11,8 +11,6 @@ help:
 	@:$(info )
 	@:$(info Optional env or cmd-line variables:)
 	@:$(info )
-	@:$(info MCU_DIR = path relative to $$REPO_DIR to the MCU you want to build (defaults to orb/main_board/app).)
-	@:$(info 			See also, targets `main` or `sec` to automatically use defaults for main and security boards)
 	@:$(info BOARD   = board option to give to `west build -b`.)
 	@:$(info )
 	@:$(info TARGETS:)
@@ -21,13 +19,12 @@ help:
 	@:$(info shell         : drop into the Docker container.)
 	@:$(info clean         : clean the Docker image.)
 	@:$(info )
-	@:$(info mcu-build     : build MCU code.)
-	@:$(info mcu-flash     : flash MCU code (also builds if necessary).)
-	@:$(info mcu-clean     : clean MCU code.)
-	@:$(info mcu-tests     : build and run MCU tests.)
+	@:$(info where mcu = [ main_board | sec_board ])
+	@:$(info <mcu>-build     : build MCU code.)
+	@:$(info <mcu>-flash     : flash MCU code (also builds if necessary).)
+	@:$(info <mcu>-clean     : clean MCU code.)
+	@:$(info <mcu>-tests     : build and run MCU tests.)
 	@:$(info )
-	@:$(info main <target> : set MCU_DIR to main MCU, to pass as a first command goal, before any mcu-* target)
-	@:$(info sec <target>  : set MCU_DIR to security MCU, to pass as a first command goal, before any mcu-* target)
 	@:$(info )
 	@:$(info Examples:)
 	@:$(info )
@@ -46,26 +43,6 @@ else
 
 ifndef REPO_DIR
 $(error REPO_DIR must be given in env or cmd line!)
-endif
-
-ifndef MCU_DIR
-MCU_DIR := $(REPO_DIR)/orb/main_board/app
-else
-override MCU_DIR := $(REPO_DIR)/$(MCU_DIR)
-endif
-
-# If the first argument is "main"...
-ifeq (main,$(firstword $(MAKECMDGOALS)))
-override MCU_DIR := $(REPO_DIR)/orb/main_board/app
-main:
-	@echo "Board: main"
-endif
-
-# If the first argument is "sec"...
-ifeq (sec,$(firstword $(MAKECMDGOALS)))
-override MCU_DIR := $(REPO_DIR)/orb/sec_board/app
-sec:
-	@echo "Board: security"
 endif
 
 ifdef BOARD
@@ -90,24 +67,20 @@ DOCKER_CMD := \
 shell:
 	$(DOCKER_CMD) /bin/bash
 
-.PHONY: mcu-build
-mcu-build:
+%-build:
 	$(DOCKER_CMD) /bin/bash -c -- \
-		'cd $(MCU_DIR) && west build $(BOARD_CMD)'
+		'cd $(REPO_DIR)/orb/$*/app && west build $(BOARD_CMD)'
 
-.PHONY: mcu-flash
-mcu-flash:
+%-flash:
 	$(DOCKER_CMD) /bin/bash -c -- \
-		'cd $(MCU_DIR) && west build $(BOARD_CMD) && su-exec root west flash'
+		'cd $(REPO_DIR)/orb/$*/app && west build $(BOARD_CMD) && su-exec root west flash'
 
-.PHONY: mcu-clean
-mcu-clean:
-	cd $(MCU_DIR) && rm -rf build
+%-clean:
+	cd $(REPO_DIR)/orb/$*/app && rm -rf build
 
-.PHONY: mcu-tests
-mcu-tests:
+%-tests:
 	$(DOCKER_CMD) /bin/bash -c -- \
-		'source zephyr/zephyr-env.sh && cd $(MCU_DIR) && twister -T . -vv -c'
+		'source $(REPO_DIR)/zephyr/zephyr-env.sh && cd $(REPO_DIR)/orb/$*/app && twister -T . -vv -c'
 
 .PHONY: format
 format:
