@@ -11,6 +11,6 @@ distributor_leds_set_pattern(
 void
 distributor_leds_off();
 int
-distributor_rgb_leds_init(void);
+distributor_leds_init(void);
 
 #endif // DISTRIBUTOR_LEDS_H

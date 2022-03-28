@@ -73,8 +73,7 @@ main(void)
 
     __ASSERT(front_unit_rgb_leds_init() == 0,
              "Error doing front unit RGB LEDs");
-    __ASSERT(distributor_rgb_leds_init() == 0,
-             "Error doing distributor RGB LEDs");
+    __ASSERT(distributor_leds_init() == 0, "Error doing distributor RGB LEDs");
 
     __ASSERT(power_turn_on_super_cap_charger() == 0,
              "Error enabling super cap charger");

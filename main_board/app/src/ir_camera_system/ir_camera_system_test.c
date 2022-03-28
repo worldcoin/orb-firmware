@@ -258,7 +258,7 @@ static void (*tests[])(void) = {
 };
 
 static void
-thread_entry_point(void *a, void *b, void *c)
+ir_camera_system_test_thread(void *a, void *b, void *c)
 {
     ARG_UNUSED(a);
     ARG_UNUSED(b);
@@ -284,12 +284,12 @@ ir_camera_system_test_async(void)
     k_thread_create(&ir_camera_system_thread_data,
                     ir_camera_system_test_stack_area,
                     K_THREAD_STACK_SIZEOF(ir_camera_system_test_stack_area),
-                    thread_entry_point, NULL, NULL, NULL,
+                    ir_camera_system_test_thread, NULL, NULL, NULL,
                     THREAD_PRIORITY_IR_CAMERA_SYSTEM_TEST, 0, K_NO_WAIT);
 }
 
 void
 ir_camera_system_test(void)
 {
-    thread_entry_point(NULL, NULL, NULL);
+    ir_camera_system_test_thread(NULL, NULL, NULL);
 }

@@ -7,7 +7,7 @@
 #include <random/rand32.h>
 LOG_MODULE_REGISTER(motors_test);
 
-K_THREAD_STACK_DEFINE(motors_test_thread_stack, 1024);
+static K_THREAD_STACK_DEFINE(motors_test_thread_stack, 1024);
 static struct k_thread test_thread_data;
 
 static void

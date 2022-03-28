@@ -88,7 +88,7 @@ distributor_leds_off()
 }
 
 int
-distributor_rgb_leds_init(void)
+distributor_leds_init(void)
 {
     const struct device *led_strip =
         DEVICE_DT_GET(DT_NODELABEL(distributor_rgb_leds));
