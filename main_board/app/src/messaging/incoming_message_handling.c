@@ -396,10 +396,17 @@ handle_distributor_leds_brightness(McuMessage *msg)
 {
     MAKE_ASSERTS(JetsonToMcu_distributor_leds_brightness_tag);
 
-    LOG_DBG("Got distributor LED brightness");
-    distributor_leds_set_brightness(
-        msg->message.j_message.payload.distributor_leds_brightness.brightness);
-    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    uint32_t brightness =
+        msg->message.j_message.payload.distributor_leds_brightness.brightness;
+    if (brightness > 255) {
+        LOG_ERR("Got user LED brightness value of %u out of range [0,255]",
+                brightness);
+        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+    } else {
+        LOG_DBG("Got distributor LED brightness: %u", brightness);
+        distributor_leds_set_brightness((uint8_t)brightness);
+        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    }
 }
 
 static void
