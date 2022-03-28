@@ -1,6 +1,8 @@
 #include "incoming_message_handling.h"
 #include "can_messaging.h"
 #include "dfu.h"
+#include "distributor_leds/distributor_leds.h"
+#include "mcu_messaging.pb.h"
 #include "power_sequence/power_sequence.h"
 #include <assert.h>
 #include <fan/fan.h>
@@ -379,6 +381,28 @@ handle_user_leds_brightness(McuMessage *msg)
 }
 
 static void
+handle_distributor_leds_pattern(McuMessage *msg)
+{
+    MAKE_ASSERTS(JetsonToMcu_distributor_leds_pattern_tag);
+
+    LOG_DBG("Got distributor LED pattern");
+    distributor_leds_set_pattern(
+        msg->message.j_message.payload.distributor_leds_pattern.pattern);
+    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+}
+
+static void
+handle_distributor_leds_brightness(McuMessage *msg)
+{
+    MAKE_ASSERTS(JetsonToMcu_distributor_leds_brightness_tag);
+
+    LOG_DBG("Got distributor LED brightness");
+    distributor_leds_set_brightness(
+        msg->message.j_message.payload.distributor_leds_brightness.brightness);
+    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+}
+
+static void
 handle_fw_img_crc(McuMessage *msg)
 {
     MAKE_ASSERTS(JetsonToMcu_fw_image_check_tag);
@@ -585,6 +609,10 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_led_on_time_tag] = handle_led_on_time_message,
     [JetsonToMcu_user_leds_pattern_tag] = handle_user_leds_pattern,
     [JetsonToMcu_user_leds_brightness_tag] = handle_user_leds_brightness,
+    [JetsonToMcu_distributor_leds_pattern_tag] =
+        handle_distributor_leds_pattern,
+    [JetsonToMcu_distributor_leds_brightness_tag] =
+        handle_distributor_leds_brightness,
     [JetsonToMcu_dfu_block_tag] = handle_dfu_block_message,
     [JetsonToMcu_start_triggering_ir_eye_camera_tag] =
         handle_start_triggering_ir_eye_camera_message,
