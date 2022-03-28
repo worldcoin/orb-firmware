@@ -1,3 +1,5 @@
+#include "front_unit_rgb_leds.h"
+#include "front_unit_led_patterns.h"
 #include <app_config.h>
 #include <device.h>
 #include <drivers/led_strip.h>
@@ -6,20 +8,18 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(front_unit_rgb_leds);
 
-#include "front_unit_led_patterns.h"
-#include "front_unit_rgb_leds.h"
-
-K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_FRONT_UNIT_RGB_LEDS);
+static K_THREAD_STACK_DEFINE(user_rgb_leds_stack_area,
+                             THREAD_STACK_SIZE_FRONT_UNIT_RGB_LEDS);
 static struct k_thread thread_data;
 
 static volatile UserLEDsPattern_UserRgbLedPattern global_pattern =
     UserLEDsPattern_UserRgbLedPattern_RANDOM_RAINBOW;
 static volatile uint8_t global_intensity = 20;
 
-K_SEM_DEFINE(sem, 0, 1);
+static K_SEM_DEFINE(sem, 0, 1);
 
-static void
-thread_entry_point(void *a, void *b, void *c)
+_Noreturn static void
+user_rgb_leds_thread(void *a, void *b, void *c)
 {
     ARG_UNUSED(b);
     ARG_UNUSED(c);
@@ -83,10 +83,11 @@ front_unit_rgb_leds_init(void)
         return RET_ERROR_INTERNAL;
     }
 
-    k_tid_t tid = k_thread_create(
-        &thread_data, stack_area, K_THREAD_STACK_SIZEOF(stack_area),
-        thread_entry_point, (void *)led_strip, NULL, NULL,
-        THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS, 0, K_NO_WAIT);
+    k_tid_t tid =
+        k_thread_create(&thread_data, user_rgb_leds_stack_area,
+                        K_THREAD_STACK_SIZEOF(user_rgb_leds_stack_area),
+                        user_rgb_leds_thread, (void *)led_strip, NULL, NULL,
+                        THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS, 0, K_NO_WAIT);
 
     k_thread_name_set(tid, "User RGB LED");
 

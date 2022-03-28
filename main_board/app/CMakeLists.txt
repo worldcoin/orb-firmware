@@ -81,11 +81,12 @@ set(SOURCES_FILES
 
     src/button/button.c
 
-    src/distributor_leds/distributor_leds.c
-    src/distributor_leds/distributor_leds_tests.c
-
     src/front_unit_rgb_leds/front_unit_rgb_leds.c
     src/front_unit_rgb_leds/front_unit_led_patterns.c
+    src/front_unit_rgb_leds/front_unit_rgb_leds_tests.c
+
+    src/distributor_leds/distributor_leds.c
+    src/distributor_leds/distributor_leds_tests.c
 
     src/ir_camera_system/ir_camera_timer_settings.c
     src/ir_camera_system/ir_camera_system_test.c

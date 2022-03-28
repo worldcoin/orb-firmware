@@ -9,6 +9,8 @@
 #include <ir_camera_system/ir_camera_system_test.h>
 #endif
 #include "button/button.h"
+#include "distributor_leds/distributor_leds_tests.h"
+#include "front_unit_rgb_leds/front_unit_rgb_leds_tests.h"
 #include "liquid_lens/liquid_lens.h"
 #include "messaging/incoming_message_handling.h"
 #include "sound/sound.h"
@@ -32,6 +34,27 @@ LOG_MODULE_REGISTER(main);
 #include <dfu.h>
 #include <dfu/tests.h>
 #include <zephyr.h>
+
+void
+run_tests()
+{
+#ifdef CONFIG_BOARD_STM32G484_EVAL
+    LOG_WRN("Running tests");
+    messaging_tests_init();
+#endif
+#ifdef CONFIG_TEST_MOTORS
+    motors_tests_init();
+#endif
+#ifdef CONFIG_TEST_DFU
+    tests_dfu_init();
+#endif
+#ifdef CONFIG_TEST_DISTRIBUTOR_LEDS
+    distributor_leds_tests_init();
+#endif
+#ifdef CONFIG_TEST_USER_LEDS
+    front_unit_rdb_leds_tests_init();
+#endif
+}
 
 #ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
 void
@@ -68,17 +91,8 @@ main(void)
     temperature_init();
     button_init();
 
-#ifdef CONFIG_TEST_MOTORS
-    motors_tests_init();
-#endif
-#ifdef CONFIG_BOARD_STM32G484_EVAL
-    LOG_WRN("Running tests");
-
-    messaging_tests_init();
-#endif
-#ifdef CONFIG_TEST_DFU
-    tests_dfu_init();
-#endif
+    // launch tests if any is defined
+    run_tests();
 
     // we consider the image working if no errors were reported before
     // Jetson sent first messages, and we didn't report any error

@@ -1,7 +1,7 @@
 #ifndef FRONT_UNIT_LED_PATTERNS_H
 #define FRONT_UNIT_LED_PATTERNS_H
 
-#include <zephyr.h>
+#include <device.h>
 
 // Intensity: 0 - 0xff to control brightness
 
