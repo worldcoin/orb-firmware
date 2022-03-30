@@ -548,12 +548,14 @@ ws2812_pwm_stm32_init(const struct device *dev)
     dma_channel = dma_ch2ll[config->dma_channel - 1u];
     LL_DMA_Init(dma, dma_channel, &dma_init);
 
-    // dma_channel ranging from 0 to DMA_MAX_CH-1
-    // using DMA1, channel1+dma_channel
-    irq_disable(DMA1_Channel1_IRQn + dma_channel);
-    irq_connect_dynamic(DMA1_Channel1_IRQn + dma_channel, 1, &dma_complete_isr,
-                        dev, 0);
-    irq_enable(DMA1_Channel1_IRQn + dma_channel);
+    // Connect dynamic IRQ to corresponding DMA1 channel by adding channel
+    // number to IRQn number. We use config->dma_channel as it directly
+    // corresponds to the channel number, from 1 to N (depending on how many
+    // channels are supported).
+    irq_disable(DMA1_Channel1_IRQn + config->dma_channel - 1u);
+    irq_connect_dynamic(DMA1_Channel1_IRQn + config->dma_channel - 1u, 1,
+                        &dma_complete_isr, dev, 0);
+    irq_enable(DMA1_Channel1_IRQn + config->dma_channel - 1u);
 
     irq_connect_dynamic(config->timer_up_irq_num, 1, &timer_wait_isr, dev, 0);
     irq_enable(config->timer_up_irq_num);
