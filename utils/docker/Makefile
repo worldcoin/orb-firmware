@@ -28,9 +28,8 @@ help:
 	@:$(info )
 	@:$(info Examples:)
 	@:$(info )
-	@:$(info make mcu-build REPO_DIR=/home/pdietl/firmware)
-	@:$(info make mcu-build REPO_DIR=/home/pdietl/firmware MCU_DIR=orb/main_board/app BOARD=mcu_main_v30)
-	@:$(info make main mcu-build REPO_DIR=/home/pdietl/firmware BOARD=mcu_main_v30)
+	@:$(info make main_mcu-build REPO_DIR=/home/pdietl/firmware)
+	@:$(info make main_mcu-tests REPO_DIR=/home/pdietl/firmware)
 
 .PHONY: all build
 all build: .docker_image_built
