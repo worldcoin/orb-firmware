@@ -3,10 +3,9 @@
 #include <app_config.h>
 #include <device.h>
 #include <drivers/led_strip.h>
+#include <logging/log.h>
 #include <random/rand32.h>
 #include <zephyr.h>
-
-#include <logging/log.h>
 LOG_MODULE_REGISTER(front_unit_rgb_leds);
 
 static K_THREAD_STACK_DEFINE(front_leds_stack_area,
