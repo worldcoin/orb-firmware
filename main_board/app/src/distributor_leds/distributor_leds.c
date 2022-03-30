@@ -80,13 +80,6 @@ distributor_leds_set_pattern(
     k_sem_give(&sem);
 }
 
-void
-distributor_leds_off()
-{
-    memset(leds, 0, sizeof leds);
-    k_sem_give(&sem);
-}
-
 int
 distributor_leds_init(void)
 {

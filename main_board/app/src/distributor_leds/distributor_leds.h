@@ -8,8 +8,6 @@ distributor_leds_set_brightness(uint8_t brightness);
 void
 distributor_leds_set_pattern(
     DistributorLEDsPattern_DistributorRgbLedPattern pattern);
-void
-distributor_leds_off();
 int
 distributor_leds_init(void);
 
