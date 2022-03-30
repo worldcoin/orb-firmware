@@ -1,21 +1,20 @@
-#include "distributor_leds/distributor_leds.h"
 #include "fan/fan.h"
-#include "front_unit_rgb_leds/front_unit_rgb_leds.h"
 #include "ir_camera_system/ir_camera_system.h"
 #include "power_sequence/power_sequence.h"
+#include "ui/distributor_leds/distributor_leds.h"
+#include "ui/front_leds/front_leds.h"
 #include <device.h>
 #include <drivers/gpio.h>
 #ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
 #include <ir_camera_system/ir_camera_system_test.h>
 #endif
-#include "button/button.h"
-#include "distributor_leds/distributor_leds_tests.h"
-#include "front_unit_rgb_leds/front_unit_rgb_leds_tests.h"
 #include "liquid_lens/liquid_lens.h"
 #include "messaging/incoming_message_handling.h"
 #include "sound/sound.h"
 #include "stepper_motors/motors_tests.h"
 #include "stepper_motors/stepper_motors.h"
+#include "ui/distributor_leds/distributor_leds_tests.h"
+#include "ui/front_leds/front_leds_tests.h"
 #include "version/version.h"
 
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
@@ -71,8 +70,7 @@ main(void)
     __ASSERT(power_turn_on_jetson() == 0, "Jetson power-on error");
     __ASSERT(init_sound() == 0, "Error initializing sound");
 
-    __ASSERT(front_unit_rgb_leds_init() == 0,
-             "Error doing front unit RGB LEDs");
+    __ASSERT(front_leds_init() == 0, "Error doing front unit RGB LEDs");
     __ASSERT(distributor_leds_init() == 0, "Error doing distributor RGB LEDs");
 
     __ASSERT(power_turn_on_super_cap_charger() == 0,

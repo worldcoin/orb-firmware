@@ -2,8 +2,8 @@
 // Copyright (c) 2022 Tools for Humanity. All rights reserved.
 //
 
-#include "front_unit_rgb_leds_tests.h"
-#include "front_unit_rgb_leds.h"
+#include "front_leds_tests.h"
+#include "front_leds.h"
 #include <app_config.h>
 #include <logging/log.h>
 #include <zephyr.h>
@@ -15,13 +15,13 @@ static struct k_thread test_thread_data;
 static void
 fu_rgb_leds_test_thread()
 {
-    front_unit_rgb_leds_set_brightness(0x10);
+    front_leds_set_brightness(0x10);
 
     while (1) {
         // test all patterns
         for (int i = UserLEDsPattern_UserRgbLedPattern_OFF;
              i <= UserLEDsPattern_UserRgbLedPattern_ALL_BLUE; ++i) {
-            front_unit_rgb_leds_set_pattern(i);
+            front_leds_set_pattern(i);
             k_msleep(1000);
         }
     }

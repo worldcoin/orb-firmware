@@ -1,12 +1,11 @@
 #include "incoming_message_handling.h"
 #include "can_messaging.h"
 #include "dfu.h"
-#include "distributor_leds/distributor_leds.h"
 #include "mcu_messaging.pb.h"
 #include "power_sequence/power_sequence.h"
+#include "ui/distributor_leds/distributor_leds.h"
 #include <assert.h>
 #include <fan/fan.h>
-#include <front_unit_rgb_leds/front_unit_rgb_leds.h>
 #include <heartbeat.h>
 #include <ir_camera_system/ir_camera_system.h>
 #include <liquid_lens/liquid_lens.h>
@@ -14,6 +13,7 @@
 #include <stdlib.h>
 #include <stepper_motors/stepper_motors.h>
 #include <temperature/temperature.h>
+#include <ui/front_leds/front_leds.h>
 #include <zephyr.h>
 
 LOG_MODULE_REGISTER(incoming_message_handling);
@@ -357,7 +357,7 @@ handle_user_leds_pattern(McuMessage *msg)
 
     LOG_DBG("Got new user RBG pattern message: %d", pattern);
 
-    front_unit_rgb_leds_set_pattern(pattern);
+    front_leds_set_pattern(pattern);
     incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
 }
 
@@ -375,7 +375,7 @@ handle_user_leds_brightness(McuMessage *msg)
         incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
     } else {
         LOG_DBG("Got user LED brightness value of %u", brightness);
-        front_unit_rgb_leds_set_brightness(brightness);
+        front_leds_set_brightness(brightness);
         incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
     }
 }

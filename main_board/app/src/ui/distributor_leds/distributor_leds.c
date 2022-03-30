@@ -9,16 +9,20 @@
 LOG_MODULE_REGISTER(distributor_leds);
 
 #include "distributor_leds.h"
+#include "ui/rgb_leds.h"
 
 static K_THREAD_STACK_DEFINE(distributor_leds_stack_area,
                              THREAD_STACK_SIZE_DISTRIBUTOR_RGB_LEDS);
 static struct k_thread distributor_leds_thread_data;
-static K_SEM_DEFINE(sem, 0, 1);
+static K_SEM_DEFINE(sem, 1, 1); // init to 1 to use default values below
 
-static struct led_rgb leds[5]; // fixme, length based on DTS
-static DistributorLEDsPattern_DistributorRgbLedPattern global_pattern =
-    DistributorLEDsPattern_DistributorRgbLedPattern_OFF;
-static uint8_t global_brightness = 0;
+#define NUM_LEDS DT_PROP(DT_NODELABEL(distributor_rgb_leds), num_leds)
+static struct led_rgb leds[NUM_LEDS];
+
+// default values
+static volatile DistributorLEDsPattern_DistributorRgbLedPattern global_pattern =
+    DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE;
+static uint8_t global_intensity = 20;
 
 _Noreturn static void
 distributor_leds_thread(void *a, void *b, void *c)
@@ -33,31 +37,19 @@ distributor_leds_thread(void *a, void *b, void *c)
 
         switch (global_pattern) {
         case DistributorLEDsPattern_DistributorRgbLedPattern_OFF:
-            memset(leds, 0, sizeof leds);
+            RGB_LEDS_OFF(leds);
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE:
-            memset(leds, global_brightness, sizeof leds);
+            RGB_LEDS_WHITE(leds, global_intensity);
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_RED:
-            for (int i = 0; i < ARRAY_SIZE(leds); ++i) {
-                leds[i].r = global_brightness;
-                leds[i].g = 0;
-                leds[i].b = 0;
-            }
+            RGB_LEDS_RED(leds, global_intensity);
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN:
-            for (int i = 0; i < ARRAY_SIZE(leds); ++i) {
-                leds[i].r = 0;
-                leds[i].g = global_brightness;
-                leds[i].b = 0;
-            }
+            RGB_LEDS_GREEN(leds, global_intensity);
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_BLUE:
-            for (int i = 0; i < ARRAY_SIZE(leds); ++i) {
-                leds[i].r = 0;
-                leds[i].g = 0;
-                leds[i].b = global_brightness;
-            }
+            RGB_LEDS_BLUE(leds, global_intensity);
             break;
         }
 
@@ -68,7 +60,7 @@ distributor_leds_thread(void *a, void *b, void *c)
 void
 distributor_leds_set_brightness(uint8_t brightness)
 {
-    global_brightness = brightness;
+    global_intensity = brightness;
     k_sem_give(&sem);
 }
 
