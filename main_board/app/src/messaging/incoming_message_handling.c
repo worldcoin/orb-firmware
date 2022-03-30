@@ -2,6 +2,7 @@
 #include "can_messaging.h"
 #include "dfu.h"
 #include "power_sequence/power_sequence.h"
+#include "version/version.h"
 #include <assert.h>
 #include <fan/fan.h>
 #include <front_unit_rgb_leds/front_unit_rgb_leds.h>
@@ -557,6 +558,19 @@ handle_mirror_angle_relative_message(McuMessage *msg)
     }
 }
 
+static void
+handle_fw_versions_get_message(McuMessage *msg)
+{
+    MAKE_ASSERTS(JetsonToMcu_fw_versions_get_tag);
+
+    LOG_DBG("Got FW version request");
+
+    // No possible error processing this message
+    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+
+    version_send();
+}
+
 typedef void (*hm_callback)(McuMessage *msg);
 
 // These functions ARE NOT allowed to block!
@@ -591,10 +605,11 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_heartbeat_tag] = handle_heartbeat,
     [JetsonToMcu_mirror_angle_relative_tag] =
         handle_mirror_angle_relative_message,
+    [JetsonToMcu_fw_versions_get_tag] = handle_fw_versions_get_message,
 };
 
 static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 33,
+    ARRAY_SIZE(handle_message_callbacks) <= 34,
     "It seems like the `handle_message_callbacks` array is too large");
 
 void
