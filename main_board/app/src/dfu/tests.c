@@ -78,7 +78,7 @@ test_dfu_upload()
 
     uint8_t buf_compare[DFU_BLOCK_SIZE_MAX];
     uint8_t buf_read_back[DFU_BLOCK_SIZE_MAX];
-    for (int i = 0; i < block_to_readback; ++i) {
+    for (uint32_t i = 0; i < block_to_readback; ++i) {
         memset(buf_compare, i + 1, sizeof(buf_compare));
         memset(buf_read_back, 0, sizeof(buf_read_back));
 

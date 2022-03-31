@@ -22,6 +22,9 @@ static void
 button_event_handler(const struct device *dev, struct gpio_callback *cb,
                      uint32_t pins)
 {
+    ARG_UNUSED(dev);
+    ARG_UNUSED(cb);
+
     if (pins & BIT(button_spec.pin)) {
         int ret = gpio_pin_get_dt(&button_spec);
         if (ret >= 0) {

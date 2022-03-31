@@ -19,8 +19,8 @@ test_routine()
     k_msleep(15000);
 
     while (1) {
-        motors_auto_homing(MOTOR_HORIZONTAL, NULL);
-        motors_auto_homing(MOTOR_VERTICAL, NULL);
+        motors_auto_homing_one_end(MOTOR_HORIZONTAL, NULL);
+        motors_auto_homing_one_end(MOTOR_VERTICAL, NULL);
 
         k_msleep(10000);
 
