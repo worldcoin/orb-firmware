@@ -1,5 +1,5 @@
 #include "dfu.h"
-#include "bootutil/bootutil.h"
+#include "bootutil/bootutil_public.h"
 #include "compilers.h"
 #include "errno.h"
 #include <devicetree.h>
