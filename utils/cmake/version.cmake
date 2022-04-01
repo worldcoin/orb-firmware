@@ -1,4 +1,17 @@
+include(${PROJECT_DIR}/utils/cmake/GetGitRevisionDescription.cmake)
+
 function(application_version app_version)
+    if(DEFINED BUILD_FROM_CI)
+        get_git_head_revision(branch hash ALLOW_LOOKING_ABOVE_CMAKE_SOURCE_DIR)
+        # cmake does not support {n} syntax to get the 8 digits
+        string(REGEX MATCH "^[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]" short_hash ${hash})
+        message(STATUS "Git branch: ${branch}, commit: ${short_hash}")
+        math(EXPR SHORT_HASH_DEC "0x${short_hash}" OUTPUT_FORMAT DECIMAL)
+    else()
+        set(SHORT_HASH_DEC 0)
+        message(STATUS "Not embedding commit hash in image version")
+    endif()
+
     file(READ ${CMAKE_CURRENT_SOURCE_DIR}/VERSION ver)
 
     string(REGEX MATCH "VERSION_MAJOR=([0-9]*)" _ ${ver})
@@ -10,10 +23,12 @@ function(application_version app_version)
     string(REGEX MATCH "VERSION_PATCH=([0-9]*)" _ ${ver})
     set(PROJECT_VERSION_PATCH ${CMAKE_MATCH_1})
 
-    set(CURRENT_VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
+    # use short hash as build number
+    set(CURRENT_VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}+${SHORT_HASH_DEC})
     set(${app_version} ${CURRENT_VERSION} PARENT_SCOPE)
 
     # append `--pad` to CONFIG_MCUBOOT_EXTRA_IMGTOOL_ARGS to mark the image as pending right from the binary
     # if not used, the primary slot app has to mark the secondary slot as pending (ready to be used)
-    file(WRITE ${CMAKE_BINARY_DIR}/app_version.conf "# generated from utils/cmake/version.cmake\r\nCONFIG_MCUBOOT_EXTRA_IMGTOOL_ARGS=\"--version ${CURRENT_VERSION}\"")
+    file(WRITE ${CMAKE_BINARY_DIR}/app_version.conf
+            "# generated from utils/cmake/version.cmake\r\nCONFIG_MCUBOOT_EXTRA_IMGTOOL_ARGS=\"--version ${CURRENT_VERSION}\"")
 endfunction()

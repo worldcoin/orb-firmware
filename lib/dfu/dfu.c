@@ -374,11 +374,11 @@ dfu_init(void)
         (struct image_header *)(flash_base_addr +
                                 DT_REG_ADDR(DT_NODELABEL(slot1_partition)));
 
-    LOG_INF("Primary slot version %u.%u.%u-%u", primary_slot->ih_ver.iv_major,
+    LOG_INF("Primary slot version %u.%u.%u-0x%x", primary_slot->ih_ver.iv_major,
             primary_slot->ih_ver.iv_minor, primary_slot->ih_ver.iv_revision,
             primary_slot->ih_ver.iv_build_num);
 
-    LOG_INF("Secondary slot version %u.%u.%u-%u",
+    LOG_INF("Secondary slot version %u.%u.%u-0x%x",
             secondary_slot->ih_ver.iv_major, secondary_slot->ih_ver.iv_minor,
             secondary_slot->ih_ver.iv_revision,
             secondary_slot->ih_ver.iv_build_num);
