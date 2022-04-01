@@ -606,6 +606,7 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_fw_image_check_tag] = handle_fw_img_crc,
     [JetsonToMcu_fw_image_secondary_activate_tag] = handle_fw_img_sec_activate,
     [JetsonToMcu_heartbeat_tag] = handle_heartbeat,
+    [JetsonToMcu_led_on_time_740nm_tag] = handle_led_on_time_740nm_message,
     [JetsonToMcu_mirror_angle_relative_tag] =
         handle_mirror_angle_relative_message,
 };
