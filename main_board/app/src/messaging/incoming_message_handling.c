@@ -1,6 +1,7 @@
 #include "incoming_message_handling.h"
 #include "can_messaging.h"
 #include "dfu.h"
+#include "mcu_messaging.pb.h"
 #include "power_sequence/power_sequence.h"
 #include "version/version.h"
 #include <assert.h>
@@ -559,16 +560,25 @@ handle_mirror_angle_relative_message(McuMessage *msg)
 }
 
 static void
-handle_fw_versions_get_message(McuMessage *msg)
+handle_value_get_message(McuMessage *msg)
 {
-    MAKE_ASSERTS(JetsonToMcu_fw_versions_get_tag);
+    MAKE_ASSERTS(JetsonToMcu_value_get_tag);
 
-    LOG_DBG("Got FW version request");
+    LOG_DBG("Got Value Get request");
 
-    // No possible error processing this message
+    ValueGet_Value value = msg->message.j_message.payload.value_get.value;
+    switch (value) {
+    case ValueGet_Value_FIRMWARE_VERSIONS:
+        version_send();
+        break;
+    default: {
+        // unknown value, respond with error
+        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        return;
+    }
+    }
+
     incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
-
-    version_send();
 }
 
 typedef void (*hm_callback)(McuMessage *msg);
@@ -605,7 +615,7 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_heartbeat_tag] = handle_heartbeat,
     [JetsonToMcu_mirror_angle_relative_tag] =
         handle_mirror_angle_relative_message,
-    [JetsonToMcu_fw_versions_get_tag] = handle_fw_versions_get_message,
+    [JetsonToMcu_value_get_tag] = handle_value_get_message,
 };
 
 static_assert(

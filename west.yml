@@ -16,7 +16,7 @@ manifest:
           - nanopb
 
     - name: protobuf-definitions
-      revision: e9066916b1aeab63de489dd737dbd0168de13643
+      revision: 12dc134a45e4226bd644a23e752174c36a56eea0
       path: modules/orb-protobuf-definitions
   self:
     path: orb
