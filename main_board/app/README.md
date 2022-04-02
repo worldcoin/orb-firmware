@@ -74,11 +74,11 @@ su-exec root west flash
 Firmware images are signed and encrypted. If you don't have development keys already created locally, then run
 `./generate_dev_keys` while in the directory `"$REPO_DIR"/utils/ota/`.
 
-### Timer allocations:
+### Timer allocations - Mainboard 3.1
 
 | Peripheral                     | Pin  | Timer | Timer Channel |
 | ------------------------------ | ---- | ----- | ------------- |
-| 740nm                          | PB0  | TIM1  | CH2N          |
+| 740nm                          | PB0  | TIM3  | CH3           |
 | 850nm Left                     | PB14 | TIM15 | CH1           |
 | 850nm Right                    | PB15 | TIM15 | CH2           |
 | 940nm Left                     | PE2  | TIM3  | CH1           |
