@@ -316,7 +316,9 @@ ISR_DIRECT_DECLARE(set_fps_isr)
     LL_TIM_DisableIT_UPDATE(CAMERA_TRIGGER_TIMER);
 
     LL_TIM_SetPrescaler(CAMERA_TRIGGER_TIMER, global_timer_settings.psc);
+    LL_TIM_SetPrescaler(LED_740NM_TIMER, global_timer_settings.psc);
     LL_TIM_SetAutoReload(CAMERA_TRIGGER_TIMER, global_timer_settings.arr);
+    LL_TIM_SetAutoReload(LED_740NM_TIMER, global_timer_settings.arr / 2);
 
     if (enable_ir_eye_camera) {
         LL_TIM_OC_SetCompareCH3(CAMERA_TRIGGER_TIMER,
@@ -380,9 +382,16 @@ ISR_DIRECT_DECLARE(set_fps_isr)
     }
 
     if (enabled_led_wavelength == InfraredLEDs_Wavelength_WAVELENGTH_740NM) {
-        LL_TIM_CC_EnableChannel(LED_740NM_TIMER, LED_740NM_TIMER_CHANNEL);
+        static_assert(LED_740NM_TIMER_CHANNEL == LL_TIM_CHANNEL_CH2,
+                      "Need to change the function call here to the new 740nm "
+                      "timer channel");
+        LL_TIM_OC_SetCompareCH2(LED_740NM_TIMER,
+                                global_timer_settings.ccr_740nm);
     } else {
-        LL_TIM_CC_DisableChannel(LED_740NM_TIMER, LED_740NM_TIMER_CHANNEL);
+        static_assert(LED_740NM_TIMER_CHANNEL == LL_TIM_CHANNEL_CH2,
+                      "Need to change the function call here to the new 740nm "
+                      "timer channel");
+        LL_TIM_OC_SetCompareCH2(LED_740NM_TIMER, 0);
     }
 
     if (global_timer_settings.fps != 0) {
@@ -481,7 +490,7 @@ setup_740nm(void)
 
     init.Prescaler = 0;
     init.CounterMode = LL_TIM_COUNTERMODE_UP;
-    init.Autoreload = 17;
+    init.Autoreload = 0;
     init.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
 
     if (LL_TIM_Init(LED_740NM_TIMER, &init) != SUCCESS) {
@@ -506,22 +515,26 @@ setup_740nm(void)
         return -EIO;
     }
 
+    LL_TIM_SetOnePulseMode(LED_740NM_TIMER, LL_TIM_ONEPULSEMODE_REPETITIVE);
+
+    LL_TIM_SetUpdateSource(LED_740NM_TIMER, LL_TIM_UPDATESOURCE_COUNTER);
+
+    LL_TIM_SetSlaveMode(LED_740NM_TIMER,
+                        LL_TIM_SLAVEMODE_COMBINED_RESETTRIGGER);
+    static_assert(CAMERA_TRIGGER_TIMER == TIM3,
+                  "The slave mode trigger input source needs to be changed "
+                  "here if CAMERA_TRIGGER_TIMER is not longer timer 3");
+
+    LL_TIM_SetTriggerInput(LED_740NM_TIMER,
+                           LL_TIM_TS_ITR2); // timer 3
+
+    LL_TIM_OC_EnablePreload(LED_740NM_TIMER, LED_740NM_TIMER_CHANNEL);
+
     LL_TIM_EnableARRPreload(LED_740NM_TIMER);
 
     LL_TIM_EnableCounter(LED_740NM_TIMER);
 
     return 0;
-}
-
-ret_code_t
-ir_camera_system_set_740nm_led_brightness(uint32_t percentage)
-{
-    if (percentage > 100) {
-        return RET_ERROR_INVALID_PARAM;
-    }
-
-    LL_TIM_OC_SetCompareCH2(LED_740NM_TIMER, (65535U * percentage) / 100);
-    return RET_SUCCESS;
 }
 
 static void
@@ -543,6 +556,24 @@ setup_timer_settings_change()
     }
 
     old_timer_settings = global_timer_settings;
+}
+
+ret_code_t
+ir_camera_system_set_on_time_740nm_us(uint16_t on_time_us)
+{
+    static_assert(
+        LED_740NM_TIMER_CHANNEL == LL_TIM_CHANNEL_CH2,
+        "Need to change the function call here to the new 740nm timer channel");
+
+    ret_code_t ret = timer_740nm_ccr_from_on_time_us(
+        on_time_us, &global_timer_settings, &global_timer_settings);
+
+    if (ret == RET_SUCCESS) {
+        setup_timer_settings_change();
+        LL_TIM_ClearFlag_UPDATE(CAMERA_TRIGGER_TIMER);
+    }
+
+    return ret;
 }
 
 ret_code_t
@@ -645,6 +676,9 @@ setup_940nm_850nm_common(void)
     LL_TIM_SetUpdateSource(CLEAR_TIMER, LL_TIM_UPDATESOURCE_COUNTER);
 
     LL_TIM_SetSlaveMode(CLEAR_TIMER, LL_TIM_SLAVEMODE_COMBINED_RESETTRIGGER);
+    static_assert(CAMERA_TRIGGER_TIMER == TIM3,
+                  "The slave mode trigger input source needs to be changed "
+                  "here if CAMERA_TRIGGER_TIMER is not longer timer 3");
     LL_TIM_SetTriggerInput(CLEAR_TIMER, LL_TIM_TS_ITR2); // timer 3
 
     IRQ_DIRECT_CONNECT(CLEAR_TIMER_IRQn, 2, hrtim_clear_isr, 0);

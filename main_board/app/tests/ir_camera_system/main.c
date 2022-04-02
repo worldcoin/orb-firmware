@@ -88,6 +88,86 @@ test_on_time_over_max_with_0_fps(void)
 }
 
 static void
+test_on_time_within_45_percent_duty_cycle_740nm(void)
+{
+    struct ir_camera_timer_settings settings = {0};
+    uint16_t fps = 0;
+
+    // Turn off settings
+    timer_settings_from_fps(fps, &settings, &settings);
+
+    // FPS = 0 so no CCR calculation
+    int ret = timer_740nm_ccr_from_on_time_us(12, &settings, &settings);
+    zassert_equal(0, settings.ccr_740nm, "must be 0, actual %u",
+                  settings.ccr_740nm);
+    zassert_equal(RET_ERROR_INVALID_STATE, ret,
+                  "must be RET_INVALID_STATE, actual %u", ret);
+
+    fps = 1;
+    timer_settings_from_fps(fps, &settings, &settings);
+
+    // under limit
+    timer_740nm_ccr_from_on_time_us(100000, &settings, &settings);
+    zassert_equal((uint16_t)(settings.arr / 2 * 0.2), settings.ccr_740nm,
+                  "expected %u, but got %u", (uint16_t)(settings.arr / 2 * 0.2),
+                  settings.ccr_740nm);
+
+    // at limit
+    timer_740nm_ccr_from_on_time_us(225000, &settings, &settings);
+    zassert_within((uint16_t)(settings.arr / 2 * 0.45), settings.ccr_740nm, 1,
+                   "expected %u, but got %u", (uint16_t)(settings.arr * 0.45),
+                   settings.ccr_740nm);
+
+    // over limit
+    timer_740nm_ccr_from_on_time_us(300000, &settings, &settings);
+    zassert_within((uint16_t)(settings.arr / 2 * 0.45), settings.ccr_740nm, 1,
+                   "expected %u, but got %u", (uint16_t)(settings.arr * 0.45),
+                   settings.ccr_740nm);
+
+    fps = 30;
+    timer_settings_from_fps(fps, &settings, &settings);
+
+    // under limit
+    timer_740nm_ccr_from_on_time_us(5000, &settings, &settings);
+    zassert_within((uint16_t)(settings.arr / 2 * 0.3), settings.ccr_740nm, 1,
+                   "expected %u, but got %u", (uint16_t)(settings.arr * 0.2),
+                   settings.ccr_740nm);
+
+    // at limit
+    timer_740nm_ccr_from_on_time_us(7500, &settings, &settings);
+    zassert_within((uint16_t)(settings.arr / 2 * 0.45), settings.ccr_740nm, 1,
+                   "expected %u, but got %u", (uint16_t)(settings.arr * 0.45),
+                   settings.ccr_740nm);
+
+    // over limit
+    timer_740nm_ccr_from_on_time_us(10000, &settings, &settings);
+    zassert_within((uint16_t)(settings.arr / 2 * 0.45), settings.ccr_740nm, 1,
+                   "expected %u, but got %u", (uint16_t)(settings.arr * 0.45),
+                   settings.ccr_740nm);
+
+    fps = 60;
+    timer_settings_from_fps(fps, &settings, &settings);
+
+    // under limit
+    timer_740nm_ccr_from_on_time_us(500, &settings, &settings);
+    zassert_within((uint16_t)(settings.arr / 2 * 0.06), settings.ccr_740nm, 1,
+                   "expected %u, but got %u", (uint16_t)(settings.arr * 0.06),
+                   settings.ccr_740nm);
+
+    // at limit
+    timer_740nm_ccr_from_on_time_us(3750, &settings, &settings);
+    zassert_within((uint16_t)(settings.arr / 2 * 0.45), settings.ccr_740nm, 1,
+                   "expected %u, but got %u", (uint16_t)(settings.arr * 0.45),
+                   settings.ccr_740nm);
+
+    // over limit
+    timer_740nm_ccr_from_on_time_us(5000, &settings, &settings);
+    zassert_within((uint16_t)(settings.arr / 2 * 0.45), settings.ccr_740nm, 1,
+                   "expected %u, but got %u", (uint16_t)(settings.arr * 0.45),
+                   settings.ccr_740nm);
+}
+
+static void
 test_on_time_with_corresponding_max_fps(void)
 {
     struct ir_camera_timer_settings settings = {0};
@@ -567,6 +647,11 @@ test_main(void)
         ztest_unit_test(test_fps_under_max_fps_0_on_time),
         ztest_unit_test(test_fps_set_valid_then_invalid_on_time));
 
-    ztest_run_test_suite(ir_camera_test_timer_settings_fps);
+    ztest_test_suite(
+        ir_740nm_tests,
+        ztest_unit_test(test_on_time_within_45_percent_duty_cycle_740nm));
+
     ztest_run_test_suite(ir_camera_test_timer_settings_on_time);
+    ztest_run_test_suite(ir_camera_test_timer_settings_fps);
+    ztest_run_test_suite(ir_740nm_tests);
 }

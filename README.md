@@ -173,8 +173,11 @@ python "$REPO_DIR"/orb/utils/debug/uart_dump.py -p /dev/ttyxxx -b 115200
 
 ### Pre-commit hooks
 
+These pre-commit hooks will be checked in CI, so it behooves you to install them now.
+This requires the `pre-commit` python package to be installed like so: `pip3 install pre-commit`.
+
 ```shell
-cd "$REPO_DIR" && pre-commit install -c orb/utils/format/pre-commit-config.yaml
+cd "$REPO_DIR"/orb && pre-commit install -c utils/format/pre-commit-config.yaml
 ```
 
 ### Check Formatting

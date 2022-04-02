@@ -11,23 +11,25 @@ help:
 	@:$(info )
 	@:$(info Optional env or cmd-line variables:)
 	@:$(info )
-	@:$(info MCU_DIR = path relative to $$REPO_DIR to the MCU you want to build (defaults to orb/main_board/app).)
 	@:$(info BOARD   = board option to give to `west build -b`.)
 	@:$(info )
 	@:$(info TARGETS:)
 	@:$(info )
-	@:$(info all/build : build the Docker image.)
-	@:$(info shell     : drop into the Docker container.)
-	@:$(info clean     : clean the Docker image.)
+	@:$(info all/build     : build the Docker image.)
+	@:$(info shell         : drop into the Docker container.)
+	@:$(info clean         : clean the Docker image.)
 	@:$(info )
-	@:$(info mcu-build : build MCU code.)
-	@:$(info mcu-flash : flash MCU code (also builds if necessary).)
-	@:$(info mcu-clean : clean MCU code.)
+	@:$(info where mcu = [ main_board | sec_board ])
+	@:$(info <mcu>-build     : build MCU code.)
+	@:$(info <mcu>-flash     : flash MCU code (also builds if necessary).)
+	@:$(info <mcu>-clean     : clean MCU code.)
+	@:$(info <mcu>-tests     : build and run MCU tests.)
+	@:$(info )
 	@:$(info )
 	@:$(info Examples:)
 	@:$(info )
-	@:$(info make mcu-build REPO_DIR=/home/pdietl/firmware)
-	@:$(info make mcu-build REPO_DIR=/home/pdietl/firmware MCU_DIR=orb/main_board/app BOARD=mcu_main_v30)
+	@:$(info make main_mcu-build REPO_DIR=/home/pdietl/firmware)
+	@:$(info make main_mcu-tests REPO_DIR=/home/pdietl/firmware)
 
 .PHONY: all build
 all build: .docker_image_built
@@ -40,12 +42,6 @@ else
 
 ifndef REPO_DIR
 $(error REPO_DIR must be given in env or cmd line!)
-endif
-
-ifndef MCU_DIR
-MCU_DIR := $(REPO_DIR)/orb/main_board/app
-else
-override MCU_DIR := $(REPO_DIR)/$(MCU_DIR)
 endif
 
 ifdef BOARD
@@ -70,19 +66,20 @@ DOCKER_CMD := \
 shell:
 	$(DOCKER_CMD) /bin/bash
 
-.PHONY: mcu-build
-mcu-build:
+%-build:
 	$(DOCKER_CMD) /bin/bash -c -- \
-		'cd $(MCU_DIR) && west build $(BOARD_CMD)'
+		'cd $(REPO_DIR)/orb/$*/app && west build $(BOARD_CMD)'
 
-.PHONY: mcu-flash
-mcu-flash:
+%-flash:
 	$(DOCKER_CMD) /bin/bash -c -- \
-		'cd $(MCU_DIR) && west build $(BOARD_CMD) && su-exec root west flash'
+		'cd $(REPO_DIR)/orb/$*/app && west build $(BOARD_CMD) && su-exec root west flash'
 
-.PHONY: mcu-clean
-mcu-clean:
-	cd $(MCU_DIR) && rm -rf build
+%-clean:
+	cd $(REPO_DIR)/orb/$*/app && rm -rf build
+
+%-tests:
+	$(DOCKER_CMD) /bin/bash -c -- \
+		'source $(REPO_DIR)/zephyr/zephyr-env.sh && cd $(REPO_DIR)/orb/$*/app && twister -T . -vv -c'
 
 .PHONY: format
 format:
