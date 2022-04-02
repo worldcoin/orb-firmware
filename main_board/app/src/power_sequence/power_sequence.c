@@ -289,6 +289,9 @@ static void
 shutdown_requested(const struct device *dev, struct gpio_callback *cb,
                    uint32_t pins)
 {
+    ARG_UNUSED(dev);
+    ARG_UNUSED(cb);
+
     if (pins & BIT(shutdown_pin.pin)) {
         gpio_pin_set(power_enable, POWER_ENABLE_PIN, DISABLE);
 
