@@ -755,7 +755,8 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 
                 // verify that motor moved at least
                 // `motors_full_course_minimum_steps`
-                if (abs(x) < motors_full_course_minimum_steps[motor]) {
+                if ((uint32_t)abs(x) <
+                    motors_full_course_minimum_steps[motor]) {
                     LOG_ERR(
                         "Motor %u range: %u microsteps, must be more than %u",
                         motor, abs(x),
@@ -876,6 +877,9 @@ motors_homed_successfully(void)
 static void
 motors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
 {
+    ARG_UNUSED(p2);
+    ARG_UNUSED(p3);
+
     uint32_t motor = (uint32_t)p1;
     uint32_t status = 0;
     int32_t timeout = AUTOHOMING_TIMEOUT_LOOP_COUNT;
