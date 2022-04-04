@@ -10,21 +10,21 @@
 #define RGB_LEDS_WHITE(leds, brightness) memset(leds, brightness, sizeof leds)
 
 #define RGB_LEDS_RED(leds, brightness)                                         \
-    for (int i = 0; i < ARRAY_SIZE(leds); ++i) {                               \
+    for (size_t i = 0; i < ARRAY_SIZE(leds); ++i) {                            \
         leds[i].r = brightness;                                                \
         leds[i].g = 0;                                                         \
         leds[i].b = 0;                                                         \
     }
 
 #define RGB_LEDS_GREEN(leds, brightness)                                       \
-    for (int i = 0; i < ARRAY_SIZE(leds); ++i) {                               \
+    for (size_t i = 0; i < ARRAY_SIZE(leds); ++i) {                            \
         leds[i].r = 0;                                                         \
         leds[i].g = brightness;                                                \
         leds[i].b = 0;                                                         \
     }
 
 #define RGB_LEDS_BLUE(leds, brightness)                                        \
-    for (int i = 0; i < ARRAY_SIZE(leds); ++i) {                               \
+    for (size_t i = 0; i < ARRAY_SIZE(leds); ++i) {                            \
         leds[i].r = 0;                                                         \
         leds[i].g = 0;                                                         \
         leds[i].b = brightness;                                                \
