@@ -1,6 +1,8 @@
+#include "sysflash/sysflash.h"
 #include <app_config.h>
 #include <arch/cpu.h>
 #include <assert.h>
+#include <bootutil/bootutil.h>
 #include <device.h>
 #include <drivers/gpio.h>
 #include <drivers/regulator.h>
@@ -11,6 +13,7 @@
 LOG_MODULE_REGISTER(power_sequence);
 
 #include "button/button.h"
+#include "front_unit_rgb_leds/front_unit_rgb_leds.h"
 #include "power_sequence.h"
 
 K_THREAD_STACK_DEFINE(reboot_thread_stack, THREAD_STACK_SIZE_POWER_MANAGEMENT);
@@ -199,14 +202,10 @@ SYS_INIT(power_turn_on_essential_supplies, POST_KERNEL, 55);
 #define POWER_BUTTON_PIN   DT_GPIO_PIN(POWER_BUTTON_NODE, gpios)
 #define POWER_BUTTON_FLAGS DT_GPIO_FLAGS(POWER_BUTTON_NODE, gpios)
 
-int
-power_wait_for_power_button_press(const struct device *dev)
+static int
+power_wait_for_power_button_press(void)
 {
-    ARG_UNUSED(dev);
-
     const struct device *power_button = DEVICE_DT_GET(POWER_BUTTON_CTLR);
-
-    LOG_INF("Hello from " CONFIG_BOARD " :)");
 
     if (!device_is_ready(power_button)) {
         LOG_ERR("power button is not ready!");
@@ -234,17 +233,51 @@ power_wait_for_power_button_press(const struct device *dev)
         k_msleep(BUTTON_SAMPLE_PERIOD_MS);
     }
 
+    return 0;
+}
+
+/**
+ * Decide whether to wait for user to press the button to start the Orb
+ * or to directly boot the Orb (after fresh update)
+ * @param dev
+ * @return error code
+ */
+int
+app_init_state(const struct device *dev)
+{
+    ARG_UNUSED(dev);
+
+    int ret = 0;
+
+    LOG_INF("Hello from " CONFIG_BOARD " :)");
+
+    // read image status to know whether we are waiting for user to press
+    // the button
+    struct boot_swap_state primary_slot = {0};
+    boot_read_swap_state_by_id(FLASH_AREA_IMAGE_PRIMARY(0), &primary_slot);
+
+    LOG_DBG("Magic: %u, swap type: %u, image_ok: %u", primary_slot.magic,
+            primary_slot.swap_type, primary_slot.image_ok);
+
+    // if FW image is confirmed, gate turning on power supplies on button press
+    // otherwise, application have been updated and not confirmed, boot Jetson
+    if (primary_slot.image_ok != BOOT_FLAG_UNSET) {
+        ret = power_wait_for_power_button_press();
+    } else {
+        LOG_INF("Firmware image not confirmed");
+    }
     LOG_INF("Booting system...");
 
-    return 0;
+    return ret;
 }
 
 static_assert(WAIT_FOR_BUTTON_PRESS_PRIORITY == 53,
               "update the integer literal here");
 
-// Gate turning on power supplies on button press
+// Gate turning on power supplies on button press or if image isn't confirmed
+// (freshly updated)
 // We must use an integer literal. Thanks C macros!
-SYS_INIT(power_wait_for_power_button_press, POST_KERNEL, 53);
+SYS_INIT(app_init_state, POST_KERNEL, 53);
 
 #define SLEEP_WAKE_NODE  DT_PATH(jetson_power_pins, sleep_wake)
 #define SLEEP_WAKE_CTLR  DT_GPIO_CTLR(SLEEP_WAKE_NODE, gpios)
@@ -328,7 +361,22 @@ reboot_thread()
 
     LOG_INF("Rebooting in %u seconds", reboot_delay_s);
 
+    struct boot_swap_state secondary_slot = {0};
+    boot_read_swap_state_by_id(FLASH_AREA_IMAGE_SECONDARY(0), &secondary_slot);
+    LOG_DBG("Secondary Magic: %u, swap type: %u, image_ok: %u",
+            secondary_slot.magic, secondary_slot.swap_type,
+            secondary_slot.image_ok);
+
     k_msleep(reboot_delay_s * 1000);
+
+    // check if a new firmware image is about to be installed
+    // turn on center LEDs in white during update
+    if (secondary_slot.magic == BOOT_MAGIC_GOOD) {
+        front_unit_rgb_leds_set_pattern(
+            UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_ONLY_CENTER);
+        k_msleep(500);
+    }
+
     NVIC_SystemReset();
 }
 
