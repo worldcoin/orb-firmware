@@ -83,6 +83,9 @@ front_leds_thread(void *a, void *b, void *c)
         case UserLEDsPattern_UserRgbLedPattern_ALL_BLUE:
             RGB_LEDS_BLUE(leds, global_intensity);
             break;
+        default:
+            LOG_ERR("Unhandled LED pattern: %u", global_pattern);
+            continue;
         }
 
         // update LEDs

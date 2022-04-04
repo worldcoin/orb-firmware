@@ -1,7 +1,3 @@
-//
-// Copyright (c) 2022 Tools for Humanity. All rights reserved.
-//
-
 #include "front_leds_tests.h"
 #include "front_leds.h"
 #include <app_config.h>

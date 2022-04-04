@@ -1,7 +1,3 @@
-//
-// Copyright (c) 2022 Tools for Humanity. All rights reserved.
-//
-
 #include "version.h"
 #include <can_messaging.h>
 #include <dfu.h>
