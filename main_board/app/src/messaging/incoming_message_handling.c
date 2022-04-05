@@ -131,12 +131,6 @@ auto_homing_thread_entry_point(void *a, void *b, void *c)
     k_thread_join(horiz, K_FOREVER);
     k_thread_join(vert, K_FOREVER);
 
-    if (motors_homed_successfully()) {
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, ack_num);
-    } else {
-        incoming_message_ack(Ack_ErrorCode_FAIL, ack_num);
-    }
-
 leave:
     auto_homing_in_progress = false;
 }
@@ -525,6 +519,9 @@ handle_do_homing(McuMessage *msg)
                         auto_homing_thread_entry_point,
                         (void *)get_ack_num(msg), (void *)mode, (void *)mirror,
                         4, 0, K_NO_WAIT);
+
+        // send ack before timeout even though auto-homing not completed
+        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
     }
 }
 
