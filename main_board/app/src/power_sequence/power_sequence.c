@@ -13,8 +13,8 @@
 LOG_MODULE_REGISTER(power_sequence);
 
 #include "button/button.h"
-#include "front_unit_rgb_leds/front_unit_rgb_leds.h"
 #include "power_sequence.h"
+#include "ui/front_leds/front_leds.h"
 
 K_THREAD_STACK_DEFINE(reboot_thread_stack, THREAD_STACK_SIZE_POWER_MANAGEMENT);
 static struct k_thread reboot_thread_data;
@@ -372,7 +372,7 @@ reboot_thread()
     // check if a new firmware image is about to be installed
     // turn on center LEDs in white during update
     if (secondary_slot.magic == BOOT_MAGIC_GOOD) {
-        front_unit_rgb_leds_set_pattern(
+        front_leds_set_pattern(
             UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_ONLY_CENTER);
         k_msleep(500);
     }
