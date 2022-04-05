@@ -79,11 +79,12 @@ set(SOURCES_FILES
     src/fan/fan.c
     src/sound/sound.c
 
-    src/front_unit_rgb_leds/front_unit_rgb_leds.c
-    src/front_unit_rgb_leds/front_unit_led_patterns.c
-
-    src/distributor_leds/distributor_leds.c
     src/button/button.c
+
+    src/ui/front_leds/front_leds.c
+    src/ui/front_leds/front_leds_tests.c
+    src/ui/distributor_leds/distributor_leds.c
+    src/ui/distributor_leds/distributor_leds_tests.c
 
     src/ir_camera_system/ir_camera_timer_settings.c
     src/ir_camera_system/ir_camera_system_test.c

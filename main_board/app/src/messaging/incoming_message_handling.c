@@ -3,10 +3,10 @@
 #include "dfu.h"
 #include "mcu_messaging.pb.h"
 #include "power_sequence/power_sequence.h"
+#include "ui/distributor_leds/distributor_leds.h"
 #include "version/version.h"
 #include <assert.h>
 #include <fan/fan.h>
-#include <front_unit_rgb_leds/front_unit_rgb_leds.h>
 #include <heartbeat.h>
 #include <ir_camera_system/ir_camera_system.h>
 #include <liquid_lens/liquid_lens.h>
@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <stepper_motors/stepper_motors.h>
 #include <temperature/temperature.h>
+#include <ui/front_leds/front_leds.h>
 #include <zephyr.h>
 
 LOG_MODULE_REGISTER(incoming_message_handling);
@@ -357,7 +358,7 @@ handle_user_leds_pattern(McuMessage *msg)
 
     LOG_DBG("Got new user RBG pattern message: %d", pattern);
 
-    front_unit_rgb_leds_set_pattern(pattern);
+    front_leds_set_pattern(pattern);
     incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
 }
 
@@ -375,7 +376,36 @@ handle_user_leds_brightness(McuMessage *msg)
         incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
     } else {
         LOG_DBG("Got user LED brightness value of %u", brightness);
-        front_unit_rgb_leds_set_brightness(brightness);
+        front_leds_set_brightness(brightness);
+        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    }
+}
+
+static void
+handle_distributor_leds_pattern(McuMessage *msg)
+{
+    MAKE_ASSERTS(JetsonToMcu_distributor_leds_pattern_tag);
+
+    LOG_DBG("Got distributor LED pattern");
+    distributor_leds_set_pattern(
+        msg->message.j_message.payload.distributor_leds_pattern.pattern);
+    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+}
+
+static void
+handle_distributor_leds_brightness(McuMessage *msg)
+{
+    MAKE_ASSERTS(JetsonToMcu_distributor_leds_brightness_tag);
+
+    uint32_t brightness =
+        msg->message.j_message.payload.distributor_leds_brightness.brightness;
+    if (brightness > 255) {
+        LOG_ERR("Got user LED brightness value of %u out of range [0,255]",
+                brightness);
+        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+    } else {
+        LOG_DBG("Got distributor LED brightness: %u", brightness);
+        distributor_leds_set_brightness((uint8_t)brightness);
         incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
     }
 }
@@ -609,6 +639,10 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_led_on_time_tag] = handle_led_on_time_message,
     [JetsonToMcu_user_leds_pattern_tag] = handle_user_leds_pattern,
     [JetsonToMcu_user_leds_brightness_tag] = handle_user_leds_brightness,
+    [JetsonToMcu_distributor_leds_pattern_tag] =
+        handle_distributor_leds_pattern,
+    [JetsonToMcu_distributor_leds_brightness_tag] =
+        handle_distributor_leds_brightness,
     [JetsonToMcu_dfu_block_tag] = handle_dfu_block_message,
     [JetsonToMcu_start_triggering_ir_eye_camera_tag] =
         handle_start_triggering_ir_eye_camera_message,

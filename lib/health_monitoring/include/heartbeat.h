@@ -1,7 +1,3 @@
-//
-// Copyright (c) 2022 Tools for Humanity. All rights reserved.
-//
-
 #ifndef ORB_MCU_SECURITY_APP_HEARTBEAT_H
 #define ORB_MCU_SECURITY_APP_HEARTBEAT_H
 

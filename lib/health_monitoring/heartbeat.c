@@ -1,7 +1,3 @@
-//
-// Copyright (c) 2022 Tools for Humanity. All rights reserved.
-//
-
 #include "heartbeat.h"
 #include "errors.h"
 #include "zephyr.h"
