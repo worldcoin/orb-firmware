@@ -98,18 +98,35 @@ set(SOURCES_FILES
     src/version/version.c
     )
 
-target_sources_ifdef(CONFIG_BOARD_MCU_MAIN_V30 ${TARGET} PRIVATE
-    src/ir_camera_system/ir_camera_system_v30.c
-    )
-
-target_sources_ifdef(CONFIG_BOARD_MCU_MAIN_V31 ${TARGET} PRIVATE
-    src/ir_camera_system/ir_camera_system_v31.c
-    )
+if(DEFINED CONFIG_BOARD_MCU_MAIN_V31)
+    list(APPEND SOURCES_FILES src/ir_camera_system/ir_camera_system_v31.c)
+elseif(DEFINED CONFIG_BOARD_MCU_MAIN_V30)
+    list(APPEND SOURCES_FILES src/ir_camera_system/ir_camera_system_v30.c)
+else()
+    message(FATAL_ERROR One of the above board configurations must be defined!)
+endif()
 
 set(INCLUDE_DIRS
     include
     src
     )
+
+# EXTRA_COMPILE_FLAGS given via `west build -- -DEXTRA_COMPILE_FLAGS=...`
+set_property(
+    SOURCE ${SOURCES_FILES}
+    APPEND
+    PROPERTY COMPILE_FLAGS
+    "-Wextra ${EXTRA_COMPILE_FLAGS}"
+)
+
+# Special case here because the i2c.h file included introduces warnings with -Wextra.
+# PR submitted to upstream.
+set_property(
+    SOURCE src/sound/sound.c
+    SET
+    PROPERTY COMPILE_FLAGS
+    "${EXTRA_COMPILE_FLAGS}"
+)
 
 target_sources(${TARGET} PRIVATE ${SOURCES_FILES})
 target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIRS})

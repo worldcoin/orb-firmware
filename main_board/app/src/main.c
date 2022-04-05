@@ -104,6 +104,7 @@ main(void)
 
         if (jetson_up_and_running && incoming_message_acked_counter() > 1) {
             // the orb is now up and running
+            LOG_INF("Confirming image");
             dfu_primary_confirm();
 
             return;

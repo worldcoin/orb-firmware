@@ -371,6 +371,7 @@ set_ccr_ir_leds(void)
             LED_940NM_TIMER, global_timer_settings.ccr);
         set_timer_compare[LED_940NM_TIMER_RIGHT_CHANNEL - 1](
             LED_940NM_TIMER, global_timer_settings.ccr);
+        break;
     case InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
         set_timer_compare[LED_940NM_TIMER_LEFT_CHANNEL - 1](
             LED_940NM_TIMER, global_timer_settings.ccr);
