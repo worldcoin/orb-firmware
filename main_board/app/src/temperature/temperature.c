@@ -92,7 +92,7 @@ sample_and_report_temperature(
 }
 
 static void
-thread_entry_point(void *a, void *b, void *c)
+temperature_thread(void *a, void *b, void *c)
 {
     ARG_UNUSED(a);
     ARG_UNUSED(b);
@@ -131,6 +131,6 @@ temperature_init(void)
 
     thread_id = k_thread_create(&thread_data, stack_area,
                                 K_THREAD_STACK_SIZEOF(stack_area),
-                                thread_entry_point, NULL, NULL, NULL,
+                                temperature_thread, NULL, NULL, NULL,
                                 THREAD_PRIORITY_TEMPERATURE, 0, K_NO_WAIT);
 }

@@ -66,7 +66,8 @@ static volatile uint16_t samples[LIQUID_LENS_ADC_NUM_CONVERSION_SAMPLES];
 static volatile int32_t target_current = 0;
 static volatile int8_t prev_pwm = 0;
 
-static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_LIQUID_LENS);
+static K_THREAD_STACK_DEFINE(liquid_lens_stack_area,
+                             THREAD_STACK_SIZE_LIQUID_LENS);
 static struct k_thread thread_data;
 static k_tid_t thread_id;
 
@@ -108,7 +109,7 @@ liquid_lens_set_pwm_percentage(int8_t percentage)
 }
 
 static void
-thread_entry_point(void *a, void *b, void *c)
+liquid_lens_thread(void *a, void *b, void *c)
 {
     ARG_UNUSED(a);
     ARG_UNUSED(b);
@@ -429,9 +430,9 @@ liquid_lens_init(void)
     irq_connect_dynamic(DMA_CHANNEL_IRQn, 1, &dma_isr, NULL, 0);
     irq_enable(DMA_CHANNEL_IRQn);
 
-    thread_id = k_thread_create(&thread_data, stack_area,
-                                K_THREAD_STACK_SIZEOF(stack_area),
-                                thread_entry_point, NULL, NULL, NULL,
+    thread_id = k_thread_create(&thread_data, liquid_lens_stack_area,
+                                K_THREAD_STACK_SIZEOF(liquid_lens_stack_area),
+                                liquid_lens_thread, NULL, NULL, NULL,
                                 THREAD_PRIORITY_LIQUID_LENS, 0, K_NO_WAIT);
 
     return RET_SUCCESS;
