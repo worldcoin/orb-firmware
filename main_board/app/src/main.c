@@ -1,3 +1,4 @@
+#include "button/button.h"
 #include "fan/fan.h"
 #include "ir_camera_system/ir_camera_system.h"
 #include "power_sequence/power_sequence.h"
