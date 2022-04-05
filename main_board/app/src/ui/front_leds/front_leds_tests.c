@@ -26,12 +26,8 @@ fu_rgb_leds_test_thread()
 void
 front_unit_rdb_leds_tests_init(void)
 {
-    k_tid_t tid =
-        k_thread_create(&test_thread_data, fu_rgb_leds_test_thread_stack,
-                        K_THREAD_STACK_SIZEOF(fu_rgb_leds_test_thread_stack),
-                        fu_rgb_leds_test_thread, NULL, NULL, NULL,
-                        THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
-    if (!tid) {
-        LOG_ERR("ERROR spawning test_thread thread");
-    }
+    k_thread_create(&test_thread_data, fu_rgb_leds_test_thread_stack,
+                    K_THREAD_STACK_SIZEOF(fu_rgb_leds_test_thread_stack),
+                    fu_rgb_leds_test_thread, NULL, NULL, NULL,
+                    THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
 }
