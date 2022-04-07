@@ -4,23 +4,23 @@
 #include <mcu_messaging.pb.h>
 
 void
-distributor_leds_set_brightness(uint8_t brightness);
+operator_leds_set_brightness(uint8_t brightness);
 
 void
-distributor_leds_set_color(uint8_t red, uint8_t green, uint8_t blue);
+operator_leds_set_color(uint8_t red, uint8_t green, uint8_t blue);
 
-#define DISTRIBUTOR_LED_SET_ORANGE() distributor_leds_set_color(255, 255 / 2, 0)
+#define OPERATOR_LED_SET_ORANGE() operator_leds_set_color(255, 255 / 2, 0)
 
 void
-distributor_leds_set_pattern(
+operator_leds_set_pattern(
     DistributorLEDsPattern_DistributorRgbLedPattern pattern);
 
-/// Init distributor LED thread
+/// Init operator LED thread
 /// The LED won't turn on until pattern or brightness is set
 /// \return error code:
 /// * RET_ERROR_INTERNAL unable to init operator LEDs
 /// * RET_SUCCESS successfully initialized
 int
-distributor_leds_init(void);
+operator_leds_init(void);
 
 #endif // DISTRIBUTOR_LEDS_H

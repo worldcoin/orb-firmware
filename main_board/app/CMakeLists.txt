@@ -83,8 +83,8 @@ set(SOURCES_FILES
 
     src/ui/front_leds/front_leds.c
     src/ui/front_leds/front_leds_tests.c
-    src/ui/distributor_leds/distributor_leds.c
-    src/ui/distributor_leds/distributor_leds_tests.c
+    src/ui/operator_leds/operator_leds.c
+    src/ui/operator_leds/operator_leds_tests.c
 
     src/ir_camera_system/ir_camera_timer_settings.c
     src/ir_camera_system/ir_camera_system_test.c

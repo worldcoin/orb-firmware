@@ -3,7 +3,7 @@
 #include "dfu.h"
 #include "mcu_messaging.pb.h"
 #include "power_sequence/power_sequence.h"
-#include "ui/distributor_leds/distributor_leds.h"
+#include "ui/operator_leds/operator_leds.h"
 #include "ui/rgb_leds.h"
 #include "version/version.h"
 #include <assert.h>
@@ -388,7 +388,7 @@ handle_distributor_leds_pattern(McuMessage *msg)
     MAKE_ASSERTS(JetsonToMcu_distributor_leds_pattern_tag);
 
     LOG_DBG("Got distributor LED pattern");
-    distributor_leds_set_pattern(
+    operator_leds_set_pattern(
         msg->message.j_message.payload.distributor_leds_pattern.pattern);
     incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
 }
@@ -406,7 +406,7 @@ handle_distributor_leds_brightness(McuMessage *msg)
         incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
     } else {
         LOG_DBG("Got distributor LED brightness: %u", brightness);
-        distributor_leds_set_brightness((uint8_t)brightness);
+        operator_leds_set_brightness((uint8_t)brightness);
         incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
     }
 }
@@ -446,7 +446,7 @@ handle_fw_img_sec_activate(McuMessage *msg)
         incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
 
         // turn operator LEDs orange
-        DISTRIBUTOR_LED_SET_ORANGE();
+        OPERATOR_LED_SET_ORANGE();
 
         // wait for Jetson to shut down before we can reboot
         power_reboot_set_pending();
