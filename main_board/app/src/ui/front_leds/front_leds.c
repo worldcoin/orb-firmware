@@ -84,7 +84,7 @@ front_leds_thread(void *a, void *b, void *c)
             RGB_LEDS_BLUE(leds, global_intensity);
             break;
         default:
-            LOG_ERR("Unhandled LED pattern: %u", global_pattern);
+            LOG_ERR("Unhandled front LED pattern: %u", global_pattern);
             continue;
         }
 

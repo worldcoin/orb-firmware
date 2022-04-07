@@ -4,6 +4,7 @@
 #include "mcu_messaging.pb.h"
 #include "power_sequence/power_sequence.h"
 #include "ui/distributor_leds/distributor_leds.h"
+#include "ui/rgb_leds.h"
 #include "version/version.h"
 #include <assert.h>
 #include <fan/fan.h>
@@ -443,6 +444,9 @@ handle_fw_img_sec_activate(McuMessage *msg)
         incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
     } else {
         incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+
+        // turn operator LEDs orange
+        DISTRIBUTOR_LED_SET_ORANGE();
 
         // wait for Jetson to shut down before we can reboot
         power_reboot_set_pending();
