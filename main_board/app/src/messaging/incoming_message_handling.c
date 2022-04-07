@@ -4,6 +4,7 @@
 #include "mcu_messaging.pb.h"
 #include "power_sequence/power_sequence.h"
 #include "ui/distributor_leds/distributor_leds.h"
+#include "version/version.h"
 #include <assert.h>
 #include <fan/fan.h>
 #include <heartbeat.h>
@@ -605,6 +606,28 @@ handle_mirror_angle_relative_message(McuMessage *msg)
     }
 }
 
+static void
+handle_value_get_message(McuMessage *msg)
+{
+    MAKE_ASSERTS(JetsonToMcu_value_get_tag);
+
+    LOG_DBG("Got Value Get request");
+
+    ValueGet_Value value = msg->message.j_message.payload.value_get.value;
+    switch (value) {
+    case ValueGet_Value_FIRMWARE_VERSIONS:
+        version_send();
+        break;
+    default: {
+        // unknown value, respond with error
+        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        return;
+    }
+    }
+
+    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+}
+
 typedef void (*hm_callback)(McuMessage *msg);
 
 // These functions ARE NOT allowed to block!
@@ -644,10 +667,11 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_led_on_time_740nm_tag] = handle_led_on_time_740nm_message,
     [JetsonToMcu_mirror_angle_relative_tag] =
         handle_mirror_angle_relative_message,
+    [JetsonToMcu_value_get_tag] = handle_value_get_message,
 };
 
 static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 40,
+    ARRAY_SIZE(handle_message_callbacks) <= 34,
     "It seems like the `handle_message_callbacks` array is too large");
 
 void
