@@ -89,6 +89,14 @@ main(void)
     temperature_init();
     button_init();
 
+    // set up operator LED depending on image state
+    if (dfu_primary_is_confirmed()) {
+        distributor_leds_set_pattern(
+            DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN);
+    } else {
+        DISTRIBUTOR_LED_SET_ORANGE();
+    }
+
     // launch tests if any is defined
     run_tests();
 
@@ -116,7 +124,11 @@ main(void)
         if (jetson_up_and_running && incoming_message_acked_counter() > 1) {
             // the orb is now up and running
             LOG_INF("Confirming image");
-            dfu_primary_confirm();
+            int err_code = dfu_primary_confirm();
+            if (err_code == 0) {
+                distributor_leds_set_pattern(
+                    DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN);
+            }
 
             return;
         }
