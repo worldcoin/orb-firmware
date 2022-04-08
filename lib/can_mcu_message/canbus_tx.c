@@ -15,15 +15,14 @@ K_THREAD_DEFINE(process_tx_messages, CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX,
                 process_tx_messages_thread, NULL, NULL, NULL,
                 CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0, 0);
 
-#define QUEUE_NUM_ITEMS 8
-#define QUEUE_ALIGN     8
-
+#define QUEUE_ALIGN 8
 static_assert(QUEUE_ALIGN % 2 == 0, "QUEUE_ALIGN must be a multiple of 2");
 static_assert(sizeof(McuMessage) % QUEUE_ALIGN == 0,
               "sizeof McuMessage must be a multiple of QUEUE_ALIGN");
 
 // Message queue to send messages
-K_MSGQ_DEFINE(tx_msg_queue, sizeof(McuMessage), QUEUE_NUM_ITEMS, QUEUE_ALIGN);
+K_MSGQ_DEFINE(tx_msg_queue, sizeof(McuMessage),
+              CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE, QUEUE_ALIGN);
 
 K_SEM_DEFINE(tx_sem, 1, 1);
 
