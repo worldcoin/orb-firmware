@@ -11,7 +11,7 @@ static const struct device *can_dev;
 
 static void
 process_tx_messages_thread();
-K_THREAD_DEFINE(process_tx_messages, CONFIG_ORB_LIB_THREAD_STACK_SIZECANBUS_TX,
+K_THREAD_DEFINE(process_tx_messages, CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX,
                 process_tx_messages_thread, NULL, NULL, NULL,
                 CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0, 0);
 

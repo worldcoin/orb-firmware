@@ -27,7 +27,7 @@ config ORB_LIB_THREAD_PRIORITY_CANBUS_TX
     default 5
     depends on ORB_LIB_CAN_MCU_MESSAGE
 
-config ORB_LIB_THREAD_STACK_SIZECANBUS_TX
+config ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX
     int "Stack size for CAN TX thread"
     default 1024
     depends on ORB_LIB_CAN_MCU_MESSAGE
