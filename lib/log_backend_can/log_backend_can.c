@@ -1,7 +1,3 @@
-//
-// Copyright (c) 2022 Tools for Humanity. All rights reserved.
-//
-
 #include "log_backend_can.h"
 #include "can_messaging.h"
 #include "mcu_messaging.pb.h"
