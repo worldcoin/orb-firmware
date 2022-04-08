@@ -202,7 +202,7 @@ timer_740nm_ccr_from_on_time_us(
     struct ir_camera_timer_settings *new_settings)
 {
     // can't compute new settings if FPS is not set
-    if (current_settings->fps == 0 && on_time_us != 0) {
+    if (current_settings->fps == 0) {
         new_settings->ccr_740nm = 0;
         return RET_ERROR_INVALID_STATE;
     }
