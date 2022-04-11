@@ -11,24 +11,28 @@ static const struct device *can_dev;
 
 static void
 process_tx_messages_thread();
-K_THREAD_DEFINE(process_tx_messages, CONFIG_ORB_LIB_THREAD_STACK_SIZECANBUS_TX,
+K_THREAD_DEFINE(process_tx_messages, CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX,
                 process_tx_messages_thread, NULL, NULL, NULL,
                 CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0, 0);
 
-#define QUEUE_NUM_ITEMS 8
-#define QUEUE_ALIGN     8
-
+#define QUEUE_ALIGN 8
 static_assert(QUEUE_ALIGN % 2 == 0, "QUEUE_ALIGN must be a multiple of 2");
 static_assert(sizeof(McuMessage) % QUEUE_ALIGN == 0,
               "sizeof McuMessage must be a multiple of QUEUE_ALIGN");
 
 // Message queue to send messages
-K_MSGQ_DEFINE(tx_msg_queue, sizeof(McuMessage), QUEUE_NUM_ITEMS, QUEUE_ALIGN);
+K_MSGQ_DEFINE(tx_msg_queue, sizeof(McuMessage),
+              CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE, QUEUE_ALIGN);
 
 K_SEM_DEFINE(tx_sem, 1, 1);
 
 static bool is_init = false;
 
+/// Send new message
+/// ⚠️ Do not print log message in this function if
+/// CONFIG_ORB_LIB_LOG_BACKEND_CAN is defined
+/// \param message
+/// \return RET_SUCCESS on success, error code otherwise
 ret_code_t
 can_messaging_push_tx(McuMessage *message)
 {
@@ -41,7 +45,12 @@ can_messaging_push_tx(McuMessage *message)
 
     int ret = k_msgq_put(&tx_msg_queue, message, K_NO_WAIT);
     if (ret) {
+
+#ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
         LOG_ERR("Too many tx messages");
+#else
+        printk("<err> too many tx messages\r\n");
+#endif
         return RET_ERROR_BUSY;
     }
 
@@ -108,14 +117,21 @@ process_tx_messages_thread()
             ret_code_t err_code =
                 send(tx_buffer, stream.bytes_written, tx_complete_cb, dest);
             if (err_code != RET_SUCCESS) {
+#ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
                 LOG_WRN("Error sending message");
-
+#else
+                printk("<wrn> Error encoding message!\r\n");
+#endif
                 // release semaphore, we are not waiting for
                 // completion
                 k_sem_give(&tx_sem);
             }
         } else {
+#ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
             LOG_ERR("Error encoding message!");
+#else
+            printk("<err> Error encoding message!\r\n");
+#endif
         }
     }
 }
