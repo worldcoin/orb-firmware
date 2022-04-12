@@ -1,6 +1,10 @@
 #include "version.h"
+#include "mcu_messaging.pb.h"
 #include <can_messaging.h>
 #include <dfu.h>
+#include <logging/log.h>
+
+LOG_MODULE_REGISTER(version);
 
 int
 version_send(void)
@@ -19,11 +23,8 @@ version_send(void)
             version.iv_minor,
         .message.m_message.payload.versions.primary_app.patch =
             version.iv_revision,
-#if defined(CONFIG_BOARD_MCU_MAIN_V30)
-        .message.m_message.payload.versions.hardware_version = 30,
-#elif defined(CONFIG_BOARD_MCU_MAIN_V31)
-        .message.m_message.payload.versions.hardware_version = 31,
-#endif
+        .message.m_message.payload.versions.primary_app.commit_hash =
+            version.iv_build_num,
     };
 
     memset(&version, 0, sizeof version);
@@ -35,6 +36,8 @@ version_send(void)
             version.iv_minor;
         versions.message.m_message.payload.versions.secondary_app.patch =
             version.iv_revision;
+        versions.message.m_message.payload.versions.secondary_app.commit_hash =
+            version.iv_build_num;
     }
 
     return can_messaging_push_tx(&versions);
