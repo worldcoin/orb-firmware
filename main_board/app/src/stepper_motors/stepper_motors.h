@@ -95,6 +95,13 @@ ret_code_t
 motors_auto_homing_one_end(motor_t motor, struct k_thread **thread_ret);
 
 /**
+ * Check that auto-homing is in progress for at least one motor
+ * @return true if in progress, false otherwise
+ */
+bool
+motors_auto_homing_in_progress();
+
+/**
  * Initiliazing motors
  * @return
  * * RET_SUCCESS communication with motor controller is working. Spawned threads

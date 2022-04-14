@@ -19,9 +19,9 @@
 
 LOG_MODULE_REGISTER(incoming_message_handling);
 
-volatile bool auto_homing_in_progress = false;
-static K_THREAD_STACK_DEFINE(auto_homing_stack, 512);
+static K_THREAD_STACK_DEFINE(auto_homing_stack, 600);
 static struct k_thread auto_homing_thread;
+static k_tid_t auto_homing_tid = NULL;
 
 #define MAKE_ASSERTS(tag)                                                      \
     __ASSERT_NO_MSG(msg->which_message == McuMessage_j_message_tag);           \
@@ -83,12 +83,10 @@ handle_err_code(uint32_t ack_number, int err)
 void
 auto_homing_thread_entry_point(void *a, void *b, void *c)
 {
-    ARG_UNUSED(b);
     ARG_UNUSED(c);
 
-    uint32_t ack_num = (uint32_t)a;
-    PerformMirrorHoming_Mode mode = (PerformMirrorHoming_Mode)b;
-    PerformMirrorHoming_Mirror mirror = (PerformMirrorHoming_Mirror)c;
+    PerformMirrorHoming_Mode mode = (PerformMirrorHoming_Mode)a;
+    PerformMirrorHoming_Mirror mirror = (PerformMirrorHoming_Mirror)b;
 
     ret_code_t ret;
     struct k_thread *horiz = NULL, *vert = NULL;
@@ -98,7 +96,6 @@ auto_homing_thread_entry_point(void *a, void *b, void *c)
             mirror == PerformMirrorHoming_Mirror_HORIZONTAL) {
             ret = motors_auto_homing_stall_detection(MOTOR_HORIZONTAL, &horiz);
             if (ret == RET_ERROR_BUSY) {
-                incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, ack_num);
                 goto leave;
             }
         }
@@ -106,7 +103,6 @@ auto_homing_thread_entry_point(void *a, void *b, void *c)
             mirror == PerformMirrorHoming_Mirror_VERTICAL) {
             ret = motors_auto_homing_stall_detection(MOTOR_VERTICAL, &vert);
             if (ret == RET_ERROR_BUSY) {
-                incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, ack_num);
                 goto leave;
             }
         }
@@ -115,7 +111,6 @@ auto_homing_thread_entry_point(void *a, void *b, void *c)
             mirror == PerformMirrorHoming_Mirror_HORIZONTAL) {
             ret = motors_auto_homing_one_end(MOTOR_HORIZONTAL, &horiz);
             if (ret == RET_ERROR_BUSY) {
-                incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, ack_num);
                 goto leave;
             }
         }
@@ -123,17 +118,20 @@ auto_homing_thread_entry_point(void *a, void *b, void *c)
             mirror == PerformMirrorHoming_Mirror_VERTICAL) {
             ret = motors_auto_homing_one_end(MOTOR_VERTICAL, &vert);
             if (ret == RET_ERROR_BUSY) {
-                incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, ack_num);
                 goto leave;
             }
         }
     }
 
-    k_thread_join(horiz, K_FOREVER);
-    k_thread_join(vert, K_FOREVER);
+    if (horiz != NULL) {
+        k_thread_join(horiz, K_FOREVER);
+    }
+    if (vert != NULL) {
+        k_thread_join(vert, K_FOREVER);
+    }
 
 leave:
-    auto_homing_in_progress = false;
+    auto_homing_tid = NULL;
 }
 
 // Handlers
@@ -511,15 +509,14 @@ handle_do_homing(McuMessage *msg)
         msg->message.j_message.payload.do_homing.mirror;
     LOG_DBG("Got do autohoming message, mode = %u, mirror = %u", mode, mirror);
 
-    if (auto_homing_in_progress) {
+    if (auto_homing_tid != NULL || motors_auto_homing_in_progress()) {
         incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, get_ack_num(msg));
     } else {
-        auto_homing_in_progress = true;
-        k_thread_create(&auto_homing_thread, auto_homing_stack,
-                        K_THREAD_STACK_SIZEOF(auto_homing_stack),
-                        auto_homing_thread_entry_point,
-                        (void *)get_ack_num(msg), (void *)mode, (void *)mirror,
-                        4, 0, K_NO_WAIT);
+        auto_homing_tid =
+            k_thread_create(&auto_homing_thread, auto_homing_stack,
+                            K_THREAD_STACK_SIZEOF(auto_homing_stack),
+                            auto_homing_thread_entry_point, (void *)mode,
+                            (void *)mirror, NULL, 4, 0, K_NO_WAIT);
 
         // send ack before timeout even though auto-homing not completed
         incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));

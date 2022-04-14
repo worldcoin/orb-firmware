@@ -1017,6 +1017,13 @@ motors_auto_homing_one_end(motor_t motor, struct k_thread **thread_ret)
     return RET_SUCCESS;
 }
 
+bool
+motors_auto_homing_in_progress()
+{
+    return (k_sem_count_get(&homing_in_progress_sem[MOTOR_VERTICAL]) == 0 ||
+            k_sem_count_get(&homing_in_progress_sem[MOTOR_HORIZONTAL]) == 0);
+}
+
 ret_code_t
 motors_init(void)
 {
