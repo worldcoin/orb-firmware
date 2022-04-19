@@ -1,6 +1,7 @@
 #include "front_leds.h"
 #include "ui/rgb_leds.h"
 #include <app_config.h>
+#include <assert.h>
 #include <device.h>
 #include <drivers/led_strip.h>
 #include <logging/log.h>
@@ -20,8 +21,23 @@ static struct led_rgb leds[NUM_LEDS];
 
 // default values
 static volatile UserLEDsPattern_UserRgbLedPattern global_pattern =
-    UserLEDsPattern_UserRgbLedPattern_RANDOM_RAINBOW;
-static volatile uint8_t global_intensity = 20;
+    UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE;
+static volatile uint8_t global_intensity = 30;
+
+#define PULSING_PERIOD_MS 2000
+#define PULSING_DELAY_TIME_US                                                  \
+    (PULSING_PERIOD_MS / PULSING_NUM_UPDATES_PER_PERIOD)
+// We use a minimum intensity because the apparent brightness of the lower 10
+// brightness settings is very noticeable. Above 10 it _seems_ like the pulsing
+// is much smoother and organic.
+#define PULSING_MIN_INTENSITY 10
+extern const float SINE_LUT[PULSING_NUM_UPDATES_PER_PERIOD];
+
+static_assert(PULSING_DELAY_TIME_US > 0, "pulsing delay time is too low");
+
+// NOTE:
+// All delays here are a bit skewed since it takes ~7ms to transmit the LED
+// settings. So it takes 7ms + delay_time to between animations.
 
 _Noreturn static void
 front_leds_thread(void *a, void *b, void *c)
@@ -31,13 +47,17 @@ front_leds_thread(void *a, void *b, void *c)
 
     const struct device *led_strip = a;
     k_timeout_t wait_until = K_FOREVER;
+    uint32_t pulsing_index = 0;
 
     for (;;) {
         // wait for next command
         k_sem_take(&sem, wait_until);
 
-        // init with K_FOREVER, only the random rainbow will set this value
         wait_until = K_FOREVER;
+
+        if (global_pattern != UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE) {
+            pulsing_index = 0;
+        }
 
         switch (global_pattern) {
         case UserLEDsPattern_UserRgbLedPattern_OFF:
@@ -82,6 +102,22 @@ front_leds_thread(void *a, void *b, void *c)
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_BLUE:
             RGB_LEDS_BLUE(leds, global_intensity);
+            break;
+        case UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE:
+            if (global_intensity > 0) {
+                for (size_t i = 0; i < ARRAY_SIZE(leds); ++i) {
+                    uint8_t v = (SINE_LUT[pulsing_index] * global_intensity) +
+                                PULSING_MIN_INTENSITY;
+                    leds[i].r = v;
+                    leds[i].g = v;
+                    leds[i].b = v;
+                }
+                wait_until = K_MSEC(PULSING_DELAY_TIME_US);
+                pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
+            } else {
+                pulsing_index = 0;
+                memset(leds, 0, sizeof leds);
+            }
             break;
         default:
             LOG_ERR("Unhandled LED pattern: %u", global_pattern);

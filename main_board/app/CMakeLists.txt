@@ -67,6 +67,12 @@ list(APPEND ZEPHYR_EXTRA_MODULES ${PROJECT_DIR})
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(orb-mcu-main-app)
 
+set(SINE_TABLE_LENGTH 100)
+add_compile_definitions(PULSING_NUM_UPDATES_PER_PERIOD=${SINE_TABLE_LENGTH})
+set(SINE_LUT_SRC_FILE ${CMAKE_BINARY_DIR}/zephyr/sine_lut.c)
+add_custom_command(OUTPUT ${SINE_LUT_SRC_FILE}
+        COMMAND python3 ${PROJECT_DIR}/utils/math/generate_sine.py ${SINE_TABLE_LENGTH} > ${SINE_LUT_SRC_FILE})
+
 set(SOURCES_FILES
     src/main.c
 
@@ -81,6 +87,7 @@ set(SOURCES_FILES
 
     src/button/button.c
 
+    ${SINE_LUT_SRC_FILE}
     src/ui/front_leds/front_leds.c
     src/ui/front_leds/front_leds_tests.c
     src/ui/distributor_leds/distributor_leds.c
