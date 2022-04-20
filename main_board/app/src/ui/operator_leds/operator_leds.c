@@ -23,7 +23,6 @@ static struct led_rgb leds[NUM_LEDS];
 static volatile DistributorLEDsPattern_DistributorRgbLedPattern global_pattern =
     DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE;
 static uint8_t global_intensity = 20;
-static bool use_custom_color = false;
 static struct led_rgb custom_color;
 
 _Noreturn static void
@@ -37,33 +36,35 @@ operator_leds_thread(void *a, void *b, void *c)
     for (;;) {
         k_sem_take(&sem, K_FOREVER);
 
-        if (!use_custom_color) {
-            switch (global_pattern) {
-            case DistributorLEDsPattern_DistributorRgbLedPattern_OFF:
-                RGB_LEDS_OFF(leds);
-                break;
-            case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE:
-                RGB_LEDS_WHITE(leds, global_intensity);
-                break;
-            case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_RED:
-                RGB_LEDS_RED(leds, global_intensity);
-                break;
-            case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN:
-                RGB_LEDS_GREEN(leds, global_intensity);
-                break;
-            case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_BLUE:
-                RGB_LEDS_BLUE(leds, global_intensity);
-                break;
-            default:
-                LOG_ERR("Unhandled operator LED pattern: %u", global_pattern);
-                break;
-            }
-        } else {
+        switch (global_pattern) {
+        case DistributorLEDsPattern_DistributorRgbLedPattern_OFF:
+            RGB_LEDS_OFF(leds);
+            break;
+        case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE:
+            RGB_LEDS_WHITE(leds, global_intensity);
+            break;
+        case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_RED:
+            RGB_LEDS_RED(leds, global_intensity);
+            break;
+        case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN:
+            RGB_LEDS_GREEN(leds, global_intensity);
+            break;
+        case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_BLUE:
+            RGB_LEDS_BLUE(leds, global_intensity);
+            break;
+        case DistributorLEDsPattern_DistributorRgbLedPattern_RGB: {
+            // set custom color, capped by global intensity
+            const struct led_rgb custom_color_capped = {
+                .r = custom_color.r * global_intensity / 255,
+                .g = custom_color.g * global_intensity / 255,
+                .b = custom_color.b * global_intensity / 255};
             for (size_t i = 0; i < ARRAY_SIZE_ASSERT(leds); ++i) {
-                leds[i].r = custom_color.r;
-                leds[i].g = custom_color.g;
-                leds[i].b = custom_color.b;
+                leds[i] = custom_color_capped;
             }
+        } break;
+        default:
+            LOG_ERR("Unhandled operator LED pattern: %u", global_pattern);
+            break;
         }
 
         led_strip_update_rgb(led_strip, leds, ARRAY_SIZE(leds));
@@ -83,7 +84,7 @@ operator_leds_set_color(uint8_t red, uint8_t green, uint8_t blue)
     custom_color.r = red;
     custom_color.g = green;
     custom_color.b = blue;
-    use_custom_color = true;
+    global_pattern = DistributorLEDsPattern_DistributorRgbLedPattern_RGB;
 
     k_sem_give(&sem);
 }
@@ -93,7 +94,6 @@ operator_leds_set_pattern(
     DistributorLEDsPattern_DistributorRgbLedPattern pattern)
 {
     global_pattern = pattern;
-    use_custom_color = false;
     k_sem_give(&sem);
 }
 

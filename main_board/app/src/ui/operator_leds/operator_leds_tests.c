@@ -14,13 +14,15 @@ operator_leds_test_thread()
 {
     uint8_t brightness[2] = {0x10, 0x80};
     uint8_t idx = 0;
+
+    OPERATOR_LED_SET_ORANGE();
+
     while (1) {
         operator_leds_set_brightness(brightness[idx]);
         idx = (1 - idx);
 
         for (int i = DistributorLEDsPattern_DistributorRgbLedPattern_OFF;
-             i <= DistributorLEDsPattern_DistributorRgbLedPattern_ALL_BLUE;
-             ++i) {
+             i <= DistributorLEDsPattern_DistributorRgbLedPattern_RGB; ++i) {
             operator_leds_set_pattern(i);
             k_msleep(1000);
         }
