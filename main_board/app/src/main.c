@@ -48,7 +48,6 @@ run_tests()
 #ifdef CONFIG_TEST_DFU
     tests_dfu_init();
 #endif
-#define CONFIG_TEST_OPERATOR_LEDS
 #ifdef CONFIG_TEST_OPERATOR_LEDS
     operator_leds_tests_init();
 #endif
