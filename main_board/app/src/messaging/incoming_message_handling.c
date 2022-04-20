@@ -86,36 +86,36 @@ auto_homing_thread_entry_point(void *a, void *b, void *c)
     ARG_UNUSED(c);
 
     PerformMirrorHoming_Mode mode = (PerformMirrorHoming_Mode)a;
-    PerformMirrorHoming_Mirror mirror = (PerformMirrorHoming_Mirror)b;
+    PerformMirrorHoming_Angle angle = (PerformMirrorHoming_Angle)b;
 
     ret_code_t ret;
     struct k_thread *horiz = NULL, *vert = NULL;
 
     if (mode == PerformMirrorHoming_Mode_STALL_DETECTION) {
-        if (mirror == PerformMirrorHoming_Mirror_BOTH ||
-            mirror == PerformMirrorHoming_Mirror_HORIZONTAL) {
+        if (angle == PerformMirrorHoming_Angle_BOTH ||
+            angle == PerformMirrorHoming_Angle_HORIZONTAL) {
             ret = motors_auto_homing_stall_detection(MOTOR_HORIZONTAL, &horiz);
             if (ret == RET_ERROR_BUSY) {
                 goto leave;
             }
         }
-        if (mirror == PerformMirrorHoming_Mirror_BOTH ||
-            mirror == PerformMirrorHoming_Mirror_VERTICAL) {
+        if (angle == PerformMirrorHoming_Angle_BOTH ||
+            angle == PerformMirrorHoming_Angle_VERTICAL) {
             ret = motors_auto_homing_stall_detection(MOTOR_VERTICAL, &vert);
             if (ret == RET_ERROR_BUSY) {
                 goto leave;
             }
         }
     } else if (mode == PerformMirrorHoming_Mode_ONE_BLOCKING_END) {
-        if (mirror == PerformMirrorHoming_Mirror_BOTH ||
-            mirror == PerformMirrorHoming_Mirror_HORIZONTAL) {
+        if (angle == PerformMirrorHoming_Angle_BOTH ||
+            angle == PerformMirrorHoming_Angle_HORIZONTAL) {
             ret = motors_auto_homing_one_end(MOTOR_HORIZONTAL, &horiz);
             if (ret == RET_ERROR_BUSY) {
                 goto leave;
             }
         }
-        if (mirror == PerformMirrorHoming_Mirror_BOTH ||
-            mirror == PerformMirrorHoming_Mirror_VERTICAL) {
+        if (angle == PerformMirrorHoming_Angle_BOTH ||
+            angle == PerformMirrorHoming_Angle_VERTICAL) {
             ret = motors_auto_homing_one_end(MOTOR_VERTICAL, &vert);
             if (ret == RET_ERROR_BUSY) {
                 goto leave;
@@ -505,9 +505,9 @@ handle_do_homing(McuMessage *msg)
 
     PerformMirrorHoming_Mode mode =
         msg->message.j_message.payload.do_homing.homing_mode;
-    PerformMirrorHoming_Mirror mirror =
-        msg->message.j_message.payload.do_homing.mirror;
-    LOG_DBG("Got do autohoming message, mode = %u, mirror = %u", mode, mirror);
+    PerformMirrorHoming_Angle angle =
+        msg->message.j_message.payload.do_homing.angle;
+    LOG_DBG("Got do autohoming message, mode = %u, angle = %u", mode, angle);
 
     if (auto_homing_tid != NULL || motors_auto_homing_in_progress()) {
         incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, get_ack_num(msg));
@@ -516,7 +516,7 @@ handle_do_homing(McuMessage *msg)
             k_thread_create(&auto_homing_thread, auto_homing_stack,
                             K_THREAD_STACK_SIZEOF(auto_homing_stack),
                             auto_homing_thread_entry_point, (void *)mode,
-                            (void *)mirror, NULL, 4, 0, K_NO_WAIT);
+                            (void *)angle, NULL, 4, 0, K_NO_WAIT);
 
         // send ack before timeout even though auto-homing not completed
         incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
