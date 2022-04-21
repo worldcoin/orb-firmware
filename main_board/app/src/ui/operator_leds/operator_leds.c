@@ -53,13 +53,8 @@ operator_leds_thread(void *a, void *b, void *c)
             RGB_LEDS_BLUE(leds, global_intensity);
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_RGB: {
-            // set custom color, scaled using global intensity
-            const struct led_rgb custom_color_scaled = {
-                .r = custom_color.r * global_intensity / UINT8_MAX,
-                .g = custom_color.g * global_intensity / UINT8_MAX,
-                .b = custom_color.b * global_intensity / UINT8_MAX};
             for (size_t i = 0; i < ARRAY_SIZE_ASSERT(leds); ++i) {
-                leds[i] = custom_color_scaled;
+                leds[i] = custom_color;
             }
         } break;
         default:
