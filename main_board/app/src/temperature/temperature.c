@@ -123,14 +123,18 @@ check_ready(void)
 }
 
 void
+temperature_start(void)
+{
+    thread_id = k_thread_create(&thread_data, stack_area,
+                                K_THREAD_STACK_SIZEOF(stack_area),
+                                temperature_thread, NULL, NULL, NULL,
+                                THREAD_PRIORITY_TEMPERATURE, 0, K_NO_WAIT);
+}
+
+void
 temperature_init(void)
 {
     check_ready();
 
     global_sample_period = K_SECONDS(1);
-
-    thread_id = k_thread_create(&thread_data, stack_area,
-                                K_THREAD_STACK_SIZEOF(stack_area),
-                                temperature_thread, NULL, NULL, NULL,
-                                THREAD_PRIORITY_TEMPERATURE, 0, K_NO_WAIT);
 }
