@@ -369,10 +369,21 @@ handle_user_leds_pattern(McuMessage *msg)
 
     UserLEDsPattern_UserRgbLedPattern pattern =
         msg->message.j_message.payload.user_leds_pattern.pattern;
+    uint32_t start_angle =
+        msg->message.j_message.payload.user_leds_pattern.start_angle;
+    uint32_t angle_length =
+        msg->message.j_message.payload.user_leds_pattern.angle_length;
 
-    LOG_DBG("Got new user RBG pattern message: %d", pattern);
+    LOG_DBG("Got new user RBG pattern message: %d, start %uº, angle length %dº",
+            pattern, start_angle, angle_length);
 
-    front_leds_set_pattern(pattern);
+    RgbColor *color_ptr = NULL;
+    if (msg->message.j_message.payload.user_leds_pattern.pattern ==
+        UserLEDsPattern_UserRgbLedPattern_RGB) {
+        color_ptr =
+            &msg->message.j_message.payload.user_leds_pattern.custom_color;
+    }
+    front_leds_set_pattern(pattern, start_angle, angle_length, color_ptr);
     incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
 }
 
