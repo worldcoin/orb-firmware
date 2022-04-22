@@ -2,8 +2,8 @@
 #include "fan/fan.h"
 #include "ir_camera_system/ir_camera_system.h"
 #include "power_sequence/power_sequence.h"
-#include "ui/distributor_leds/distributor_leds.h"
 #include "ui/front_leds/front_leds.h"
+#include "ui/operator_leds/operator_leds.h"
 #include <device.h>
 #include <drivers/gpio.h>
 #ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
@@ -14,8 +14,8 @@
 #include "sound/sound.h"
 #include "stepper_motors/motors_tests.h"
 #include "stepper_motors/stepper_motors.h"
-#include "ui/distributor_leds/distributor_leds_tests.h"
 #include "ui/front_leds/front_leds_tests.h"
+#include "ui/operator_leds/operator_leds_tests.h"
 #include "version/version.h"
 
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
@@ -48,8 +48,8 @@ run_tests()
 #ifdef CONFIG_TEST_DFU
     tests_dfu_init();
 #endif
-#ifdef CONFIG_TEST_DISTRIBUTOR_LEDS
-    distributor_leds_tests_init();
+#ifdef CONFIG_TEST_OPERATOR_LEDS
+    operator_leds_tests_init();
 #endif
 #ifdef CONFIG_TEST_USER_LEDS
     front_unit_rdb_leds_tests_init();
@@ -72,7 +72,7 @@ main(void)
     __ASSERT(init_sound() == 0, "Error initializing sound");
 
     __ASSERT(front_leds_init() == 0, "Error doing front unit RGB LEDs");
-    __ASSERT(distributor_leds_init() == 0, "Error doing distributor RGB LEDs");
+    __ASSERT(operator_leds_init() == 0, "Error doing operator RGB LEDs");
 
     __ASSERT(power_turn_on_super_cap_charger() == 0,
              "Error enabling super cap charger");
@@ -88,6 +88,14 @@ main(void)
     dfu_init();
     temperature_init();
     button_init();
+
+    // set up operator LED depending on image state
+    if (dfu_primary_is_confirmed()) {
+        operator_leds_set_pattern(
+            DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN);
+    } else {
+        OPERATOR_LED_SET_ORANGE();
+    }
 
     // launch tests if any is defined
     run_tests();
@@ -116,7 +124,11 @@ main(void)
         if (jetson_up_and_running && incoming_message_acked_counter() > 1) {
             // the orb is now up and running
             LOG_INF("Confirming image");
-            dfu_primary_confirm();
+            int err_code = dfu_primary_confirm();
+            if (err_code == 0) {
+                operator_leds_set_pattern(
+                    DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN);
+            }
 
             return;
         }

@@ -120,7 +120,7 @@ front_leds_thread(void *a, void *b, void *c)
             }
             break;
         default:
-            LOG_ERR("Unhandled LED pattern: %u", global_pattern);
+            LOG_ERR("Unhandled front LED pattern: %u", global_pattern);
             continue;
         }
 

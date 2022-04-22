@@ -342,6 +342,25 @@ dfu_primary_confirm()
     return ret;
 }
 
+bool
+dfu_primary_is_confirmed()
+{
+    int ret;
+    uint8_t image_ok = 0;
+    bool confirmed = false;
+    const struct flash_area *flash_area_p = NULL;
+    ret = flash_area_open(flash_area_id_from_image_slot(0), &flash_area_p);
+
+    ret = boot_read_image_ok(flash_area_p, &image_ok);
+    if (ret == 0 && (image_ok != BOOT_FLAG_UNSET)) {
+        confirmed = true;
+    }
+
+    flash_area_close(flash_area_p);
+
+    return confirmed;
+}
+
 int
 dfu_version_primary_get(struct image_version *ih_ver)
 {
