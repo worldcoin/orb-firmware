@@ -247,6 +247,27 @@ handle_stop_triggering_2dtof_camera_message(McuMessage *msg)
 }
 
 static void
+handle_shutdown(McuMessage *msg)
+{
+    MAKE_ASSERTS(JetsonToMcu_shutdown_tag);
+
+    uint32_t delay = msg->message.j_message.payload.shutdown.delay_s;
+    LOG_DBG("Got shutdown in %us", delay);
+
+    if (delay > 30) {
+        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+    } else {
+        int ret = power_reset(delay);
+
+        if (ret == RET_SUCCESS) {
+            incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        } else {
+            incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        }
+    }
+}
+
+static void
 handle_reboot_message(McuMessage *msg)
 {
     MAKE_ASSERTS(JetsonToMcu_reboot_tag);
@@ -630,6 +651,7 @@ typedef void (*hm_callback)(McuMessage *msg);
 
 // These functions ARE NOT allowed to block!
 static const hm_callback handle_message_callbacks[] = {
+    [JetsonToMcu_shutdown_tag] = handle_shutdown,
     [JetsonToMcu_reboot_tag] = handle_reboot_message,
     [JetsonToMcu_mirror_angle_tag] = handle_mirror_angle_message,
     [JetsonToMcu_do_homing_tag] = handle_do_homing,
