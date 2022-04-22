@@ -12,6 +12,10 @@
         fans-enable-gpios = <&gpiob 13 GPIO_ACTIVE_HIGH>;
     };
 
+    aliases {
+        battery-can-bus = &can2;
+    };
+
     supply_5v {
         enable-gpios = <&gpiob 1 GPIO_ACTIVE_LOW>;
     };
@@ -125,4 +129,13 @@
         reg = <0x49>;
         label = "MAIN_BOARD_TEMP_SENSOR";
     };
+};
+
+// For battery communications
+&can2 {
+    pinctrl-0 = <&fdcan2_rx_pb5 &fdcan2_tx_pb6>;
+    pinctrl-names = "default";
+    bus-speed = <1000000>;
+    bus-speed-data = <1000000>;
+    status = "okay";
 };

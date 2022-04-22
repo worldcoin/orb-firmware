@@ -109,6 +109,7 @@ set(SOURCES_FILES
 
 if(DEFINED CONFIG_BOARD_MCU_MAIN_V31)
     list(APPEND SOURCES_FILES src/ir_camera_system/ir_camera_system_v31.c)
+    list(APPEND SOURCES_FILES src/battery/battery.c)
 elseif(DEFINED CONFIG_BOARD_MCU_MAIN_V30)
     list(APPEND SOURCES_FILES src/ir_camera_system/ir_camera_system_v30.c)
 else()

@@ -2,7 +2,6 @@
 #include <app_assert.h>
 #include <app_config.h>
 #include <assert.h>
-#include <can_messaging.h>
 #include <device.h>
 #include <drivers/sensor.h>
 #include <logging/log.h>
@@ -39,11 +38,7 @@ static struct k_thread thread_data;
 static k_tid_t thread_id = NULL;
 
 static volatile k_timeout_t global_sample_period;
-
-static McuMessage msg = {
-    .which_message = McuMessage_m_message_tag,
-    .message.m_message.which_payload = McuToJetson_temperature_tag,
-};
+static bool send_can_messages = false;
 
 void
 temperature_set_sampling_period_ms(uint32_t sample_period)
@@ -85,9 +80,24 @@ sample_and_report_temperature(
     ret = get_ambient_temperature(sensor_and_channel->sensor, &temp,
                                   sensor_and_channel->channel);
     if (!ret) {
-        msg.message.m_message.payload.temperature.source =
-            sensor_and_channel->temperature_source;
-        msg.message.m_message.payload.temperature.temperature_c = temp;
+        temperature_report(sensor_and_channel->temperature_source, temp);
+    }
+}
+
+void
+temperature_report(Temperature_TemperatureSource source,
+                   int32_t temperature_in_c)
+{
+    static McuMessage msg = {
+        .which_message = McuMessage_m_message_tag,
+        .message.m_message.which_payload = McuToJetson_temperature_tag,
+    };
+
+    if (send_can_messages) {
+        msg.message.m_message.payload.temperature.source = source;
+        msg.message.m_message.payload.temperature.temperature_c =
+            temperature_in_c;
+
         can_messaging_async_tx(&msg);
     }
 }
@@ -130,6 +140,8 @@ check_ready(void)
 void
 temperature_start(void)
 {
+    LOG_INF("Starting to send temperatures to Jetson");
+
     if (thread_id == NULL) {
         thread_id = k_thread_create(&thread_data, stack_area,
                                     K_THREAD_STACK_SIZEOF(stack_area),
@@ -138,6 +150,8 @@ temperature_start(void)
     } else {
         LOG_ERR("Sampling already started");
     }
+
+    send_can_messages = true;
 }
 
 int

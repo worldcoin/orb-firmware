@@ -13,6 +13,7 @@ static bool jetson_up_and_running = false;
 #ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
 #include <ir_camera_system/ir_camera_system_test.h>
 #endif
+#include "battery/battery.h"
 #include "liquid_lens/liquid_lens.h"
 #include "messaging/incoming_message_handling.h"
 #include "sound/sound.h"
@@ -142,6 +143,11 @@ main(void)
 
     err_code = button_init();
     ASSERT_SOFT(err_code);
+
+#ifdef CONFIG_BOARD_MCU_MAIN_V31
+    err_code = battery_init();
+    ASSERT_SOFT(err_code);
+#endif
 
     // set up operator LED depending on image state
     if (dfu_primary_is_confirmed()) {
