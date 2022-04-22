@@ -1,5 +1,6 @@
 #include "operator_leds_tests.h"
 #include "operator_leds.h"
+#include "ui/rgb_leds.h"
 #include <app_config.h>
 #include <logging/log.h>
 #include <zephyr.h>
@@ -15,7 +16,9 @@ operator_leds_test_thread()
     uint8_t brightness[2] = {0x10, 0x80};
     uint8_t idx = 0;
 
-    OPERATOR_LED_SET_ORANGE();
+    RgbColor color = RGB_LED_ORANGE;
+    operator_leds_set_pattern(
+        DistributorLEDsPattern_DistributorRgbLedPattern_RGB, &color);
 
     while (1) {
         operator_leds_set_brightness(brightness[idx]);
@@ -23,7 +26,7 @@ operator_leds_test_thread()
 
         for (int i = DistributorLEDsPattern_DistributorRgbLedPattern_OFF;
              i <= DistributorLEDsPattern_DistributorRgbLedPattern_RGB; ++i) {
-            operator_leds_set_pattern(i);
+            operator_leds_set_pattern(i, &color);
             k_msleep(1000);
         }
     }

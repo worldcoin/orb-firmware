@@ -6,6 +6,11 @@
 #define ARRAY_SIZE_ASSERT(arr)                                                 \
     (sizeof(arr) / sizeof((arr)[0]) + __must_be_array(arr))
 
+#define RGB_LED_ORANGE                                                         \
+    {                                                                          \
+        255, 255 / 2, 0                                                        \
+    }
+
 #define RGB_LEDS_OFF(leds) memset(leds, 0, sizeof leds)
 
 #define RGB_LEDS_WHITE(leds, brightness) memset(leds, brightness, sizeof leds)

@@ -400,9 +400,18 @@ handle_distributor_leds_pattern(McuMessage *msg)
 {
     MAKE_ASSERTS(JetsonToMcu_distributor_leds_pattern_tag);
 
-    LOG_DBG("Got distributor LED pattern");
-    operator_leds_set_pattern(
-        msg->message.j_message.payload.distributor_leds_pattern.pattern);
+    DistributorLEDsPattern_DistributorRgbLedPattern pattern =
+        msg->message.j_message.payload.distributor_leds_pattern.pattern;
+    LOG_DBG("Got distributor LED pattern: %u", pattern);
+
+    RgbColor *color_ptr = NULL;
+    if (msg->message.j_message.payload.distributor_leds_pattern.pattern ==
+        DistributorLEDsPattern_DistributorRgbLedPattern_RGB) {
+        color_ptr = &msg->message.j_message.payload.distributor_leds_pattern
+                         .custom_color;
+    }
+    operator_leds_set_pattern(pattern, color_ptr);
+
     incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
 }
 
@@ -459,7 +468,9 @@ handle_fw_img_sec_activate(McuMessage *msg)
         incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
 
         // turn operator LEDs orange
-        OPERATOR_LED_SET_ORANGE();
+        RgbColor color = RGB_LED_ORANGE;
+        operator_leds_set_pattern(
+            DistributorLEDsPattern_DistributorRgbLedPattern_RGB, &color);
 
         // wait for Jetson to shut down before we can reboot
         power_reboot_set_pending();

@@ -6,14 +6,14 @@
 void
 operator_leds_set_brightness(uint8_t brightness);
 
-void
-operator_leds_set_color(uint8_t red, uint8_t green, uint8_t blue);
-
-#define OPERATOR_LED_SET_ORANGE() operator_leds_set_color(255, 255 / 2, 0)
-
+/**
+ * Set pattern for operator LEDs
+ * @param pattern Pattern to apply
+ * @param color Custom color, NULL to use default
+ */
 void
 operator_leds_set_pattern(
-    DistributorLEDsPattern_DistributorRgbLedPattern pattern);
+    DistributorLEDsPattern_DistributorRgbLedPattern pattern, RgbColor *color);
 
 /// Init operator LED thread
 /// The LED won't turn on until pattern or brightness is set

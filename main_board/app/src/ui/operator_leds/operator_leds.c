@@ -23,7 +23,7 @@ static struct led_rgb leds[NUM_LEDS];
 static volatile DistributorLEDsPattern_DistributorRgbLedPattern global_pattern =
     DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE;
 static uint8_t global_intensity = 20;
-static struct led_rgb custom_color;
+static struct led_rgb global_color;
 
 _Noreturn static void
 operator_leds_thread(void *a, void *b, void *c)
@@ -54,7 +54,7 @@ operator_leds_thread(void *a, void *b, void *c)
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_RGB: {
             for (size_t i = 0; i < ARRAY_SIZE_ASSERT(leds); ++i) {
-                leds[i] = custom_color;
+                leds[i] = global_color;
             }
         } break;
         default:
@@ -74,21 +74,16 @@ operator_leds_set_brightness(uint8_t brightness)
 }
 
 void
-operator_leds_set_color(uint8_t red, uint8_t green, uint8_t blue)
-{
-    custom_color.r = red;
-    custom_color.g = green;
-    custom_color.b = blue;
-    global_pattern = DistributorLEDsPattern_DistributorRgbLedPattern_RGB;
-
-    k_sem_give(&sem);
-}
-
-void
 operator_leds_set_pattern(
-    DistributorLEDsPattern_DistributorRgbLedPattern pattern)
+    DistributorLEDsPattern_DistributorRgbLedPattern pattern, RgbColor *color)
 {
     global_pattern = pattern;
+    if (color != NULL) {
+        global_color.r = color->red;
+        global_color.g = color->green;
+        global_color.b = color->blue;
+    }
+
     k_sem_give(&sem);
 }
 
