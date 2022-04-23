@@ -35,7 +35,7 @@ const struct sensor_and_channel sensors_and_channels[] = {
 
 static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_TEMPERATURE);
 static struct k_thread thread_data;
-static k_tid_t thread_id;
+static k_tid_t thread_id = NULL;
 
 static volatile k_timeout_t global_sample_period;
 
@@ -117,7 +117,7 @@ check_ready(void)
             LOG_ERR("Could not initialize temperature sensor '%s'",
                     sensors_and_channels[i].sensor->name);
         } else {
-            LOG_INF("initialized %s", sensors_and_channels[i].sensor->name);
+            LOG_INF("Initialized %s", sensors_and_channels[i].sensor->name);
         }
     }
 }
@@ -125,10 +125,14 @@ check_ready(void)
 void
 temperature_start(void)
 {
-    thread_id = k_thread_create(&thread_data, stack_area,
-                                K_THREAD_STACK_SIZEOF(stack_area),
-                                temperature_thread, NULL, NULL, NULL,
-                                THREAD_PRIORITY_TEMPERATURE, 0, K_NO_WAIT);
+    if (thread_id == NULL) {
+        thread_id = k_thread_create(&thread_data, stack_area,
+                                    K_THREAD_STACK_SIZEOF(stack_area),
+                                    temperature_thread, NULL, NULL, NULL,
+                                    THREAD_PRIORITY_TEMPERATURE, 0, K_NO_WAIT);
+    } else {
+        LOG_ERR("Sampling already started");
+    }
 }
 
 void
