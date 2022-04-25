@@ -6,6 +6,7 @@
 #include <drivers/led_strip.h>
 #include <logging/log.h>
 #include <random/rand32.h>
+#include <stdlib.h>
 #include <zephyr.h>
 LOG_MODULE_REGISTER(front_unit_rgb_leds);
 
@@ -18,7 +19,8 @@ static K_SEM_DEFINE(sem, 1, 1); // init to 1 to use default values below
 #define NUM_CENTER_LEDS  9
 #define NUM_RING_LEDS    (NUM_LEDS - NUM_CENTER_LEDS)
 #define SHADES_PER_COLOR 4 // 4^3 = 64 different colors
-#define INDEX_RING_ZERO  ((NUM_RING_LEDS * 3 / 4))
+#define INDEX_RING_ZERO                                                        \
+    ((NUM_RING_LEDS * 3 / 4)) // LED index at angle 0º in trigonometric circle
 
 struct center_ring_leds {
     struct led_rgb center_leds[NUM_CENTER_LEDS];
@@ -65,22 +67,32 @@ set_center(struct led_rgb color)
 }
 
 static void
-set_ring(struct led_rgb color, uint32_t start_angle, uint32_t angle_length)
+set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
 {
     APP_ASSERT_BOOL(start_angle <= FULL_RING_DEGREES);
-    APP_ASSERT_BOOL(angle_length <= FULL_RING_DEGREES);
+    APP_ASSERT_BOOL(angle_length <= FULL_RING_DEGREES &&
+                    angle_length >= -FULL_RING_DEGREES);
 
-    // angle 0 in trigonometric circle
+    // get first LED index, based on LED at 0º on trigonometric circle
     size_t led_index =
         INDEX_RING_ZERO - NUM_RING_LEDS * start_angle / FULL_RING_DEGREES;
 
     for (size_t i = 0; i < NUM_RING_LEDS; ++i) {
-        if (i < NUM_RING_LEDS * angle_length / FULL_RING_DEGREES) {
+        if (i <
+            (size_t)(NUM_RING_LEDS * abs(angle_length) / FULL_RING_DEGREES)) {
             leds.part.ring_leds[led_index] = color;
         } else {
             leds.part.ring_leds[led_index] = off;
         }
-        led_index = (led_index + 1) % ARRAY_SIZE(leds.part.ring_leds);
+
+        // depending on angle_length sign, we go through the ring LED in a
+        // different direction
+        if (angle_length >= 0) {
+            led_index = (led_index + 1) % ARRAY_SIZE(leds.part.ring_leds);
+        } else {
+            led_index = led_index == 0 ? (ARRAY_SIZE(leds.part.ring_leds) - 1)
+                                       : (led_index - 1);
+        }
     }
 }
 

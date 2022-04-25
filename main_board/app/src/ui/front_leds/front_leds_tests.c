@@ -22,6 +22,10 @@ fu_rgb_leds_test_thread()
                 front_leds_set_pattern(i, 90, j, &custom);
                 k_msleep(1000);
             }
+            for (int j = 360; j >= 0; j = j - 90) {
+                front_leds_set_pattern(i, 90, j, &custom);
+                k_msleep(1000);
+            }
         }
     }
 }
