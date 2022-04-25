@@ -20,7 +20,16 @@ static K_SEM_DEFINE(sem, 1, 1); // init to 1 to use default values below
 #define SHADES_PER_COLOR 4 // 4^3 = 64 different colors
 #define INDEX_RING_ZERO  ((NUM_RING_LEDS * 3 / 4))
 
-static struct led_rgb leds[NUM_LEDS];
+struct center_ring_leds {
+    struct led_rgb center_leds[NUM_CENTER_LEDS];
+    struct led_rgb ring_leds[NUM_RING_LEDS];
+};
+
+typedef union {
+    struct center_ring_leds part;
+    struct led_rgb all[NUM_LEDS];
+} user_leds_t;
+static user_leds_t leds;
 
 // default values
 static volatile UserLEDsPattern_UserRgbLedPattern global_pattern =
@@ -50,25 +59,28 @@ static_assert(PULSING_DELAY_TIME_US > 0, "pulsing delay time is too low");
 static void
 set_center(struct led_rgb color)
 {
-    for (size_t i = 0; i < NUM_CENTER_LEDS; ++i) {
-        leds[i] = color;
+    for (size_t i = 0; i < ARRAY_SIZE(leds.part.center_leds); ++i) {
+        leds.part.center_leds[i] = color;
     }
 }
 
 static void
-set_ring(struct led_rgb color, uint32_t start_angle, uint32_t width)
+set_ring(struct led_rgb color, uint32_t start_angle, uint32_t angle_length)
 {
+    APP_ASSERT_BOOL(start_angle <= FULL_RING_DEGREES);
+    APP_ASSERT_BOOL(angle_length <= FULL_RING_DEGREES);
+
     // angle 0 in trigonometric circle
     size_t led_index =
         INDEX_RING_ZERO - NUM_RING_LEDS * start_angle / FULL_RING_DEGREES;
 
     for (size_t i = 0; i < NUM_RING_LEDS; ++i) {
-        if (i < NUM_RING_LEDS * width / FULL_RING_DEGREES) {
-            leds[led_index + NUM_CENTER_LEDS] = color;
+        if (i < NUM_RING_LEDS * angle_length / FULL_RING_DEGREES) {
+            leds.part.ring_leds[led_index] = color;
         } else {
-            leds[led_index + NUM_CENTER_LEDS] = off;
+            leds.part.ring_leds[led_index] = off;
         }
-        led_index = (led_index + 1) % NUM_RING_LEDS;
+        led_index = (led_index + 1) % ARRAY_SIZE(leds.part.ring_leds);
     }
 }
 
@@ -118,17 +130,17 @@ front_leds_thread(void *a, void *b, void *c)
                 uint32_t shades = global_intensity > SHADES_PER_COLOR
                                       ? SHADES_PER_COLOR
                                       : global_intensity;
-                for (size_t i = 0; i < ARRAY_SIZE(leds); ++i) {
-                    leds[i].r =
+                for (size_t i = 0; i < ARRAY_SIZE(leds.all); ++i) {
+                    leds.all[i].r =
                         sys_rand32_get() % shades * (global_intensity / shades);
-                    leds[i].g =
+                    leds.all[i].g =
                         sys_rand32_get() % shades * (global_intensity / shades);
-                    leds[i].b =
+                    leds.all[i].b =
                         sys_rand32_get() % shades * (global_intensity / shades);
                 }
                 wait_until = K_MSEC(50);
             } else {
-                memset(leds, 0, sizeof leds);
+                memset(leds.all, 0, sizeof leds.all);
             }
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_ONLY_CENTER:
@@ -189,7 +201,7 @@ front_leds_thread(void *a, void *b, void *c)
         }
 
         // update LEDs
-        led_strip_update_rgb(led_strip, leds, ARRAY_SIZE(leds));
+        led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
     }
 }
 
