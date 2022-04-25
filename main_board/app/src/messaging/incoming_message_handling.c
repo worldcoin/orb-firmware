@@ -377,7 +377,7 @@ handle_user_leds_pattern(McuMessage *msg)
     LOG_DBG("Got new user RBG pattern message: %d, start %uº, angle length %dº",
             pattern, start_angle, angle_length);
 
-    if (start_angle > 360 || angle_length > 360) {
+    if (start_angle > FULL_RING_DEGREES || angle_length > FULL_RING_DEGREES) {
         incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
     } else {
         RgbColor *color_ptr = NULL;

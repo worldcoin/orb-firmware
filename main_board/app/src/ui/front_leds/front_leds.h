@@ -4,6 +4,8 @@
 #include "mcu_messaging.pb.h"
 #include <errors.h>
 
+#define FULL_RING_DEGREES (360)
+
 ret_code_t
 front_leds_init(void);
 

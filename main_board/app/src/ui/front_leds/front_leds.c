@@ -14,12 +14,12 @@ static K_THREAD_STACK_DEFINE(front_leds_stack_area,
 static struct k_thread front_led_thread_data;
 static K_SEM_DEFINE(sem, 1, 1); // init to 1 to use default values below
 
-#define NUM_LEDS          DT_PROP(DT_NODELABEL(front_unit_rgb_leds), num_leds)
-#define NUM_CENTER_LEDS   9
-#define NUM_RING_LEDS     (NUM_LEDS - NUM_CENTER_LEDS)
-#define SHADES_PER_COLOR  4 // 4^3 = 64 different colors
-#define INDEX_RING_ZERO   ((NUM_RING_LEDS * 3 / 4))
-#define FULL_RING_DEGREES (360)
+#define NUM_LEDS         DT_PROP(DT_NODELABEL(front_unit_rgb_leds), num_leds)
+#define NUM_CENTER_LEDS  9
+#define NUM_RING_LEDS    (NUM_LEDS - NUM_CENTER_LEDS)
+#define SHADES_PER_COLOR 4 // 4^3 = 64 different colors
+#define INDEX_RING_ZERO  ((NUM_RING_LEDS * 3 / 4))
+
 static struct led_rgb leds[NUM_LEDS];
 
 // default values
