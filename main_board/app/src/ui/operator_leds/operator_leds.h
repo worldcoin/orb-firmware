@@ -3,17 +3,15 @@
 
 #include <mcu_messaging.pb.h>
 
+#define OPERATOR_LEDS_ALL_MASK BIT_MASK(5)
+
 void
 operator_leds_set_brightness(uint8_t brightness);
 
 void
-operator_leds_set_color(uint8_t red, uint8_t green, uint8_t blue);
-
-#define OPERATOR_LED_SET_ORANGE() operator_leds_set_color(255, 255 / 2, 0)
-
-void
 operator_leds_set_pattern(
-    DistributorLEDsPattern_DistributorRgbLedPattern pattern);
+    DistributorLEDsPattern_DistributorRgbLedPattern pattern, uint32_t mask,
+    RgbColor *color);
 
 /// Init operator LED thread
 /// The LED won't turn on until pattern or brightness is set

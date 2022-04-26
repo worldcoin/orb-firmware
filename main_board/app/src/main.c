@@ -16,6 +16,7 @@
 #include "stepper_motors/stepper_motors.h"
 #include "ui/front_leds/front_leds_tests.h"
 #include "ui/operator_leds/operator_leds_tests.h"
+#include "ui/rgb_leds.h"
 #include "version/version.h"
 
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
@@ -92,9 +93,13 @@ main(void)
     // set up operator LED depending on image state
     if (dfu_primary_is_confirmed()) {
         operator_leds_set_pattern(
-            DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN);
+            DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN,
+            OPERATOR_LEDS_ALL_MASK, NULL);
     } else {
-        OPERATOR_LED_SET_ORANGE();
+        RgbColor custom = RGB_ORANGE;
+        operator_leds_set_pattern(
+            DistributorLEDsPattern_DistributorRgbLedPattern_RGB,
+            OPERATOR_LEDS_ALL_MASK, &custom);
     }
 
     // launch tests if any is defined
@@ -127,7 +132,8 @@ main(void)
             int err_code = dfu_primary_confirm();
             if (err_code == 0) {
                 operator_leds_set_pattern(
-                    DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN);
+                    DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN,
+                    OPERATOR_LEDS_ALL_MASK, NULL);
             }
 
             return;

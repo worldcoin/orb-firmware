@@ -23,7 +23,23 @@ static struct led_rgb leds[NUM_LEDS];
 static volatile DistributorLEDsPattern_DistributorRgbLedPattern global_pattern =
     DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE;
 static uint8_t global_intensity = 20;
-static struct led_rgb custom_color;
+static uint32_t global_mask = BIT_MASK(NUM_LEDS);
+static struct led_rgb global_color;
+extern const struct led_rgb rgb_led_off;
+
+static void
+apply_pattern()
+{
+    // go through mask starting with most significant bit
+    // so that mask is applied from left LED to right for the operator
+    for (size_t i = 0; i < ARRAY_SIZE_ASSERT(leds); ++i) {
+        if (global_mask & BIT((NUM_LEDS - 1) - i)) {
+            leds[i] = global_color;
+        } else {
+            leds[i] = rgb_led_off;
+        }
+    }
+}
 
 _Noreturn static void
 operator_leds_thread(void *a, void *b, void *c)
@@ -38,30 +54,37 @@ operator_leds_thread(void *a, void *b, void *c)
 
         switch (global_pattern) {
         case DistributorLEDsPattern_DistributorRgbLedPattern_OFF:
-            RGB_LEDS_OFF(leds);
+            global_color = rgb_led_off;
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE:
-            RGB_LEDS_WHITE(leds, global_intensity);
+            global_color.r = global_intensity;
+            global_color.g = global_intensity;
+            global_color.b = global_intensity;
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_RED:
-            RGB_LEDS_RED(leds, global_intensity);
+            global_color.r = global_intensity;
+            global_color.g = 0;
+            global_color.b = 0;
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN:
-            RGB_LEDS_GREEN(leds, global_intensity);
+            global_color.r = 0;
+            global_color.g = global_intensity;
+            global_color.b = 0;
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_BLUE:
-            RGB_LEDS_BLUE(leds, global_intensity);
+            global_color.r = 0;
+            global_color.g = 0;
+            global_color.b = global_intensity;
             break;
-        case DistributorLEDsPattern_DistributorRgbLedPattern_RGB: {
-            for (size_t i = 0; i < ARRAY_SIZE_ASSERT(leds); ++i) {
-                leds[i] = custom_color;
-            }
-        } break;
+        case DistributorLEDsPattern_DistributorRgbLedPattern_RGB:
+            /* Do nothing, global_color already set */
+            break;
         default:
             LOG_ERR("Unhandled operator LED pattern: %u", global_pattern);
             break;
         }
 
+        apply_pattern();
         led_strip_update_rgb(led_strip, leds, ARRAY_SIZE(leds));
     }
 }
@@ -74,21 +97,19 @@ operator_leds_set_brightness(uint8_t brightness)
 }
 
 void
-operator_leds_set_color(uint8_t red, uint8_t green, uint8_t blue)
-{
-    custom_color.r = red;
-    custom_color.g = green;
-    custom_color.b = blue;
-    global_pattern = DistributorLEDsPattern_DistributorRgbLedPattern_RGB;
-
-    k_sem_give(&sem);
-}
-
-void
 operator_leds_set_pattern(
-    DistributorLEDsPattern_DistributorRgbLedPattern pattern)
+    DistributorLEDsPattern_DistributorRgbLedPattern pattern, uint32_t mask,
+    RgbColor *color)
 {
     global_pattern = pattern;
+    global_mask = mask;
+
+    if (color != NULL) {
+        global_color.r = color->red;
+        global_color.g = color->green;
+        global_color.b = color->blue;
+    }
+
     k_sem_give(&sem);
 }
 

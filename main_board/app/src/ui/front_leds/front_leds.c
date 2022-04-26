@@ -40,7 +40,7 @@ static volatile uint32_t global_start_angle_degrees = 0;
 static volatile int32_t global_angle_length_degrees = FULL_RING_DEGREES;
 static volatile uint8_t global_intensity = 30;
 static volatile struct led_rgb global_color = {0};
-const struct led_rgb off = {0, 0, 0};
+extern const struct led_rgb rgb_led_off;
 
 #define PULSING_PERIOD_MS 2000
 #define PULSING_DELAY_TIME_US                                                  \
@@ -82,7 +82,7 @@ set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
             (size_t)(NUM_RING_LEDS * abs(angle_length) / FULL_RING_DEGREES)) {
             leds.part.ring_leds[led_index] = color;
         } else {
-            leds.part.ring_leds[led_index] = off;
+            leds.part.ring_leds[led_index] = rgb_led_off;
         }
 
         // depending on angle_length sign, we go through the ring LED in a
@@ -118,8 +118,8 @@ front_leds_thread(void *a, void *b, void *c)
 
         switch (global_pattern) {
         case UserLEDsPattern_UserRgbLedPattern_OFF:
-            set_center(off);
-            set_ring(off, 0, FULL_RING_DEGREES);
+            set_center(rgb_led_off);
+            set_ring(rgb_led_off, 0, FULL_RING_DEGREES);
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_WHITE:
             global_color.r = global_intensity;
@@ -133,7 +133,7 @@ front_leds_thread(void *a, void *b, void *c)
             global_color.r = global_intensity;
             global_color.g = global_intensity;
             global_color.b = global_intensity;
-            set_center(off);
+            set_center(rgb_led_off);
             set_ring(global_color, global_start_angle_degrees,
                      global_angle_length_degrees);
             break;
@@ -160,7 +160,7 @@ front_leds_thread(void *a, void *b, void *c)
             global_color.g = global_intensity;
             global_color.b = global_intensity;
             set_center(global_color);
-            set_ring(off, 0, FULL_RING_DEGREES);
+            set_ring(rgb_led_off, 0, FULL_RING_DEGREES);
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_RED:
             global_color.r = global_intensity;
@@ -196,7 +196,7 @@ front_leds_thread(void *a, void *b, void *c)
                 wait_until = K_MSEC(PULSING_DELAY_TIME_US);
                 pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
             } else {
-                global_color = off;
+                global_color = rgb_led_off;
             }
             set_center(global_color);
             set_ring(global_color, global_start_angle_degrees,
