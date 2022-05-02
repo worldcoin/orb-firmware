@@ -93,7 +93,7 @@ fan_init(const struct device *dev)
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V31
     int ret = gpio_pin_configure_dt(&fan_enable_spec, GPIO_OUTPUT);
-    if (!ret) {
+    if (ret) {
         LOG_ERR("Error %d: failed to configure %s pin %d for output", ret,
                 fan_enable_spec.port->name, fan_enable_spec.pin);
         return RET_ERROR_INTERNAL;
