@@ -7,6 +7,9 @@ LOG_MODULE_REGISTER(log_can);
 
 static bool panic_mode = false;
 
+// Max log string length per message, without NULL termination character
+#define LOG_MAX_CHAR_COUNT (sizeof(Log) - 1)
+
 static int
 can_message_out(uint8_t *data, size_t length, void *ctx)
 {
@@ -15,7 +18,7 @@ can_message_out(uint8_t *data, size_t length, void *ctx)
                       .message.m_message.payload.log.log = {0}};
     // keep NULL termination character at the end so subtract one to array size
     memcpy(log.message.m_message.payload.log.log, data,
-           MIN(length, sizeof(log.message.m_message.payload.log) - 1));
+           MIN(length, LOG_MAX_CHAR_COUNT));
 
     can_messaging_push_tx(&log);
 
@@ -24,9 +27,12 @@ can_message_out(uint8_t *data, size_t length, void *ctx)
     return (int)length;
 }
 
-static uint8_t log_output_buf[Log_size - 1];
+// Copy log into log_output_buf which has the same size as the Log message
+// We define a log_output with `sizeof(Log) - 1` to keep room for the NULL
+// termination character
+static uint8_t log_output_buf[sizeof(Log)];
 LOG_OUTPUT_DEFINE(log_output_can, can_message_out, log_output_buf,
-                  Log_size - 1);
+                  LOG_MAX_CHAR_COUNT);
 
 static inline bool
 is_panic_mode(void)
