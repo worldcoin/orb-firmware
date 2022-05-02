@@ -5,6 +5,11 @@
 / {
     zephyr,user {
         level-shifter-enable-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
+
+        // To be clear, the enable/disable signal only does something
+        // on mainboard versions 3.2+, but this pin is unused on
+        // mainboard 3.1, so no harm no foul
+        fans-enable-gpios = <&gpiob 13 GPIO_ACTIVE_HIGH>;
     };
 
     supply_5v {
