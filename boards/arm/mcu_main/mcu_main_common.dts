@@ -266,12 +266,24 @@
 &can1 {
     pinctrl-0 = <&fdcan1_rx_pd0 &fdcan1_tx_pd1>;
     pinctrl-names = "default";
+
+    /*
+     * 1. Choose the highest available CAN clock frequency: PCLK1 is used
+     * 2. Set the BRPA bit-rate prescaler equal BRPB: done within Zephyr
+     * 3. Choose BRPA and BRPD as low as possible: done within Zephyr
+     * 4. Configure all CAN FD nodes to have the same arbitration phase SP
+     *    and the same data phase SP: 85,2%
+     * 5. Chose sjwD and sjwA as large as possible: MIN(PS1,PS2). Configuration
+     * on the Jetson allows for a maximum of 4. We use 4 to keep the
+     * configuration homogeneous (same Tq on all nodes)
+     * 6. Enable TDC for data bit-rates higher than 1 Mbit/s
+     */
     bus-speed = <125000>;
-    sjw = <1>;
-    sample-point = <875>;
+    sjw = <4>;
+    sample-point = <852>;
     bus-speed-data = <1000000>;
-    sjw-data = <1>;
-    sample-point-data = <875>;
+    sjw-data = <4>;
+    sample-point-data = <853>; // closest value
     status = "okay";
 };
 
