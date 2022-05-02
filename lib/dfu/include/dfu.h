@@ -26,6 +26,9 @@ dfu_secondary_check(uint32_t crc32);
 int
 dfu_primary_confirm(void);
 
+bool
+dfu_primary_is_confirmed();
+
 int
 dfu_version_primary_get(struct image_version *ih_ver);
 

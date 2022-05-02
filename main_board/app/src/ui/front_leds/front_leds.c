@@ -6,6 +6,7 @@
 #include <drivers/led_strip.h>
 #include <logging/log.h>
 #include <random/rand32.h>
+#include <stdlib.h>
 #include <zephyr.h>
 LOG_MODULE_REGISTER(front_unit_rgb_leds);
 
@@ -16,13 +17,30 @@ static K_SEM_DEFINE(sem, 1, 1); // init to 1 to use default values below
 
 #define NUM_LEDS         DT_PROP(DT_NODELABEL(front_unit_rgb_leds), num_leds)
 #define NUM_CENTER_LEDS  9
+#define NUM_RING_LEDS    (NUM_LEDS - NUM_CENTER_LEDS)
 #define SHADES_PER_COLOR 4 // 4^3 = 64 different colors
-static struct led_rgb leds[NUM_LEDS];
+#define INDEX_RING_ZERO                                                        \
+    ((NUM_RING_LEDS * 3 / 4)) // LED index at angle 0º in trigonometric circle
+
+struct center_ring_leds {
+    struct led_rgb center_leds[NUM_CENTER_LEDS];
+    struct led_rgb ring_leds[NUM_RING_LEDS];
+};
+
+typedef union {
+    struct center_ring_leds part;
+    struct led_rgb all[NUM_LEDS];
+} user_leds_t;
+static user_leds_t leds;
 
 // default values
 static volatile UserLEDsPattern_UserRgbLedPattern global_pattern =
     UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE;
+static volatile uint32_t global_start_angle_degrees = 0;
+static volatile int32_t global_angle_length_degrees = FULL_RING_DEGREES;
 static volatile uint8_t global_intensity = 30;
+static volatile struct led_rgb global_color = {0};
+const struct led_rgb off = {0, 0, 0};
 
 #define PULSING_PERIOD_MS 2000
 #define PULSING_DELAY_TIME_US                                                  \
@@ -38,6 +56,44 @@ static_assert(PULSING_DELAY_TIME_US > 0, "pulsing delay time is too low");
 // NOTE:
 // All delays here are a bit skewed since it takes ~7ms to transmit the LED
 // settings. So it takes 7ms + delay_time to between animations.
+
+static void
+set_center(struct led_rgb color)
+{
+    for (size_t i = 0; i < ARRAY_SIZE(leds.part.center_leds); ++i) {
+        leds.part.center_leds[i] = color;
+    }
+}
+
+static void
+set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
+{
+    APP_ASSERT_BOOL(start_angle <= FULL_RING_DEGREES);
+    APP_ASSERT_BOOL(angle_length <= FULL_RING_DEGREES &&
+                    angle_length >= -FULL_RING_DEGREES);
+
+    // get first LED index, based on LED at 0º on trigonometric circle
+    size_t led_index =
+        INDEX_RING_ZERO - NUM_RING_LEDS * start_angle / FULL_RING_DEGREES;
+
+    for (size_t i = 0; i < NUM_RING_LEDS; ++i) {
+        if (i <
+            (size_t)(NUM_RING_LEDS * abs(angle_length) / FULL_RING_DEGREES)) {
+            leds.part.ring_leds[led_index] = color;
+        } else {
+            leds.part.ring_leds[led_index] = off;
+        }
+
+        // depending on angle_length sign, we go through the ring LED in a
+        // different direction
+        if (angle_length >= 0) {
+            led_index = (led_index + 1) % ARRAY_SIZE(leds.part.ring_leds);
+        } else {
+            led_index = led_index == 0 ? (ARRAY_SIZE(leds.part.ring_leds) - 1)
+                                       : (led_index - 1);
+        }
+    }
+}
 
 _Noreturn static void
 front_leds_thread(void *a, void *b, void *c)
@@ -61,78 +117,119 @@ front_leds_thread(void *a, void *b, void *c)
 
         switch (global_pattern) {
         case UserLEDsPattern_UserRgbLedPattern_OFF:
-            RGB_LEDS_OFF(leds);
+            set_center(off);
+            set_ring(off, 0, FULL_RING_DEGREES);
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_WHITE:
-            RGB_LEDS_WHITE(leds, global_intensity);
+            global_color.r = global_intensity;
+            global_color.g = global_intensity;
+            global_color.b = global_intensity;
+            set_center(global_color);
+            set_ring(global_color, global_start_angle_degrees,
+                     global_angle_length_degrees);
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_NO_CENTER:
-            memset(leds, 0, (sizeof *leds) * NUM_CENTER_LEDS);
-            memset(leds + NUM_CENTER_LEDS, global_intensity,
-                   sizeof leds - ((sizeof *leds) * NUM_CENTER_LEDS));
+            global_color.r = global_intensity;
+            global_color.g = global_intensity;
+            global_color.b = global_intensity;
+            set_center(off);
+            set_ring(global_color, global_start_angle_degrees,
+                     global_angle_length_degrees);
             break;
         case UserLEDsPattern_UserRgbLedPattern_RANDOM_RAINBOW:
             if (global_intensity > 0) {
                 uint32_t shades = global_intensity > SHADES_PER_COLOR
                                       ? SHADES_PER_COLOR
                                       : global_intensity;
-                for (size_t i = 0; i < ARRAY_SIZE(leds); ++i) {
-                    leds[i].r =
+                for (size_t i = 0; i < ARRAY_SIZE(leds.all); ++i) {
+                    leds.all[i].r =
                         sys_rand32_get() % shades * (global_intensity / shades);
-                    leds[i].g =
+                    leds.all[i].g =
                         sys_rand32_get() % shades * (global_intensity / shades);
-                    leds[i].b =
+                    leds.all[i].b =
                         sys_rand32_get() % shades * (global_intensity / shades);
                 }
                 wait_until = K_MSEC(50);
             } else {
-                memset(leds, 0, sizeof leds);
+                memset(leds.all, 0, sizeof leds.all);
             }
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_ONLY_CENTER:
-            memset(leds, global_intensity, (sizeof *leds) * NUM_CENTER_LEDS);
-            memset(leds + NUM_CENTER_LEDS, 0,
-                   sizeof leds - ((sizeof *leds) * NUM_CENTER_LEDS));
+            global_color.r = global_intensity;
+            global_color.g = global_intensity;
+            global_color.b = global_intensity;
+            set_center(global_color);
+            set_ring(off, 0, FULL_RING_DEGREES);
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_RED:
-            RGB_LEDS_RED(leds, global_intensity);
+            global_color.r = global_intensity;
+            global_color.g = 0;
+            global_color.b = 0;
+            set_center(global_color);
+            set_ring(global_color, global_start_angle_degrees,
+                     global_angle_length_degrees);
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_GREEN:
-            RGB_LEDS_GREEN(leds, global_intensity);
+            global_color.r = 0;
+            global_color.g = global_intensity;
+            global_color.b = 0;
+            set_center(global_color);
+            set_ring(global_color, global_start_angle_degrees,
+                     global_angle_length_degrees);
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_BLUE:
-            RGB_LEDS_BLUE(leds, global_intensity);
+            global_color.r = 0;
+            global_color.g = 0;
+            global_color.b = global_intensity;
+            set_center(global_color);
+            set_ring(global_color, global_start_angle_degrees,
+                     global_angle_length_degrees);
             break;
         case UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE:
             if (global_intensity > 0) {
-                for (size_t i = 0; i < ARRAY_SIZE(leds); ++i) {
-                    uint8_t v = (SINE_LUT[pulsing_index] * global_intensity) +
-                                PULSING_MIN_INTENSITY;
-                    leds[i].r = v;
-                    leds[i].g = v;
-                    leds[i].b = v;
-                }
+                uint8_t v = (SINE_LUT[pulsing_index] * global_intensity) +
+                            PULSING_MIN_INTENSITY;
+                global_color.r = v;
+                global_color.g = v;
+                global_color.b = v;
                 wait_until = K_MSEC(PULSING_DELAY_TIME_US);
                 pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
             } else {
-                pulsing_index = 0;
-                memset(leds, 0, sizeof leds);
+                global_color = off;
             }
+            set_center(global_color);
+            set_ring(global_color, global_start_angle_degrees,
+                     global_angle_length_degrees);
+            break;
+        case UserLEDsPattern_UserRgbLedPattern_RGB:
+            set_center(global_color);
+            set_ring(global_color, global_start_angle_degrees,
+                     global_angle_length_degrees);
             break;
         default:
-            LOG_ERR("Unhandled LED pattern: %u", global_pattern);
+            LOG_ERR("Unhandled front LED pattern: %u", global_pattern);
             continue;
         }
 
         // update LEDs
-        led_strip_update_rgb(led_strip, leds, ARRAY_SIZE(leds));
+        led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
     }
 }
 
 void
-front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern)
+front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
+                       uint32_t start_angle, int32_t angle_length,
+                       RgbColor *color)
 {
     global_pattern = pattern;
+    global_start_angle_degrees = start_angle;
+    global_angle_length_degrees = angle_length;
+    if (color != NULL) {
+        global_color.r = color->red;
+        global_color.g = color->green;
+        global_color.b = color->blue;
+    }
+
     k_sem_give(&sem);
 }
 

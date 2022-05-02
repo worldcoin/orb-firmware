@@ -6,26 +6,27 @@
 #include <logging/log.h>
 #include <zephyr.h>
 
-LOG_MODULE_REGISTER(distributor_leds);
+LOG_MODULE_REGISTER(operator_leds);
 
-#include "distributor_leds.h"
+#include "operator_leds.h"
 #include "ui/rgb_leds.h"
 
-static K_THREAD_STACK_DEFINE(distributor_leds_stack_area,
-                             THREAD_STACK_SIZE_DISTRIBUTOR_RGB_LEDS);
-static struct k_thread distributor_leds_thread_data;
-static K_SEM_DEFINE(sem, 1, 1); // init to 1 to use default values below
+static K_THREAD_STACK_DEFINE(operator_leds_stack_area,
+                             THREAD_STACK_SIZE_OPERATOR_RGB_LEDS);
+static struct k_thread operator_leds_thread_data;
+static K_SEM_DEFINE(sem, 0, 1);
 
-#define NUM_LEDS DT_PROP(DT_NODELABEL(distributor_rgb_leds), num_leds)
+#define NUM_LEDS DT_PROP(DT_NODELABEL(operator_rgb_leds), num_leds)
 static struct led_rgb leds[NUM_LEDS];
 
 // default values
 static volatile DistributorLEDsPattern_DistributorRgbLedPattern global_pattern =
     DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE;
 static uint8_t global_intensity = 20;
+static struct led_rgb global_color;
 
 _Noreturn static void
-distributor_leds_thread(void *a, void *b, void *c)
+operator_leds_thread(void *a, void *b, void *c)
 {
     ARG_UNUSED(b);
     ARG_UNUSED(c);
@@ -51,6 +52,14 @@ distributor_leds_thread(void *a, void *b, void *c)
         case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_BLUE:
             RGB_LEDS_BLUE(leds, global_intensity);
             break;
+        case DistributorLEDsPattern_DistributorRgbLedPattern_RGB: {
+            for (size_t i = 0; i < ARRAY_SIZE_ASSERT(leds); ++i) {
+                leds[i] = global_color;
+            }
+        } break;
+        default:
+            LOG_ERR("Unhandled operator LED pattern: %u", global_pattern);
+            break;
         }
 
         led_strip_update_rgb(led_strip, leds, ARRAY_SIZE(leds));
@@ -58,37 +67,43 @@ distributor_leds_thread(void *a, void *b, void *c)
 }
 
 void
-distributor_leds_set_brightness(uint8_t brightness)
+operator_leds_set_brightness(uint8_t brightness)
 {
     global_intensity = brightness;
     k_sem_give(&sem);
 }
 
 void
-distributor_leds_set_pattern(
-    DistributorLEDsPattern_DistributorRgbLedPattern pattern)
+operator_leds_set_pattern(
+    DistributorLEDsPattern_DistributorRgbLedPattern pattern, RgbColor *color)
 {
     global_pattern = pattern;
+    if (color != NULL) {
+        global_color.r = color->red;
+        global_color.g = color->green;
+        global_color.b = color->blue;
+    }
+
     k_sem_give(&sem);
 }
 
 int
-distributor_leds_init(void)
+operator_leds_init(void)
 {
     const struct device *led_strip =
-        DEVICE_DT_GET(DT_NODELABEL(distributor_rgb_leds));
+        DEVICE_DT_GET(DT_NODELABEL(operator_rgb_leds));
 
     if (!device_is_ready(led_strip)) {
-        LOG_ERR("Front unit LED strip not ready!");
+        LOG_ERR("Operator LED strip not ready!");
         return RET_ERROR_INTERNAL;
     }
 
-    k_tid_t tid = k_thread_create(
-        &distributor_leds_thread_data, distributor_leds_stack_area,
-        K_THREAD_STACK_SIZEOF(distributor_leds_stack_area),
-        distributor_leds_thread, (void *)led_strip, NULL, NULL,
-        THREAD_PRIORITY_DISTRIBUTOR_RGB_LEDS, 0, K_NO_WAIT);
-    k_thread_name_set(tid, "Distributor RGB LED");
+    k_tid_t tid =
+        k_thread_create(&operator_leds_thread_data, operator_leds_stack_area,
+                        K_THREAD_STACK_SIZEOF(operator_leds_stack_area),
+                        operator_leds_thread, (void *)led_strip, NULL, NULL,
+                        THREAD_PRIORITY_OPERATOR_RGB_LEDS, 0, K_NO_WAIT);
+    k_thread_name_set(tid, "Operator RGB LED");
 
     return RET_SUCCESS;
 }

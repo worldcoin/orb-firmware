@@ -3,7 +3,8 @@
 #include "dfu.h"
 #include "mcu_messaging.pb.h"
 #include "power_sequence/power_sequence.h"
-#include "ui/distributor_leds/distributor_leds.h"
+#include "ui/operator_leds/operator_leds.h"
+#include "ui/rgb_leds.h"
 #include "version/version.h"
 #include <assert.h>
 #include <fan/fan.h>
@@ -368,11 +369,27 @@ handle_user_leds_pattern(McuMessage *msg)
 
     UserLEDsPattern_UserRgbLedPattern pattern =
         msg->message.j_message.payload.user_leds_pattern.pattern;
+    uint32_t start_angle =
+        msg->message.j_message.payload.user_leds_pattern.start_angle;
+    int32_t angle_length =
+        msg->message.j_message.payload.user_leds_pattern.angle_length;
 
-    LOG_DBG("Got new user RBG pattern message: %d", pattern);
+    LOG_DBG("Got new user RBG pattern message: %d, start %uº, angle length %dº",
+            pattern, start_angle, angle_length);
 
-    front_leds_set_pattern(pattern);
-    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    if (start_angle > FULL_RING_DEGREES ||
+        abs(angle_length) > FULL_RING_DEGREES) {
+        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+    } else {
+        RgbColor *color_ptr = NULL;
+        if (msg->message.j_message.payload.user_leds_pattern.pattern ==
+            UserLEDsPattern_UserRgbLedPattern_RGB) {
+            color_ptr =
+                &msg->message.j_message.payload.user_leds_pattern.custom_color;
+        }
+        front_leds_set_pattern(pattern, start_angle, angle_length, color_ptr);
+        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    }
 }
 
 static void
@@ -399,9 +416,18 @@ handle_distributor_leds_pattern(McuMessage *msg)
 {
     MAKE_ASSERTS(JetsonToMcu_distributor_leds_pattern_tag);
 
-    LOG_DBG("Got distributor LED pattern");
-    distributor_leds_set_pattern(
-        msg->message.j_message.payload.distributor_leds_pattern.pattern);
+    DistributorLEDsPattern_DistributorRgbLedPattern pattern =
+        msg->message.j_message.payload.distributor_leds_pattern.pattern;
+    LOG_DBG("Got distributor LED pattern: %u", pattern);
+
+    RgbColor *color_ptr = NULL;
+    if (msg->message.j_message.payload.distributor_leds_pattern.pattern ==
+        DistributorLEDsPattern_DistributorRgbLedPattern_RGB) {
+        color_ptr = &msg->message.j_message.payload.distributor_leds_pattern
+                         .custom_color;
+    }
+    operator_leds_set_pattern(pattern, color_ptr);
+
     incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
 }
 
@@ -418,7 +444,7 @@ handle_distributor_leds_brightness(McuMessage *msg)
         incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
     } else {
         LOG_DBG("Got distributor LED brightness: %u", brightness);
-        distributor_leds_set_brightness((uint8_t)brightness);
+        operator_leds_set_brightness((uint8_t)brightness);
         incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
     }
 }
@@ -456,6 +482,11 @@ handle_fw_img_sec_activate(McuMessage *msg)
         incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
     } else {
         incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+
+        // turn operator LEDs orange
+        RgbColor color = RGB_LED_ORANGE;
+        operator_leds_set_pattern(
+            DistributorLEDsPattern_DistributorRgbLedPattern_RGB, &color);
 
         // wait for Jetson to shut down before we can reboot
         power_reboot_set_pending();
