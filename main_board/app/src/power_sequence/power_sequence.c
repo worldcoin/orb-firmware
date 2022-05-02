@@ -373,7 +373,8 @@ reboot_thread()
     // turn on center LEDs in white during update
     if (secondary_slot.magic == BOOT_MAGIC_GOOD) {
         front_leds_set_pattern(
-            UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_ONLY_CENTER);
+            UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_ONLY_CENTER, 0, 0,
+            NULL);
         k_msleep(500);
     }
 

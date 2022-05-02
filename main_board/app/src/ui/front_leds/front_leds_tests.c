@@ -13,12 +13,19 @@ fu_rgb_leds_test_thread()
 {
     front_leds_set_brightness(0x10);
 
+    RgbColor custom = {60, 60, 0};
     while (1) {
         // test all patterns
         for (int i = UserLEDsPattern_UserRgbLedPattern_OFF;
-             i <= UserLEDsPattern_UserRgbLedPattern_ALL_BLUE; ++i) {
-            front_leds_set_pattern(i);
-            k_msleep(1000);
+             i <= UserLEDsPattern_UserRgbLedPattern_RGB; ++i) {
+            for (int j = 0; j <= 360; j = j + 90) {
+                front_leds_set_pattern(i, 90, j, &custom);
+                k_msleep(1000);
+            }
+            for (int j = 360; j >= 0; j = j - 90) {
+                front_leds_set_pattern(i, 90, j, &custom);
+                k_msleep(1000);
+            }
         }
     }
 }
