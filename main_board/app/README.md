@@ -20,9 +20,16 @@ git checkout main
 
 ### Compiling and Flashing
 
-Let's build and run the application: you have two options: use the Makefile w/ Docker or do it manually.
+Let's build and run the application, you have two options:
 
-> ⚠️ Make sure to have the [bootloader flashed](../../bootloader_main/README.md) before flashing the application.
+- the Makefile w/ Docker
+- manually using `west`
+
+> 💡 Important notes:
+>
+> - Firmware images are signed and encrypted. If you don't have development keys already created locally, then run
+>   `./generate_dev_keys` while in the directory `"$REPO_DIR"/utils/ota/`.
+> - Make sure to have the [bootloader flashed](../../bootloader_main/README.md) _before_ flashing the application.
 
 #### With Makefile
 
@@ -68,11 +75,6 @@ su-exec root west flash
 | Application Secondary Slot          | 0x00044000 | 224kB |
 | Scratch partition                   | 0x0007C000 | 8kB   |
 | Persistent storage                  | 0x0007E000 | 8kB   |
-
-### Keys
-
-Firmware images are signed and encrypted. If you don't have development keys already created locally, then run
-`./generate_dev_keys` while in the directory `"$REPO_DIR"/utils/ota/`.
 
 ### Timer allocations - Mainboard 3.1
 

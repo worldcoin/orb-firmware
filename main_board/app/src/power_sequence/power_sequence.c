@@ -261,7 +261,8 @@ app_init_state(const struct device *dev)
 
     // if FW image is confirmed, gate turning on power supplies on button press
     // otherwise, application have been updated and not confirmed, boot Jetson
-    if (primary_slot.image_ok != BOOT_FLAG_UNSET) {
+    if (primary_slot.image_ok != BOOT_FLAG_UNSET ||
+        primary_slot.magic == BOOT_MAGIC_UNSET) {
         ret = power_wait_for_power_button_press();
     } else {
         LOG_INF("Firmware image not confirmed");

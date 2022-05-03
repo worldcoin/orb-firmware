@@ -330,7 +330,7 @@ motor_spi_send_commands(const struct device *spi_bus_controller,
 
 static void
 motor_spi_write(const struct device *spi_bus_controller, uint8_t reg,
-                uint32_t value)
+                int32_t value)
 {
     uint8_t tx_buffer[5] = {0};
     uint8_t rx_buffer[5] = {0};
@@ -460,7 +460,9 @@ motors_angle_horizontal(int32_t angle_millidegrees)
     }
 
     // recenter
-    int32_t m_degrees_from_center = angle_millidegrees - 45000;
+    int32_t m_degrees_from_center =
+        angle_millidegrees -
+        (MOTORS_ANGLE_HORIZONTAL_MAX + MOTORS_ANGLE_HORIZONTAL_MIN) / 2;
 
     return motors_set_angle_relative(m_degrees_from_center, MOTOR_HORIZONTAL);
 }
@@ -901,11 +903,10 @@ motors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
             motor_spi_send_commands(
                 spi_bus_controller, position_mode_full_speed[motor],
                 ARRAY_SIZE(position_mode_full_speed[motor]));
-            int32_t steps = motors_full_course_maximum_steps[motor];
+            int32_t steps = -motors_full_course_maximum_steps[motor];
             LOG_WRN("Steps to one end: %i", steps);
             motor_spi_write(spi_bus_controller,
-                            TMC5041_REGISTERS[REG_IDX_XTARGET][motor],
-                            (uint32_t)steps);
+                            TMC5041_REGISTERS[REG_IDX_XTARGET][motor], steps);
             motors_refs[motor].auto_homing_state = AH_LOOKING_FIRST_END;
         } break;
 
@@ -915,13 +916,13 @@ motors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                 motor_spi_write(spi_bus_controller,
                                 TMC5041_REGISTERS[REG_IDX_XACTUAL][motor], 0x0);
 
-                motors_refs[motor].x0 = -55000;
+                motors_refs[motor].x0 = 55000;
                 motors_refs[motor].full_course = abs(motors_refs[motor].x0 * 2);
 
                 // go to middle position
                 motor_spi_write(spi_bus_controller,
                                 TMC5041_REGISTERS[REG_IDX_XTARGET][motor],
-                                (uint32_t)motors_refs[motor].x0);
+                                motors_refs[motor].x0);
 
                 motors_refs[motor].auto_homing_state = AH_WAIT_STANDSTILL;
             }

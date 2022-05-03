@@ -8,6 +8,12 @@
 void
 operator_leds_set_brightness(uint8_t brightness);
 
+/**
+ * Set pattern for operator LEDs
+ * @param pattern Pattern to apply
+ * @param mask Bit mask
+ * @param color Custom color, NULL to use default
+ */
 void
 operator_leds_set_pattern(
     DistributorLEDsPattern_DistributorRgbLedPattern pattern, uint32_t mask,

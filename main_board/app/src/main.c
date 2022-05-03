@@ -116,6 +116,7 @@ main(void)
         // to confirm the image
         if (!jetson_up_and_running && incoming_message_acked_counter() > 0) {
             version_send();
+            temperature_start();
 
             if (app_assert_count()) {
                 // do not confirm image
