@@ -24,7 +24,6 @@ static volatile DistributorLEDsPattern_DistributorRgbLedPattern global_pattern =
 static uint8_t global_intensity = 20;
 static uint32_t global_mask = OPERATOR_LEDS_ALL_MASK;
 static struct led_rgb global_color;
-extern const struct led_rgb rgb_led_off;
 
 static void
 apply_pattern()
@@ -35,7 +34,7 @@ apply_pattern()
         if (global_mask & BIT((OPERATOR_LEDS_COUNT - 1) - i)) {
             leds[i] = global_color;
         } else {
-            leds[i] = rgb_led_off;
+            leds[i] = (struct led_rgb)RGB_OFF;
         }
     }
 }
@@ -53,7 +52,7 @@ operator_leds_thread(void *a, void *b, void *c)
 
         switch (global_pattern) {
         case DistributorLEDsPattern_DistributorRgbLedPattern_OFF:
-            global_color = rgb_led_off;
+            global_color = (struct led_rgb)RGB_OFF;
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE:
             global_color.r = global_intensity;

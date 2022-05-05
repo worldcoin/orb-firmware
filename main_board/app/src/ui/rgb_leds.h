@@ -11,4 +11,9 @@
         255, 255 / 2, 0                                                        \
     }
 
+#define RGB_OFF                                                                \
+    {                                                                          \
+        0, 0, 0                                                                \
+    }
+
 #endif // ORB_MCU_MAIN_APP_RGB_LEDS_H

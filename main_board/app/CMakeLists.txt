@@ -88,7 +88,6 @@ set(SOURCES_FILES
     src/button/button.c
 
     ${SINE_LUT_SRC_FILE}
-    src/ui/rgb_leds.c
     src/ui/front_leds/front_leds.c
     src/ui/front_leds/front_leds_tests.c
     src/ui/operator_leds/operator_leds.c
