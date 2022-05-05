@@ -432,10 +432,13 @@ handle_distributor_leds_pattern(McuMessage *msg)
             color_ptr = &msg->message.j_message.payload.distributor_leds_pattern
                              .custom_color;
         }
-        operator_leds_set_pattern(pattern, mask, color_ptr);
+        if (operator_leds_set_pattern(pattern, mask, color_ptr) !=
+            RET_SUCCESS) {
+            incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        } else {
+            incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        }
     }
-
-    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
 }
 
 static void
@@ -451,8 +454,11 @@ handle_distributor_leds_brightness(McuMessage *msg)
         incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
     } else {
         LOG_DBG("Got distributor LED brightness: %u", brightness);
-        operator_leds_set_brightness((uint8_t)brightness);
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        if (operator_leds_set_brightness((uint8_t)brightness) != RET_SUCCESS) {
+            incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        } else {
+            incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        }
     }
 }
 

@@ -14,7 +14,8 @@ LOG_MODULE_REGISTER(operator_leds);
 static K_THREAD_STACK_DEFINE(operator_leds_stack_area,
                              THREAD_STACK_SIZE_OPERATOR_RGB_LEDS);
 static struct k_thread operator_leds_thread_data;
-static K_SEM_DEFINE(sem, 0, 1);
+static K_SEM_DEFINE(sem_new_setting, 0, 1);
+static K_SEM_DEFINE(sem_apply_setting, 1, 1);
 
 static struct led_rgb leds[OPERATOR_LEDS_COUNT];
 
@@ -48,7 +49,7 @@ operator_leds_thread(void *a, void *b, void *c)
     const struct device *led_strip = a;
 
     for (;;) {
-        k_sem_take(&sem, K_FOREVER);
+        k_sem_take(&sem_new_setting, K_FOREVER);
 
         switch (global_pattern) {
         case DistributorLEDsPattern_DistributorRgbLedPattern_OFF:
@@ -84,21 +85,33 @@ operator_leds_thread(void *a, void *b, void *c)
 
         apply_pattern();
         led_strip_update_rgb(led_strip, leds, ARRAY_SIZE(leds));
+
+        k_sem_give(&sem_apply_setting);
     }
 }
 
-void
+int
 operator_leds_set_brightness(uint8_t brightness)
 {
+    if (k_sem_take(&sem_apply_setting, K_MSEC(1))) {
+        return RET_ERROR_BUSY;
+    }
+
     global_intensity = brightness;
-    k_sem_give(&sem);
+    k_sem_give(&sem_new_setting);
+
+    return RET_SUCCESS;
 }
 
-void
+int
 operator_leds_set_pattern(
     DistributorLEDsPattern_DistributorRgbLedPattern pattern, uint32_t mask,
     RgbColor *color)
 {
+    if (k_sem_take(&sem_apply_setting, K_MSEC(1))) {
+        return RET_ERROR_BUSY;
+    }
+
     global_pattern = pattern;
     global_mask = mask;
 
@@ -108,7 +121,9 @@ operator_leds_set_pattern(
         global_color.b = color->blue;
     }
 
-    k_sem_give(&sem);
+    k_sem_give(&sem_new_setting);
+
+    return RET_SUCCESS;
 }
 
 int
