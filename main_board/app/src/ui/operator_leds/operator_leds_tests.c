@@ -23,7 +23,7 @@ operator_leds_test_thread()
 
         for (int i = DistributorLEDsPattern_DistributorRgbLedPattern_OFF;
              i <= DistributorLEDsPattern_DistributorRgbLedPattern_RGB; ++i) {
-            for (uint32_t j = 0; j <= BIT_MASK(5); j++) {
+            for (uint32_t j = 0; j <= OPERATOR_LEDS_ALL_MASK; j++) {
                 operator_leds_set_pattern(i, j, &color);
                 k_msleep(500);
             }
