@@ -54,7 +54,6 @@ static_assert(PULSING_DELAY_TIME_US > 0, "pulsing delay time is too low");
 
 // NOTE:
 // All delays here are a bit skewed since it takes ~7ms to transmit the LED
-// All delays here are a bit skewed since it takes ~7ms to transmit the LED
 // settings. So it takes 7ms + delay_time to between animations.
 
 static void
