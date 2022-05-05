@@ -491,10 +491,9 @@ handle_fw_img_sec_activate(McuMessage *msg)
         incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
 
         // turn operator LEDs orange
-        RgbColor color = RGB_ORANGE;
         operator_leds_set_pattern(
             DistributorLEDsPattern_DistributorRgbLedPattern_RGB,
-            OPERATOR_LEDS_ALL_MASK, &color);
+            OPERATOR_LEDS_ALL_MASK, &(RgbColor)RGB_ORANGE);
 
         // wait for Jetson to shut down before we can reboot
         power_reboot_set_pending();

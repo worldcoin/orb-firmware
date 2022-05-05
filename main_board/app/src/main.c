@@ -96,10 +96,9 @@ main(void)
             DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN,
             OPERATOR_LEDS_ALL_MASK, NULL);
     } else {
-        RgbColor custom = RGB_ORANGE;
         operator_leds_set_pattern(
             DistributorLEDsPattern_DistributorRgbLedPattern_RGB,
-            OPERATOR_LEDS_ALL_MASK, &custom);
+            OPERATOR_LEDS_ALL_MASK, &(RgbColor)RGB_ORANGE);
     }
 
     // launch tests if any is defined
