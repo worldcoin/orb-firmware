@@ -423,13 +423,17 @@ handle_distributor_leds_pattern(McuMessage *msg)
 
     LOG_DBG("Got distributor LED pattern: %u, mask 0x%x", pattern, mask);
 
-    RgbColor *color_ptr = NULL;
-    if (msg->message.j_message.payload.distributor_leds_pattern.pattern ==
-        DistributorLEDsPattern_DistributorRgbLedPattern_RGB) {
-        color_ptr = &msg->message.j_message.payload.distributor_leds_pattern
-                         .custom_color;
+    if (mask > OPERATOR_LEDS_ALL_MASK) {
+        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+    } else {
+        RgbColor *color_ptr = NULL;
+        if (msg->message.j_message.payload.distributor_leds_pattern.pattern ==
+            DistributorLEDsPattern_DistributorRgbLedPattern_RGB) {
+            color_ptr = &msg->message.j_message.payload.distributor_leds_pattern
+                             .custom_color;
+        }
+        operator_leds_set_pattern(pattern, mask, color_ptr);
     }
-    operator_leds_set_pattern(pattern, mask, color_ptr);
 
     incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
 }

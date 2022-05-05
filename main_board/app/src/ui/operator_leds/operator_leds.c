@@ -16,14 +16,13 @@ static K_THREAD_STACK_DEFINE(operator_leds_stack_area,
 static struct k_thread operator_leds_thread_data;
 static K_SEM_DEFINE(sem, 0, 1);
 
-#define NUM_LEDS DT_PROP(DT_NODELABEL(operator_rgb_leds), num_leds)
-static struct led_rgb leds[NUM_LEDS];
+static struct led_rgb leds[OPERATOR_LEDS_COUNT];
 
 // default values
 static volatile DistributorLEDsPattern_DistributorRgbLedPattern global_pattern =
     DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE;
 static uint8_t global_intensity = 20;
-static uint32_t global_mask = BIT_MASK(NUM_LEDS);
+static uint32_t global_mask = OPERATOR_LEDS_ALL_MASK;
 static struct led_rgb global_color;
 extern const struct led_rgb rgb_led_off;
 
@@ -33,7 +32,7 @@ apply_pattern()
     // go through mask starting with most significant bit
     // so that mask is applied from left LED to right for the operator
     for (size_t i = 0; i < ARRAY_SIZE_ASSERT(leds); ++i) {
-        if (global_mask & BIT((NUM_LEDS - 1) - i)) {
+        if (global_mask & BIT((OPERATOR_LEDS_COUNT - 1) - i)) {
             leds[i] = global_color;
         } else {
             leds[i] = rgb_led_off;

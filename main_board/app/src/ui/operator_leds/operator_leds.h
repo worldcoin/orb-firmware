@@ -3,7 +3,8 @@
 
 #include <mcu_messaging.pb.h>
 
-#define OPERATOR_LEDS_ALL_MASK BIT_MASK(5)
+#define OPERATOR_LEDS_COUNT    DT_PROP(DT_NODELABEL(operator_rgb_leds), num_leds)
+#define OPERATOR_LEDS_ALL_MASK BIT_MASK(OPERATOR_LEDS_COUNT)
 
 void
 operator_leds_set_brightness(uint8_t brightness);
