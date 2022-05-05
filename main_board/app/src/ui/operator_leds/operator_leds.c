@@ -17,6 +17,9 @@ static struct k_thread operator_leds_thread_data;
 static K_SEM_DEFINE(sem_new_setting, 0, 1);
 static K_SEM_DEFINE(sem_apply_setting, 1, 1);
 
+// maximum time for the thread to "consume" the new settings
+#define LEDS_REFRESH_TIMEOUT 10
+
 static struct led_rgb leds[OPERATOR_LEDS_COUNT];
 
 // default values
@@ -93,7 +96,7 @@ operator_leds_thread(void *a, void *b, void *c)
 int
 operator_leds_set_brightness(uint8_t brightness)
 {
-    if (k_sem_take(&sem_apply_setting, K_MSEC(1))) {
+    if (k_sem_take(&sem_apply_setting, K_MSEC(LEDS_REFRESH_TIMEOUT))) {
         return RET_ERROR_BUSY;
     }
 
@@ -108,7 +111,7 @@ operator_leds_set_pattern(
     DistributorLEDsPattern_DistributorRgbLedPattern pattern, uint32_t mask,
     RgbColor *color)
 {
-    if (k_sem_take(&sem_apply_setting, K_MSEC(1))) {
+    if (k_sem_take(&sem_apply_setting, K_MSEC(LEDS_REFRESH_TIMEOUT))) {
         return RET_ERROR_BUSY;
     }
 
