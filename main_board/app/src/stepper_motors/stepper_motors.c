@@ -236,6 +236,15 @@ const uint64_t position_mode_full_speed[MOTOR_COUNT][10] = {
         0xC000000000,                 // RAMPMODE = 0 position move
     }};
 
+static uint32_t
+microsteps_to_millidegrees(uint32_t microsteps, motor_t motor)
+{
+    uint32_t mdegrees = asinf((float)microsteps / (motors_arm_length[motor] *
+                                                   (float)steps_per_mm)) *
+                        360000 / M_PI;
+    return mdegrees;
+}
+
 /// Decrease sensitivity in three steps
 /// First, decrease current without modifying SGT
 /// Second, increase SGT but revert current to normal
@@ -778,11 +787,10 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 motors_refs[motor].x0 = (-x / 2);
                 motors_refs[motor].full_course = abs(x);
 
-                // WRN to send log over CAN
-                LOG_WRN("Motor %u range: %u microsteps", motor,
-                        motors_refs[motor].full_course);
-                LOG_INF("Motor %u, x0: %d microsteps", motor,
-                        motors_refs[motor].x0);
+                uint32_t angle_millid = microsteps_to_millidegrees(
+                    motors_refs[motor].full_course, motor);
+                LOG_INF("Motor %u, x0: %d microsteps, range: %u millidegrees",
+                        motor, motors_refs[motor].x0, angle_millid);
 
                 McuMessage msg = {
                     .which_message = McuMessage_m_message_tag,
@@ -792,7 +800,9 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                         (motor == MOTOR_VERTICAL ? MotorRange_Motor_VERTICAL
                                                  : MotorRange_Motor_HORIZONTAL),
                     .message.m_message.payload.motor_range.range_microsteps =
-                        motors_refs[motor].full_course};
+                        motors_refs[motor].full_course,
+                    .message.m_message.payload.motor_range.range_millidegrees =
+                        angle_millid};
                 can_messaging_push_tx(&msg);
 
                 // go to middle position
@@ -931,11 +941,10 @@ motors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
             break;
         case AH_WAIT_STANDSTILL: {
             if (status & MOTOR_DRV_STATUS_STANDSTILL) {
-                // WRN to send log over CAN
-                LOG_WRN("Motor %u range: %u microsteps", motor,
-                        motors_refs[motor].full_course);
-                LOG_INF("Motor %u, x0: %d microsteps", motor,
-                        motors_refs[motor].x0);
+                uint32_t angle_millid = microsteps_to_millidegrees(
+                    motors_refs[motor].full_course, motor);
+                LOG_INF("Motor %u, x0: %d microsteps, range: %u millidegrees",
+                        motor, motors_refs[motor].x0, angle_millid);
 
                 McuMessage msg = {
                     .which_message = McuMessage_m_message_tag,
@@ -945,7 +954,10 @@ motors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                         (motor == MOTOR_VERTICAL ? MotorRange_Motor_VERTICAL
                                                  : MotorRange_Motor_HORIZONTAL),
                     .message.m_message.payload.motor_range.range_microsteps =
-                        motors_refs[motor].full_course};
+                        motors_refs[motor].full_course,
+                    .message.m_message.payload.motor_range.range_millidegrees =
+                        angle_millid};
+
                 can_messaging_push_tx(&msg);
 
                 motors_refs[motor].auto_homing_state = AH_SUCCESS;
