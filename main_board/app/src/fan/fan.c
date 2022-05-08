@@ -14,38 +14,30 @@ LOG_MODULE_REGISTER(fan);
 #define FAN_MAIN_NODE DT_PATH(fan)
 #else
 // Main board 3.1
-#define FAN_MAIN_NODE       DT_PATH(fan_main)
+#define FAN_MAIN_NODE DT_PATH(fan_main)
 // Aux fan
-#define FAN_AUX_NODE        DT_PATH(fan_aux)
-#define FAN_AUX_PWM_CTLR    DT_PWMS_CTLR(FAN_AUX_NODE)
-#define FAN_AUX_PWM_CHANNEL DT_PWMS_CHANNEL(FAN_AUX_NODE)
+#define FAN_AUX_NODE  DT_PATH(fan_aux)
+
+static const struct pwm_dt_spec aux_fan_spec = PWM_DT_SPEC_GET(FAN_AUX_NODE);
+
 // Fan enable/disable
 static const struct gpio_dt_spec fan_enable_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), fans_enable_gpios);
 #endif // CONFIG_BOARD_MCU_MAIN_V30
 
-#define FAN_MAIN_PWM_CTLR    DT_PWMS_CTLR(FAN_MAIN_NODE)
-#define FAN_MAIN_PWM_CHANNEL DT_PWMS_CHANNEL(FAN_MAIN_NODE)
-#define FAN_PWM_PERIOD       DT_PWMS_PERIOD(FAN_MAIN_NODE)
-#define FAN_PWM_FLAGS        DT_PWMS_FLAGS(FAN_MAIN_NODE)
-
-#define MSG "Checking that fan PWM controller is ready... "
-
-const struct device *fan_pwm = DEVICE_DT_GET(FAN_MAIN_PWM_CTLR);
+static const struct pwm_dt_spec main_fan_spec = PWM_DT_SPEC_GET(FAN_MAIN_NODE);
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V31
-static_assert(DEVICE_DT_GET(FAN_MAIN_PWM_CTLR) ==
-                  DEVICE_DT_GET(FAN_AUX_PWM_CTLR),
+static_assert(DEVICE_DT_GET(DT_PWMS_CTLR(FAN_MAIN_NODE)) ==
+                  DEVICE_DT_GET(DT_PWMS_CTLR(FAN_AUX_NODE)),
               "We expect the main and aux fan to use the same timer");
 #endif
+
+#define MSG "Checking that fan PWM controller is ready... "
 
 void
 fan_set_speed(uint32_t percentage)
 {
-    if (!device_is_ready(fan_pwm)) {
-        return;
-    }
-
     percentage = MIN(percentage, 100);
 
     LOG_INF("Switching fan to %d%% speed", percentage);
@@ -59,12 +51,12 @@ fan_set_speed(uint32_t percentage)
     percentage = 100 - percentage;
 #endif
 
-    pwm_pin_set_nsec(fan_pwm, FAN_MAIN_PWM_CHANNEL, FAN_PWM_PERIOD,
-                     (FAN_PWM_PERIOD * percentage) / 100, FAN_PWM_FLAGS);
+    pwm_set_dt(&main_fan_spec, main_fan_spec.period,
+               (main_fan_spec.period * percentage) / 100);
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V31
-    pwm_pin_set_nsec(fan_pwm, FAN_AUX_PWM_CHANNEL, FAN_PWM_PERIOD,
-                     (FAN_PWM_PERIOD * percentage) / 100, FAN_PWM_FLAGS);
+    pwm_set_dt(&aux_fan_spec, aux_fan_spec.period,
+               (aux_fan_spec.period * percentage) / 100);
 
     // Even at 0%, the fan spins. This will kill power to the fans in the case
     // of 0%.
@@ -81,9 +73,9 @@ fan_init(const struct device *dev)
 {
     ARG_UNUSED(dev);
 
-    if (!device_is_ready(fan_pwm)
+    if (!device_is_ready(main_fan_spec.dev)
 #ifdef CONFIG_BOARD_MCU_MAIN_V31
-        || !device_is_ready(fan_enable_spec.port)
+        || !device_is_ready(aux_fan_spec.dev)
 #endif
     ) {
         LOG_ERR(MSG "no");
@@ -92,6 +84,10 @@ fan_init(const struct device *dev)
     LOG_INF(MSG "yes");
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V31
+    if (!device_is_ready(fan_enable_spec.port)) {
+        LOG_ERR("fan_enable pin not ready!");
+        return RET_ERROR_INTERNAL;
+    }
     int ret = gpio_pin_configure_dt(&fan_enable_spec, GPIO_OUTPUT);
     if (ret) {
         LOG_ERR("Error %d: failed to configure %s pin %d for output", ret,

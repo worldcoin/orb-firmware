@@ -5,13 +5,13 @@
 #include <device.h>
 #include <drivers/clock_control/stm32_clock_control.h>
 #include <logging/log.h>
-#include <pinmux/pinmux_stm32.h>
 #include <soc.h>
 #include <stm32_ll_hrtim.h>
 #include <stm32_ll_rcc.h>
 #include <stm32_ll_tim.h>
 #include <utils.h>
 #include <zephyr.h>
+#include <drivers/pinctrl.h>
 LOG_MODULE_REGISTER(ir_camera_system);
 
 #define DT_INST_CLK(inst)                                                      \
@@ -20,51 +20,57 @@ LOG_MODULE_REGISTER(ir_camera_system);
         .enr = DT_CLOCKS_CELL(DT_PARENT(inst), bits)                           \
     }
 
-struct pin_control {
-    const struct soc_gpio_pinctrl *pins;
-    size_t len;
-};
-
 // I expect all camera triggers to be on the same timer, but with different
 // channels
 
 // START --- 2D ToF (time of flight) camera trigger
-static const struct soc_gpio_pinctrl tof_2d_camera_trigger_pins[] =
-    ST_STM32_DT_PINCTRL(tof_2d_camera_trigger, 0);
-static_assert(ARRAY_SIZE(tof_2d_camera_trigger_pins) == 1,
-              "For tof_2d_camera_trigger, we expect one entry in pinctrl-0");
+#define TOF_NODE DT_NODELABEL(tof_2d_camera_trigger)
+PINCTRL_DT_DEFINE(TOF_NODE);
+static_assert(
+    DT_PROP_LEN(TOF_NODE, channels) == 1,
+    "For tof_2d_camera_trigger, we expect one channel in the device tree node");
+static_assert(DT_PROP_LEN(TOF_NODE, pinctrl_0) == 1,
+              "For tof_2d_camera_trigger, we expect the pinctrl-0 property to "
+              "contain one entry in the device tree node");
 static struct stm32_pclken tof_2d_camera_trigger_pclken =
     DT_INST_CLK(DT_NODELABEL(tof_2d_camera_trigger));
 #define TOF_2D_CAMERA_TRIGGER_TIMER                                            \
-    ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(DT_NODELABEL(tof_2d_camera_trigger))))
+    ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(TOF_NODE)))
 #define TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL                                    \
-    (DT_PROP_BY_IDX(DT_NODELABEL(tof_2d_camera_trigger), channels, 0))
+    (DT_PROP_BY_IDX(TOF_NODE, channels, 0))
 
 // START --- IR eye camera trigger
-static const struct soc_gpio_pinctrl ir_eye_camera_trigger_pins[] =
-    ST_STM32_DT_PINCTRL(ir_eye_camera_trigger, 0);
-static_assert(ARRAY_SIZE(ir_eye_camera_trigger_pins) == 1,
-              "For ir_eye_camera_trigger, we expect one entry in pinctrl-0");
+#define IR_EYE_CAMERA_NODE DT_NODELABEL(ir_eye_camera_trigger)
+PINCTRL_DT_DEFINE(IR_EYE_CAMERA_NODE);
+static_assert(
+    DT_PROP_LEN(IR_EYE_CAMERA_NODE, channels) == 1,
+    "For ir_eye_camera_trigger, we expect one channel in the device tree node");
+static_assert(DT_PROP_LEN(IR_EYE_CAMERA_NODE, pinctrl_0) == 1,
+              "For ir_eye_camera_trigger, we expect the pinctrl-0 property to "
+              "contain one entry in the device tree node");
 static struct stm32_pclken ir_eye_camera_trigger_pclken =
     DT_INST_CLK(DT_NODELABEL(ir_eye_camera_trigger));
 #define IR_EYE_CAMERA_TRIGGER_TIMER                                            \
-    ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(DT_NODELABEL(ir_eye_camera_trigger))))
+    ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(IR_EYE_CAMERA_NODE)))
 #define IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL                                    \
-    (DT_PROP_BY_IDX(DT_NODELABEL(ir_eye_camera_trigger), channels, 0))
+    (DT_PROP_BY_IDX(IR_EYE_CAMERA_NODE, channels, 0))
 // END --- IR eye
 
 // START --- IR face camera trigger
-static const struct soc_gpio_pinctrl ir_face_camera_trigger_pins[] =
-    ST_STM32_DT_PINCTRL(ir_face_camera_trigger, 0);
-static_assert(ARRAY_SIZE(ir_face_camera_trigger_pins) == 1,
-              "For ir_face_camera_trigger, we expect one entry in pinctrl-0");
+#define IR_FACE_CAMERA_NODE DT_NODELABEL(ir_face_camera_trigger)
+PINCTRL_DT_DEFINE(IR_FACE_CAMERA_NODE);
+static_assert(DT_PROP_LEN(IR_FACE_CAMERA_NODE, channels) == 1,
+              "For ir_face_camera_trigger, we expect one channel in the device "
+              "tree node");
+static_assert(DT_PROP_LEN(IR_FACE_CAMERA_NODE, pinctrl_0) == 1,
+              "For ir_face_camera_trigger, we expect the pinctrl-0 property to "
+              "contain one entry in the device tree node");
 static struct stm32_pclken ir_face_camera_trigger_pclken =
     DT_INST_CLK(DT_NODELABEL(ir_face_camera_trigger));
 #define IR_FACE_CAMERA_TRIGGER_TIMER                                           \
-    ((TIM_TypeDef *)DT_REG_ADDR(                                               \
-        DT_PARENT(DT_NODELABEL(ir_face_camera_trigger))))
+    ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(IR_FACE_CAMERA_NODE)))
 #define IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL                                   \
-    (DT_PROP_BY_IDX(DT_NODELABEL(ir_face_camera_trigger), channels, 0))
+    (DT_PROP_BY_IDX(IR_FACE_CAMERA_NODE, channels, 0))
 // END --- IR face
 
 // AKA: TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER ==
@@ -76,49 +82,56 @@ static_assert(TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER &&
 
 #define CAMERA_TRIGGER_TIMER IR_FACE_CAMERA_TRIGGER_TIMER
 #define CAMERA_TRIGGER_TIMER_IRQn                                              \
-    DT_IRQ_BY_NAME(DT_PARENT(DT_NODELABEL(ir_eye_camera_trigger)), up, irq)
+    DT_IRQ_BY_NAME(DT_PARENT(IR_FACE_CAMERA_NODE), up, irq)
 
 // START --- 850nm LEDs
-static const struct soc_gpio_pinctrl led_850nm_pins[] =
-    ST_STM32_DT_PINCTRL(led_850nm, 0);
-static_assert(ARRAY_SIZE(led_850nm_pins) == 2,
-              "For LED 850nm DTS node, we expect two entries in pinctrl-0");
+#define LED_850NM_NODE DT_NODELABEL(led_850nm)
+PINCTRL_DT_DEFINE(LED_850NM_NODE);
+static_assert(
+    DT_PROP_LEN(LED_850NM_NODE, channels) == 2,
+    "For the 850nm LED, we expect two channels in the device tree node");
+static_assert(DT_PROP_LEN(LED_850NM_NODE, pinctrl_0) == 2,
+              "For the 850nm LED, we expect the pinctrl-0 property to contain "
+              "two entries in the device tree node");
 static struct stm32_pclken led_850nm_pclken =
     DT_INST_CLK(DT_NODELABEL(led_850nm));
-#define LED_850NM_TIMER                                                        \
-    ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(DT_NODELABEL(led_850nm))))
+#define LED_850NM_TIMER ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(LED_850NM_NODE)))
 #define LED_850NM_TIMER_LEFT_CHANNEL                                           \
-    (DT_PROP_BY_IDX(DT_NODELABEL(led_850nm), channels, 0))
+    (DT_PROP_BY_IDX(LED_850NM_NODE, channels, 0))
 #define LED_850NM_TIMER_RIGHT_CHANNEL                                          \
-    (DT_PROP_BY_IDX(DT_NODELABEL(led_850nm), channels, 1))
+    (DT_PROP_BY_IDX(LED_850NM_NODE, channels, 1))
 // END --- 850nm LEDs
 
 // START --- 940nm LED
-static const struct soc_gpio_pinctrl led_940nm_pins[] =
-    ST_STM32_DT_PINCTRL(led_940nm, 0);
-static_assert(ARRAY_SIZE(led_940nm_pins) == 2,
-              "For LED 940nm DTS node, we expect two entries in pinctrl-0");
-static struct stm32_pclken led_940nm_pclken =
-    DT_INST_CLK(DT_NODELABEL(led_940nm));
-#define LED_940NM_TIMER                                                        \
-    ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(DT_NODELABEL(led_940nm))))
+#define LED_940NM_NODE DT_NODELABEL(led_940nm)
+PINCTRL_DT_DEFINE(LED_940NM_NODE);
+static_assert(
+    DT_PROP_LEN(LED_940NM_NODE, channels) == 2,
+    "For the 940nm LED, we expect two channels in the device tree node");
+static_assert(DT_PROP_LEN(LED_940NM_NODE, pinctrl_0) == 2,
+              "For the 940nm LED, we expect the pinctrl-0 property to contain "
+              "two entries in the device tree node");
+static struct stm32_pclken led_940nm_pclken = DT_INST_CLK(LED_940NM_NODE);
+#define LED_940NM_TIMER ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(LED_940NM_NODE)))
 #define LED_940NM_TIMER_LEFT_CHANNEL                                           \
-    (DT_PROP_BY_IDX(DT_NODELABEL(led_940nm), channels, 0))
+    (DT_PROP_BY_IDX(LED_940NM_NODE, channels, 0))
 #define LED_940NM_TIMER_RIGHT_CHANNEL                                          \
-    (DT_PROP_BY_IDX(DT_NODELABEL(led_940nm), channels, 1))
+    (DT_PROP_BY_IDX(LED_940NM_NODE, channels, 1))
 // END --- 940nm LED
 
 // START --- 740nm LED
-static const struct soc_gpio_pinctrl led_740nm_pins[] =
-    ST_STM32_DT_PINCTRL(led_740nm, 0);
-static_assert(ARRAY_SIZE(led_740nm_pins) == 1,
-              "For LED 740nm DTS node, we expect one entry in pinctrl-0");
-static struct stm32_pclken led_740nm_pclken =
-    DT_INST_CLK(DT_NODELABEL(led_740nm));
-#define LED_740NM_TIMER                                                        \
-    ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(DT_NODELABEL(led_740nm))))
-#define LED_740NM_TIMER_CHANNEL                                                \
-    (DT_PROP_BY_IDX(DT_NODELABEL(led_740nm), channels, 0))
+#define LED_740NM_NODE DT_NODELABEL(led_740nm)
+PINCTRL_DT_DEFINE(LED_740NM_NODE);
+static_assert(
+    DT_PROP_LEN(LED_740NM_NODE, channels) == 1,
+    "For the 740nm LED, we expect one channel in the device tree node");
+static_assert(DT_PROP_LEN(LED_740NM_NODE, pinctrl_0) == 1,
+              "For the 740nm LED, we expect the pinctrl-0 property to contain "
+              "one entry in the device tree node");
+
+static struct stm32_pclken led_740nm_pclken = DT_INST_CLK(LED_740NM_NODE);
+#define LED_740NM_TIMER         ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(LED_740NM_NODE)))
+#define LED_740NM_TIMER_CHANNEL (DT_PROP_BY_IDX(LED_740NM_NODE, channels, 0))
 // END --- 740nm LED
 
 static_assert(LED_740NM_TIMER == LED_940NM_TIMER,
@@ -136,16 +149,13 @@ static struct stm32_pclken *all_pclken[] = {
     &ir_face_camera_trigger_pclken,
 };
 
-static const struct pin_control pin_controls[] = {
-    {.pins = led_850nm_pins, .len = ARRAY_SIZE(led_850nm_pins)},
-    {.pins = led_740nm_pins, .len = ARRAY_SIZE(led_740nm_pins)},
-    {.pins = led_940nm_pins, .len = ARRAY_SIZE(led_940nm_pins)},
-    {.pins = tof_2d_camera_trigger_pins,
-     .len = ARRAY_SIZE(tof_2d_camera_trigger_pins)},
-    {.pins = ir_eye_camera_trigger_pins,
-     .len = ARRAY_SIZE(ir_eye_camera_trigger_pins)},
-    {.pins = ir_face_camera_trigger_pins,
-     .len = ARRAY_SIZE(ir_face_camera_trigger_pins)},
+static const struct pinctrl_dev_config *pin_controls[] = {
+    PINCTRL_DT_DEV_CONFIG_GET(LED_850NM_NODE),
+    PINCTRL_DT_DEV_CONFIG_GET(LED_740NM_NODE),
+    PINCTRL_DT_DEV_CONFIG_GET(LED_940NM_NODE),
+    PINCTRL_DT_DEV_CONFIG_GET(TOF_NODE),
+    PINCTRL_DT_DEV_CONFIG_GET(IR_EYE_CAMERA_NODE),
+    PINCTRL_DT_DEV_CONFIG_GET(IR_FACE_CAMERA_NODE),
 };
 
 static_assert(ARRAY_SIZE(pin_controls) == ARRAY_SIZE(all_pclken),
@@ -258,8 +268,8 @@ enable_clocks_and_configure_pins(void)
             return -EINVAL;
         }
 
-        r = stm32_dt_pinctrl_configure(pin_controls[i].pins,
-                                       pin_controls[i].len, 0);
+        r = pinctrl_apply_state(pin_controls[i], PINCTRL_STATE_DEFAULT);
+
         if (r < 0) {
             LOG_ERR("pinctrl"
                     "setup failed (%d)",

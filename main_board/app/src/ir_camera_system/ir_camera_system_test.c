@@ -268,7 +268,7 @@ ir_camera_system_test_thread(void *a, void *b, void *c)
 
     size_t i;
     for (i = 0; i < ARRAY_SIZE(tests); ++i) {
-        LOG_INF("Executing test %d/%lu", i + 1, ARRAY_SIZE(tests));
+        LOG_INF("Executing test %d/%zu", i + 1, ARRAY_SIZE(tests));
         tests[i]();
         if (i != ARRAY_SIZE(tests) - 1) {
             k_msleep(5000);

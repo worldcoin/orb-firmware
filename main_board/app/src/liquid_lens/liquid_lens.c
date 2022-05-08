@@ -4,8 +4,8 @@
 #include <device.h>
 #include <drivers/clock_control/stm32_clock_control.h>
 #include <drivers/gpio.h>
+#include <drivers/pinctrl.h>
 #include <logging/log.h>
-#include <pinmux/pinmux_stm32.h>
 #include <stdlib.h>
 #include <stm32_ll_adc.h>
 #include <stm32_ll_dma.h>
@@ -84,11 +84,8 @@ static struct stm32_pclken liquid_lens_dma_pclken =
 static struct stm32_pclken liquid_lens_dmamux_pclken =
     DT_INST_CLK(DT_NODELABEL(dmamux1));
 
-static const struct soc_gpio_pinctrl liquid_lens_pins[] =
-    ST_STM32_DT_PINCTRL(liquid_lens, 0);
-
-static const struct soc_gpio_pinctrl liquid_lens_adc_pins[] =
-    ST_STM32_DT_PINCTRL(adc3, 0);
+PINCTRL_DT_DEFINE(DT_NODELABEL(liquid_lens));
+PINCTRL_DT_DEFINE(DT_NODELABEL(adc3));
 
 void
 liquid_set_target_current_ma(int32_t new_target_current)
@@ -284,16 +281,19 @@ liquid_lens_init(void)
         return RET_ERROR_NOT_INITIALIZED;
     }
 
-    err_code = stm32_dt_pinctrl_configure(liquid_lens_pins,
-                                          ARRAY_SIZE(liquid_lens_pins), 0);
-    if (err_code) {
+    err_code = pinctrl_apply_state(
+            PINCTRL_DT_DEV_CONFIG_GET(DT_NODELABEL(liquid_lens)),
+            PINCTRL_STATE_DEFAULT);
+    if (err_code < 0) {
+        LOG_ERR("Liquid lens pinctrl setup failed");
         ASSERT_SOFT(err_code);
         return RET_ERROR_NOT_INITIALIZED;
     }
 
-    err_code = stm32_dt_pinctrl_configure(liquid_lens_adc_pins,
-                                          ARRAY_SIZE(liquid_lens_adc_pins), 0);
-    if (err_code) {
+    err_code = pinctrl_apply_state(PINCTRL_DT_DEV_CONFIG_GET(DT_NODELABEL(adc3)),
+                            PINCTRL_STATE_DEFAULT);
+    if (err_code < 0) {
+        LOG_ERR("Liquid lens pinctrl setup failed");
         ASSERT_SOFT(err_code);
         return RET_ERROR_NOT_INITIALIZED;
     }

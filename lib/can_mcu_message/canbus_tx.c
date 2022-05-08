@@ -30,8 +30,9 @@ K_SEM_DEFINE(tx_sem, 1, 1);
 static bool is_init = false;
 
 static void
-tx_complete_cb(int error_nr, void *arg)
+tx_complete_cb(const struct device *dev, int error_nr, void *arg)
 {
+    ARG_UNUSED(dev);
     ARG_UNUSED(arg);
     ARG_UNUSED(error_nr);
 
@@ -42,8 +43,8 @@ tx_complete_cb(int error_nr, void *arg)
 }
 
 static ret_code_t
-send(const char *data, size_t len, void (*tx_complete_cb)(int, void *),
-     uint32_t dest)
+send(const char *data, size_t len,
+     void (*tx_complete_cb)(const struct device *, int, void *), uint32_t dest)
 {
     ASSERT_HARD_BOOL(len < CAN_MAX_DLEN);
 

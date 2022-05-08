@@ -17,7 +17,7 @@
 #include <zephyr.h>
 
 #include <drivers/clock_control/stm32_clock_control.h>
-#include <pinmux/pinmux_stm32.h>
+#include <drivers/pinctrl.h>
 
 #define LOG_LEVEL_CONFIG CONFIG_LED_STRIP_LOG_LEVEL
 #include <logging/log.h>
@@ -132,7 +132,7 @@ struct ws2812_pwm_stm32_config {
     uint32_t dma_channel;
     DMA_TypeDef *dma;
     struct stm32_pclken pclken;
-    const struct soc_gpio_pinctrl *pinctrl;
+    const struct pinctrl_dev_config *pcfg;
     // Used as a maximum check
     uint32_t num_leds;
 };
@@ -440,7 +440,7 @@ ws2812_pwm_stm32_init(const struct device *dev)
     memset(data->pixel_bits, 0, NUM_RESET_PIXELS);
 
     // configure GPIO pin alternate function
-    r = stm32_dt_pinctrl_configure(config->pinctrl, 1, (uint32_t)config->timer);
+    r = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
     if (r < 0) {
         LOG_ERR("PWM pinctrl setup failed (%d)", r);
         return r;
@@ -580,8 +580,8 @@ ws2812_pwm_stm32_init(const struct device *dev)
          .pixel_bits = (uint8_t[NUM_RESET_PIXELS +                             \
                                 24 * DT_INST_PROP(index, num_leds)]){}};       \
                                                                                \
-    static const struct soc_gpio_pinctrl ws2812_pwm_stm32_pins_##index[] =     \
-        ST_STM32_DT_INST_PINCTRL(index, 0);                                    \
+    PINCTRL_DT_INST_DEFINE(index);                                             \
+                                                                               \
     static const struct ws2812_pwm_stm32_config                                \
         ws2812_pwm_stm32_config_##index = {                                    \
             .timer_channel = DT_INST_PROP(index, timer_channel),               \
@@ -596,7 +596,7 @@ ws2812_pwm_stm32_init(const struct device *dev)
             .dma_channel = DT_INST_PROP(index, dma_channel),                   \
             .dma = (DMA_TypeDef *)DT_REG_ADDR(DT_NODELABEL(dma1)),             \
             .pclken = DT_INST_CLK(index),                                      \
-            .pinctrl = ws2812_pwm_stm32_pins_##index,                          \
+            .pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(index),                     \
             .num_leds = DT_INST_PROP(index, num_leds)};                        \
                                                                                \
     DEVICE_DT_INST_DEFINE(                                                     \
