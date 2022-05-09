@@ -4,8 +4,12 @@
 #include "power_sequence/power_sequence.h"
 #include "ui/front_leds/front_leds.h"
 #include "ui/operator_leds/operator_leds.h"
+#include <app_assert.h>
 #include <device.h>
 #include <drivers/gpio.h>
+
+static bool jetson_up_and_running = false;
+
 #ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
 #include <ir_camera_system/ir_camera_system_test.h>
 #endif
@@ -57,38 +61,87 @@ run_tests()
 #endif
 }
 
+/**
+ * Callback called in fatal assertion before system reset
+ * ⚠️ No context-switch should be performed
+ */
+static void
+app_assert_cb(fatal_error_info_t *err_info)
+{
+    if (jetson_up_and_running) {
+        // fatal error, try to warn Jetson
+        McuMessage fatal_error = {.which_message = McuMessage_m_message_tag,
+                                  .message.m_message.which_payload =
+                                      McuToJetson_fatal_error_tag};
+
+        // important: send in blocking mode
+        (void)can_messaging_blocking_tx(&fatal_error);
+    } else if (err_info != NULL) {
+        // TODO store error
+    }
+}
+
 #ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
 void
 main()
 {
-    __ASSERT(ir_camera_system_init() == 0,
-             "Error initializing IR camera system");
+    int ret = ir_camera_system_init();
+    ASSERT_HARD(ret);
+
     ir_camera_system_test();
 }
 #else // CONFIG_TEST_IR_CAMERA_SYSTEM
 void
 main(void)
 {
-    __ASSERT(power_turn_on_jetson() == 0, "Jetson power-on error");
-    __ASSERT(init_sound() == 0, "Error initializing sound");
+    int err_code;
 
-    __ASSERT(front_leds_init() == 0, "Error doing front unit RGB LEDs");
-    __ASSERT(operator_leds_init() == 0, "Error doing operator RGB LEDs");
+    app_assert_init(app_assert_cb);
 
-    __ASSERT(power_turn_on_super_cap_charger() == 0,
-             "Error enabling super cap charger");
-    __ASSERT(power_turn_on_pvcc() == 0, "Error turning on pvcc");
-    __ASSERT(ir_camera_system_init() == 0,
-             "Error initializing IR camera system");
-    __ASSERT(motors_init() == 0, "Error initializing motors");
-    __ASSERT(liquid_lens_init() == 0, "Error initializing liquid lens");
+    // CAN initialization first to allow logs over CAN
+    err_code = can_messaging_init(incoming_message_handle);
+    ASSERT_SOFT(err_code);
 
-    // init messaging first
-    // temperature module depends on messaging
-    can_messaging_init(incoming_message_handle);
-    dfu_init();
-    temperature_init();
-    button_init();
+    err_code = power_turn_on_jetson();
+    ASSERT_SOFT(err_code);
+
+    err_code = sound_init();
+    ASSERT_SOFT(err_code);
+
+    err_code = front_leds_init();
+    ASSERT_SOFT(err_code);
+
+    err_code = operator_leds_init();
+    ASSERT_SOFT(err_code);
+
+    // PVCC supplies IR LEDs
+    err_code = power_turn_on_super_cap_charger();
+    if (err_code == RET_SUCCESS) {
+        err_code = power_turn_on_pvcc();
+        if (err_code == RET_SUCCESS) {
+            err_code = ir_camera_system_init();
+            ASSERT_SOFT(err_code);
+        } else {
+            ASSERT_SOFT(err_code);
+        }
+    } else {
+        ASSERT_SOFT(err_code);
+    }
+
+    err_code = motors_init();
+    ASSERT_SOFT(err_code);
+
+    err_code = liquid_lens_init();
+    ASSERT_SOFT(err_code);
+
+    err_code = dfu_init();
+    ASSERT_SOFT(err_code);
+
+    err_code = temperature_init();
+    ASSERT_SOFT(err_code);
+
+    err_code = button_init();
+    ASSERT_SOFT(err_code);
 
     // set up operator LED depending on image state
     if (dfu_primary_is_confirmed()) {
@@ -106,7 +159,6 @@ main(void)
 
     // we consider the image working if no errors were reported before
     // Jetson sent first messages, and we didn't report any error
-    bool jetson_up_and_running = false;
     while (1) {
         k_msleep(10000);
 
@@ -117,7 +169,10 @@ main(void)
             version_send();
             temperature_start();
 
-            if (app_assert_count()) {
+            uint32_t error_count = app_assert_soft_count();
+            if (error_count) {
+                LOG_ERR("Error count during boot: %u", error_count);
+
                 // do not confirm image
                 return;
             }

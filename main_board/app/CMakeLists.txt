@@ -103,6 +103,7 @@ set(SOURCES_FILES
 
     src/liquid_lens/liquid_lens.c
 
+    src/system/fatal.c
     src/version/version.c
     )
 

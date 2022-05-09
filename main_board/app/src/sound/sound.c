@@ -1,9 +1,10 @@
+#include <app_assert.h>
 #include <device.h>
 #include <drivers/gpio.h>
 #include <drivers/i2c.h>
-#include <zephyr.h>
-
+#include <errors.h>
 #include <logging/log.h>
+#include <zephyr.h>
 LOG_MODULE_REGISTER(sound);
 
 #define SOUND_AMP_MUX_NODE DT_PATH(zephyr_user)
@@ -32,25 +33,27 @@ LOG_MODULE_REGISTER(sound);
 #define SOUND_AMP_REG_CTRL2 0x3
 
 int
-init_sound(void)
+sound_init(void)
 {
+    int err_code = 0;
+
 #ifdef CONFIG_BOARD_MCU_MAIN_V31
 
     const struct device *level_shifter_en =
         DEVICE_DT_GET(LEVEL_SHIFTER_EN_CTLR);
 
     if (!device_is_ready(level_shifter_en)) {
-        LOG_ERR("Level shifter enable is not ready!");
-        return 1;
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
+    } else {
+        err_code = gpio_pin_configure(level_shifter_en, LEVEL_SHIFTER_EN_PIN,
+                                      LEVEL_SHIFTER_EN_FLAGS | GPIO_OUTPUT);
+        if (err_code) {
+            ASSERT_SOFT(RET_ERROR_INTERNAL);
+        } else {
+            err_code = gpio_pin_set(level_shifter_en, LEVEL_SHIFTER_EN_PIN, 1);
+            ASSERT_SOFT(err_code);
+        }
     }
-
-    if (gpio_pin_configure(level_shifter_en, LEVEL_SHIFTER_EN_PIN,
-                           LEVEL_SHIFTER_EN_FLAGS | GPIO_OUTPUT)) {
-        LOG_ERR("Error configuring level shifter enable pin!");
-        return 1;
-    }
-
-    gpio_pin_set(level_shifter_en, LEVEL_SHIFTER_EN_PIN, 1);
 
 #endif
 
@@ -58,25 +61,25 @@ init_sound(void)
     const struct device *sound_i2c = DEVICE_DT_GET(SOUND_AMP_I2C);
 
     if (!device_is_ready(sound_mux)) {
-        LOG_ERR("Sound mux is not ready!");
-        return 1;
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
+    } else {
+        err_code = gpio_pin_configure(sound_mux, SOUND_AMP_MUX_PIN,
+                                      SOUND_AMP_MUX_FLAGS | GPIO_OUTPUT);
+        if (err_code) {
+            ASSERT_SOFT(err_code);
+        } else {
+            err_code = gpio_pin_set(sound_mux, SOUND_AMP_MUX_PIN, JETSON);
+            ASSERT_SOFT(err_code);
+        }
     }
 
     if (!device_is_ready(sound_i2c)) {
-        LOG_ERR("Sound i2c is not ready!");
-        return 1;
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
+    } else {
+        LOG_INF("Giving control of sound amp to Jetson");
+        i2c_reg_write_byte(sound_i2c, SOUND_AMP_ADDR, SOUND_AMP_REG_CTRL2,
+                           0x03);
     }
 
-    if (gpio_pin_configure(sound_mux, SOUND_AMP_MUX_PIN,
-                           SOUND_AMP_MUX_FLAGS | GPIO_OUTPUT)) {
-        LOG_ERR("Error configuring sound amp mux pin!");
-        return 1;
-    }
-
-    gpio_pin_set(sound_mux, SOUND_AMP_MUX_PIN, JETSON);
-
-    LOG_INF("Giving control of sound amp to Jetson");
-    i2c_reg_write_byte(sound_i2c, SOUND_AMP_ADDR, SOUND_AMP_REG_CTRL2, 0x03);
-
-    return 0;
+    return RET_SUCCESS;
 }

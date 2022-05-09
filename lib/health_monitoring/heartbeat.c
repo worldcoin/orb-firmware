@@ -1,6 +1,7 @@
 #include "heartbeat.h"
 #include "errors.h"
 #include "zephyr.h"
+#include <app_assert.h>
 #include <logging/log.h>
 LOG_MODULE_REGISTER(heartbeat);
 
@@ -10,14 +11,14 @@ static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_HEARTBEAT);
 static struct k_thread thread_data;
 static k_tid_t thread_id;
 
-static void (*heartbeat_timeout_cb)(void) = NULL;
+static int (*heartbeat_timeout_cb)(void) = NULL;
 static volatile uint32_t global_delay_s;
 
-static void
+static int
 timeout_default_handler(void)
 {
     // ☠️
-    APP_ASSERT(RET_ERROR_TIMEOUT);
+    ASSERT_HARD(RET_ERROR_TIMEOUT);
 }
 
 static void
@@ -49,13 +50,10 @@ heartbeat_boom(uint32_t delay_s)
     global_delay_s = delay_s;
 
     if (thread_id == NULL && global_delay_s != 0) {
-        thread_id = k_thread_create(&thread_data, stack_area,
-                                    K_THREAD_STACK_SIZEOF(stack_area),
-                                    thread_entry_point, NULL, NULL, NULL,
-                                    THREAD_PRIORITY_HEARTBEAT, 0, K_NO_WAIT);
-        if (thread_id == NULL) {
-            return RET_ERROR_INTERNAL;
-        }
+        k_thread_create(&thread_data, stack_area,
+                        K_THREAD_STACK_SIZEOF(stack_area), thread_entry_point,
+                        NULL, NULL, NULL, THREAD_PRIORITY_HEARTBEAT, 0,
+                        K_NO_WAIT);
 
         // make sure timeout handler is initialized
         if (heartbeat_timeout_cb == NULL) {
@@ -69,7 +67,7 @@ heartbeat_boom(uint32_t delay_s)
 }
 
 void
-heartbeat_register_cb(void (*timeout_cb)(void))
+heartbeat_register_cb(int (*timeout_cb)(void))
 {
     if (timeout_cb != NULL) {
         heartbeat_timeout_cb = timeout_cb;

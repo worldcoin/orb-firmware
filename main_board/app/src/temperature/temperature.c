@@ -1,4 +1,5 @@
 #include "temperature.h"
+#include <app_assert.h>
 #include <app_config.h>
 #include <assert.h>
 #include <can_messaging.h>
@@ -87,7 +88,7 @@ sample_and_report_temperature(
         msg.message.m_message.payload.temperature.source =
             sensor_and_channel->temperature_source;
         msg.message.m_message.payload.temperature.temperature_c = temp;
-        can_messaging_push_tx(&msg);
+        can_messaging_async_tx(&msg);
     }
 }
 
@@ -109,17 +110,21 @@ temperature_thread(void *a, void *b, void *c)
     }
 }
 
-static void
+static int
 check_ready(void)
 {
+    int ret = RET_SUCCESS;
+
     for (size_t i = 0; i < ARRAY_SIZE(sensors_and_channels); ++i) {
         if (!device_is_ready(sensors_and_channels[i].sensor)) {
             LOG_ERR("Could not initialize temperature sensor '%s'",
                     sensors_and_channels[i].sensor->name);
+            ret = RET_ERROR_INVALID_STATE;
         } else {
             LOG_INF("Initialized %s", sensors_and_channels[i].sensor->name);
         }
     }
+    return ret;
 }
 
 void
@@ -135,10 +140,12 @@ temperature_start(void)
     }
 }
 
-void
+int
 temperature_init(void)
 {
-    check_ready();
+    int err_code = check_ready();
 
     global_sample_period = K_SECONDS(1);
+
+    return err_code;
 }

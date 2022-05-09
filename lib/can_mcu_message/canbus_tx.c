@@ -1,4 +1,5 @@
 #include "can_messaging.h"
+#include <app_assert.h>
 #include <assert.h>
 #include <drivers/can.h>
 #include <logging/log.h>
@@ -28,35 +29,6 @@ K_SEM_DEFINE(tx_sem, 1, 1);
 
 static bool is_init = false;
 
-/// Send new message
-/// ⚠️ Do not print log message in this function if
-/// CONFIG_ORB_LIB_LOG_BACKEND_CAN is defined
-/// \param message
-/// \return RET_SUCCESS on success, error code otherwise
-ret_code_t
-can_messaging_push_tx(McuMessage *message)
-{
-    if (!is_init) {
-        return RET_ERROR_INVALID_STATE;
-    }
-
-    // make sure data "header" is correctly set
-    message->version = Version_VERSION_0;
-
-    int ret = k_msgq_put(&tx_msg_queue, message, K_NO_WAIT);
-    if (ret) {
-
-#ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
-        LOG_ERR("Too many tx messages");
-#else
-        printk("<err> too many tx messages\r\n");
-#endif
-        return RET_ERROR_BUSY;
-    }
-
-    return RET_SUCCESS;
-}
-
 static void
 tx_complete_cb(int error_nr, void *arg)
 {
@@ -73,7 +45,7 @@ static ret_code_t
 send(const char *data, size_t len, void (*tx_complete_cb)(int, void *),
      uint32_t dest)
 {
-    __ASSERT(CAN_MAX_DLEN >= len, "data too large!");
+    ASSERT_HARD_BOOL(len < CAN_MAX_DLEN);
 
     struct zcan_frame frame = {.id_type = CAN_EXTENDED_IDENTIFIER,
                                .fd = true,
@@ -84,7 +56,9 @@ send(const char *data, size_t len, void (*tx_complete_cb)(int, void *),
     memset(frame.data, 0, sizeof frame.data);
     memcpy(frame.data, data, len);
 
-    return can_send(can_dev, &frame, K_FOREVER, tx_complete_cb, NULL)
+    return can_send(can_dev, &frame,
+                    (tx_complete_cb != NULL) ? K_FOREVER : K_MSEC(1000),
+                    tx_complete_cb, NULL)
                ? RET_ERROR_INTERNAL
                : RET_SUCCESS;
 }
@@ -112,10 +86,9 @@ process_tx_messages_thread()
         bool encoded =
             pb_encode_ex(&stream, McuMessage_fields, &new, PB_ENCODE_DELIMITED);
         if (encoded) {
-            uint32_t dest = CONFIG_CAN_ADDRESS_DEFAULT_REMOTE;
-
             ret_code_t err_code =
-                send(tx_buffer, stream.bytes_written, tx_complete_cb, dest);
+                send(tx_buffer, stream.bytes_written, tx_complete_cb,
+                     CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
             if (err_code != RET_SUCCESS) {
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
                 LOG_WRN("Error sending message");
@@ -134,6 +107,57 @@ process_tx_messages_thread()
 #endif
         }
     }
+}
+
+// ⚠️ Do not print log message in this function if
+// CONFIG_ORB_LIB_LOG_BACKEND_CAN is defined
+ret_code_t
+can_messaging_async_tx(McuMessage *message)
+{
+    if (!is_init) {
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    // make sure data "header" is correctly set
+    message->version = Version_VERSION_0;
+
+    int ret = k_msgq_put(&tx_msg_queue, message, K_NO_WAIT);
+    if (ret) {
+
+#ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
+        LOG_ERR("Too many tx messages");
+#else
+        printk("<err> too many tx messages\r\n");
+#endif
+        return RET_ERROR_BUSY;
+    }
+
+    return RET_SUCCESS;
+}
+
+// ⚠️ Cannot be used in ISR context
+// ⚠️ Do not print log message in this function if
+// CONFIG_ORB_LIB_LOG_BACKEND_CAN is defined
+ret_code_t
+can_messaging_blocking_tx(McuMessage *message)
+{
+    char tx_buffer[McuMessage_size + 1];
+
+    if (k_is_in_isr()) {
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    // encode protobuf format
+    pb_ostream_t stream = pb_ostream_from_buffer(tx_buffer, sizeof(tx_buffer));
+    bool encoded =
+        pb_encode_ex(&stream, McuMessage_fields, &message, PB_ENCODE_DELIMITED);
+    if (encoded) {
+        ret_code_t err_code = send(tx_buffer, stream.bytes_written, NULL,
+                                   CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+        return err_code;
+    }
+
+    return RET_ERROR_INVALID_PARAM;
 }
 
 ret_code_t

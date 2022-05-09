@@ -6,6 +6,7 @@
 #include <sys/byteorder.h>
 #include <zephyr.h>
 
+#include <app_assert.h>
 #include <app_config.h>
 #include <compilers.h>
 #include <logging/log.h>
@@ -236,6 +237,15 @@ const uint64_t position_mode_full_speed[MOTOR_COUNT][10] = {
         0xC000000000,                 // RAMPMODE = 0 position move
     }};
 
+static uint32_t
+microsteps_to_millidegrees(uint32_t microsteps, motor_t motor)
+{
+    uint32_t mdegrees = asinf((float)microsteps / (motors_arm_length[motor] *
+                                                   (float)steps_per_mm)) *
+                        360000 / M_PI;
+    return mdegrees;
+}
+
 /// Decrease sensitivity in three steps
 /// First, decrease current without modifying SGT
 /// Second, increase SGT but revert current to normal
@@ -328,7 +338,7 @@ motor_spi_send_commands(const struct device *spi_bus_controller,
     }
 }
 
-static void
+static int
 motor_spi_write(const struct device *spi_bus_controller, uint8_t reg,
                 int32_t value)
 {
@@ -350,7 +360,9 @@ motor_spi_write(const struct device *spi_bus_controller, uint8_t reg,
     tx.len = sizeof tx_buffer;
 
     int ret = spi_transceive(spi_bus_controller, &spi_cfg, &tx_bufs, &rx_bufs);
-    __ASSERT(ret == 0, "Error SPI transceive");
+    ASSERT_HARD(ret);
+
+    return RET_SUCCESS;
 }
 
 static uint32_t
@@ -376,13 +388,13 @@ motor_spi_read(const struct device *spi_bus_controller, uint8_t reg)
 
     // first, send reg address
     ret = spi_transceive(spi_bus_controller, &spi_cfg, &tx_bufs, &rx_bufs);
-    __ASSERT(ret == 0, "Error SPI transceive");
+    ASSERT_HARD(ret);
 
     memset(rx_buffer, 0, sizeof(rx_buffer));
 
     // second, read data
     ret = spi_transceive(spi_bus_controller, &spi_cfg, &tx_bufs, &rx_bufs);
-    __ASSERT(ret == 0, "Error SPI transceive");
+    ASSERT_HARD(ret);
 
     uint32_t read_value = (rx_buffer[1] << 24 | rx_buffer[2] << 16 |
                            rx_buffer[3] << 8 | rx_buffer[4] << 0);
@@ -397,7 +409,9 @@ motor_spi_read(const struct device *spi_bus_controller, uint8_t reg)
 static ret_code_t
 motors_set_angle_relative(int32_t d_from_center, motor_t motor)
 {
-    __ASSERT(motor < MOTOR_COUNT, "Motor number not handled");
+    if (motor >= MOTOR_COUNT) {
+        return RET_ERROR_INVALID_PARAM;
+    }
 
     if (motors_refs[motor].motor_state) {
         return motors_refs[motor].motor_state;
@@ -488,8 +502,9 @@ to_one_direction(motor_t motor, bool positive_direction)
 
     LOG_DBG("Current: %u, sgt: %u", current, sgt);
 
-    if (current >= 32) {
-        APP_ASSERT(RET_ERROR_INVALID_PARAM);
+    if (current > 31) {
+        ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
+        current = 31;
     }
 
     // COOLCONF, set SGT to offset StallGuard value
@@ -778,11 +793,10 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 motors_refs[motor].x0 = (-x / 2);
                 motors_refs[motor].full_course = abs(x);
 
-                // WRN to send log over CAN
-                LOG_WRN("Motor %u range: %u microsteps", motor,
-                        motors_refs[motor].full_course);
-                LOG_INF("Motor %u, x0: %d microsteps", motor,
-                        motors_refs[motor].x0);
+                uint32_t angle_millid = microsteps_to_millidegrees(
+                    motors_refs[motor].full_course, motor);
+                LOG_INF("Motor %u, x0: %d microsteps, range: %u millidegrees",
+                        motor, motors_refs[motor].x0, angle_millid);
 
                 McuMessage msg = {
                     .which_message = McuMessage_m_message_tag,
@@ -792,8 +806,10 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                         (motor == MOTOR_VERTICAL ? MotorRange_Motor_VERTICAL
                                                  : MotorRange_Motor_HORIZONTAL),
                     .message.m_message.payload.motor_range.range_microsteps =
-                        motors_refs[motor].full_course};
-                can_messaging_push_tx(&msg);
+                        motors_refs[motor].full_course,
+                    .message.m_message.payload.motor_range.range_millidegrees =
+                        angle_millid};
+                can_messaging_async_tx(&msg);
 
                 // go to middle position
                 // setting in positioning mode after this loop
@@ -837,7 +853,9 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 ret_code_t
 motors_auto_homing_stall_detection(motor_t motor, struct k_thread **thread_ret)
 {
-    __ASSERT(motor <= MOTOR_COUNT, "Wrong motor number");
+    if (motor >= MOTOR_COUNT) {
+        return RET_ERROR_INVALID_PARAM;
+    }
 
     if (k_sem_take(&homing_in_progress_sem[motor], K_NO_WAIT) == -EBUSY) {
         LOG_WRN("Motor %u auto-homing already in progress", motor);
@@ -931,11 +949,10 @@ motors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
             break;
         case AH_WAIT_STANDSTILL: {
             if (status & MOTOR_DRV_STATUS_STANDSTILL) {
-                // WRN to send log over CAN
-                LOG_WRN("Motor %u range: %u microsteps", motor,
-                        motors_refs[motor].full_course);
-                LOG_INF("Motor %u, x0: %d microsteps", motor,
-                        motors_refs[motor].x0);
+                uint32_t angle_millid = microsteps_to_millidegrees(
+                    motors_refs[motor].full_course, motor);
+                LOG_INF("Motor %u, x0: %d microsteps, range: %u millidegrees",
+                        motor, motors_refs[motor].x0, angle_millid);
 
                 McuMessage msg = {
                     .which_message = McuMessage_m_message_tag,
@@ -945,8 +962,10 @@ motors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                         (motor == MOTOR_VERTICAL ? MotorRange_Motor_VERTICAL
                                                  : MotorRange_Motor_HORIZONTAL),
                     .message.m_message.payload.motor_range.range_microsteps =
-                        motors_refs[motor].full_course};
-                can_messaging_push_tx(&msg);
+                        motors_refs[motor].full_course,
+                    .message.m_message.payload.motor_range.range_millidegrees =
+                        angle_millid};
+                can_messaging_async_tx(&msg);
 
                 motors_refs[motor].auto_homing_state = AH_SUCCESS;
             }
@@ -980,7 +999,9 @@ motors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
 ret_code_t
 motors_auto_homing_one_end(motor_t motor, struct k_thread **thread_ret)
 {
-    __ASSERT(motor <= MOTOR_COUNT, "Wrong motor number");
+    if (motor >= MOTOR_COUNT) {
+        return RET_ERROR_INVALID_PARAM;
+    }
 
     if (k_sem_take(&homing_in_progress_sem[motor], K_NO_WAIT) == -EBUSY) {
         LOG_WRN("Motor %u auto-homing already in progress", motor);
@@ -1028,11 +1049,12 @@ motors_auto_homing_in_progress()
 ret_code_t
 motors_init(void)
 {
+    int err_code;
     uint32_t read_value;
 
     if (!device_is_ready(spi_bus_controller)) {
         LOG_ERR("motion controller SPI device not ready");
-        return RET_ERROR_BUSY;
+        return RET_ERROR_INVALID_STATE;
     } else {
         LOG_INF("Motion controller SPI ready");
     }
@@ -1047,11 +1069,20 @@ motors_init(void)
 
     if (ic_version != TMC5041_IC_VERSION) {
         LOG_ERR("Error reading TMC5041");
-        return RET_ERROR_INVALID_STATE;
+        return RET_ERROR_OFFLINE;
     }
 
-    k_sem_init(&homing_in_progress_sem[MOTOR_HORIZONTAL], 1, 1);
-    k_sem_init(&homing_in_progress_sem[MOTOR_VERTICAL], 1, 1);
+    err_code = k_sem_init(&homing_in_progress_sem[MOTOR_HORIZONTAL], 1, 1);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+
+    err_code = k_sem_init(&homing_in_progress_sem[MOTOR_VERTICAL], 1, 1);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
 
     motors_refs[MOTOR_HORIZONTAL].motor_state = RET_ERROR_NOT_INITIALIZED;
     motors_refs[MOTOR_VERTICAL].motor_state = RET_ERROR_NOT_INITIALIZED;
@@ -1065,8 +1096,10 @@ motors_init(void)
         ARRAY_SIZE(position_mode_full_speed[MOTOR_VERTICAL]));
 
     // auto-home after boot
-    motors_auto_homing_one_end(MOTOR_HORIZONTAL, NULL);
-    motors_auto_homing_one_end(MOTOR_VERTICAL, NULL);
+    err_code = motors_auto_homing_one_end(MOTOR_HORIZONTAL, NULL);
+    ASSERT_SOFT(err_code);
+    err_code = motors_auto_homing_one_end(MOTOR_VERTICAL, NULL);
+    ASSERT_SOFT(err_code);
 
     return RET_SUCCESS;
 }

@@ -10,5 +10,5 @@ set(SOURCES
         ../../src/ir_camera_system/ir_camera_timer_settings.c
         main.c
         )
-target_include_directories(app PRIVATE ../../src/ir_camera_system/ ../../../../lib/errors/include)
+target_include_directories(app PRIVATE ../../src/ir_camera_system/ ../../../../lib/include)
 target_sources(app PRIVATE ${SOURCES})

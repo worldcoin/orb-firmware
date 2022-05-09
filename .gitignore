@@ -26,3 +26,5 @@ utils/ota/enc-ec256-pub.pem
 utils/ota/root-ec-p256.pem
 
 twister-out/
+
+cscope.*

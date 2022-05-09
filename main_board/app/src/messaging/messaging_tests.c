@@ -39,7 +39,7 @@ test_can_send()
             packet;
 
         // queue new tx message to test the full TX thread
-        err = can_messaging_push_tx(&data_to_serialize);
+        err = can_messaging_async_tx(&data_to_serialize);
 
         packet++;
     }

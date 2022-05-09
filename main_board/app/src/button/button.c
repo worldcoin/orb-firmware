@@ -1,5 +1,6 @@
 #include "button.h"
 #include "mcu_messaging.pb.h"
+#include <app_assert.h>
 #include <can_messaging.h>
 #include <device.h>
 #include <drivers/gpio.h>
@@ -28,7 +29,7 @@ button_event_handler(const struct device *dev, struct gpio_callback *cb,
                 .which_message = McuMessage_m_message_tag,
                 .message.m_message.which_payload = McuToJetson_power_button_tag,
                 .message.m_message.payload.power_button.pressed = ret};
-            can_messaging_push_tx(&button_state);
+            can_messaging_async_tx(&button_state);
         }
     }
 }
@@ -60,43 +61,42 @@ button_uninit(void)
 int
 button_init(void)
 {
-    int ret = 0;
+    int err_code = 0;
 
     if (is_init) {
-        return RET_ERROR_INVALID_STATE;
+        return RET_SUCCESS;
     }
 
     if (!device_is_ready(button_spec.port)) {
-        LOG_ERR("power button is not ready!");
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
         return RET_ERROR_INVALID_STATE;
     }
 
     // configure, using devicetree flags + GPIO_INPUT
-    ret = gpio_pin_configure_dt(&button_spec, GPIO_INPUT);
-    if (ret) {
-        LOG_ERR("Error configuring button!");
+    err_code = gpio_pin_configure_dt(&button_spec, GPIO_INPUT);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
 
     // configure interrupt
-    ret = gpio_pin_interrupt_configure_dt(&button_spec, GPIO_INT_EDGE_BOTH);
-    if (ret) {
-        LOG_ERR("Error %d: failed to configure %s pin %d", ret,
-                button_spec.port->name, button_spec.pin);
+    err_code =
+        gpio_pin_interrupt_configure_dt(&button_spec, GPIO_INT_EDGE_BOTH);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
 
     gpio_init_callback(&button_cb_data, button_event_handler,
                        BIT(button_spec.pin));
 
-    ret = gpio_add_callback(button_spec.port, &button_cb_data);
-    if (ret) {
-        LOG_ERR("Error %d: failed to add callback on %s pin %d", ret,
-                button_spec.port->name, button_spec.pin);
+    err_code = gpio_add_callback(button_spec.port, &button_cb_data);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
 
-    LOG_INF("Power button events handling initialized");
+    LOG_INF("Power button initialized");
     is_init = true;
 
     return RET_SUCCESS;

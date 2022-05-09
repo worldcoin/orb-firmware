@@ -2,6 +2,7 @@
 #include "bootutil/bootutil_public.h"
 #include "compilers.h"
 #include "errno.h"
+#include <app_assert.h>
 #include <devicetree.h>
 #include <errors.h>
 #include <flash_map_backend/flash_map_backend.h>
@@ -15,7 +16,7 @@ LOG_MODULE_REGISTER(dfu);
 static void
 process_dfu_blocks_thread();
 
-K_THREAD_STACK_DEFINE(dfu_thread_stack, CONFIG_ORB_LIB_DFU_THREAD_STACK_SIZE);
+K_THREAD_STACK_DEFINE(dfu_thread_stack, CONFIG_ORB_LIB_THREAD_STACK_SIZE_DFU);
 static struct k_thread dfu_thread_data = {0};
 static k_tid_t tid_dfu = NULL;
 
@@ -91,7 +92,7 @@ dfu_load(uint32_t current_block_number, uint32_t block_count,
     // check params first
     if ((current_block_number != 0 &&
          current_block_number != dfu_state.block_number + 1) ||
-        (current_block_number > block_count) ||
+        (current_block_number > block_count) || size > DFU_BLOCK_SIZE_MAX ||
         size > sizeof(dfu_state.bytes)) {
         return RET_ERROR_INVALID_PARAM;
     }
@@ -117,14 +118,8 @@ dfu_load(uint32_t current_block_number, uint32_t block_count,
             tid_dfu = k_thread_create(&dfu_thread_data, dfu_thread_stack,
                                       K_THREAD_STACK_SIZEOF(dfu_thread_stack),
                                       process_dfu_blocks_thread, NULL, NULL,
-                                      NULL, CONFIG_ORB_LIB_DFU_THREAD_PRIORITY,
+                                      NULL, CONFIG_ORB_LIB_THREAD_PRIORITY_DFU,
                                       0, K_NO_WAIT);
-            if (!tid_dfu) {
-                LOG_ERR("ERROR spawning dfu thread");
-            } else {
-                LOG_INF("DFU processing task, prio %u",
-                        CONFIG_ORB_LIB_DFU_THREAD_PRIORITY);
-            }
         }
     }
 
@@ -366,7 +361,7 @@ dfu_version_primary_get(struct image_version *ih_ver)
 {
     memcpy(ih_ver, &primary_slot->ih_ver, sizeof(struct image_version));
 
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -375,7 +370,7 @@ dfu_version_secondary_get(struct image_version *ih_ver)
     // TODO check that image in secondary slot is valid
     memcpy(ih_ver, &secondary_slot->ih_ver, sizeof(struct image_version));
 
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -384,7 +379,7 @@ dfu_init(void)
     uintptr_t flash_base_addr = 0;
 
     int ret = flash_device_base(0, &flash_base_addr);
-    __ASSERT(ret == 0, "Failed loading Flash base address");
+    ASSERT_SOFT(ret);
 
     primary_slot =
         (struct image_header *)(flash_base_addr +
@@ -402,5 +397,5 @@ dfu_init(void)
             secondary_slot->ih_ver.iv_revision,
             secondary_slot->ih_ver.iv_build_num);
 
-    return 0;
+    return RET_SUCCESS;
 }

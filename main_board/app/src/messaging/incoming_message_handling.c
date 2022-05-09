@@ -6,6 +6,7 @@
 #include "ui/operator_leds/operator_leds.h"
 #include "ui/rgb_leds.h"
 #include "version/version.h"
+#include <app_assert.h>
 #include <assert.h>
 #include <fan/fan.h>
 #include <heartbeat.h>
@@ -25,8 +26,8 @@ static struct k_thread auto_homing_thread;
 static k_tid_t auto_homing_tid = NULL;
 
 #define MAKE_ASSERTS(tag)                                                      \
-    __ASSERT_NO_MSG(msg->which_message == McuMessage_j_message_tag);           \
-    __ASSERT_NO_MSG(msg->message.j_message.which_payload == tag);
+    ASSERT_SOFT_BOOL(msg->which_message == McuMessage_j_message_tag);          \
+    ASSERT_SOFT_BOOL(msg->message.j_message.which_payload == tag)
 
 static uint32_t message_counter = 0;
 
@@ -49,7 +50,7 @@ incoming_message_ack(Ack_ErrorCode error, uint32_t ack_number)
                       .message.m_message.which_payload = McuToJetson_ack_tag,
                       .message.m_message.payload.ack.ack_number = ack_number,
                       .message.m_message.payload.ack.error = error};
-    can_messaging_push_tx(&ack);
+    can_messaging_async_tx(&ack);
     ++message_counter;
 }
 
@@ -528,9 +529,6 @@ static void
 handle_dfu_block_message(McuMessage *msg)
 {
     MAKE_ASSERTS(JetsonToMcu_dfu_block_tag);
-    __ASSERT(msg->message.j_message.payload.dfu_block.image_block.size <=
-                 DFU_BLOCK_SIZE_MAX,
-             "Block size must be <= DFU_BLOCK_SIZE_MAX bytes");
 
     LOG_DBG("Got firmware image block");
     int ret =

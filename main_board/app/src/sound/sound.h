@@ -2,6 +2,6 @@
 #define SOUND_H
 
 int
-init_sound(void);
+sound_init(void);
 
 #endif // SOUND_H
