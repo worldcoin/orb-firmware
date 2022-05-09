@@ -358,15 +358,20 @@ handle_fan_speed(McuMessage *msg)
     uint32_t fan_speed_percentage =
         msg->message.j_message.payload.fan_speed.percentage;
 
-    if (fan_speed_percentage > 100) {
-        LOG_ERR("Got fan speed of %u out of range [0;100]",
-                fan_speed_percentage);
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+    if (temperature_is_in_overtemp()) {
+        LOG_WRN("Fan speed command rejected do to overtemperature condition");
+        incoming_message_ack(Ack_ErrorCode_OVER_TEMPERATURE, get_ack_num(msg));
     } else {
-        LOG_DBG("Got fan speed message: %u%%", fan_speed_percentage);
+        if (fan_speed_percentage > 100) {
+            LOG_ERR("Got fan speed of %u out of range [0;100]",
+                    fan_speed_percentage);
+            incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        } else {
+            LOG_DBG("Got fan speed message: %u%%", fan_speed_percentage);
 
-        fan_set_speed(fan_speed_percentage);
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+            fan_set_speed(fan_speed_percentage);
+            incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        }
     }
 }
 

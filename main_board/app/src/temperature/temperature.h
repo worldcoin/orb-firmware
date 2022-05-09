@@ -2,25 +2,23 @@
 #define TEMPERATURE_H
 
 #include <can_messaging.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 void
 temperature_set_sampling_period_ms(uint32_t sample_period);
 
 void
-temperature_start(void);
+temperature_start_sending(void);
 
-/**
- * Init temperature sensors
- * @return
- * * RET_SUCCESS on success
- * * RET_ERROR_INVALID_STATE if sensor is not ready
- */
-int
+void
 temperature_init(void);
 
 void
 temperature_report(Temperature_TemperatureSource source,
                    int32_t temperature_in_c);
+
+bool
+temperature_is_in_overtemp(void);
 
 #endif // TEMPERATURE_H

@@ -35,10 +35,20 @@ static_assert(DEVICE_DT_GET(DT_PWMS_CTLR(FAN_MAIN_NODE)) ==
 
 #define MSG "Checking that fan PWM controller is ready... "
 
+static uint8_t fan_speed = 0;
+
+uint8_t
+fan_get_speed(void)
+{
+    return fan_speed;
+}
+
 void
 fan_set_speed(uint32_t percentage)
 {
     percentage = MIN(percentage, 100);
+
+    fan_speed = percentage;
 
     LOG_INF("Switching fan to %d%% speed", percentage);
 

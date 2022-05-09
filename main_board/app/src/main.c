@@ -143,8 +143,7 @@ main(void)
     ASSERT_SOFT(err_code);
     LOG_INF("Hardware version: %u", hw);
 
-    err_code = temperature_init();
-    ASSERT_SOFT(err_code);
+    temperature_init();
 
     err_code = button_init();
     ASSERT_SOFT(err_code);
@@ -178,7 +177,7 @@ main(void)
         // to confirm the image
         if (!jetson_up_and_running && incoming_message_acked_counter() > 0) {
             version_send();
-            temperature_start();
+            temperature_start_sending();
 
             uint32_t error_count = app_assert_soft_count();
             if (error_count) {
