@@ -20,7 +20,12 @@ can_message_out(uint8_t *data, size_t length, void *ctx)
     memcpy(log.message.m_message.payload.log.log, data,
            MIN(length, LOG_MAX_CHAR_COUNT));
 
-    can_messaging_push_tx(&log);
+    if (!panic_mode) {
+        can_messaging_async_tx(&log);
+    } else {
+        // ⚠️ block until message is sent
+        can_messaging_blocking_tx(&log);
+    }
 
     // no matter if the bytes have been sent
     // we consider them as processed
@@ -47,10 +52,6 @@ is_panic_mode(void)
 static void
 process(const struct log_backend *const backend, union log_msg2_generic *msg)
 {
-    if (panic_mode) {
-        return;
-    }
-
     if (log_msg2_get_level(&msg->log) > CONFIG_ORB_LIB_LOG_BACKEND_LEVEL ||
         log_msg2_get_level(&msg->log) == LOG_LEVEL_NONE) {
         return;

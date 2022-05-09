@@ -1,5 +1,6 @@
 #include "front_leds.h"
 #include "ui/rgb_leds.h"
+#include <app_assert.h>
 #include <app_config.h>
 #include <assert.h>
 #include <device.h>
@@ -65,12 +66,14 @@ set_center(struct led_rgb color)
     }
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wreturn-type"
 static void
 set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
 {
-    APP_ASSERT_BOOL(start_angle <= FULL_RING_DEGREES);
-    APP_ASSERT_BOOL(angle_length <= FULL_RING_DEGREES &&
-                    angle_length >= -FULL_RING_DEGREES);
+    ASSERT_HARD_BOOL(start_angle <= FULL_RING_DEGREES);
+    ASSERT_HARD_BOOL(angle_length <= FULL_RING_DEGREES &&
+                     angle_length >= -FULL_RING_DEGREES);
 
     // get first LED index, based on LED at 0º on trigonometric circle
     size_t led_index =
@@ -94,6 +97,7 @@ set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
         }
     }
 }
+#pragma GCC diagnostic pop
 
 _Noreturn static void
 front_leds_thread(void *a, void *b, void *c)

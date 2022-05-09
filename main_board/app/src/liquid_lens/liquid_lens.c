@@ -1,4 +1,5 @@
 #include "liquid_lens.h"
+#include <app_assert.h>
 #include <app_config.h>
 #include <device.h>
 #include <drivers/clock_control/stm32_clock_control.h>
@@ -250,42 +251,50 @@ liquid_lens_init(void)
 {
     const struct device *clk;
     clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
+    int err_code;
 
-    if (clock_control_on(clk, &liquid_lens_hrtim_pclken) < 0) {
-        LOG_ERR("Could not initialize liquid lens high resolution timer");
+    err_code = clock_control_on(clk, &liquid_lens_hrtim_pclken);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
         return RET_ERROR_NOT_INITIALIZED;
     }
 
-    if (clock_control_on(clk, &liquid_lens_adc_pclken) < 0) {
-        LOG_ERR("Could not initialize liquid lens ADC clock");
+    err_code = clock_control_on(clk, &liquid_lens_adc_pclken);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
         return RET_ERROR_NOT_INITIALIZED;
     }
 
-    if (clock_control_on(clk, &liquid_lens_dma_pclken) < 0) {
-        LOG_ERR("Could not initialize liquid lens DMA clock");
+    err_code = clock_control_on(clk, &liquid_lens_dma_pclken);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
         return RET_ERROR_NOT_INITIALIZED;
     }
 
-    if (clock_control_on(clk, &liquid_lens_dmamux_pclken) < 0) {
-        LOG_ERR("Could not initialize liquid lens DMAMUX clock");
+    err_code = clock_control_on(clk, &liquid_lens_dmamux_pclken);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
         return RET_ERROR_NOT_INITIALIZED;
     }
 
-    if (gpio_pin_configure(liquid_lens_en, LIQUID_LENS_EN_PIN,
-                           LIQUID_LENS_EN_FLAGS | GPIO_OUTPUT)) {
-        LOG_ERR("Error configuring liquid lens enable pin");
+    err_code = gpio_pin_configure(liquid_lens_en, LIQUID_LENS_EN_PIN,
+                                  LIQUID_LENS_EN_FLAGS | GPIO_OUTPUT);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
         return RET_ERROR_NOT_INITIALIZED;
     }
 
-    if (stm32_dt_pinctrl_configure(liquid_lens_pins,
-                                   ARRAY_SIZE(liquid_lens_pins), 0) < 0) {
-        LOG_ERR("Liquid lens pinctrl setup failed");
+    err_code = stm32_dt_pinctrl_configure(liquid_lens_pins,
+                                          ARRAY_SIZE(liquid_lens_pins), 0);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
         return RET_ERROR_NOT_INITIALIZED;
     }
 
-    if (stm32_dt_pinctrl_configure(liquid_lens_adc_pins,
-                                   ARRAY_SIZE(liquid_lens_adc_pins), 0) < 0) {
-        LOG_ERR("Liquid lens ADC pinctrl setup failed");
+    err_code = stm32_dt_pinctrl_configure(liquid_lens_adc_pins,
+                                          ARRAY_SIZE(liquid_lens_adc_pins), 0);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
         return RET_ERROR_NOT_INITIALIZED;
     }
 

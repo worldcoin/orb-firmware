@@ -106,8 +106,9 @@ motors_auto_homing_in_progress();
  * @return
  * * RET_SUCCESS communication with motor controller is working. Spawned threads
  * to perform auto-homing procedure.
- * * RET_ERROR_BUSY SPI peripheral not ready
- * * RET_ERROR_INVALID_STATE cannot communicate with motor controller
+ * * RET_ERROR_INVALID_STATE SPI peripheral not ready
+ * * RET_ERROR_OFFLINE cannot communicate with motor controller
+ * * RET_ERROR_INTERNAL cannot initialize semaphores needed for auto-homing
  */
 ret_code_t
 motors_init(void);

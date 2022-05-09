@@ -1,4 +1,5 @@
 #include "sysflash/sysflash.h"
+#include <app_assert.h>
 #include <app_config.h>
 #include <arch/cpu.h>
 #include <assert.h>
@@ -439,6 +440,7 @@ power_turn_on_jetson(void)
         DEVICE_DT_GET(SHUTDOWN_REQUEST_CTLR);
     const struct device *lte_gps_usb_reset =
         DEVICE_DT_GET(LTE_GPS_USB_RESET_CTLR);
+    int ret = 0;
 
     if (check_is_ready(sleep_wake, "sleep wake pin") ||
         check_is_ready(power_enable, "power enable pin") ||
@@ -447,49 +449,47 @@ power_turn_on_jetson(void)
         return RET_ERROR_INVALID_STATE;
     }
 
-    if (gpio_pin_configure(sleep_wake, SLEEP_WAKE_PIN,
-                           SLEEP_WAKE_FLAGS | GPIO_OUTPUT)) {
-        LOG_ERR("Error configuring sleep wake pin!");
-        return RET_ERROR_INTERNAL;
+    ret = gpio_pin_configure(power_enable, POWER_ENABLE_PIN,
+                             POWER_ENABLE_FLAGS | GPIO_OUTPUT);
+    if (ret) {
+        ASSERT_SOFT(ret);
+    } else {
+        LOG_INF("Enabling Jetson power");
+        ret = gpio_pin_set(power_enable, POWER_ENABLE_PIN, ENABLE);
+        ASSERT_SOFT(ret);
+
+        ret = gpio_pin_configure(system_reset, SYSTEM_RESET_PIN,
+                                 SYSTEM_RESET_FLAGS | GPIO_INPUT);
+        if (ret) {
+            ASSERT_SOFT(ret);
+        } else {
+            LOG_INF("Waiting for reset done signal from Jetson");
+            while (gpio_pin_get(system_reset, SYSTEM_RESET_PIN) != OUT_OF_RESET)
+                ;
+            LOG_INF("Reset done");
+        }
     }
 
-    if (gpio_pin_configure(power_enable, POWER_ENABLE_PIN,
-                           POWER_ENABLE_FLAGS | GPIO_OUTPUT)) {
-        LOG_ERR("Error configuring power enable pin!");
-        return RET_ERROR_INTERNAL;
+    ret = gpio_pin_configure(sleep_wake, SLEEP_WAKE_PIN,
+                             SLEEP_WAKE_FLAGS | GPIO_OUTPUT);
+    if (ret) {
+        ASSERT_SOFT(ret);
+    } else {
+        LOG_INF("Setting Jetson to WAKE mode");
+        ret = gpio_pin_set(sleep_wake, SLEEP_WAKE_PIN, WAKE);
+        ASSERT_SOFT(ret);
     }
 
-    if (gpio_pin_configure(system_reset, SYSTEM_RESET_PIN,
-                           SYSTEM_RESET_FLAGS | GPIO_INPUT)) {
-        LOG_ERR("Error configuring system reset pin!");
-        return RET_ERROR_INTERNAL;
+    ret = gpio_pin_configure(lte_gps_usb_reset, LTE_GPS_USB_RESET_PIN,
+                             LTE_GPS_USB_RESET_FLAGS | GPIO_OUTPUT);
+    if (ret) {
+        ASSERT_SOFT(ret);
+    } else {
+        LOG_INF("Enabling LTE, GPS, and USB");
+        ret = gpio_pin_set(lte_gps_usb_reset, LTE_GPS_USB_RESET_PIN,
+                           LTE_GPS_USB_ON);
+        ASSERT_SOFT(ret);
     }
-
-    LOG_INF("Enabling Jetson power");
-    gpio_pin_set(power_enable, POWER_ENABLE_PIN, ENABLE);
-
-    LOG_INF("Waiting for reset done signal from Jetson");
-    while (gpio_pin_get(system_reset, SYSTEM_RESET_PIN) != OUT_OF_RESET)
-        ;
-    LOG_INF("Reset done");
-
-    if (gpio_pin_configure(sleep_wake, SLEEP_WAKE_PIN,
-                           SLEEP_WAKE_FLAGS | GPIO_OUTPUT)) {
-        LOG_ERR("Error configuring sleep wake pin!");
-        return RET_ERROR_INTERNAL;
-    }
-
-    if (gpio_pin_configure(lte_gps_usb_reset, LTE_GPS_USB_RESET_PIN,
-                           LTE_GPS_USB_RESET_FLAGS | GPIO_OUTPUT)) {
-        LOG_ERR("Error configuring LTE/GPS/USB reset pin!");
-        return RET_ERROR_INTERNAL;
-    }
-
-    LOG_INF("Setting Jetson to WAKE mode");
-    gpio_pin_set(sleep_wake, SLEEP_WAKE_PIN, WAKE);
-
-    LOG_INF("Enabling LTE, GPS, and USB");
-    gpio_pin_set(lte_gps_usb_reset, LTE_GPS_USB_RESET_PIN, LTE_GPS_USB_ON);
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V31
     // mainboard 3.0 uses PC13 and PE13 for shutdown request line and power
@@ -510,13 +510,20 @@ power_turn_on_jetson(void)
 int
 power_turn_on_super_cap_charger(void)
 {
+    int ret;
+
     const struct device *supply_super_cap =
         DEVICE_DT_GET(DT_PATH(supply_super_cap));
     if (check_is_ready(supply_super_cap, "super cap charger")) {
         return RET_ERROR_INVALID_STATE;
     }
 
-    regulator_enable(supply_super_cap, NULL);
+    ret = regulator_enable(supply_super_cap, NULL);
+    if (ret < 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
     LOG_INF("super cap charger enabled");
     k_msleep(1000);
     return RET_SUCCESS;
@@ -525,12 +532,18 @@ power_turn_on_super_cap_charger(void)
 int
 power_turn_on_pvcc(void)
 {
+    int ret;
     const struct device *supply_pvcc = DEVICE_DT_GET(DT_PATH(supply_pvcc));
     if (check_is_ready(supply_pvcc, "pvcc supply")) {
         return RET_ERROR_INVALID_STATE;
     }
 
-    regulator_enable(supply_pvcc, NULL);
+    ret = regulator_enable(supply_pvcc, NULL);
+    if (ret < 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
     LOG_INF("pvcc supply enabled");
     return RET_SUCCESS;
 }

@@ -94,14 +94,10 @@ canbus_rx_init(void (*in_handler)(McuMessage *msg))
         LOG_INF("CAN ready");
     }
 
-    k_tid_t tid = k_thread_create(
-        &rx_thread_data, rx_thread_stack,
-        K_THREAD_STACK_SIZEOF(rx_thread_stack), rx_thread, NULL, NULL, NULL,
-        CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_RX, 0, K_NO_WAIT);
-    if (!tid) {
-        LOG_ERR("ERROR spawning rx thread");
-        return RET_ERROR_NO_MEM;
-    }
+    k_thread_create(&rx_thread_data, rx_thread_stack,
+                    K_THREAD_STACK_SIZEOF(rx_thread_stack), rx_thread, NULL,
+                    NULL, NULL, CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_RX, 0,
+                    K_NO_WAIT);
 
     return RET_SUCCESS;
 }

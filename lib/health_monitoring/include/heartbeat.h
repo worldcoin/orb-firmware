@@ -16,6 +16,6 @@ heartbeat_boom(uint32_t delay_s);
 /// \param timeout_cb Custom timeout handler. Passing NULL resets to default
 /// handler.
 void
-heartbeat_register_cb(void (*timeout_cb)(void));
+heartbeat_register_cb(int (*timeout_cb)(void));
 
 #endif // ORB_MCU_SECURITY_APP_HEARTBEAT_H

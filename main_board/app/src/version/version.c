@@ -40,5 +40,5 @@ version_send(void)
             version.iv_build_num;
     }
 
-    return can_messaging_push_tx(&versions);
+    return can_messaging_async_tx(&versions);
 }

@@ -1,18 +1,16 @@
+#include "ir_camera_system.h"
+#include "ir_camera_timer_settings.h"
+#include <app_assert.h>
 #include <assert.h>
 #include <device.h>
+#include <drivers/clock_control/stm32_clock_control.h>
+#include <logging/log.h>
+#include <pinmux/pinmux_stm32.h>
+#include <soc.h>
 #include <stm32_ll_hrtim.h>
 #include <stm32_ll_rcc.h>
 #include <stm32_ll_tim.h>
 #include <zephyr.h>
-
-#include <drivers/clock_control/stm32_clock_control.h>
-#include <pinmux/pinmux_stm32.h>
-#include <soc.h>
-
-#include "ir_camera_system.h"
-#include "ir_camera_timer_settings.h"
-
-#include <logging/log.h>
 LOG_MODULE_REGISTER(ir_camera_system);
 
 #define DT_INST_CLK(inst)                                                      \
@@ -771,29 +769,29 @@ ir_camera_system_2d_tof_camera_is_enabled(void)
 ret_code_t
 ir_camera_system_init(void)
 {
-    int r = 0;
+    int err_code = 0;
 
-    r = enable_clocks_and_configure_pins();
-    if (r < 0) {
-        LOG_ERR("Error enabling clocks and configuring pins");
+    err_code = enable_clocks_and_configure_pins();
+    if (err_code < 0) {
+        ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
 
-    r = setup_740nm();
-    if (r < 0) {
-        LOG_ERR("Error setting up 740nm IR LEDs");
+    err_code = setup_740nm();
+    if (err_code < 0) {
+        ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
 
-    r = setup_940nm_850nm_common();
-    if (r < 0) {
-        LOG_ERR("Error setting up 940nm and 850nm IR LEDs");
+    err_code = setup_940nm_850nm_common();
+    if (err_code < 0) {
+        ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
 
-    r = setup_camera_triggers();
-    if (r < 0) {
-        LOG_ERR("Error setting up IR camera triggers");
+    err_code = setup_camera_triggers();
+    if (err_code < 0) {
+        ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
 

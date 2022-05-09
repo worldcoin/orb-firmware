@@ -1,6 +1,7 @@
 #include "can_messaging.h"
 #include "canbus_rx.h"
 #include "canbus_tx.h"
+#include <app_assert.h>
 #include <drivers/can.h>
 #include <kernel.h>
 #include <logging/log.h>
@@ -55,14 +56,14 @@ poll_state_thread(void *unused1, void *unused2, void *unused3)
 ret_code_t
 can_messaging_init(void (*in_handler)(McuMessage *msg))
 {
-    ret_code_t err_code;
+    int err_code;
 
     // init underlying layers: CAN bus
     err_code = canbus_rx_init(in_handler);
-    APP_ASSERT(err_code);
+    ASSERT_SOFT(err_code);
 
     err_code = canbus_tx_init();
-    APP_ASSERT(err_code);
+    ASSERT_SOFT(err_code);
 
     k_tid_t tid = k_thread_create(&poll_state_thread_data, poll_state_stack,
                                   K_THREAD_STACK_SIZEOF(poll_state_stack),
