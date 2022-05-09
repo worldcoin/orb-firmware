@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <device.h>
 #include <drivers/clock_control/stm32_clock_control.h>
+#include <drivers/pinctrl.h>
 #include <logging/log.h>
 #include <soc.h>
 #include <stm32_ll_hrtim.h>
@@ -11,7 +12,6 @@
 #include <stm32_ll_tim.h>
 #include <utils.h>
 #include <zephyr.h>
-#include <drivers/pinctrl.h>
 LOG_MODULE_REGISTER(ir_camera_system);
 
 #define DT_INST_CLK(inst)                                                      \

@@ -141,6 +141,7 @@ if (CONFIG_BOOT_SIGNATURE_TYPE_ECDSA_P256 OR CONFIG_BOOT_ENCRYPT_EC256)
                 ${BOOT_DIR}/zephyr/include
                 ${TINYCRYPT_DIR}/include
         )
+        zephyr_include_directories(${TINYCRYPT_DIR}/include)
 
         zephyr_library_sources(
                 ${TINYCRYPT_DIR}/source/ecc.c

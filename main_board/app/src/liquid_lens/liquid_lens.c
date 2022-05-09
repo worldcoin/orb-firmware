@@ -282,16 +282,16 @@ liquid_lens_init(void)
     }
 
     err_code = pinctrl_apply_state(
-            PINCTRL_DT_DEV_CONFIG_GET(DT_NODELABEL(liquid_lens)),
-            PINCTRL_STATE_DEFAULT);
+        PINCTRL_DT_DEV_CONFIG_GET(DT_NODELABEL(liquid_lens)),
+        PINCTRL_STATE_DEFAULT);
     if (err_code < 0) {
         LOG_ERR("Liquid lens pinctrl setup failed");
         ASSERT_SOFT(err_code);
         return RET_ERROR_NOT_INITIALIZED;
     }
 
-    err_code = pinctrl_apply_state(PINCTRL_DT_DEV_CONFIG_GET(DT_NODELABEL(adc3)),
-                            PINCTRL_STATE_DEFAULT);
+    err_code = pinctrl_apply_state(
+        PINCTRL_DT_DEV_CONFIG_GET(DT_NODELABEL(adc3)), PINCTRL_STATE_DEFAULT);
     if (err_code < 0) {
         LOG_ERR("Liquid lens pinctrl setup failed");
         ASSERT_SOFT(err_code);
