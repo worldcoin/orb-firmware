@@ -4,6 +4,7 @@
 #include <drivers/pwm.h>
 #include <errors.h>
 #include <logging/log.h>
+#include <utils.h>
 #include <zephyr.h>
 
 LOG_MODULE_REGISTER(operator_leds);
@@ -15,7 +16,6 @@ static K_THREAD_STACK_DEFINE(operator_leds_stack_area,
                              THREAD_STACK_SIZE_OPERATOR_RGB_LEDS);
 static struct k_thread operator_leds_thread_data;
 static K_SEM_DEFINE(sem_new_setting, 0, 1);
-static K_SEM_DEFINE(sem_apply_setting, 1, 1);
 
 // maximum time for the thread to "consume" the new settings
 #define LEDS_REFRESH_TIMEOUT 10
@@ -25,18 +25,18 @@ static struct led_rgb leds[OPERATOR_LEDS_COUNT];
 // default values
 static volatile DistributorLEDsPattern_DistributorRgbLedPattern global_pattern =
     DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE;
-static uint8_t global_intensity = 20;
-static uint32_t global_mask = OPERATOR_LEDS_ALL_MASK;
-static struct led_rgb global_color;
+static volatile uint8_t global_intensity = 20;
+static volatile uint32_t global_mask = OPERATOR_LEDS_ALL_MASK;
+static volatile struct led_rgb global_color;
 
 static void
-apply_pattern()
+apply_pattern(uint32_t mask, struct led_rgb *color)
 {
     // go through mask starting with most significant bit
     // so that mask is applied from left LED to right for the operator
     for (size_t i = 0; i < ARRAY_SIZE_ASSERT(leds); ++i) {
-        if (global_mask & BIT((OPERATOR_LEDS_COUNT - 1) - i)) {
-            leds[i] = global_color;
+        if (mask & BIT((OPERATOR_LEDS_COUNT - 1) - i)) {
+            leds[i] = *color;
         } else {
             leds[i] = (struct led_rgb)RGB_OFF;
         }
@@ -50,56 +50,64 @@ operator_leds_thread(void *a, void *b, void *c)
     ARG_UNUSED(c);
 
     const struct device *led_strip = a;
+    uint8_t intensity;
+    uint32_t mask;
+    struct led_rgb color;
+    DistributorLEDsPattern_DistributorRgbLedPattern pattern;
 
     for (;;) {
         k_sem_take(&sem_new_setting, K_FOREVER);
 
-        switch (global_pattern) {
+        // ⚠️ Critical section
+        // create local copies in a critical section to make sure we don't
+        // interfere with the values while applying LED config
+        CRITICAL_SECTION_ENTER(k);
+        pattern = global_pattern;
+        intensity = global_intensity;
+        mask = global_mask;
+        color = global_color;
+        CRITICAL_SECTION_EXIT(k);
+
+        switch (pattern) {
         case DistributorLEDsPattern_DistributorRgbLedPattern_OFF:
-            global_color = (struct led_rgb)RGB_OFF;
+            color = (struct led_rgb)RGB_OFF;
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE:
-            global_color.r = global_intensity;
-            global_color.g = global_intensity;
-            global_color.b = global_intensity;
+            color.r = intensity;
+            color.g = intensity;
+            color.b = intensity;
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_RED:
-            global_color.r = global_intensity;
-            global_color.g = 0;
-            global_color.b = 0;
+            color.r = intensity;
+            color.g = 0;
+            color.b = 0;
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN:
-            global_color.r = 0;
-            global_color.g = global_intensity;
-            global_color.b = 0;
+            color.r = 0;
+            color.g = intensity;
+            color.b = 0;
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_BLUE:
-            global_color.r = 0;
-            global_color.g = 0;
-            global_color.b = global_intensity;
+            color.r = 0;
+            color.g = 0;
+            color.b = intensity;
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_RGB:
-            /* Do nothing, global_color already set */
+            /* Do nothing, color already set from global_color */
             break;
         default:
-            LOG_ERR("Unhandled operator LED pattern: %u", global_pattern);
+            LOG_ERR("Unhandled operator LED pattern: %u", pattern);
             break;
         }
 
-        apply_pattern();
+        apply_pattern(mask, &color);
         led_strip_update_rgb(led_strip, leds, ARRAY_SIZE(leds));
-
-        k_sem_give(&sem_apply_setting);
     }
 }
 
 int
 operator_leds_set_brightness(uint8_t brightness)
 {
-    if (k_sem_take(&sem_apply_setting, K_MSEC(LEDS_REFRESH_TIMEOUT))) {
-        return RET_ERROR_BUSY;
-    }
-
     global_intensity = brightness;
     k_sem_give(&sem_new_setting);
 
@@ -111,18 +119,19 @@ operator_leds_set_pattern(
     DistributorLEDsPattern_DistributorRgbLedPattern pattern, uint32_t mask,
     RgbColor *color)
 {
-    if (k_sem_take(&sem_apply_setting, K_MSEC(LEDS_REFRESH_TIMEOUT))) {
-        return RET_ERROR_BUSY;
-    }
+    CRITICAL_SECTION_ENTER(k);
 
     global_pattern = pattern;
     global_mask = mask;
 
     if (color != NULL) {
+        // RgbColor -> struct led_rgb
         global_color.r = color->red;
         global_color.g = color->green;
         global_color.b = color->blue;
     }
+
+    CRITICAL_SECTION_EXIT(k);
 
     k_sem_give(&sem_new_setting);
 
