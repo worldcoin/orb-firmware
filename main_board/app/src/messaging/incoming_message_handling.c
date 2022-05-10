@@ -419,17 +419,27 @@ handle_distributor_leds_pattern(McuMessage *msg)
 
     DistributorLEDsPattern_DistributorRgbLedPattern pattern =
         msg->message.j_message.payload.distributor_leds_pattern.pattern;
-    LOG_DBG("Got distributor LED pattern: %u", pattern);
+    uint32_t mask =
+        msg->message.j_message.payload.distributor_leds_pattern.leds_mask;
 
-    RgbColor *color_ptr = NULL;
-    if (msg->message.j_message.payload.distributor_leds_pattern.pattern ==
-        DistributorLEDsPattern_DistributorRgbLedPattern_RGB) {
-        color_ptr = &msg->message.j_message.payload.distributor_leds_pattern
-                         .custom_color;
+    LOG_DBG("Got distributor LED pattern: %u, mask 0x%x", pattern, mask);
+
+    if (mask > OPERATOR_LEDS_ALL_MASK) {
+        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+    } else {
+        RgbColor *color_ptr = NULL;
+        if (msg->message.j_message.payload.distributor_leds_pattern.pattern ==
+            DistributorLEDsPattern_DistributorRgbLedPattern_RGB) {
+            color_ptr = &msg->message.j_message.payload.distributor_leds_pattern
+                             .custom_color;
+        }
+        if (operator_leds_set_pattern(pattern, mask, color_ptr) !=
+            RET_SUCCESS) {
+            incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        } else {
+            incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        }
     }
-    operator_leds_set_pattern(pattern, color_ptr);
-
-    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
 }
 
 static void
@@ -445,8 +455,11 @@ handle_distributor_leds_brightness(McuMessage *msg)
         incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
     } else {
         LOG_DBG("Got distributor LED brightness: %u", brightness);
-        operator_leds_set_brightness((uint8_t)brightness);
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        if (operator_leds_set_brightness((uint8_t)brightness) != RET_SUCCESS) {
+            incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        } else {
+            incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        }
     }
 }
 
@@ -485,9 +498,9 @@ handle_fw_img_sec_activate(McuMessage *msg)
         incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
 
         // turn operator LEDs orange
-        RgbColor color = RGB_LED_ORANGE;
         operator_leds_set_pattern(
-            DistributorLEDsPattern_DistributorRgbLedPattern_RGB, &color);
+            DistributorLEDsPattern_DistributorRgbLedPattern_RGB,
+            OPERATOR_LEDS_ALL_MASK, &(RgbColor)RGB_ORANGE);
 
         // wait for Jetson to shut down before we can reboot
         power_reboot_set_pending();

@@ -53,6 +53,7 @@ run_tests()
 #ifdef CONFIG_TEST_DFU
     tests_dfu_init();
 #endif
+#define CONFIG_TEST_OPERATOR_LEDS
 #ifdef CONFIG_TEST_OPERATOR_LEDS
     operator_leds_tests_init();
 #endif
@@ -146,11 +147,12 @@ main(void)
     // set up operator LED depending on image state
     if (dfu_primary_is_confirmed()) {
         operator_leds_set_pattern(
-            DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN, NULL);
+            DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN,
+            OPERATOR_LEDS_ALL_MASK, NULL);
     } else {
-        RgbColor color = RGB_LED_ORANGE;
         operator_leds_set_pattern(
-            DistributorLEDsPattern_DistributorRgbLedPattern_RGB, &color);
+            DistributorLEDsPattern_DistributorRgbLedPattern_RGB,
+            OPERATOR_LEDS_ALL_MASK, &(RgbColor)RGB_ORANGE);
     }
 
     // launch tests if any is defined
@@ -187,7 +189,7 @@ main(void)
             if (err_code == 0) {
                 operator_leds_set_pattern(
                     DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN,
-                    NULL);
+                    OPERATOR_LEDS_ALL_MASK, NULL);
             }
 
             return;

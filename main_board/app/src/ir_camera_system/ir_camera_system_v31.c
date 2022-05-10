@@ -10,6 +10,7 @@
 #include <stm32_ll_hrtim.h>
 #include <stm32_ll_rcc.h>
 #include <stm32_ll_tim.h>
+#include <utils.h>
 #include <zephyr.h>
 LOG_MODULE_REGISTER(ir_camera_system);
 
@@ -403,7 +404,7 @@ apply_new_timer_settings()
 {
     static struct ir_camera_timer_settings old_timer_settings = {0};
 
-    unsigned key = irq_lock();
+    CRITICAL_SECTION_ENTER(k);
 
     LL_TIM_SetPrescaler(CAMERA_TRIGGER_TIMER, global_timer_settings.psc);
     LL_TIM_SetAutoReload(CAMERA_TRIGGER_TIMER, global_timer_settings.arr);
@@ -427,7 +428,7 @@ apply_new_timer_settings()
 
     set_ccr_ir_leds();
 
-    irq_unlock(key);
+    CRITICAL_SECTION_EXIT(k);
 
     // Auto-reload preload is enabled. This means that the auto-reload preload
     // register is deposited into the auto-reload register only on a timer
@@ -740,7 +741,7 @@ ir_camera_system_set_on_time_740nm_us(uint16_t on_time_us)
 void
 ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength)
 {
-    unsigned key = irq_lock();
+    CRITICAL_SECTION_ENTER(k);
 
     enabled_led_wavelength = wavelength;
 
@@ -754,7 +755,7 @@ ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength)
 
     set_ccr_ir_leds();
 
-    irq_unlock(key);
+    CRITICAL_SECTION_EXIT(k);
 }
 
 InfraredLEDs_Wavelength
