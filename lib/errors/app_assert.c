@@ -74,8 +74,12 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
 
     ++error_count;
 
+    // SeggerRTT sets the CPU as being debugged, but we don't want to halt/block
+    // in this assert
+#if !CONFIG_LOG_BACKEND_RTT
     // stop if debugging
     HALT_IF_DEBUGGING();
+#endif
 }
 
 uint32_t
