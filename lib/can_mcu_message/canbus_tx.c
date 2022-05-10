@@ -95,7 +95,7 @@ process_tx_messages_thread()
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
                 LOG_WRN("Error sending message");
 #else
-                printk("<wrn> Error encoding message!\r\n");
+                printk("<wrn> Error sending message!\r\n");
 #endif
                 // release semaphore, we are not waiting for
                 // completion
