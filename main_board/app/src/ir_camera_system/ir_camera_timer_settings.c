@@ -2,6 +2,7 @@
 #include "kernel.h"
 #include <logging/log.h>
 #include <sys/util.h>
+#include <utils.h>
 LOG_MODULE_REGISTER(ir_camera_timer_settings);
 
 #define MAX_PSC_DIV                  65536U
@@ -99,9 +100,9 @@ timer_settings_from_on_time_us(
 
     if (ret == RET_SUCCESS) {
         // make copy operation atomic
-        int key = irq_lock();
+        CRITICAL_SECTION_ENTER(k);
         *new_settings = ts;
-        irq_unlock(key);
+        CRITICAL_SECTION_EXIT(k);
     }
 
     return ret;
@@ -178,9 +179,9 @@ timer_settings_from_fps(uint16_t fps,
 
     if (ret == RET_SUCCESS) {
         // make copy operation atomic
-        int key = irq_lock();
+        CRITICAL_SECTION_ENTER(k);
         *new_settings = ts;
-        irq_unlock(key);
+        CRITICAL_SECTION_EXIT(k);
     }
     return ret;
 }
@@ -226,9 +227,9 @@ timer_740nm_ccr_from_on_time_us(
                    (ts.psc + 1);
 
     // make copy operation atomic
-    int key = irq_lock();
+    CRITICAL_SECTION_ENTER(k);
     *new_settings = ts;
-    irq_unlock(key);
+    CRITICAL_SECTION_EXIT(k);
 
     return RET_SUCCESS;
 }
