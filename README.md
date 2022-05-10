@@ -162,19 +162,28 @@ See the board-specific docs:
 
 #### Logging
 
-Print out the bootloader and application logs using:
+Print out the bootloader and main MCU application logs using:
 
 ```shell
 # replace /dev/ttyxxx with your UART device
 python "$REPO_DIR"/orb/utils/debug/uart_dump.py -p /dev/ttyxxx -b 115200
 ```
 
+##### Security board logs
+
+UART is not easily accessible on the Security Board 2.x so the default logging backend is using SeggerRTT (logs sent
+through the debugger SWD interface). From `pyocd` v0.33.1, printing RTT logs is as simple as:
+
+```shell
+pyocd rtt --target=stm32g474vetx
+```
+
 ## Contributing
 
 ### Pre-commit hooks
 
-These pre-commit hooks will be checked in CI, so it behooves you to install them now.
-This requires the `pre-commit` python package to be installed like so: `pip3 install pre-commit`.
+These pre-commit hooks will be checked in CI, so it behooves you to install them now. This requires the `pre-commit`
+python package to be installed like so: `pip3 install pre-commit`.
 
 ```shell
 cd "$REPO_DIR"/orb && pre-commit install -c utils/format/pre-commit-config.yaml
