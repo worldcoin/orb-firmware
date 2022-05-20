@@ -178,7 +178,7 @@ process_dfu_blocks_thread()
                 // check image size to see if it fits
                 if (dfu_state.block_count * DFU_BLOCK_SIZE_MAX >
                     image_slot_size) {
-                    LOG_ERR("Not enough size in Flash %" PRIu32 " > %" PRIu32,
+                    LOG_ERR("Not enough size in Flash %u > %u",
                             dfu_state.block_count * DFU_BLOCK_SIZE_MAX,
                             image_slot_size);
 
