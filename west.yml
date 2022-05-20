@@ -18,5 +18,8 @@ manifest:
     - name: protobuf-definitions
       revision: bf272f61bc6685aaf040a28ea2a2f99726f4401a
       path: modules/orb-protobuf-definitions
+    - name: plug-and-trust
+      revision: dc8923582abfb50840af9ce346a3cf4dd8ecf395
+      path: modules/plug-and-trust
   self:
     path: orb
