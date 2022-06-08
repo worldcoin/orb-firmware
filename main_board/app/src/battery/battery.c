@@ -67,28 +67,31 @@ handle_499(struct zcan_frame *frame)
 
         // now let's report the data if it has changed
         if (state_499.state_of_charge != new_state->state_of_charge) {
-            state_499.state_of_charge = new_state->state_of_charge;
-
             msg.message.m_message.which_payload =
                 McuToJetson_battery_capacity_tag;
             msg.message.m_message.payload.battery_capacity.percentage =
                 new_state->state_of_charge;
 
-            // don't care if message is dropped
-            can_messaging_async_tx(&msg);
+            // store new state only if message is successfully queued
+            int ret = can_messaging_async_tx(&msg);
+            if (ret == RET_SUCCESS) {
+                state_499.state_of_charge = new_state->state_of_charge;
+            }
         }
 
         bool currently_charging =
             ((new_state->flags & BIT(IS_CHARGING_BIT)) != 0);
         if (is_charging != currently_charging) {
-            is_charging = currently_charging;
-
             msg.message.m_message.which_payload =
                 McuToJetson_battery_is_charging_tag;
             msg.message.m_message.payload.battery_is_charging
                 .battery_is_charging = is_charging;
-            // don't care if message is dropped
-            can_messaging_async_tx(&msg);
+
+            // store new state only if message is successfully queued
+            int ret = can_messaging_async_tx(&msg);
+            if (ret == RET_SUCCESS) {
+                is_charging = currently_charging;
+            }
         }
 
         LOG_DBG("Battery PCB temperature: %u.%u°C",
