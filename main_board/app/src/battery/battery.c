@@ -47,36 +47,49 @@ __PACKED_STRUCT battery_499_s
     uint8_t state_of_charge; // percentage
 };
 
+static struct battery_499_s state_499 = {0};
+
 static void
 handle_499(struct zcan_frame *frame)
 {
     static McuMessage msg = {
         .which_message = McuMessage_m_message_tag,
     };
+    static bool is_charging = false;
 
     if (can_dlc_to_bytes(frame->dlc) == 6) {
         // Let's extract the info we care about
         struct battery_499_s *new_state = (struct battery_499_s *)frame->data;
-        bool is_charging =
-            new_state->flags & BIT(IS_CHARGING_BIT) >> IS_CHARGING_BIT;
 
         // logging
         LOG_DBG("state of charge: %u%%", new_state->state_of_charge);
         LOG_DBG("is charging? %s", is_charging ? "yes" : "no");
 
-        // now let's report the data
-        msg.message.m_message.which_payload = McuToJetson_battery_capacity_tag;
-        msg.message.m_message.payload.battery_capacity.percentage =
-            new_state->state_of_charge;
-        // don't care if message is dropped
-        can_messaging_async_tx(&msg);
+        // now let's report the data if it has changed
+        if (state_499.state_of_charge != new_state->state_of_charge) {
+            state_499.state_of_charge = new_state->state_of_charge;
 
-        msg.message.m_message.which_payload =
-            McuToJetson_battery_is_charging_tag;
-        msg.message.m_message.payload.battery_is_charging.battery_is_charging =
-            is_charging;
-        // don't care if message is dropped
-        can_messaging_async_tx(&msg);
+            msg.message.m_message.which_payload =
+                McuToJetson_battery_capacity_tag;
+            msg.message.m_message.payload.battery_capacity.percentage =
+                new_state->state_of_charge;
+
+            // don't care if message is dropped
+            can_messaging_async_tx(&msg);
+        }
+
+        bool currently_charging =
+            ((new_state->flags & BIT(IS_CHARGING_BIT)) != 0);
+        if (is_charging != currently_charging) {
+            is_charging = currently_charging;
+
+            msg.message.m_message.which_payload =
+                McuToJetson_battery_is_charging_tag;
+            msg.message.m_message.payload.battery_is_charging
+                .battery_is_charging = is_charging;
+            // don't care if message is dropped
+            can_messaging_async_tx(&msg);
+        }
 
         LOG_DBG("Battery PCB temperature: %u.%u°C",
                 new_state->pcb_temperature / 10,
