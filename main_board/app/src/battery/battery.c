@@ -2,14 +2,15 @@
 #include "can_messaging.h"
 #include "errors.h"
 #include "mcu_messaging.pb.h"
-#include <assert.h>
-#include <logging/log.h>
-LOG_MODULE_REGISTER(battery);
 #include "temperature/temperature.h"
+#include <app_assert.h>
 #include <device.h>
 #include <drivers/can.h>
 #include <sys/byteorder.h>
 #include <zephyr.h>
+
+#include <logging/log.h>
+LOG_MODULE_REGISTER(battery);
 
 static const struct device *can_dev;
 
@@ -21,10 +22,30 @@ static const struct zcan_filter battery_can_filter = {
     .rtr_mask = 1,
     .id_mask = 0};
 
-#define BATTERY_FLAGS_BYTE_NUM             4
-#define STATE_OF_CHARGE_BYTE_NUM           5
-#define BATTERY_PCB_TEMPERATURE_WORD_INDEX 0
-#define IS_CHARGING_BIT                    3
+__PACKED_STRUCT battery_415_s
+{
+    int16_t current_ma; // positive if current flowing into battery, negative if
+                        // it flows out of it
+    int16_t cell_temperature; // unit 0.1ºC
+};
+
+// clang-format off
+// | Bit 7 | BQ769x2 reads valid | all recently read registers from bq769x2 where valid as of CRC and no timeout |
+// | Bit 6 | USB PD ready | USB power delivery with ~20V established |
+// | Bit 5 | USB PD initialized | USB power delivery periphery initialized |
+// | Bit 4 | USB cable detected | USB cable plugged in and 5V present |
+#define IS_CHARGING_BIT 3 // | Bit 3 | is Charging | USB PD is ready and charging current above 150 mA |
+// | Bit 2 | Orb active | Host present and discharge current above 150 mA |
+// | Bit 1 | Host Present | Battery is inserted, the host present pin is pulled low (high state) |
+// | Bit 0 | User button pressed | User button on the battery is pressed |
+// clang-format on
+__PACKED_STRUCT battery_499_s
+{
+    int16_t pcb_temperature;  // unit 0.1ºC
+    int16_t pack_temperature; // unit 0.1ºC
+    uint8_t flags;
+    uint8_t state_of_charge; // percentage
+};
 
 static void
 handle_499(struct zcan_frame *frame)
@@ -35,21 +56,18 @@ handle_499(struct zcan_frame *frame)
 
     if (can_dlc_to_bytes(frame->dlc) == 6) {
         // Let's extract the info we care about
-        uint8_t state_of_charge = frame->data[STATE_OF_CHARGE_BYTE_NUM];
+        struct battery_499_s *new_state = (struct battery_499_s *)frame->data;
         bool is_charging =
-            (frame->data[BATTERY_FLAGS_BYTE_NUM] & BIT(IS_CHARGING_BIT)) >>
-            IS_CHARGING_BIT;
-        uint16_t pcb_temp_tenths_of_c = sys_le16_to_cpu(
-            ((uint16_t *)frame->data)[BATTERY_PCB_TEMPERATURE_WORD_INDEX]);
+            new_state->flags & BIT(IS_CHARGING_BIT) >> IS_CHARGING_BIT;
 
         // logging
-        LOG_DBG("state of charge: %u%%", state_of_charge);
+        LOG_DBG("state of charge: %u%%", new_state->state_of_charge);
         LOG_DBG("is charging? %s", is_charging ? "yes" : "no");
 
         // now let's report the data
         msg.message.m_message.which_payload = McuToJetson_battery_capacity_tag;
         msg.message.m_message.payload.battery_capacity.percentage =
-            state_of_charge;
+            new_state->state_of_charge;
         // don't care if message is dropped
         can_messaging_async_tx(&msg);
 
@@ -60,34 +78,28 @@ handle_499(struct zcan_frame *frame)
         // don't care if message is dropped
         can_messaging_async_tx(&msg);
 
-        LOG_DBG("Battery PCB temperature: %u.%u°C", pcb_temp_tenths_of_c / 10,
-                pcb_temp_tenths_of_c % 10);
+        LOG_DBG("Battery PCB temperature: %u.%u°C",
+                new_state->pcb_temperature / 10,
+                new_state->pcb_temperature % 10);
         temperature_report(Temperature_TemperatureSource_BATTERY_PCB,
-                           pcb_temp_tenths_of_c / 10);
+                           new_state->pcb_temperature / 10);
     } else {
-        LOG_ERR(
-            "Got state of charge and 'is charging' CAN frame (0x499), but it "
-            "has the wrong length");
+        ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
     }
 }
-
-#define BATTERY_CELL_TEMPERATURE_WORD_INDEX 1
 
 static void
 handle_415(struct zcan_frame *frame)
 {
     if (can_dlc_to_bytes(frame->dlc) == 4) {
-        uint16_t cell_temperature_tenths_of_c = sys_le16_to_cpu(
-            ((uint16_t *)frame->data)[BATTERY_CELL_TEMPERATURE_WORD_INDEX]);
+        struct battery_415_s *new_state = (struct battery_415_s *)frame->data;
         LOG_DBG("Battery cell temperature: %u.%u°C",
-                cell_temperature_tenths_of_c / 10,
-                cell_temperature_tenths_of_c % 10);
+                new_state->cell_temperature / 10,
+                new_state->cell_temperature % 10);
         temperature_report(Temperature_TemperatureSource_BATTERY_CELL,
-                           cell_temperature_tenths_of_c / 10);
+                           new_state->cell_temperature / 10);
     } else {
-        LOG_ERR("Got 'battery current' and 'cell temperature' CAN frame "
-                "(0x415), but it "
-                "has the wrong length");
+        ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
     }
 }
 
