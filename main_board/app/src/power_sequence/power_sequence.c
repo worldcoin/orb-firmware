@@ -17,6 +17,14 @@ LOG_MODULE_REGISTER(power_sequence);
 #include "power_sequence.h"
 #include "ui/front_leds/front_leds.h"
 
+// Power supplies turned on in two phases:
+// - Phase 1 initializes just enough power supplies for us to use the Operator
+// LEDs. It consumes power (150mA), but if the operator places the power switch
+// in the off position, then no power is given to the Orb at all, and this is
+// preferably what the operators should be doing when not using the Orb.
+// - Phase 2 is for turning on all the power supplies. It is gated on the button
+// press unless we are booting after a reboot was commanded during an update.
+
 K_THREAD_STACK_DEFINE(reboot_thread_stack, THREAD_STACK_SIZE_POWER_MANAGEMENT);
 static struct k_thread reboot_thread_data;
 
@@ -64,59 +72,35 @@ check_is_ready(const struct device *dev, const char *name)
 #define SUPPLY_1V8_PG_PIN   DT_GPIO_PIN(SUPPLY_1V8_PG_NODE, gpios)
 #define SUPPLY_1V8_PG_FLAGS DT_GPIO_FLAGS(SUPPLY_1V8_PG_NODE, gpios)
 
+static const struct device *supply_3v3_pg = DEVICE_DT_GET(SUPPLY_3V3_PG_CTLR);
+
 #endif
 
 int
-power_turn_on_essential_supplies(const struct device *dev)
+power_turn_on_supplies_phase1(const struct device *dev)
 {
     ARG_UNUSED(dev);
-
     const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
-    const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
     const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
-    const struct device *supply_3v8 = DEVICE_DT_GET(DT_PATH(supply_3v8));
-    const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
     const struct device *supply_5v_pg = DEVICE_DT_GET(SUPPLY_5V_PG_CTLR);
-    const struct device *supply_3v3_pg = DEVICE_DT_GET(SUPPLY_3V3_PG_CTLR);
-    const struct device *supply_1v8_pg = DEVICE_DT_GET(SUPPLY_1V8_PG_CTLR);
 #endif
 
     if (check_is_ready(vbat_sw_regulator, "VBAT SW") ||
-        check_is_ready(supply_12v, "12V supply") ||
         check_is_ready(supply_5v, "5V supply") ||
-        check_is_ready(supply_3v8, "3.8V supply") ||
-        check_is_ready(supply_3v3, "3.3V supply") ||
-        check_is_ready(supply_1v8, "1.8V supply")
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
+        check_is_ready(supply_3v3, "3.3V supply")
+#if CONFIG_BOARD_MCU_MAIN_V30
         || check_is_ready(supply_3v3_pg, "3.3V supply power good pin") ||
-        check_is_ready(supply_5v_pg, "5V supply power good pin") ||
-        check_is_ready(supply_1v8_pg, "1.8V supply power good pin")
+        check_is_ready(supply_5v_pg, "5V supply power good pin")
 #endif
     ) {
-        return 1;
-    }
-
-    // We configure this pin here before we enable 3.3v supply
-    // just so that we can disable the automatically-enabled pull-up.
-    // We must do this because providing a voltage to the 3.3v power supply
-    // output before it is online can trigger the safety circuit.
-    //
-    // After this is configured, the I2C initialization will run and
-    // re-configure this pin as SCL.
-    if (gpio_pin_configure(i2c_clock, I2C_CLOCK_PIN,
-                           GPIO_OUTPUT | I2C_CLOCK_FLAGS)) {
-        LOG_ERR("Error configuring I2C clock pin!");
         return 1;
     }
 
     regulator_enable(vbat_sw_regulator, NULL);
     LOG_INF("VBAT SW enabled");
     k_msleep(100);
-
-    regulator_enable(supply_12v, NULL);
-    LOG_INF("12V power supply enabled");
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
     if (gpio_pin_configure(supply_5v_pg, SUPPLY_5V_PG_PIN,
@@ -162,6 +146,65 @@ power_turn_on_essential_supplies(const struct device *dev)
     k_msleep(100);
 #endif
 
+    return 0;
+}
+
+SYS_INIT(power_turn_on_supplies_phase1, POST_KERNEL,
+         SYS_INIT_POWER_SUPPLY_PHASE1_PRIORITY);
+
+int
+power_turn_on_supplies_phase2(const struct device *dev)
+{
+    ARG_UNUSED(dev);
+
+    const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
+    const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
+    const struct device *supply_3v8 = DEVICE_DT_GET(DT_PATH(supply_3v8));
+
+#ifdef CONFIG_BOARD_MCU_MAIN_V30
+    const struct device *supply_1v8_pg = DEVICE_DT_GET(SUPPLY_1V8_PG_CTLR);
+#endif
+
+    if (check_is_ready(supply_12v, "12V supply") ||
+        check_is_ready(supply_3v8, "3.8V supply") ||
+        check_is_ready(supply_1v8, "1.8V supply")
+#ifdef CONFIG_BOARD_MCU_MAIN_V30
+        || check_is_ready(supply_1v8_pg, "1.8V supply power good pin")
+#endif
+    ) {
+        return 1;
+    }
+
+    regulator_enable(supply_3v3, NULL);
+    LOG_INF("3.3V power supply re-enabled");
+#ifdef CONFIG_BOARD_MCU_MAIN_V30
+    LOG_INF("Waiting on power good...");
+    // Wait forever, because if we can't enable this then we can't turn on the
+    // fan. If we can't turn on the fan, then we don't want to turn on
+    // anything else
+    while (!gpio_pin_get(supply_3v3_pg, SUPPLY_3V3_PG_PIN))
+        ;
+    LOG_INF("3.3V power supply good");
+#else
+    k_msleep(100);
+#endif
+
+    // We configure this pin here before we enable 3.3v supply
+    // just so that we can disable the automatically-enabled pull-up.
+    // We must do this because providing a voltage to the 3.3v power supply
+    // output before it is online can trigger the safety circuit.
+    //
+    // After this is configured, the I2C initialization will run and
+    // re-configure this pin as SCL.
+    if (gpio_pin_configure(i2c_clock, I2C_CLOCK_PIN,
+                           GPIO_OUTPUT | I2C_CLOCK_FLAGS)) {
+        LOG_ERR("Error configuring I2C clock pin!");
+        return 1;
+    }
+
+    regulator_enable(supply_12v, NULL);
+    LOG_INF("12V power supply enabled");
+
     regulator_enable(supply_3v8, NULL);
     LOG_INF("3.8V power supply enabled");
 
@@ -188,12 +231,8 @@ power_turn_on_essential_supplies(const struct device *dev)
     return 0;
 }
 
-static_assert(ESSENTIAL_POWER_SUPPLIES_INIT_PRIORITY == 55,
-              "update the integer literal here");
-
-// This need to be after regulators but before I2C
-// We must use an integer literal. Thanks C macros!
-SYS_INIT(power_turn_on_essential_supplies, POST_KERNEL, 55);
+SYS_INIT(power_turn_on_supplies_phase2, POST_KERNEL,
+         SYS_INIT_POWER_SUPPLY_PHASE2_PRIORITY);
 
 #define BUTTON_PRESS_TIME_MS    5000
 #define BUTTON_SAMPLE_PERIOD_MS 10
@@ -250,6 +289,10 @@ app_init_state(const struct device *dev)
 
     int ret = 0;
 
+    // disable now that we have initialized operator LED
+    // see SYS_INIT #52
+    regulator_disable(supply_3v3);
+
     LOG_INF("Hello from " CONFIG_BOARD " :)");
 
     // read image status to know whether we are waiting for user to press
@@ -273,13 +316,7 @@ app_init_state(const struct device *dev)
     return ret;
 }
 
-static_assert(WAIT_FOR_BUTTON_PRESS_PRIORITY == 53,
-              "update the integer literal here");
-
-// Gate turning on power supplies on button press or if image isn't confirmed
-// (freshly updated)
-// We must use an integer literal. Thanks C macros!
-SYS_INIT(app_init_state, POST_KERNEL, 53);
+SYS_INIT(app_init_state, POST_KERNEL, SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY);
 
 #define SLEEP_WAKE_NODE  DT_PATH(jetson_power_pins, sleep_wake)
 #define SLEEP_WAKE_CTLR  DT_GPIO_CTLR(SLEEP_WAKE_NODE, gpios)

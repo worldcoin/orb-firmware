@@ -11,6 +11,11 @@
         255, 255 / 2, 0                                                        \
     }
 
+#define RGB_ORANGE_LIGHT                                                       \
+    {                                                                          \
+        4, 2, 0                                                                \
+    }
+
 #define RGB_OFF                                                                \
     {                                                                          \
         0, 0, 0                                                                \

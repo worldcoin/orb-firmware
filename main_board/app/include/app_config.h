@@ -47,9 +47,11 @@
 #define THREAD_PRIORITY_LIQUID_LENS   8
 #define THREAD_STACK_SIZE_LIQUID_LENS 512
 
-#define ESSENTIAL_POWER_SUPPLIES_INIT_PRIORITY 55
-#define FAN_INIT_PRIORITY                      54
-#define WAIT_FOR_BUTTON_PRESS_PRIORITY         53
+#define SYS_INIT_POWER_SUPPLY_PHASE2_PRIORITY   55
+#define SYS_INIT_FAN_INIT_PRIORITY              54
+#define SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY 53
+#define SYS_INIT_OPERATOR_LED_PRIORITY          52
+#define SYS_INIT_POWER_SUPPLY_PHASE1_PRIORITY   51
 
 ///////////////////////////////////////
 /// CAN bus config                  ///

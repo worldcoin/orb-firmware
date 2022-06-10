@@ -26,8 +26,8 @@ static struct led_rgb leds[OPERATOR_LEDS_COUNT];
 static volatile DistributorLEDsPattern_DistributorRgbLedPattern global_pattern =
     DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE;
 static volatile uint8_t global_intensity = 20;
-static volatile uint32_t global_mask = OPERATOR_LEDS_ALL_MASK;
-static volatile struct led_rgb global_color;
+static volatile uint32_t global_mask = 0b00100;
+static volatile struct led_rgb global_color = RGB_ORANGE_LIGHT;
 
 static void
 apply_pattern(uint32_t mask, struct led_rgb *color)
@@ -158,3 +158,26 @@ operator_leds_init(void)
 
     return RET_SUCCESS;
 }
+
+int
+operator_leds_initial_state(const struct device *dev)
+{
+    ARG_UNUSED(dev);
+
+    const struct device *led_strip =
+        DEVICE_DT_GET(DT_NODELABEL(operator_rgb_leds));
+
+    if (!device_is_ready(led_strip)) {
+        LOG_ERR("Operator LED strip not ready!");
+        return RET_ERROR_INTERNAL;
+    }
+
+    struct led_rgb color = global_color;
+    apply_pattern(global_mask, &color);
+    led_strip_update_rgb(led_strip, leds, ARRAY_SIZE(leds));
+
+    return 0;
+}
+
+SYS_INIT(operator_leds_initial_state, POST_KERNEL,
+         SYS_INIT_OPERATOR_LED_PRIORITY);

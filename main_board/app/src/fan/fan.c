@@ -105,11 +105,4 @@ fan_init(const struct device *dev)
     return RET_SUCCESS;
 }
 
-static_assert(FAN_INIT_PRIORITY == 54, "update the integer literal here");
-
-// Init this before we initialize the power supplies, so that
-// the fan is not blasting at 100%, which is the hardware
-// default.
-// We must use an integer literal. Thanks C macros!
-
-SYS_INIT(fan_init, POST_KERNEL, 54);
+SYS_INIT(fan_init, POST_KERNEL, SYS_INIT_FAN_INIT_PRIORITY);
