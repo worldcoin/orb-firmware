@@ -16,7 +16,7 @@ manifest:
           - nanopb
 
     - name: protobuf-definitions
-      revision: d8a3bec7f40f0604a5e2dc0673999536d6da123d
+      revision: 9380793b85ebef9865ace0e7f3959fd99b74e74d
       path: modules/orb-protobuf-definitions
     - name: plug-and-trust
       revision: dc8923582abfb50840af9ce346a3cf4dd8ecf395

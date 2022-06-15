@@ -50,7 +50,14 @@ incoming_message_ack(Ack_ErrorCode error, uint32_t ack_number)
                       .message.m_message.which_payload = McuToJetson_ack_tag,
                       .message.m_message.payload.ack.ack_number = ack_number,
                       .message.m_message.payload.ack.error = error};
-    can_messaging_async_tx(&ack);
+    enum can_type_e can_type = (enum can_type_e)k_thread_custom_data_get();
+    if (can_type == CAN_ISOTP) {
+        LOG_DBG("ISO-TP");
+        can_isotp_messaging_async_tx(&ack);
+    } else {
+        LOG_DBG("CAN");
+        can_messaging_async_tx(&ack);
+    }
     ++message_counter;
 }
 

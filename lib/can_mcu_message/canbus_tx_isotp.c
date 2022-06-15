@@ -1,18 +1,19 @@
 #include "can_messaging.h"
 #include <app_assert.h>
 #include <assert.h>
+#include <canbus/isotp.h>
 #include <drivers/can.h>
 #include <logging/log.h>
 #include <pb_encode.h>
 #include <sys/__assert.h>
 #include <zephyr.h>
-LOG_MODULE_REGISTER(can_tx);
+LOG_MODULE_REGISTER(isotp_tx);
 
 static const struct device *can_dev;
 
 static void
 process_tx_messages_thread();
-K_THREAD_DEFINE(process_can_tx_messages,
+K_THREAD_DEFINE(process_isotp_tx_messages,
                 CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX,
                 process_tx_messages_thread, NULL, NULL, NULL,
                 CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0, 0);
@@ -23,19 +24,32 @@ static_assert(sizeof(McuMessage) % QUEUE_ALIGN == 0,
               "sizeof McuMessage must be a multiple of QUEUE_ALIGN");
 
 // Message queue to send messages
-K_MSGQ_DEFINE(can_tx_msg_queue, sizeof(McuMessage),
+K_MSGQ_DEFINE(isotp_tx_msg_queue, sizeof(McuMessage),
               CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE, QUEUE_ALIGN);
 
 static K_SEM_DEFINE(tx_sem, 1, 1);
 
+// Buffer to store the message to be sent
+static char tx_buffer[McuMessage_size + 1];
 static bool is_init = false;
 
+// CAN ISO-TP addressing
+const struct isotp_msg_id mcu_to_jetson_dst_addr = {
+    .std_id = CAN_ISOTP_STDID_DESTINATION(CONFIG_CAN_ISOTP_LOCAL_ID,
+                                          CONFIG_CAN_ISOTP_REMOTE_ID),
+    .id_type = CAN_STANDARD_IDENTIFIER,
+    .use_ext_addr = 0};
+const struct isotp_msg_id mcu_to_jetson_src_addr = {
+    .std_id = CAN_ISOTP_STDID_SOURCE(CONFIG_CAN_ISOTP_LOCAL_ID,
+                                     CONFIG_CAN_ISOTP_REMOTE_ID),
+    .id_type = CAN_STANDARD_IDENTIFIER,
+    .use_ext_addr = 0};
+
 static void
-tx_complete_cb(const struct device *dev, int error_nr, void *arg)
+tx_complete_cb(int error_nr, void *arg)
 {
-    ARG_UNUSED(dev);
-    ARG_UNUSED(arg);
     ARG_UNUSED(error_nr);
+    ARG_UNUSED(arg);
 
     // don't care about the error: failing tx are discarded
 
@@ -43,40 +57,41 @@ tx_complete_cb(const struct device *dev, int error_nr, void *arg)
     k_sem_give(&tx_sem);
 }
 
+/// @brief Send a message to Jetson
+/// @param[in] data The message to send
+/// @param[in] len Length of \c data
+/// @param[in] tx_complete_cb Callback to call when the message has been sent
+/// @return ret_code_t
 static ret_code_t
-send(const char *data, size_t len,
-     void (*tx_complete_cb)(const struct device *, int, void *), uint32_t dest)
+send(const char *data, size_t len, void (*tx_complete_cb)(int, void *))
 {
-    ASSERT_HARD_BOOL(len < CAN_MAX_DLEN);
+    ASSERT_HARD_BOOL(len < McuMessage_size + 1);
 
-    struct zcan_frame frame = {.id_type = CAN_EXTENDED_IDENTIFIER,
-                               .fd = true,
-                               .rtr = CAN_DATAFRAME,
-                               .id = dest};
+    static struct isotp_send_ctx send_ctx = {0};
 
-    frame.dlc = can_bytes_to_dlc(len);
-    memset(frame.data, 0, sizeof frame.data);
-    memcpy(frame.data, data, len);
+    int ret = isotp_send(&send_ctx, can_dev, data, len, &mcu_to_jetson_dst_addr,
+                         &mcu_to_jetson_src_addr, tx_complete_cb, NULL);
+    if (ret != ISOTP_N_OK) {
+        LOG_ERR("Error while sending data to 0x%x: %d",
+                mcu_to_jetson_src_addr.std_id, ret);
 
-    return can_send(can_dev, &frame,
-                    (tx_complete_cb != NULL) ? K_FOREVER : K_MSEC(1000),
-                    tx_complete_cb, NULL)
-               ? RET_ERROR_INTERNAL
-               : RET_SUCCESS;
+        return RET_ERROR_INTERNAL;
+    }
+
+    return RET_SUCCESS;
 }
 
 _Noreturn static void
 process_tx_messages_thread()
 {
     McuMessage new;
-    char tx_buffer[CAN_MAX_DLEN];
 
     while (1) {
         // wait for semaphore to be released when TX done
         k_sem_take(&tx_sem, K_FOREVER);
 
         // wait for new message to be queued
-        int ret = k_msgq_get(&can_tx_msg_queue, &new, K_FOREVER);
+        int ret = k_msgq_get(&isotp_tx_msg_queue, &new, K_FOREVER);
         if (ret != 0) {
             // error
             continue;
@@ -89,8 +104,7 @@ process_tx_messages_thread()
             pb_encode_ex(&stream, McuMessage_fields, &new, PB_ENCODE_DELIMITED);
         if (encoded) {
             ret_code_t err_code =
-                send(tx_buffer, stream.bytes_written, tx_complete_cb,
-                     CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                send(tx_buffer, stream.bytes_written, tx_complete_cb);
             if (err_code != RET_SUCCESS) {
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
                 LOG_WRN("Error sending message");
@@ -114,7 +128,7 @@ process_tx_messages_thread()
 // ⚠️ Do not print log message in this function if
 // CONFIG_ORB_LIB_LOG_BACKEND_CAN is defined
 ret_code_t
-can_messaging_async_tx(McuMessage *message)
+can_isotp_messaging_async_tx(McuMessage *message)
 {
     if (!is_init) {
         return RET_ERROR_INVALID_STATE;
@@ -123,7 +137,7 @@ can_messaging_async_tx(McuMessage *message)
     // make sure data "header" is correctly set
     message->version = Version_VERSION_0;
 
-    int ret = k_msgq_put(&can_tx_msg_queue, message, K_NO_WAIT);
+    int ret = k_msgq_put(&isotp_tx_msg_queue, message, K_NO_WAIT);
     if (ret) {
 
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
@@ -137,33 +151,8 @@ can_messaging_async_tx(McuMessage *message)
     return RET_SUCCESS;
 }
 
-// ⚠️ Cannot be used in ISR context
-// ⚠️ Do not print log message in this function if
-// CONFIG_ORB_LIB_LOG_BACKEND_CAN is defined
 ret_code_t
-can_messaging_blocking_tx(McuMessage *message)
-{
-    char tx_buffer[CAN_MAX_DLEN];
-
-    if (k_is_in_isr()) {
-        return RET_ERROR_INVALID_STATE;
-    }
-
-    // encode protobuf format
-    pb_ostream_t stream = pb_ostream_from_buffer(tx_buffer, sizeof(tx_buffer));
-    bool encoded =
-        pb_encode_ex(&stream, McuMessage_fields, &message, PB_ENCODE_DELIMITED);
-    if (encoded) {
-        ret_code_t err_code = send(tx_buffer, stream.bytes_written, NULL,
-                                   CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-        return err_code;
-    }
-
-    return RET_ERROR_INVALID_PARAM;
-}
-
-ret_code_t
-canbus_tx_init(void)
+canbus_isotp_tx_init(void)
 {
     can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
     if (!can_dev) {

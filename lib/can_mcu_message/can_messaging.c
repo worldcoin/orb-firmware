@@ -62,17 +62,18 @@ can_messaging_init(void (*in_handler)(McuMessage *msg))
     err_code = canbus_rx_init(in_handler);
     ASSERT_SOFT(err_code);
 
+    err_code = canbus_isotp_rx_init(in_handler);
+    ASSERT_SOFT(err_code);
+
     err_code = canbus_tx_init();
     ASSERT_SOFT(err_code);
 
-    k_tid_t tid = k_thread_create(&poll_state_thread_data, poll_state_stack,
-                                  K_THREAD_STACK_SIZEOF(poll_state_stack),
-                                  poll_state_thread, NULL, NULL, NULL,
-                                  STATE_POLL_THREAD_PRIORITY, 0, K_NO_WAIT);
-    if (!tid) {
-        LOG_ERR("ERROR spawning poll_state_thread");
-    }
+    err_code = canbus_isotp_tx_init();
+    ASSERT_SOFT(err_code);
 
+    k_thread_create(&poll_state_thread_data, poll_state_stack,
+                    K_THREAD_STACK_SIZEOF(poll_state_stack), poll_state_thread,
+                    NULL, NULL, NULL, STATE_POLL_THREAD_PRIORITY, 0, K_NO_WAIT);
     LOG_INF("CAN bus init ok");
 
     return RET_SUCCESS;

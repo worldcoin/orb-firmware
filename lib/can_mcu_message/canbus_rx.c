@@ -14,14 +14,7 @@ LOG_MODULE_REGISTER(can_rx);
     "Please define a maximum size to any field that can have a dynamic size, see NanoPb option file"
 #endif
 
-// we add a byte indicating message size to the front of an encoded message
-#if McuMessage_size > (CAN_MAX_DLEN - 1)
-#error McuMessage_size must be <= (CAN_MAX_DLEN - 1)
-#endif
-
-#define RX_BUF_SIZE McuMessage_size
-
-K_THREAD_STACK_DEFINE(rx_thread_stack,
+K_THREAD_STACK_DEFINE(can_rx_thread_stack,
                       CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_RX);
 static struct k_thread rx_thread_data = {0};
 
@@ -33,7 +26,7 @@ static const struct zcan_filter recv_queue_filter = {
     .id = CONFIG_CAN_ADDRESS_MCU,
     .rtr_mask = 1,
     .id_mask = CAN_EXT_ID_MASK};
-CAN_MSGQ_DEFINE(recv_queue, 5);
+CAN_MSGQ_DEFINE(can_recv_queue, 5);
 
 static void (*incoming_message_handler)(McuMessage *msg);
 
@@ -46,14 +39,18 @@ rx_thread(void *arg1, void *arg2, void *arg3)
 
     int ret;
 
-    ret = can_add_rx_filter_msgq(can_dev, &recv_queue, &recv_queue_filter);
+    // set CAN type for incoming message handler to respond
+    // using the same transport
+    k_thread_custom_data_set((void *)CAN_RAW);
+
+    ret = can_add_rx_filter_msgq(can_dev, &can_recv_queue, &recv_queue_filter);
     if (ret < 0) {
         LOG_ERR("Error attaching message queue (%d)!", ret);
         return;
     }
 
     while (1) {
-        k_msgq_get(&recv_queue, &rx_frame, K_FOREVER);
+        k_msgq_get(&can_recv_queue, &rx_frame, K_FOREVER);
         pb_istream_t stream =
             pb_istream_from_buffer(rx_frame.data, sizeof rx_frame.data);
         McuMessage data = {0};
@@ -94,8 +91,8 @@ canbus_rx_init(void (*in_handler)(McuMessage *msg))
         LOG_INF("CAN ready");
     }
 
-    k_thread_create(&rx_thread_data, rx_thread_stack,
-                    K_THREAD_STACK_SIZEOF(rx_thread_stack), rx_thread, NULL,
+    k_thread_create(&rx_thread_data, can_rx_thread_stack,
+                    K_THREAD_STACK_SIZEOF(can_rx_thread_stack), rx_thread, NULL,
                     NULL, NULL, CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_RX, 0,
                     K_NO_WAIT);
 
