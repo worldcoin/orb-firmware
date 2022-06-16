@@ -8,47 +8,43 @@
 #include <sys/__assert.h>
 LOG_MODULE_REGISTER(can_messaging);
 
-#define STATE_POLL_THREAD_STACK_SIZE 512
-#define STATE_POLL_THREAD_PRIORITY   10
+static const struct device *can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
 
-struct k_thread poll_state_thread_data;
-K_THREAD_STACK_DEFINE(poll_state_stack, STATE_POLL_THREAD_STACK_SIZE);
+static enum can_state current_state;
+static struct can_bus_err_cnt current_err_cnt;
+static struct k_work state_change_work;
 
-void
-poll_state_thread(void *unused1, void *unused2, void *unused3)
+/// Queue state_change_work_handler
+static void
+state_change_callback(const struct device *dev, enum can_state state,
+                      struct can_bus_err_cnt err_cnt, void *user_data)
 {
-    struct can_bus_err_cnt err_cnt = {0, 0};
-    struct can_bus_err_cnt err_cnt_prev = {0, 0};
-    enum can_state state_prev = CAN_ERROR_ACTIVE;
-    enum can_state state;
-    int err;
+    struct k_work *work = (struct k_work *)user_data;
 
-    static const struct device *can_dev =
-        DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
-    if (!can_dev) {
-        LOG_ERR("CAN: Device driver not found.");
-        return;
-    }
+    ARG_UNUSED(dev);
 
-    while (1) {
-        err = can_get_state(can_dev, &state, &err_cnt);
-        if (err != 0) {
-            LOG_ERR("Failed to get CAN controller state: %d", err);
-            k_sleep(K_MSEC(100));
-            continue;
-        }
+    current_state = state;
+    current_err_cnt = err_cnt;
+    k_work_submit(work);
+}
 
-        if (err_cnt.tx_err_cnt != err_cnt_prev.tx_err_cnt ||
-            err_cnt.rx_err_cnt != err_cnt_prev.rx_err_cnt ||
-            state_prev != state) {
+/// Print out CAN bus state change
+/// Recover manually in case CONFIG_CAN_AUTO_BUS_OFF_RECOVERY not defined
+/// \param work
+static void
+state_change_work_handler(struct k_work *work)
+{
+    LOG_INF("CAN bus state changed, state: %d, "
+            "rx error count: %u, "
+            "tx error count: %u",
+            current_state, current_err_cnt.rx_err_cnt,
+            current_err_cnt.tx_err_cnt);
 
-            err_cnt_prev.tx_err_cnt = err_cnt.tx_err_cnt;
-            err_cnt_prev.rx_err_cnt = err_cnt.rx_err_cnt;
-            state_prev = state;
-            LOG_DBG("state: %u, rx error count: %d, tx error count: %d", state,
-                    err_cnt.rx_err_cnt, err_cnt.tx_err_cnt);
-        } else {
-            k_sleep(K_MSEC(100));
+    if (current_state == CAN_BUS_OFF) {
+        LOG_WRN("CAN recovery from bus-off");
+
+        if (can_recover(can_dev, K_MSEC(2000)) != 0) {
+            ASSERT_HARD(RET_ERROR_OFFLINE);
         }
     }
 }
@@ -71,10 +67,10 @@ can_messaging_init(void (*in_handler)(McuMessage *msg))
     err_code = canbus_isotp_tx_init();
     ASSERT_SOFT(err_code);
 
-    k_thread_create(&poll_state_thread_data, poll_state_stack,
-                    K_THREAD_STACK_SIZEOF(poll_state_stack), poll_state_thread,
-                    NULL, NULL, NULL, STATE_POLL_THREAD_PRIORITY, 0, K_NO_WAIT);
-    LOG_INF("CAN bus init ok");
+    // set up handler for CAN bus state change
+    k_work_init(&state_change_work, state_change_work_handler);
+    can_set_state_change_callback(can_dev, state_change_callback,
+                                  &state_change_work);
 
     return RET_SUCCESS;
 }
