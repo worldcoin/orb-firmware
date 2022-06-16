@@ -64,7 +64,6 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
         if (ERR_CODE != 0) {                                                   \
             app_assert_hard_handler((ERR_CODE), __LINE__,                      \
                                     (uint8_t *)__FILE__);                      \
-            return RET_ERROR_ASSERT_FAILS;                                     \
         }                                                                      \
     } while (0)
 
@@ -78,7 +77,6 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
     do {                                                                       \
         if (!(BOOLEAN_VALUE)) {                                                \
             app_assert_hard_handler(0, __LINE__, (uint8_t *)__FILE__);         \
-            return RET_ERROR_ASSERT_FAILS;                                     \
         }                                                                      \
     } while (0)
 

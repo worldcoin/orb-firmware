@@ -19,6 +19,7 @@ timeout_default_handler(void)
 {
     // ☠️
     ASSERT_HARD(RET_ERROR_TIMEOUT);
+    return RET_ERROR_ASSERT_FAILS;
 }
 
 static void
