@@ -160,6 +160,12 @@ canbus_isotp_tx_init(void)
         return RET_ERROR_NOT_FOUND;
     }
 
+    // this function might be called while threads are running
+    // so purge before resetting the semaphore to make sure tx thread
+    // blocks on the empty queue once the semaphore is freed
+    k_msgq_purge(&isotp_tx_msg_queue);
+    k_sem_init(&tx_sem, 1, 1);
+
     is_init = true;
 
     return RET_SUCCESS;
