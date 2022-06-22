@@ -1,6 +1,7 @@
 #include "stepper_motors.h"
 #include "can_messaging.h"
 #include "mcu_messaging.pb.h"
+#include "version/version.h"
 #include <device.h>
 #include <drivers/spi.h>
 #include <sys/byteorder.h>
@@ -103,15 +104,18 @@ const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][MOTOR_COUNT] = {
 };
 
 // minimum number of microsteps for 40º range
-// - vertical = 210*256 microsteps
-//   but can mechanically do up to 300*256 easily. Usually around 110000
-//   microsteps are detected on vertical motor.
-// - horizontal = 325*256 microsteps. Usually around 115000 microsteps are
-// detected.
-const uint32_t motors_full_course_minimum_steps[MOTOR_COUNT] = {(300 * 256),
-                                                                (325 * 256)};
-const uint32_t motors_full_course_maximum_steps[MOTOR_COUNT] = {(500 * 256),
-                                                                (500 * 256)};
+static const uint32_t motors_full_course_minimum_steps[MOTOR_COUNT] = {
+    (300 * 256), (325 * 256)};
+// a bit more than mechanical range
+static const uint32_t motors_full_course_maximum_steps[MOTOR_COUNT] = {
+    (500 * 256), (700 * 256)};
+#define HARDWARE_REV_COUNT 2
+static size_t hw_rev_idx = 0;
+static const uint32_t motors_center_from_end[HARDWARE_REV_COUNT][MOTOR_COUNT] =
+    {
+        {55000, 55000}, // vertical, horizontal, v30 and v31
+        {55000, 87000}, // vertical, horizontal, v32
+};
 const float motors_arm_length[MOTOR_COUNT] = {12.0, 18.71};
 
 const uint32_t steps_per_mm = 12800; // 1mm / 0.4mm (pitch) * (360° / 18° (per
@@ -934,7 +938,8 @@ motors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                 motor_spi_write(spi_bus_controller,
                                 TMC5041_REGISTERS[REG_IDX_XACTUAL][motor], 0x0);
 
-                motors_refs[motor].x0 = 55000;
+                motors_refs[motor].x0 =
+                    motors_center_from_end[hw_rev_idx][motor];
                 motors_refs[motor].full_course = abs(motors_refs[motor].x0 * 2);
 
                 // go to middle position
@@ -1100,6 +1105,20 @@ motors_init(void)
     ASSERT_SOFT(err_code);
     err_code = motors_auto_homing_one_end(MOTOR_VERTICAL, NULL);
     ASSERT_SOFT(err_code);
+
+    // see `motors_center_from_end` array
+    uint16_t rev = 0;
+    err_code = version_get_hardware_rev(&rev);
+    ASSERT_SOFT(err_code);
+
+    if (rev == 30 || rev == 31) {
+        hw_rev_idx = 0;
+    } else if (rev == 32) {
+        hw_rev_idx = 1;
+    } else {
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
+        return RET_ERROR_INVALID_STATE;
+    }
 
     return RET_SUCCESS;
 }
