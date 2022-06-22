@@ -30,6 +30,11 @@ test_routine()
         err_code = motors_angle_vertical(angle_vertical);
         err_code = motors_angle_horizontal(angle_horizontal);
         k_msleep(1000);
+
+        struct k_thread *horiz = NULL, *vert = NULL;
+        motors_auto_homing_stall_detection(MOTOR_VERTICAL, &horiz);
+        motors_auto_homing_stall_detection(MOTOR_HORIZONTAL, &vert);
+        k_msleep(10000);
     }
 }
 

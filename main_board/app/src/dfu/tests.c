@@ -12,10 +12,10 @@ LOG_MODULE_REGISTER(dfutest);
 #include <sys/crc.h>
 #include <zephyr.h>
 
-K_THREAD_STACK_DEFINE(dfu_test_thread_stack_upload, 1024);
+K_THREAD_STACK_DEFINE(dfu_test_thread_stack_upload, 2048);
 static struct k_thread test_thread_data_upload;
 
-K_THREAD_STACK_DEFINE(dfu_test_thread_stack_crc, 512);
+K_THREAD_STACK_DEFINE(dfu_test_thread_stack_crc, 1024);
 static struct k_thread test_thread_data_crc;
 
 void

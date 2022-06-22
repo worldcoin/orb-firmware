@@ -15,8 +15,8 @@
 
 LOG_MODULE_REGISTER(stepper_motors);
 
-K_THREAD_STACK_DEFINE(stack_area_motor_horizontal_init, 1024);
-K_THREAD_STACK_DEFINE(stack_area_motor_vertical_init, 1024);
+K_THREAD_STACK_DEFINE(stack_area_motor_horizontal_init, 2048);
+K_THREAD_STACK_DEFINE(stack_area_motor_vertical_init, 2048);
 
 static struct k_thread thread_data_motor_horizontal;
 static struct k_thread thread_data_motor_vertical;
