@@ -20,6 +20,9 @@
         // 0 == Jetson
         sound-amp-mux-gpios = <&gpioe 10 GPIO_ACTIVE_HIGH>;
         i2c_clock_gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
+
+        // GPIO used to get hardware version dynamically
+        hw-version-gpios = <&gpiob 12 GPIO_ACTIVE_HIGH>;
     };
 
     vbat_sw {
