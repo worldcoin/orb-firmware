@@ -5,9 +5,10 @@
 #include <assert.h>
 #include <device.h>
 #include <drivers/sensor.h>
-#include <logging/log.h>
 #include <sys_clock.h>
 #include <zephyr.h>
+
+#include <logging/log.h>
 LOG_MODULE_REGISTER(temperature);
 
 static bool send_temperature_messages = false;
@@ -35,7 +36,7 @@ struct sensor_and_channel {
     const enum sensor_channel channel;
     const Temperature_TemperatureSource temperature_source;
     temperature_callback cb;
-    void *cb_data;
+    struct overtemp_info *cb_data;
 };
 
 static struct sensor_and_channel sensors_and_channels[] = {
@@ -59,10 +60,14 @@ static struct sensor_and_channel sensors_and_channels[] = {
 
     {.sensor = DEVICE_DT_GET(DT_PATH(stm_tmp)),
      .channel = SENSOR_CHAN_DIE_TEMP,
-     .temperature_source = Temperature_TemperatureSource_MAIN_MCU},
+     .temperature_source = Temperature_TemperatureSource_MAIN_MCU,
+     .cb = NULL,
+     .cb_data = NULL},
     {.sensor = DEVICE_DT_GET(DT_NODELABEL(liquid_lens_tmp_sensor)),
      .channel = SENSOR_CHAN_AMBIENT_TEMP,
-     .temperature_source = Temperature_TemperatureSource_LIQUID_LENS}};
+     .temperature_source = Temperature_TemperatureSource_LIQUID_LENS,
+     .cb = NULL,
+     .cb_data = NULL}};
 
 static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_TEMPERATURE);
 static struct k_thread thread_data;
@@ -152,12 +157,8 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
 }
 
 static void
-temperature_thread(void *a, void *b, void *c)
+temperature_thread()
 {
-    ARG_UNUSED(a);
-    ARG_UNUSED(b);
-    ARG_UNUSED(c);
-
     for (;;) {
         k_sleep(global_sample_period);
 
@@ -277,9 +278,14 @@ overtemp_callback(struct sensor_and_channel *sensor_and_channel,
     struct overtemp_info *overtemp_info =
         (struct overtemp_info *)sensor_and_channel->cb_data;
 
+    if (overtemp_info == NULL) {
+        LOG_ERR("Over-temperature callback called without data");
+        return;
+    }
+
     if (!overtemp_info->in_overtemp &&
         temperature > overtemp_info->overtemp_c) {
-        LOG_WRN("Overtemperature alert -- %s temperature has "
+        LOG_WRN("Over-temperature alert -- %s temperature has "
                 "exceeded %u°C",
                 sensor_and_channel->sensor->name, overtemp_info->overtemp_c);
         overtemp_info->in_overtemp = true;
@@ -287,7 +293,7 @@ overtemp_callback(struct sensor_and_channel *sensor_and_channel,
     } else if (overtemp_info->in_overtemp &&
                temperature < (overtemp_info->overtemp_c -
                               overtemp_info->overtemp_drop_c)) {
-        LOG_INF("Overtempture alert -- %s temperature has decreased to "
+        LOG_INF("Over-temperature alert -- %s temperature has decreased to "
                 "safe value of %u°C",
                 sensor_and_channel->sensor->name, temperature);
         overtemp_info->in_overtemp = false;
