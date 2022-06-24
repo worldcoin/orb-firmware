@@ -346,8 +346,12 @@ handle_temperature_sample_period_message(McuMessage *msg)
 
     LOG_DBG("Got new temperature sampling period: %ums", sample_period_ms);
 
-    temperature_set_sampling_period_ms(sample_period_ms);
-    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    if (sample_period_ms > 15000) {
+        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+    } else {
+        temperature_set_sampling_period_ms(sample_period_ms);
+        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    }
 }
 
 static void
