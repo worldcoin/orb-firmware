@@ -1,5 +1,7 @@
 #include "button.h"
 #include "mcu_messaging.pb.h"
+#include "power_sequence/power_sequence.h"
+#include "ui/front_leds/front_leds.h"
 #include <app_assert.h>
 #include <can_messaging.h>
 #include <device.h>
@@ -13,6 +15,8 @@ static const struct gpio_dt_spec button_spec =
     GPIO_DT_SPEC_GET_OR(POWER_BUTTON_NODE, gpios, {0});
 static struct gpio_callback button_cb_data;
 static bool is_init = false;
+static struct k_work_delayable dwork_detect_shutdown;
+#define BUTTON_PRESS_SHUTDOWN_DURATION_MS 5000
 
 /// Interrupt context
 static void
@@ -30,7 +34,33 @@ button_event_handler(const struct device *dev, struct gpio_callback *cb,
                 .message.m_message.which_payload = McuToJetson_power_button_tag,
                 .message.m_message.payload.power_button.pressed = ret};
             can_messaging_async_tx(&button_state);
+
+            if (ret == 1) {
+                // button pressed
+                ret =
+                    k_work_schedule(&dwork_detect_shutdown,
+                                    K_MSEC(BUTTON_PRESS_SHUTDOWN_DURATION_MS));
+                if (ret >= 0) {
+                    return;
+                }
+            } else if (ret == 0) {
+                // button released, cancel scheduled work
+                k_work_cancel_delayable(&dwork_detect_shutdown);
+            }
         }
+    }
+}
+
+static void
+button_press_delayed_worker(struct k_work *work)
+{
+    UNUSED_PARAMETER(work);
+
+    // 5 second press detected, init shutdown sequence
+    if (gpio_pin_get_dt(&button_spec) == 1) {
+        LOG_INF("Button pressed %us, shutting down",
+                BUTTON_PRESS_SHUTDOWN_DURATION_MS);
+        power_reset(1);
     }
 }
 
@@ -95,6 +125,8 @@ button_init(void)
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
+
+    k_work_init_delayable(&dwork_detect_shutdown, button_press_delayed_worker);
 
     LOG_INF("Power button initialized");
     is_init = true;
