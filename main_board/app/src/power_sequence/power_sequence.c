@@ -354,6 +354,8 @@ static const struct gpio_dt_spec shutdown_pin =
 static const struct device *power_enable = DEVICE_DT_GET(SLEEP_WAKE_CTLR);
 static const struct device *system_reset = DEVICE_DT_GET(SYSTEM_RESET_CTLR);
 
+#define SYSTEM_RESET_UI_DELAY 200
+
 /// SHUTDOWN_REQ interrupt callback
 /// From the Jetson Datasheet DS-10184-001 § 2.6.2 Power Down
 ///     > When the baseboard sees low SHUTDOWN_REQ*, it should deassert POWER_EN
@@ -408,7 +410,7 @@ reboot_thread()
             secondary_slot.image_ok);
 
     if (reboot_delay_s > 0) {
-        k_msleep(reboot_delay_s * 1000 - 700);
+        k_msleep(reboot_delay_s * 1000 - SYSTEM_RESET_UI_DELAY);
     }
 
     // check if a new firmware image is about to be installed
@@ -425,7 +427,7 @@ reboot_thread()
     }
     operator_leds_set_pattern(
         DistributorLEDsPattern_DistributorRgbLedPattern_OFF, 0, NULL);
-    k_msleep(700);
+    k_msleep(SYSTEM_RESET_UI_DELAY);
 
     NVIC_SystemReset();
 }
