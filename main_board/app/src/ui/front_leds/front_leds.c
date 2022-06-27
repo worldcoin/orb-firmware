@@ -8,6 +8,7 @@
 #include <logging/log.h>
 #include <random/rand32.h>
 #include <stdlib.h>
+#include <utils.h>
 #include <zephyr.h>
 LOG_MODULE_REGISTER(front_unit_rgb_leds);
 
@@ -108,49 +109,60 @@ front_leds_thread(void *a, void *b, void *c)
     k_timeout_t wait_until = K_FOREVER;
     uint32_t pulsing_index = 0;
 
+    uint8_t intensity;
+    struct led_rgb color;
+    UserLEDsPattern_UserRgbLedPattern pattern;
+    uint32_t start_angle_degrees;
+    int32_t angle_length_degrees;
+
     for (;;) {
         // wait for next command
         k_sem_take(&sem, wait_until);
 
         wait_until = K_FOREVER;
 
-        if (global_pattern != UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE) {
+        CRITICAL_SECTION_ENTER(k);
+        pattern = global_pattern;
+        intensity = global_intensity;
+        color = global_color;
+        start_angle_degrees = global_start_angle_degrees;
+        angle_length_degrees = global_angle_length_degrees;
+        CRITICAL_SECTION_EXIT(k);
+
+        if (pattern != UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE) {
             pulsing_index = 0;
         }
 
-        switch (global_pattern) {
+        switch (pattern) {
         case UserLEDsPattern_UserRgbLedPattern_OFF:
             set_center((struct led_rgb)RGB_OFF);
             set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_WHITE:
-            global_color.r = global_intensity;
-            global_color.g = global_intensity;
-            global_color.b = global_intensity;
-            set_center(global_color);
-            set_ring(global_color, global_start_angle_degrees,
-                     global_angle_length_degrees);
+            color.r = intensity;
+            color.g = intensity;
+            color.b = intensity;
+            set_center(color);
+            set_ring(color, start_angle_degrees, angle_length_degrees);
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_NO_CENTER:
-            global_color.r = global_intensity;
-            global_color.g = global_intensity;
-            global_color.b = global_intensity;
+            color.r = intensity;
+            color.g = intensity;
+            color.b = intensity;
             set_center((struct led_rgb)RGB_OFF);
-            set_ring(global_color, global_start_angle_degrees,
-                     global_angle_length_degrees);
+            set_ring(color, start_angle_degrees, angle_length_degrees);
             break;
         case UserLEDsPattern_UserRgbLedPattern_RANDOM_RAINBOW:
-            if (global_intensity > 0) {
-                uint32_t shades = global_intensity > SHADES_PER_COLOR
-                                      ? SHADES_PER_COLOR
-                                      : global_intensity;
+            if (intensity > 0) {
+                uint32_t shades =
+                    intensity > SHADES_PER_COLOR ? SHADES_PER_COLOR : intensity;
                 for (size_t i = 0; i < ARRAY_SIZE(leds.all); ++i) {
                     leds.all[i].r =
-                        sys_rand32_get() % shades * (global_intensity / shades);
+                        sys_rand32_get() % shades * (intensity / shades);
                     leds.all[i].g =
-                        sys_rand32_get() % shades * (global_intensity / shades);
+                        sys_rand32_get() % shades * (intensity / shades);
                     leds.all[i].b =
-                        sys_rand32_get() % shades * (global_intensity / shades);
+                        sys_rand32_get() % shades * (intensity / shades);
                 }
                 wait_until = K_MSEC(50);
             } else {
@@ -158,56 +170,51 @@ front_leds_thread(void *a, void *b, void *c)
             }
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_ONLY_CENTER:
-            global_color.r = global_intensity;
-            global_color.g = global_intensity;
-            global_color.b = global_intensity;
-            set_center(global_color);
+            color.r = intensity;
+            color.g = intensity;
+            color.b = intensity;
+            set_center(color);
             set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_RED:
-            global_color.r = global_intensity;
-            global_color.g = 0;
-            global_color.b = 0;
-            set_center(global_color);
-            set_ring(global_color, global_start_angle_degrees,
-                     global_angle_length_degrees);
+            color.r = intensity;
+            color.g = 0;
+            color.b = 0;
+            set_center(color);
+            set_ring(color, start_angle_degrees, angle_length_degrees);
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_GREEN:
-            global_color.r = 0;
-            global_color.g = global_intensity;
-            global_color.b = 0;
-            set_center(global_color);
-            set_ring(global_color, global_start_angle_degrees,
-                     global_angle_length_degrees);
+            color.r = 0;
+            color.g = intensity;
+            color.b = 0;
+            set_center(color);
+            set_ring(color, start_angle_degrees, angle_length_degrees);
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_BLUE:
-            global_color.r = 0;
-            global_color.g = 0;
-            global_color.b = global_intensity;
-            set_center(global_color);
-            set_ring(global_color, global_start_angle_degrees,
-                     global_angle_length_degrees);
+            color.r = 0;
+            color.g = 0;
+            color.b = intensity;
+            set_center(color);
+            set_ring(color, start_angle_degrees, angle_length_degrees);
             break;
         case UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE:
-            if (global_intensity > 0) {
-                uint8_t v = (SINE_LUT[pulsing_index] * global_intensity) +
+            if (intensity > 0) {
+                uint8_t v = (SINE_LUT[pulsing_index] * intensity) +
                             PULSING_MIN_INTENSITY;
-                global_color.r = v;
-                global_color.g = v;
-                global_color.b = v;
+                color.r = v;
+                color.g = v;
+                color.b = v;
                 wait_until = K_MSEC(PULSING_DELAY_TIME_US);
                 pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
             } else {
-                global_color = (struct led_rgb)RGB_OFF;
+                color = (struct led_rgb)RGB_OFF;
             }
-            set_center(global_color);
-            set_ring(global_color, global_start_angle_degrees,
-                     global_angle_length_degrees);
+            set_center(color);
+            set_ring(color, start_angle_degrees, angle_length_degrees);
             break;
         case UserLEDsPattern_UserRgbLedPattern_RGB:
-            set_center(global_color);
-            set_ring(global_color, global_start_angle_degrees,
-                     global_angle_length_degrees);
+            set_center(color);
+            set_ring(color, start_angle_degrees, angle_length_degrees);
             break;
         default:
             LOG_ERR("Unhandled front LED pattern: %u", global_pattern);
@@ -224,6 +231,8 @@ front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
                        uint32_t start_angle, int32_t angle_length,
                        RgbColor *color)
 {
+    CRITICAL_SECTION_ENTER(k);
+
     global_pattern = pattern;
     global_start_angle_degrees = start_angle;
     global_angle_length_degrees = angle_length;
@@ -233,13 +242,18 @@ front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
         global_color.b = color->blue;
     }
 
+    CRITICAL_SECTION_EXIT(k);
+
     k_sem_give(&sem);
 }
 
 void
 front_leds_set_brightness(uint32_t brightness)
 {
+    CRITICAL_SECTION_ENTER(k);
     global_intensity = MIN(255, brightness);
+    CRITICAL_SECTION_EXIT(k);
+
     k_sem_give(&sem);
 }
 
