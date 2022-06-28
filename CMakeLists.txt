@@ -6,5 +6,6 @@
 # before calling:
 #    find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 
+include(utils/cmake/orb_library.cmake)
 add_subdirectory(drivers)
 add_subdirectory(lib)

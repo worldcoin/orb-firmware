@@ -1,5 +1,5 @@
-zephyr_sources_ifdef(CONFIG_ORB_LIB_ERRORS
+if (CONFIG_ORB_LIB_ERRORS)
+    orb_library(
         app_assert.c
-        )
-
-zephyr_include_directories_ifdef(CONFIG_ORB_LIB_ERRORS include)
+    )
+endif ()
