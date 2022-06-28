@@ -109,7 +109,7 @@ process_tx_messages_thread()
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
                 LOG_WRN("Error sending message");
 #else
-                printk("<wrn> Error encoding message!\r\n");
+                printk("<wrn> Error sending message!\r\n");
 #endif
                 // release semaphore, we are not waiting for
                 // completion
@@ -159,6 +159,12 @@ canbus_isotp_tx_init(void)
         LOG_ERR("CAN: Device driver not found.");
         return RET_ERROR_NOT_FOUND;
     }
+
+    // this function might be called while threads are running
+    // so purge before resetting the semaphore to make sure tx thread
+    // blocks on the empty queue once the semaphore is freed
+    k_msgq_purge(&isotp_tx_msg_queue);
+    k_sem_init(&tx_sem, 1, 1);
 
     is_init = true;
 

@@ -13,6 +13,7 @@ static const struct device *can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
 static enum can_state current_state;
 static struct can_bus_err_cnt current_err_cnt;
 static struct k_work state_change_work;
+static struct k_work can_reset_work;
 
 /// Queue state_change_work_handler
 static void
@@ -49,6 +50,27 @@ state_change_work_handler(struct k_work *work)
     }
 }
 
+static void
+can_reset_work_handler(struct k_work *work)
+{
+    LOG_INF("CAN bus reset");
+
+    // reinit TX queues and thread state
+    int err_code = canbus_tx_init();
+    ASSERT_HARD(err_code);
+    err_code = canbus_isotp_tx_init();
+    ASSERT_HARD(err_code);
+}
+
+ret_code_t
+can_messaging_reset_async(void)
+{
+    if (k_work_submit(&can_reset_work) < 0) {
+        return RET_ERROR_INTERNAL;
+    }
+    return RET_SUCCESS;
+}
+
 ret_code_t
 can_messaging_init(void (*in_handler)(McuMessage *msg))
 {
@@ -71,6 +93,9 @@ can_messaging_init(void (*in_handler)(McuMessage *msg))
     k_work_init(&state_change_work, state_change_work_handler);
     can_set_state_change_callback(can_dev, state_change_callback,
                                   &state_change_work);
+
+    // set up work handler for CAN reset
+    k_work_init(&can_reset_work, can_reset_work_handler);
 
     return RET_SUCCESS;
 }

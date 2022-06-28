@@ -50,6 +50,12 @@ can_isotp_messaging_async_tx(McuMessage *message);
 ret_code_t
 can_messaging_blocking_tx(McuMessage *message);
 
+/// Reset CAN TX queues, keep RX threads running
+/// Can be used in ISR context
+/// \return RET_SUCCESS on success, error code otherwise
+ret_code_t
+can_messaging_reset_async(void);
+
 /// Init CAN message module
 /// Pass a function to handle incoming messages
 /// \param in_handler Function that will handle incoming messages

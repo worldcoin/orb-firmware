@@ -58,11 +58,9 @@ send(const char *data, size_t len,
     memset(frame.data, 0, sizeof frame.data);
     memcpy(frame.data, data, len);
 
-    return can_send(can_dev, &frame,
-                    (tx_complete_cb != NULL) ? K_FOREVER : K_MSEC(1000),
-                    tx_complete_cb, NULL)
-               ? RET_ERROR_INTERNAL
-               : RET_SUCCESS;
+    return (can_send(can_dev, &frame, K_MSEC(1000), tx_complete_cb, NULL) == 0)
+               ? RET_SUCCESS
+               : RET_ERROR_INTERNAL;
 }
 
 _Noreturn static void
@@ -70,15 +68,22 @@ process_tx_messages_thread()
 {
     McuMessage new;
     char tx_buffer[CAN_MAX_DLEN];
+    int ret;
 
     while (1) {
         // wait for semaphore to be released when TX done
-        k_sem_take(&tx_sem, K_FOREVER);
+        // if tx not done within 5s, consider it as failure
+        ret = k_sem_take(&tx_sem, K_MSEC(5000));
+        if (ret != 0) {
+            k_sem_give(&tx_sem);
+            continue;
+        }
 
         // wait for new message to be queued
-        int ret = k_msgq_get(&can_tx_msg_queue, &new, K_FOREVER);
+        // here we can wait forever
+        ret = k_msgq_get(&can_tx_msg_queue, &new, K_FOREVER);
         if (ret != 0) {
-            // error
+            k_sem_give(&tx_sem);
             continue;
         }
 
@@ -95,7 +100,7 @@ process_tx_messages_thread()
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
                 LOG_WRN("Error sending message");
 #else
-                printk("<wrn> Error encoding message!\r\n");
+                printk("<wrn> Error sending message!\r\n");
 #endif
                 // release semaphore, we are not waiting for
                 // completion
@@ -171,6 +176,11 @@ canbus_tx_init(void)
         return RET_ERROR_NOT_FOUND;
     }
 
+    // this function might be called while threads are running
+    // so purge before resetting the semaphore to make sure tx thread
+    // blocks on the empty queue once the semaphore is freed
+    k_msgq_purge(&can_tx_msg_queue);
+    k_sem_init(&tx_sem, 1, 1);
     is_init = true;
 
     return RET_SUCCESS;
