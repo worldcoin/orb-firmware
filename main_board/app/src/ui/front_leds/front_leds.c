@@ -277,3 +277,28 @@ front_leds_init(void)
 
     return RET_SUCCESS;
 }
+
+/// Turn off front LEDs during boot
+/// \param dev
+/// \return 0 on success, error code otherwise
+int
+front_leds_initial_state(const struct device *dev)
+{
+    ARG_UNUSED(dev);
+
+    const struct device *led_strip =
+        DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds));
+
+    if (!device_is_ready(led_strip)) {
+        LOG_ERR("Front unit LED strip not ready!");
+        return RET_ERROR_INTERNAL;
+    }
+
+    set_center((struct led_rgb)RGB_OFF);
+    set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
+    led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+
+    return 0;
+}
+
+SYS_INIT(front_leds_initial_state, POST_KERNEL, SYS_INIT_UI_LEDS_PRIORITY);
