@@ -35,6 +35,8 @@ state_change_callback(const struct device *dev, enum can_state state,
 static void
 state_change_work_handler(struct k_work *work)
 {
+    UNUSED_PARAMETER(work);
+
     LOG_INF("CAN bus state changed, state: %d, "
             "rx error count: %u, "
             "tx error count: %u",
@@ -53,6 +55,8 @@ state_change_work_handler(struct k_work *work)
 static void
 can_reset_work_handler(struct k_work *work)
 {
+    UNUSED_PARAMETER(work);
+
     LOG_INF("CAN bus reset");
 
     // reinit TX queues and thread state

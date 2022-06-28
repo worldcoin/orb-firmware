@@ -1,5 +1,5 @@
 if (CONFIG_ORB_MCU_LIBRARIES_LIB)
-    # workspace-wide header files
+    # publicly available
     zephyr_include_directories(include)
 
     # add specific libraries depending on configuration

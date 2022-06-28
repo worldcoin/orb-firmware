@@ -266,6 +266,7 @@ static int
 ws2812_pwm_stm32_update_channels(const struct device *dev, uint8_t *channels,
                                  size_t num_channels)
 {
+    (void)dev;
     (void)channels;
     (void)num_channels;
     return -ENOTSUP;
@@ -578,7 +579,8 @@ ws2812_pwm_stm32_init(const struct device *dev)
     static struct ws2812_pwm_stm32_data ws2812_pwm_stm32_data_##index =        \
         {/* using a compound literal */                                        \
          .pixel_bits = (uint8_t[NUM_RESET_PIXELS +                             \
-                                24 * DT_INST_PROP(index, num_leds)]){}};       \
+                                24 * DT_INST_PROP(index, num_leds)]){},        \
+         .one_shot = false};                                                   \
                                                                                \
     PINCTRL_DT_INST_DEFINE(index);                                             \
                                                                                \

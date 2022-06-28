@@ -13,6 +13,8 @@ static bool panic_mode = false;
 static int
 can_message_out(uint8_t *data, size_t length, void *ctx)
 {
+    (void)ctx;
+
     McuMessage log = {.which_message = McuMessage_m_message_tag,
                       .message.m_message.which_payload = McuToJetson_log_tag,
                       .message.m_message.payload.log.log = {0}};
@@ -52,6 +54,8 @@ is_panic_mode(void)
 static void
 process(const struct log_backend *const backend, union log_msg2_generic *msg)
 {
+    (void)backend;
+
     if (log_msg2_get_level(&msg->log) > CONFIG_ORB_LIB_LOG_BACKEND_LEVEL ||
         log_msg2_get_level(&msg->log) == LOG_LEVEL_NONE) {
         return;
@@ -66,12 +70,16 @@ process(const struct log_backend *const backend, union log_msg2_generic *msg)
 static void
 log_backend_can_init(struct log_backend const *const backend)
 {
+    (void)backend;
+
     panic_mode = false;
 }
 
 static void
 panic(struct log_backend const *const backend)
 {
+    (void)backend;
+
     // On that call backend should switch to synchronous, interrupt-less
     // operation or shut down itself if that is not supported.
     panic_mode = true;
@@ -80,6 +88,9 @@ panic(struct log_backend const *const backend)
 static void
 dropped(const struct log_backend *const backend, uint32_t cnt)
 {
+    (void)backend;
+    (void)cnt;
+
 #if CONFIG_ORB_LIB_LOG_BACKEND_LEVEL < LOG_LEVEL_WRN
 #warning printing info and debug logs can lead to dropped messages, please consider implementing this handler
 #endif

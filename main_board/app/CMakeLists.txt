@@ -7,9 +7,13 @@ if (TEST_IR_CAMERA_SYSTEM)
     add_compile_definitions(CONFIG_TEST_IR_CAMERA_SYSTEM)
 endif()
 
+# Get paths to project and workspace directories
 get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../ ABSOLUTE)
 get_filename_component(WORKSPACE_DIR ${PROJECT_DIR} DIRECTORY)
 
+# Compile options for our source files
+set(APP_FILES_COMPILE_OPTIONS -Wextra)
+# Compile options added depending on build type
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
     message(STATUS "Maximum optimization for speed")
 
@@ -122,21 +126,7 @@ set(INCLUDE_DIRS
     )
 
 # EXTRA_COMPILE_FLAGS given via `west build -- -DEXTRA_COMPILE_FLAGS=...`
-set_property(
-    SOURCE ${SOURCES_FILES}
-    APPEND
-    PROPERTY COMPILE_FLAGS
-    "-Wextra ${EXTRA_COMPILE_FLAGS}"
-)
-
-# Special case here because the i2c.h file included introduces warnings with -Wextra.
-# PR submitted to upstream.
-set_property(
-    SOURCE src/sound/sound.c
-    SET
-    PROPERTY COMPILE_FLAGS
-    "${EXTRA_COMPILE_FLAGS}"
-)
+set_source_files_properties(${SOURCES_FILES} PROPERTIES COMPILE_OPTIONS "${APP_FILES_COMPILE_OPTIONS};${EXTRA_COMPILE_FLAGS}")
 
 target_sources(${TARGET} PRIVATE ${SOURCES_FILES})
 target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIRS})
