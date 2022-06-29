@@ -64,6 +64,12 @@ If in the Docker container:
 su-exec root west flash
 ```
 
+To flash a pre-built bootloader + app hex file:
+
+```
+su-exec root pyocd flash combined_mcu_main_<board_version>_<version>.hex --target stm32g474vetx -e chip
+```
+
 ## Misc Documentation
 
 ### Memory map
