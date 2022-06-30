@@ -1,10 +1,12 @@
 #include "button.h"
 #include "mcu_messaging.pb.h"
+#include "pubsub/pubsub.h"
 #include <app_assert.h>
 #include <can_messaging.h>
 #include <device.h>
 #include <drivers/gpio.h>
 #include <logging/log.h>
+#include <pb_encode.h>
 LOG_MODULE_REGISTER(button);
 
 #define POWER_BUTTON_NODE DT_PATH(buttons, power_button)
@@ -25,11 +27,10 @@ button_event_handler(const struct device *dev, struct gpio_callback *cb,
     if (pins & BIT(button_spec.pin)) {
         int ret = gpio_pin_get_dt(&button_spec);
         if (ret >= 0) {
-            McuMessage button_state = {
-                .which_message = McuMessage_m_message_tag,
-                .message.m_message.which_payload = McuToJetson_power_button_tag,
-                .message.m_message.payload.power_button.pressed = ret};
-            can_messaging_async_tx(&button_state);
+            PowerButton button_state = {.pressed = ret};
+            publish_new(&button_state, sizeof(button_state),
+                        McuToJetson_power_button_tag,
+                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
     }
 }

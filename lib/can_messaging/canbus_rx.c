@@ -20,6 +20,7 @@ static struct k_thread rx_thread_data = {0};
 
 static const struct device *can_dev;
 static struct zcan_frame rx_frame;
+static can_message_t rx_message = {0};
 static const struct zcan_filter recv_queue_filter = {
     .id_type = CAN_EXTENDED_IDENTIFIER,
     .rtr = CAN_DATAFRAME,
@@ -28,20 +29,12 @@ static const struct zcan_filter recv_queue_filter = {
     .id_mask = CAN_EXT_ID_MASK};
 CAN_MSGQ_DEFINE(can_recv_queue, 5);
 
-static void (*incoming_message_handler)(McuMessage *msg);
+static void (*incoming_message_handler)(can_message_t *msg);
 
 static void
-rx_thread(void *arg1, void *arg2, void *arg3)
+rx_thread()
 {
-    ARG_UNUSED(arg1);
-    ARG_UNUSED(arg2);
-    ARG_UNUSED(arg3);
-
     int ret;
-
-    // set CAN type for incoming message handler to respond
-    // using the same transport
-    k_thread_custom_data_set((void *)CAN_RAW);
 
     ret = can_add_rx_filter_msgq(can_dev, &can_recv_queue, &recv_queue_filter);
     if (ret < 0) {
@@ -51,26 +44,19 @@ rx_thread(void *arg1, void *arg2, void *arg3)
 
     while (1) {
         k_msgq_get(&can_recv_queue, &rx_frame, K_FOREVER);
-        pb_istream_t stream =
-            pb_istream_from_buffer(rx_frame.data, sizeof rx_frame.data);
-        McuMessage data = {0};
+        memcpy(&rx_message.bytes, rx_frame.data, rx_frame.dlc);
+        rx_message.size = rx_frame.dlc;
 
-        bool decoded = pb_decode_ex(&stream, McuMessage_fields, &data,
-                                    PB_DECODE_DELIMITED);
-        if (decoded) {
-            if (incoming_message_handler != NULL) {
-                incoming_message_handler(&data);
-            } else {
-                LOG_ERR("Cannot handle message");
-            }
+        if (incoming_message_handler != NULL) {
+            incoming_message_handler(&rx_message);
         } else {
-            LOG_ERR("Error parsing data, discarding");
+            LOG_ERR("Cannot handle message");
         }
     }
 }
 
 ret_code_t
-canbus_rx_init(void (*in_handler)(McuMessage *msg))
+canbus_rx_init(void (*in_handler)(can_message_t *msg))
 {
     if (in_handler == NULL) {
         return RET_ERROR_INVALID_PARAM;

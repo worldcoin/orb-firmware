@@ -1,5 +1,6 @@
 #include "temperature.h"
 #include "fan/fan.h"
+#include "pubsub/pubsub.h"
 #include <app_assert.h>
 #include <app_config.h>
 #include <assert.h>
@@ -113,18 +114,9 @@ static void
 temperature_report_internal(struct sensor_and_channel *sensor_and_channel,
                             int32_t temperature_in_c)
 {
-    static McuMessage msg = {
-        .which_message = McuMessage_m_message_tag,
-        .message.m_message.which_payload = McuToJetson_temperature_tag,
-    };
+    temperature_report(sensor_and_channel->temperature_source,
+                       temperature_in_c);
 
-    if (send_temperature_messages) {
-        msg.message.m_message.payload.temperature.source =
-            sensor_and_channel->temperature_source;
-        msg.message.m_message.payload.temperature.temperature_c =
-            temperature_in_c;
-        can_messaging_async_tx(&msg);
-    }
     if (sensor_and_channel->cb) {
         sensor_and_channel->cb(sensor_and_channel, temperature_in_c);
     }
@@ -134,16 +126,13 @@ void
 temperature_report(Temperature_TemperatureSource source,
                    int32_t temperature_in_c)
 {
-    static McuMessage msg = {
-        .which_message = McuMessage_m_message_tag,
-        .message.m_message.which_payload = McuToJetson_temperature_tag,
-    };
-
     if (send_temperature_messages) {
-        msg.message.m_message.payload.temperature.source = source;
-        msg.message.m_message.payload.temperature.temperature_c =
-            temperature_in_c;
-        can_messaging_async_tx(&msg);
+        Temperature temperature = {.source = source,
+                                   .temperature_c = temperature_in_c};
+        int err_code = publish_new(&temperature, sizeof(temperature),
+                                   McuToJetson_temperature_tag,
+                                   CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+        ASSERT_SOFT(err_code);
     }
 }
 

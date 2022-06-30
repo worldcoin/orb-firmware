@@ -1,53 +1,45 @@
+#include "battery/battery.h"
 #include "button/button.h"
 #include "fan/fan.h"
 #include "ir_camera_system/ir_camera_system.h"
-#include "power_sequence/power_sequence.h"
-#include "ui/front_leds/front_leds.h"
-#include "ui/operator_leds/operator_leds.h"
-#include <app_assert.h>
-#include <device.h>
-#include <drivers/gpio.h>
-
-static bool jetson_up_and_running = false;
-
-#ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
-#include <ir_camera_system/ir_camera_system_test.h>
-#endif
-#include "battery/battery.h"
 #include "liquid_lens/liquid_lens.h"
-#include "messaging/incoming_message_handling.h"
+#include "power_sequence/power_sequence.h"
+#include "runner/runner.h"
 #include "sound/sound.h"
 #include "stepper_motors/motors_tests.h"
 #include "stepper_motors/stepper_motors.h"
+#include "ui/front_leds/front_leds.h"
 #include "ui/front_leds/front_leds_tests.h"
+#include "ui/operator_leds/operator_leds.h"
 #include "ui/operator_leds/operator_leds_tests.h"
 #include "ui/rgb_leds.h"
 #include "version/version.h"
-
-#ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
-#include "heartbeat.h"
-#endif
-
-#if CONFIG_BOARD_STM32G484_EVAL
-#include "messaging/messaging_tests.h"
-#endif
-
-#include <temperature/temperature.h>
-
-#include <logging/log.h>
-LOG_MODULE_REGISTER(main);
+#include <app_assert.h>
 #include <can_messaging.h>
+#include <device.h>
 #include <dfu.h>
 #include <dfu/tests.h>
+#include <drivers/gpio.h>
+#include <temperature/temperature.h>
 #include <zephyr.h>
+#ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
+#include <ir_camera_system/ir_camera_system_test.h>
+#endif
+#ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
+#include "heartbeat.h"
+#include "pubsub/pubsub.h"
+#include "system/logs.h"
+#endif
+
+#include <logging/log.h>
+#include <pb_encode.h>
+LOG_MODULE_REGISTER(main);
+
+static bool jetson_up_and_running = false;
 
 void
 run_tests()
 {
-#ifdef CONFIG_BOARD_STM32G484_EVAL
-    LOG_WRN("Running tests");
-    messaging_tests_init();
-#endif
 #ifdef CONFIG_TEST_MOTORS
     motors_tests_init();
 #endif
@@ -74,9 +66,18 @@ app_assert_cb(fatal_error_info_t *err_info)
         McuMessage fatal_error = {.which_message = McuMessage_m_message_tag,
                                   .message.m_message.which_payload =
                                       McuToJetson_fatal_error_tag};
+        can_message_t to_send;
+        pb_ostream_t stream =
+            pb_ostream_from_buffer(to_send.bytes, sizeof(to_send.bytes));
+        bool encoded = pb_encode_ex(&stream, McuMessage_fields, &fatal_error,
+                                    PB_ENCODE_DELIMITED);
+        to_send.size = stream.bytes_written;
+        to_send.destination = CONFIG_CAN_ADDRESS_DEFAULT_REMOTE;
 
-        // important: send in blocking mode
-        (void)can_messaging_blocking_tx(&fatal_error);
+        if (encoded) {
+            // important: send in blocking mode
+            (void)can_messaging_blocking_tx(&to_send);
+        }
     } else if (err_info != NULL) {
         // TODO store error
     }
@@ -100,7 +101,10 @@ main(void)
     app_assert_init(app_assert_cb);
 
     // CAN initialization first to allow logs over CAN
-    err_code = can_messaging_init(incoming_message_handle);
+    err_code = can_messaging_init(runner_handle_new);
+    ASSERT_SOFT(err_code);
+
+    err_code = logs_init();
     ASSERT_SOFT(err_code);
 
     err_code = power_turn_on_jetson();
@@ -175,7 +179,7 @@ main(void)
         // as soon as the Jetson sends the first message, send firmware version
         // come back after the delay above and another message from the Jetson
         // to confirm the image
-        if (!jetson_up_and_running && incoming_message_acked_counter() > 0) {
+        if (!jetson_up_and_running && runner_successful_jobs_count() > 0) {
             version_send();
             temperature_start_sending();
 
@@ -191,7 +195,7 @@ main(void)
             continue;
         }
 
-        if (jetson_up_and_running && incoming_message_acked_counter() > 1) {
+        if (jetson_up_and_running && runner_successful_jobs_count() > 1) {
             // the orb is now up and running
             LOG_INF("Confirming image");
             int err_code = dfu_primary_confirm();

@@ -1,6 +1,7 @@
 #include "stepper_motors.h"
 #include "can_messaging.h"
 #include "mcu_messaging.pb.h"
+#include "pubsub/pubsub.h"
 #include "version/version.h"
 #include <device.h>
 #include <drivers/spi.h>
@@ -802,18 +803,16 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 LOG_INF("Motor %u, x0: %d microsteps, range: %u millidegrees",
                         motor, motors_refs[motor].x0, angle_millid);
 
-                McuMessage msg = {
-                    .which_message = McuMessage_m_message_tag,
-                    .message.m_message.which_payload =
-                        McuToJetson_motor_range_tag,
-                    .message.m_message.payload.motor_range.which_motor =
+                MotorRange range = {
+                    .which_motor =
                         (motor == MOTOR_VERTICAL ? MotorRange_Motor_VERTICAL
                                                  : MotorRange_Motor_HORIZONTAL),
-                    .message.m_message.payload.motor_range.range_microsteps =
-                        motors_refs[motor].full_course,
-                    .message.m_message.payload.motor_range.range_millidegrees =
-                        angle_millid};
-                can_messaging_async_tx(&msg);
+                    .range_microsteps = motors_refs[motor].full_course,
+                    .range_millidegrees = angle_millid};
+                int ret = publish_new(&range, sizeof(range),
+                                      McuToJetson_motor_range_tag,
+                                      CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                ASSERT_SOFT(ret);
 
                 // go to middle position
                 // setting in positioning mode after this loop
@@ -959,18 +958,16 @@ motors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                 LOG_INF("Motor %u, x0: %d microsteps, range: %u millidegrees",
                         motor, motors_refs[motor].x0, angle_millid);
 
-                McuMessage msg = {
-                    .which_message = McuMessage_m_message_tag,
-                    .message.m_message.which_payload =
-                        McuToJetson_motor_range_tag,
-                    .message.m_message.payload.motor_range.which_motor =
+                MotorRange range = {
+                    .which_motor =
                         (motor == MOTOR_VERTICAL ? MotorRange_Motor_VERTICAL
                                                  : MotorRange_Motor_HORIZONTAL),
-                    .message.m_message.payload.motor_range.range_microsteps =
-                        motors_refs[motor].full_course,
-                    .message.m_message.payload.motor_range.range_millidegrees =
-                        angle_millid};
-                can_messaging_async_tx(&msg);
+                    .range_microsteps = motors_refs[motor].full_course,
+                    .range_millidegrees = angle_millid};
+                int ret = publish_new(&range, sizeof(range),
+                                      McuToJetson_motor_range_tag,
+                                      CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                ASSERT_SOFT(ret);
 
                 motors_refs[motor].auto_homing_state = AH_SUCCESS;
             }

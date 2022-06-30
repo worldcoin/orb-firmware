@@ -20,30 +20,16 @@ K_THREAD_DEFINE(process_isotp_tx_messages,
 
 #define QUEUE_ALIGN 8
 static_assert(QUEUE_ALIGN % 2 == 0, "QUEUE_ALIGN must be a multiple of 2");
-static_assert(sizeof(McuMessage) % QUEUE_ALIGN == 0,
+static_assert(sizeof(can_message_t) % QUEUE_ALIGN == 0,
               "sizeof McuMessage must be a multiple of QUEUE_ALIGN");
 
 // Message queue to send messages
-K_MSGQ_DEFINE(isotp_tx_msg_queue, sizeof(McuMessage),
+K_MSGQ_DEFINE(isotp_tx_msg_queue, sizeof(can_message_t),
               CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE, QUEUE_ALIGN);
 
 static K_SEM_DEFINE(tx_sem, 1, 1);
 
-// Buffer to store the message to be sent
-static char tx_buffer[McuMessage_size + 1];
 static bool is_init = false;
-
-// CAN ISO-TP addressing
-const struct isotp_msg_id mcu_to_jetson_dst_addr = {
-    .std_id = CAN_ISOTP_STDID_DESTINATION(CONFIG_CAN_ISOTP_LOCAL_ID,
-                                          CONFIG_CAN_ISOTP_REMOTE_ID),
-    .id_type = CAN_STANDARD_IDENTIFIER,
-    .use_ext_addr = 0};
-const struct isotp_msg_id mcu_to_jetson_src_addr = {
-    .std_id = CAN_ISOTP_STDID_SOURCE(CONFIG_CAN_ISOTP_LOCAL_ID,
-                                     CONFIG_CAN_ISOTP_REMOTE_ID),
-    .id_type = CAN_STANDARD_IDENTIFIER,
-    .use_ext_addr = 0};
 
 static void
 tx_complete_cb(int error_nr, void *arg)
@@ -57,34 +43,17 @@ tx_complete_cb(int error_nr, void *arg)
     k_sem_give(&tx_sem);
 }
 
-/// @brief Send a message to Jetson
-/// @param[in] data The message to send
-/// @param[in] len Length of \c data
-/// @param[in] tx_complete_cb Callback to call when the message has been sent
-/// @return ret_code_t
-static ret_code_t
-send(const char *data, size_t len, void (*tx_complete_cb)(int, void *))
-{
-    ASSERT_HARD_BOOL(len < McuMessage_size + 1);
-
-    static struct isotp_send_ctx send_ctx = {0};
-
-    int ret = isotp_send(&send_ctx, can_dev, data, len, &mcu_to_jetson_dst_addr,
-                         &mcu_to_jetson_src_addr, tx_complete_cb, NULL);
-    if (ret != ISOTP_N_OK) {
-        LOG_ERR("Error while sending data to 0x%x: %d",
-                mcu_to_jetson_src_addr.std_id, ret);
-
-        return RET_ERROR_INTERNAL;
-    }
-
-    return RET_SUCCESS;
-}
-
 _Noreturn static void
 process_tx_messages_thread()
 {
-    McuMessage new;
+    can_message_t new;
+    struct isotp_send_ctx send_ctx = {0};
+
+    // CAN ISO-TP addressing
+    struct isotp_msg_id mcu_to_jetson_dst_addr = {
+        .std_id = 0, .id_type = CAN_STANDARD_IDENTIFIER, .use_ext_addr = 0};
+    struct isotp_msg_id mcu_to_jetson_src_addr = {
+        .std_id = 0, .id_type = CAN_STANDARD_IDENTIFIER, .use_ext_addr = 0};
 
     while (1) {
         // wait for semaphore to be released when TX done
@@ -97,30 +66,21 @@ process_tx_messages_thread()
             continue;
         }
 
-        // encode protobuf format
-        pb_ostream_t stream =
-            pb_ostream_from_buffer(tx_buffer, sizeof(tx_buffer));
-        bool encoded =
-            pb_encode_ex(&stream, McuMessage_fields, &new, PB_ENCODE_DELIMITED);
-        if (encoded) {
-            ret_code_t err_code =
-                send(tx_buffer, stream.bytes_written, tx_complete_cb);
-            if (err_code != RET_SUCCESS) {
+        // set addresses and send
+        mcu_to_jetson_dst_addr.std_id = new.destination;
+        mcu_to_jetson_src_addr.std_id = new.destination & ~CAN_ADDR_IS_DEST;
+        ret = isotp_send(&send_ctx, can_dev, new.bytes, new.size,
+                         &mcu_to_jetson_dst_addr, &mcu_to_jetson_src_addr,
+                         tx_complete_cb, NULL);
+        if (ret != ISOTP_N_OK) {
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
-                LOG_WRN("Error sending message");
+            LOG_WRN("Error sending message");
 #else
-                printk("<wrn> Error sending message!\r\n");
+            printk("<wrn> Error sending message!\r\n");
 #endif
-                // release semaphore, we are not waiting for
-                // completion
-                k_sem_give(&tx_sem);
-            }
-        } else {
-#ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
-            LOG_ERR("Error encoding message!");
-#else
-            printk("<err> Error encoding message!\r\n");
-#endif
+            // release semaphore, we are not waiting for
+            // completion
+            k_sem_give(&tx_sem);
         }
     }
 }
@@ -128,14 +88,11 @@ process_tx_messages_thread()
 // ⚠️ Do not print log message in this function if
 // CONFIG_ORB_LIB_LOG_BACKEND_CAN is defined
 ret_code_t
-can_isotp_messaging_async_tx(McuMessage *message)
+can_isotp_messaging_async_tx(can_message_t *message)
 {
     if (!is_init) {
         return RET_ERROR_INVALID_STATE;
     }
-
-    // make sure data "header" is correctly set
-    message->version = Version_VERSION_0;
 
     int ret = k_msgq_put(&isotp_tx_msg_queue, message, K_NO_WAIT);
     if (ret) {

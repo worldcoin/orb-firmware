@@ -76,7 +76,7 @@ can_messaging_reset_async(void)
 }
 
 ret_code_t
-can_messaging_init(void (*in_handler)(McuMessage *msg))
+can_messaging_init(void (*in_handler)(can_message_t *msg))
 {
     int err_code;
 

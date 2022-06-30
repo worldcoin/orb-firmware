@@ -1,8 +1,10 @@
-#include "incoming_message_handling.h"
+#include "runner.h"
+#include "app_config.h"
 #include "can_messaging.h"
 #include "dfu.h"
 #include "mcu_messaging.pb.h"
 #include "power_sequence/power_sequence.h"
+#include "pubsub/pubsub.h"
 #include "ui/operator_leds/operator_leds.h"
 #include "ui/rgb_leds.h"
 #include "version/version.h"
@@ -12,13 +14,14 @@
 #include <heartbeat.h>
 #include <ir_camera_system/ir_camera_system.h>
 #include <liquid_lens/liquid_lens.h>
-#include <logging/log.h>
+#include <pb_decode.h>
 #include <stdlib.h>
 #include <stepper_motors/stepper_motors.h>
 #include <temperature/temperature.h>
 #include <ui/front_leds/front_leds.h>
 #include <zephyr.h>
 
+#include <logging/log.h>
 LOG_MODULE_REGISTER(incoming_message_handling);
 
 static K_THREAD_STACK_DEFINE(auto_homing_stack, 600);
@@ -29,64 +32,85 @@ static k_tid_t auto_homing_tid = NULL;
     ASSERT_SOFT_BOOL(msg->which_message == McuMessage_j_message_tag);          \
     ASSERT_SOFT_BOOL(msg->message.j_message.which_payload == tag)
 
-static uint32_t message_counter = 0;
+static uint32_t job_counter = 0;
 
-static inline uint32_t
-get_ack_num(McuMessage *msg)
-{
-    return msg->message.j_message.ack_number;
-}
+struct handle_error_context_s {
+    uint32_t remote_addr;
+    uint32_t ack_number;
+};
+
+typedef struct {
+    uint32_t
+        remote_addr; // destination ID to use to respond to the job initiator
+    McuMessage mcu_message;
+} job_t;
+
+// Message queue
+#define QUEUE_ALIGN 8
+K_MSGQ_DEFINE(process_queue, sizeof(job_t), 8, QUEUE_ALIGN);
+
+#ifndef CONFIG_CAN_ADDRESS_DEFAULT_REMOTE
+#error "CONFIG_CAN_ADDRESS_DEFAULT_REMOTE not set"
+#endif
 
 uint32_t
-incoming_message_acked_counter(void)
+runner_successful_jobs_count(void)
 {
-    return message_counter;
+    return job_counter;
 }
 
-void
-incoming_message_ack(Ack_ErrorCode error, uint32_t ack_number)
+static void
+message_ack(Ack_ErrorCode error, job_t *job)
 {
-    McuMessage ack = {.which_message = McuMessage_m_message_tag,
-                      .message.m_message.which_payload = McuToJetson_ack_tag,
-                      .message.m_message.payload.ack.ack_number = ack_number,
-                      .message.m_message.payload.ack.error = error};
-    enum can_type_e can_type = (enum can_type_e)k_thread_custom_data_get();
-    if (can_type == CAN_ISOTP) {
-        LOG_DBG("ISO-TP");
-        can_isotp_messaging_async_tx(&ack);
-    } else {
-        LOG_DBG("CAN");
-        can_messaging_async_tx(&ack);
-    }
-    ++message_counter;
+    // get ack number from job's message
+    uint32_t ack_number = job->mcu_message.message.j_message.ack_number;
+
+    Ack ack = {.ack_number = ack_number, .error = error};
+
+    int err_code =
+        publish_new(&ack, sizeof(ack), McuToJetson_ack_tag, job->remote_addr);
+    ASSERT_SOFT(err_code);
+
+    ++job_counter;
 }
 
 /// Convert error codes to ack codes
 static void
-handle_err_code(uint32_t ack_number, int err)
+handle_err_code(void *ctx, int err)
 {
+    struct handle_error_context_s *context =
+        (struct handle_error_context_s *)ctx;
+    Ack ack = {.ack_number = context->ack_number, .error = Ack_ErrorCode_FAIL};
+
     switch (err) {
     case RET_SUCCESS:
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, ack_number);
+        ack.ack_number = Ack_ErrorCode_SUCCESS;
         break;
 
     case RET_ERROR_INVALID_PARAM:
     case RET_ERROR_NOT_FOUND:
-        incoming_message_ack(Ack_ErrorCode_RANGE, ack_number);
+        ack.ack_number = Ack_ErrorCode_RANGE;
         break;
 
     case RET_ERROR_BUSY:
     case RET_ERROR_INVALID_STATE:
-        incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, ack_number);
+        ack.ack_number = Ack_ErrorCode_IN_PROGRESS;
         break;
 
     case RET_ERROR_FORBIDDEN:
-        incoming_message_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, ack_number);
+        ack.ack_number = Ack_ErrorCode_OPERATION_NOT_SUPPORTED;
         break;
 
     default:
-        incoming_message_ack(Ack_ErrorCode_FAIL, ack_number);
+        /* nothing */
+        break;
     }
+
+    int err_code = publish_new(&ack, sizeof(ack), McuToJetson_ack_tag,
+                               context->remote_addr);
+    ASSERT_SOFT(err_code);
+
+    ++job_counter;
 }
 
 void
@@ -146,8 +170,9 @@ leave:
 // Handlers
 
 static void
-handle_infrared_leds_message(McuMessage *msg)
+handle_infrared_leds_message(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_infrared_leds_tag);
 
     InfraredLEDs_Wavelength wavelength =
@@ -155,12 +180,13 @@ handle_infrared_leds_message(McuMessage *msg)
 
     LOG_DBG("Got LED wavelength message = %d", wavelength);
     ir_camera_system_enable_leds(wavelength);
-    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    message_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
-handle_led_on_time_message(McuMessage *msg)
+handle_led_on_time_message(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_led_on_time_tag);
 
     uint32_t on_time_us =
@@ -169,17 +195,18 @@ handle_led_on_time_message(McuMessage *msg)
     LOG_DBG("Got LED on time message = %uus", on_time_us);
     ret_code_t ret = ir_camera_system_set_on_time_us(on_time_us);
     if (ret == RET_SUCCESS) {
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_SUCCESS, job);
     } else if (ret == RET_ERROR_INVALID_PARAM) {
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
     } else {
-        incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_FAIL, job);
     }
 }
 
 static void
-handle_led_on_time_740nm_message(McuMessage *msg)
+handle_led_on_time_740nm_message(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_led_on_time_740nm_tag);
 
     uint32_t on_time_us =
@@ -188,96 +215,104 @@ handle_led_on_time_740nm_message(McuMessage *msg)
     LOG_DBG("Got LED on time for 740nm message = %uus", on_time_us);
     ret_code_t ret = ir_camera_system_set_on_time_740nm_us(on_time_us);
     if (ret == RET_SUCCESS) {
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_SUCCESS, job);
     } else {
-        incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_FAIL, job);
     }
 }
 
 static void
-handle_start_triggering_ir_eye_camera_message(McuMessage *msg)
+handle_start_triggering_ir_eye_camera_message(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_start_triggering_ir_eye_camera_tag);
 
     LOG_DBG("");
     ir_camera_system_enable_ir_eye_camera();
-    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    message_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
-handle_stop_triggering_ir_eye_camera_message(McuMessage *msg)
+handle_stop_triggering_ir_eye_camera_message(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_stop_triggering_ir_eye_camera_tag);
 
     LOG_DBG("");
     ir_camera_system_disable_ir_eye_camera();
-    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    message_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
-handle_start_triggering_ir_face_camera_message(McuMessage *msg)
+handle_start_triggering_ir_face_camera_message(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_start_triggering_ir_face_camera_tag);
 
     LOG_DBG("");
     ir_camera_system_enable_ir_face_camera();
-    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    message_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
-handle_stop_triggering_ir_face_camera_message(McuMessage *msg)
+handle_stop_triggering_ir_face_camera_message(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_stop_triggering_ir_face_camera_tag);
 
     LOG_DBG("");
     ir_camera_system_disable_ir_face_camera();
-    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    message_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
-handle_start_triggering_2dtof_camera_message(McuMessage *msg)
+handle_start_triggering_2dtof_camera_message(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_start_triggering_2dtof_camera_tag);
 
     LOG_DBG("");
     ir_camera_system_enable_2d_tof_camera();
-    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    message_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
-handle_stop_triggering_2dtof_camera_message(McuMessage *msg)
+handle_stop_triggering_2dtof_camera_message(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_stop_triggering_2dtof_camera_tag);
 
     LOG_DBG("");
     ir_camera_system_disable_2d_tof_camera();
-    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    message_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
-handle_shutdown(McuMessage *msg)
+handle_shutdown(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_shutdown_tag);
 
     uint32_t delay = msg->message.j_message.payload.shutdown.delay_s;
     LOG_DBG("Got shutdown in %us", delay);
 
     if (delay > 30) {
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
     } else {
         int ret = power_reset(delay);
 
         if (ret == RET_SUCCESS) {
-            incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+            message_ack(Ack_ErrorCode_SUCCESS, job);
         } else {
-            incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+            message_ack(Ack_ErrorCode_FAIL, job);
         }
     }
 }
 
 static void
-handle_reboot_message(McuMessage *msg)
+handle_reboot_message(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_reboot_tag);
 
     uint32_t delay = msg->message.j_message.payload.reboot.delay;
@@ -285,22 +320,23 @@ handle_reboot_message(McuMessage *msg)
     LOG_DBG("Got reboot in %us", delay);
 
     if (delay > 60) {
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
         LOG_ERR("Reboot with delay > 60 seconds: %u", delay);
     } else {
         int ret = power_reset(delay);
 
         if (ret == RET_SUCCESS) {
-            incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+            message_ack(Ack_ErrorCode_SUCCESS, job);
         } else {
-            incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+            message_ack(Ack_ErrorCode_FAIL, job);
         }
     }
 }
 
 static void
-handle_mirror_angle_message(McuMessage *msg)
+handle_mirror_angle_message(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_mirror_angle_tag);
 
     uint32_t horizontal_angle =
@@ -312,7 +348,7 @@ handle_mirror_angle_message(McuMessage *msg)
         horizontal_angle < MOTORS_ANGLE_HORIZONTAL_MIN) {
         LOG_ERR("Horizontal angle of %u out of range [%u;%u]", horizontal_angle,
                 MOTORS_ANGLE_HORIZONTAL_MIN, MOTORS_ANGLE_HORIZONTAL_MAX);
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
         return;
     }
 
@@ -320,7 +356,7 @@ handle_mirror_angle_message(McuMessage *msg)
         vertical_angle < MOTORS_ANGLE_VERTICAL_MIN) {
         LOG_ERR("Vertical angle of %d out of range [%d;%d]", vertical_angle,
                 MOTORS_ANGLE_VERTICAL_MIN, MOTORS_ANGLE_VERTICAL_MAX);
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
         return;
     }
 
@@ -328,17 +364,18 @@ handle_mirror_angle_message(McuMessage *msg)
             horizontal_angle);
 
     if (motors_angle_horizontal(horizontal_angle) != RET_SUCCESS) {
-        incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_FAIL, job);
     } else if (motors_angle_vertical(vertical_angle) != RET_SUCCESS) {
-        incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_FAIL, job);
     } else {
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
 static void
-handle_temperature_sample_period_message(McuMessage *msg)
+handle_temperature_sample_period_message(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_temperature_sample_period_tag);
 
     uint32_t sample_period_ms = msg->message.j_message.payload
@@ -347,16 +384,17 @@ handle_temperature_sample_period_message(McuMessage *msg)
     LOG_DBG("Got new temperature sampling period: %ums", sample_period_ms);
 
     if (sample_period_ms > 15000) {
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
     } else {
         temperature_set_sampling_period_ms(sample_period_ms);
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
 static void
-handle_fan_speed(McuMessage *msg)
+handle_fan_speed(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_fan_speed_tag);
 
     uint32_t fan_speed_percentage =
@@ -364,24 +402,25 @@ handle_fan_speed(McuMessage *msg)
 
     if (temperature_is_in_overtemp()) {
         LOG_WRN("Fan speed command rejected do to overtemperature condition");
-        incoming_message_ack(Ack_ErrorCode_OVER_TEMPERATURE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_OVER_TEMPERATURE, job);
     } else {
         if (fan_speed_percentage > 100) {
             LOG_ERR("Got fan speed of %u out of range [0;100]",
                     fan_speed_percentage);
-            incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+            message_ack(Ack_ErrorCode_RANGE, job);
         } else {
             LOG_DBG("Got fan speed message: %u%%", fan_speed_percentage);
 
             fan_set_speed(fan_speed_percentage);
-            incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+            message_ack(Ack_ErrorCode_SUCCESS, job);
         }
     }
 }
 
 static void
-handle_user_leds_pattern(McuMessage *msg)
+handle_user_leds_pattern(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_user_leds_pattern_tag);
 
     UserLEDsPattern_UserRgbLedPattern pattern =
@@ -396,7 +435,7 @@ handle_user_leds_pattern(McuMessage *msg)
 
     if (start_angle > FULL_RING_DEGREES ||
         abs(angle_length) > FULL_RING_DEGREES) {
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
     } else {
         RgbColor *color_ptr = NULL;
         if (msg->message.j_message.payload.user_leds_pattern.pattern ==
@@ -405,13 +444,14 @@ handle_user_leds_pattern(McuMessage *msg)
                 &msg->message.j_message.payload.user_leds_pattern.custom_color;
         }
         front_leds_set_pattern(pattern, start_angle, angle_length, color_ptr);
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
 static void
-handle_user_leds_brightness(McuMessage *msg)
+handle_user_leds_brightness(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_user_leds_brightness_tag);
 
     uint32_t brightness =
@@ -420,17 +460,18 @@ handle_user_leds_brightness(McuMessage *msg)
     if (brightness > 255) {
         LOG_ERR("Got user LED brightness value of %u out of range [0,255]",
                 brightness);
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
     } else {
         LOG_DBG("Got user LED brightness value of %u", brightness);
         front_leds_set_brightness(brightness);
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
 static void
-handle_distributor_leds_pattern(McuMessage *msg)
+handle_distributor_leds_pattern(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_distributor_leds_pattern_tag);
 
     DistributorLEDsPattern_DistributorRgbLedPattern pattern =
@@ -441,7 +482,7 @@ handle_distributor_leds_pattern(McuMessage *msg)
     LOG_DBG("Got distributor LED pattern: %u, mask 0x%x", pattern, mask);
 
     if (mask > OPERATOR_LEDS_ALL_MASK) {
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
     } else {
         RgbColor *color_ptr = NULL;
         if (msg->message.j_message.payload.distributor_leds_pattern.pattern ==
@@ -451,16 +492,17 @@ handle_distributor_leds_pattern(McuMessage *msg)
         }
         if (operator_leds_set_pattern(pattern, mask, color_ptr) !=
             RET_SUCCESS) {
-            incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+            message_ack(Ack_ErrorCode_FAIL, job);
         } else {
-            incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+            message_ack(Ack_ErrorCode_SUCCESS, job);
         }
     }
 }
 
 static void
-handle_distributor_leds_brightness(McuMessage *msg)
+handle_distributor_leds_brightness(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_distributor_leds_brightness_tag);
 
     uint32_t brightness =
@@ -468,35 +510,37 @@ handle_distributor_leds_brightness(McuMessage *msg)
     if (brightness > 255) {
         LOG_ERR("Got user LED brightness value of %u out of range [0,255]",
                 brightness);
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
     } else {
         LOG_DBG("Got distributor LED brightness: %u", brightness);
         if (operator_leds_set_brightness((uint8_t)brightness) != RET_SUCCESS) {
-            incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+            message_ack(Ack_ErrorCode_FAIL, job);
         } else {
-            incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+            message_ack(Ack_ErrorCode_SUCCESS, job);
         }
     }
 }
 
 static void
-handle_fw_img_crc(McuMessage *msg)
+handle_fw_img_crc(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_fw_image_check_tag);
 
     LOG_DBG("Got CRC comparison");
     int ret = dfu_secondary_check(
         msg->message.j_message.payload.fw_image_check.crc32);
     if (ret) {
-        incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_FAIL, job);
     } else {
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
 static void
-handle_fw_img_sec_activate(McuMessage *msg)
+handle_fw_img_sec_activate(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_fw_image_secondary_activate_tag);
 
     LOG_DBG("Got secondary slot activation");
@@ -509,9 +553,9 @@ handle_fw_img_sec_activate(McuMessage *msg)
     }
 
     if (ret) {
-        incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_FAIL, job);
     } else {
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_SUCCESS, job);
 
         // turn operator LEDs orange
         operator_leds_set_pattern(
@@ -524,8 +568,9 @@ handle_fw_img_sec_activate(McuMessage *msg)
 }
 
 static void
-handle_fps(McuMessage *msg)
+handle_fps(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_fps_tag);
 
     uint16_t fps = (uint16_t)msg->message.j_message.payload.fps.fps;
@@ -533,18 +578,24 @@ handle_fps(McuMessage *msg)
     LOG_DBG("Got FPS message = %u", fps);
     ret_code_t ret = ir_camera_system_set_fps(fps);
     if (ret == RET_SUCCESS) {
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_SUCCESS, job);
     } else if (ret == RET_ERROR_INVALID_PARAM) {
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
     } else {
-        incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_FAIL, job);
     }
 }
 
 static void
-handle_dfu_block_message(McuMessage *msg)
+handle_dfu_block_message(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_dfu_block_tag);
+
+    // must be static to be used by callback
+    static struct handle_error_context_s context = {0};
+    context.remote_addr = job->remote_addr;
+    context.ack_number = job->mcu_message.message.j_message.ack_number;
 
     LOG_DBG("Got firmware image block");
     int ret =
@@ -552,7 +603,7 @@ handle_dfu_block_message(McuMessage *msg)
                  msg->message.j_message.payload.dfu_block.block_count,
                  msg->message.j_message.payload.dfu_block.image_block.bytes,
                  msg->message.j_message.payload.dfu_block.image_block.size,
-                 msg->message.j_message.ack_number, handle_err_code);
+                 (void *)&context, handle_err_code);
 
     // if the operation is not over,
     // the DFU module will handle acknowledgement
@@ -562,15 +613,15 @@ handle_dfu_block_message(McuMessage *msg)
 
     switch (ret) {
     case RET_ERROR_INVALID_PARAM:
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
         break;
 
     case RET_ERROR_BUSY:
-        incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_IN_PROGRESS, job);
         break;
 
     case RET_SUCCESS:
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_SUCCESS, job);
         break;
     default:
         LOG_ERR("Unhandled error code %d", ret);
@@ -578,8 +629,9 @@ handle_dfu_block_message(McuMessage *msg)
 }
 
 static void
-handle_do_homing(McuMessage *msg)
+handle_do_homing(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_do_homing_tag);
 
     PerformMirrorHoming_Mode mode =
@@ -589,7 +641,7 @@ handle_do_homing(McuMessage *msg)
     LOG_DBG("Got do autohoming message, mode = %u, angle = %u", mode, angle);
 
     if (auto_homing_tid != NULL || motors_auto_homing_in_progress()) {
-        incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_IN_PROGRESS, job);
     } else {
         auto_homing_tid =
             k_thread_create(&auto_homing_thread, auto_homing_stack,
@@ -598,13 +650,14 @@ handle_do_homing(McuMessage *msg)
                             (void *)angle, NULL, 4, 0, K_NO_WAIT);
 
         // send ack before timeout even though auto-homing not completed
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
 static void
-handle_liquid_lens(McuMessage *msg)
+handle_liquid_lens(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_liquid_lens_tag);
 
     int32_t current = msg->message.j_message.payload.liquid_lens.current;
@@ -613,7 +666,7 @@ handle_liquid_lens(McuMessage *msg)
     if (current < -400 || current > 400) {
         LOG_ERR("Got liquid lens current value of %d out of range [-400,400]",
                 current);
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
     } else {
         LOG_DBG("Got liquid lens current value of %d", current);
         liquid_set_target_current_ma(current);
@@ -624,13 +677,14 @@ handle_liquid_lens(McuMessage *msg)
             liquid_lens_disable();
         }
 
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
 static void
-handle_heartbeat(McuMessage *msg)
+handle_heartbeat(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_heartbeat_tag);
 
     LOG_DBG("Got heartbeat");
@@ -638,15 +692,16 @@ handle_heartbeat(McuMessage *msg)
         msg->message.j_message.payload.heartbeat.timeout_seconds);
 
     if (ret == RET_SUCCESS) {
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_SUCCESS, job);
     } else {
-        incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_FAIL, job);
     }
 }
 
 static void
-handle_mirror_angle_relative_message(McuMessage *msg)
+handle_mirror_angle_relative_message(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_mirror_angle_relative_tag);
 
     int32_t horizontal_angle =
@@ -657,13 +712,13 @@ handle_mirror_angle_relative_message(McuMessage *msg)
     if (abs(horizontal_angle) > MOTORS_ANGLE_HORIZONTAL_RANGE) {
         LOG_ERR("Horizontal angle of %u out of range (max %u)",
                 horizontal_angle, MOTORS_ANGLE_HORIZONTAL_RANGE);
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
         return;
     }
     if (abs(vertical_angle) > MOTORS_ANGLE_VERTICAL_RANGE) {
         LOG_ERR("Vertical angle of %u out of range (max %u)", vertical_angle,
                 MOTORS_ANGLE_VERTICAL_RANGE);
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
         return;
     }
 
@@ -671,17 +726,18 @@ handle_mirror_angle_relative_message(McuMessage *msg)
             vertical_angle, horizontal_angle);
 
     if (motors_angle_horizontal_relative(horizontal_angle) != RET_SUCCESS) {
-        incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_FAIL, job);
     } else if (motors_angle_vertical_relative(vertical_angle) != RET_SUCCESS) {
-        incoming_message_ack(Ack_ErrorCode_FAIL, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_FAIL, job);
     } else {
-        incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
 static void
-handle_value_get_message(McuMessage *msg)
+handle_value_get_message(job_t *job)
 {
+    McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_value_get_tag);
 
     LOG_DBG("Got Value Get request");
@@ -693,15 +749,15 @@ handle_value_get_message(McuMessage *msg)
         break;
     default: {
         // unknown value, respond with error
-        incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+        message_ack(Ack_ErrorCode_RANGE, job);
         return;
     }
     }
 
-    incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+    message_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
-typedef void (*hm_callback)(McuMessage *msg);
+typedef void (*hm_callback)(job_t *job);
 
 // These functions ARE NOT allowed to block!
 static const hm_callback handle_message_callbacks[] = {
@@ -748,27 +804,79 @@ static_assert(
     ARRAY_SIZE(handle_message_callbacks) <= 34,
     "It seems like the `handle_message_callbacks` array is too large");
 
-void
-incoming_message_handle(McuMessage *msg)
+_Noreturn static void
+runner_process_jobs_thread()
 {
-    if (msg->which_message != McuMessage_j_message_tag) {
-        LOG_INF("Got message not intended for main MCU. Dropping.");
-        return;
-    }
+    job_t new;
+    int ret;
 
-    LOG_DBG("Got a message with payload ID %d",
-            msg->message.j_message.which_payload);
+    while (1) {
+        ret = k_msgq_get(&process_queue, &new, K_FOREVER);
+        if (ret != 0) {
+            continue;
+        }
 
-    if (msg->message.j_message.which_payload <
-            ARRAY_SIZE(handle_message_callbacks) &&
-        handle_message_callbacks[msg->message.j_message.which_payload] !=
-            NULL) {
-        handle_message_callbacks[msg->message.j_message.which_payload](msg);
-    } else {
-        LOG_ERR(
-            "A handler for message with a payload ID of %d is not implemented",
-            msg->message.j_message.which_payload);
-        incoming_message_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED,
-                             get_ack_num(msg));
+        LOG_DBG("Got a message with payload ID %d, ack #%u",
+                new.mcu_message.message.j_message.which_payload,
+                new.mcu_message.message.j_message.ack_number);
+
+        if (new.mcu_message.message.j_message.which_payload <
+                ARRAY_SIZE(handle_message_callbacks) &&
+            handle_message_callbacks[new.mcu_message.message.j_message
+                                         .which_payload] != NULL) {
+            handle_message_callbacks[new.mcu_message.message.j_message
+                                         .which_payload](&new);
+        } else {
+            LOG_ERR("A handler for message with a payload ID of %d is not "
+                    "implemented",
+                    new.mcu_message.message.j_message.which_payload);
+            message_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, &new);
+        }
     }
 }
+
+K_MUTEX_DEFINE(new_job_mutex);
+
+void
+runner_handle_new(can_message_t *msg)
+{
+    static job_t new = {0}; // declared as static not to use caller stack
+
+    pb_istream_t stream = pb_istream_from_buffer(msg->bytes, sizeof msg->bytes);
+
+    int ret = k_mutex_lock(&new_job_mutex, K_MSEC(5));
+    if (ret == 0) {
+        bool decoded = pb_decode_ex(&stream, McuMessage_fields,
+                                    &new.mcu_message, PB_DECODE_DELIMITED);
+        if (decoded) {
+            if (new.mcu_message.which_message != McuMessage_j_message_tag) {
+                LOG_INF("Got message not intended for us. Dropping.");
+                return;
+            }
+
+            if (msg->destination & CAN_ADDR_IS_ISOTP) {
+                // keep flags of the received message destination
+                // & invert source and destination
+                new.remote_addr = (msg->destination & ~0xFF);
+                new.remote_addr |= (msg->destination & 0xF) << 4;
+                new.remote_addr |= (msg->destination & 0xF0) >> 4;
+
+                LOG_DBG("Message sent to 0x%x, responding to 0x%x",
+                        msg->destination, new.remote_addr);
+
+            } else {
+                new.remote_addr = CONFIG_CAN_ADDRESS_DEFAULT_REMOTE;
+            }
+
+            k_msgq_put(&process_queue, &new, K_NO_WAIT);
+        }
+
+        k_mutex_unlock(&new_job_mutex);
+    } else {
+        LOG_ERR("Error locking mutex to create new runner job: %d", ret);
+    }
+}
+
+K_THREAD_DEFINE(runner_process, THREAD_STACK_SIZE_RUNNER,
+                runner_process_jobs_thread, NULL, NULL, NULL,
+                THREAD_PRIORITY_RUNNER, 0, 0);

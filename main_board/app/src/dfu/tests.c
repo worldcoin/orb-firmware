@@ -4,10 +4,11 @@
 LOG_MODULE_REGISTER(dfutest);
 
 #include "dfu.h"
-#include "messaging/incoming_message_handling.h"
+#include "runner/runner.h"
 #include <app_config.h>
 #include <errors.h>
 #include <flash_map_backend/flash_map_backend.h>
+#include <pb_encode.h>
 #include <random/rand32.h>
 #include <sys/crc.h>
 #include <zephyr.h>
@@ -27,6 +28,7 @@ test_dfu_upload()
     // - byte count in final buffer isn't aligned on double-word
     uint32_t test_block_count = 53; // sys_rand32_get() % 50 + 50;
 
+    can_message_t to_send;
     McuMessage dfu_block = McuMessage_init_zero;
     dfu_block.version = Version_VERSION_0;
     dfu_block.which_message = McuMessage_j_message_tag;
@@ -49,7 +51,19 @@ test_dfu_upload()
     LOG_INF("Writing %u blocks for the test", block_to_send);
 
     while (block_to_send--) {
-        incoming_message_handle(&dfu_block);
+        pb_ostream_t stream =
+            pb_ostream_from_buffer(to_send.bytes, sizeof(to_send.bytes));
+        bool encoded = pb_encode_ex(&stream, McuMessage_fields, &dfu_block,
+                                    PB_ENCODE_DELIMITED);
+        to_send.size = stream.bytes_written;
+        to_send.destination = 0;
+
+        if (encoded) {
+            runner_handle_new(&to_send);
+        } else {
+            LOG_ERR("Error encoding DFU block");
+            return;
+        }
 
         // update next block
         dfu_block.message.j_message.ack_number += 1;

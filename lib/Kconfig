@@ -1,7 +1,7 @@
 if ORB_MCU_LIBRARIES_LIB
 
 menu "CAN messaging"
-source "../orb/lib/can_mcu_message/Kconfig"
+source "../orb/lib/can_messaging/Kconfig"
 endmenu
 
 menu "Logs over CAN"

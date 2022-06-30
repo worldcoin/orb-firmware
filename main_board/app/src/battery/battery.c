@@ -2,6 +2,7 @@
 #include "can_messaging.h"
 #include "errors.h"
 #include "mcu_messaging.pb.h"
+#include "pubsub/pubsub.h"
 #include "temperature/temperature.h"
 #include <app_assert.h>
 #include <device.h>
@@ -52,46 +53,42 @@ static struct battery_499_s state_499 = {0};
 static void
 handle_499(struct zcan_frame *frame)
 {
-    static McuMessage msg = {
-        .which_message = McuMessage_m_message_tag,
-    };
-    static bool is_charging = false;
+    static BatteryCapacity battery_cap = {UINT32_MAX};
+    static BatteryIsCharging is_charging = {.battery_is_charging = false};
+
+    int ret = 0;
 
     if (can_dlc_to_bytes(frame->dlc) == 6) {
         // Let's extract the info we care about
         struct battery_499_s *new_state = (struct battery_499_s *)frame->data;
 
         // logging
-        LOG_DBG("state of charge: %u%%", new_state->state_of_charge);
-        LOG_DBG("is charging? %s", is_charging ? "yes" : "no");
+        LOG_DBG("State of charge: %u%%", new_state->state_of_charge);
+        LOG_DBG("Is charging? %s",
+                is_charging.battery_is_charging ? "yes" : "no");
 
         // now let's report the data if it has changed
         if (state_499.state_of_charge != new_state->state_of_charge) {
-            msg.message.m_message.which_payload =
-                McuToJetson_battery_capacity_tag;
-            msg.message.m_message.payload.battery_capacity.percentage =
-                new_state->state_of_charge;
+            battery_cap.percentage = new_state->state_of_charge;
 
-            // store new state only if message is successfully queued
-            int ret = can_messaging_async_tx(&msg);
-            if (ret == RET_SUCCESS) {
-                state_499.state_of_charge = new_state->state_of_charge;
-            }
+            ret |= publish_new(&battery_cap, sizeof(battery_cap),
+                               McuToJetson_battery_capacity_tag,
+                               CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
 
-        bool currently_charging =
-            ((new_state->flags & BIT(IS_CHARGING_BIT)) != 0);
-        if (is_charging != currently_charging) {
-            msg.message.m_message.which_payload =
-                McuToJetson_battery_is_charging_tag;
-            msg.message.m_message.payload.battery_is_charging
-                .battery_is_charging = is_charging;
+        if ((new_state->flags & BIT(IS_CHARGING_BIT)) !=
+            (state_499.flags & BIT(IS_CHARGING_BIT))) {
+            is_charging.battery_is_charging =
+                (new_state->flags & BIT(IS_CHARGING_BIT)) != 0;
 
-            // store new state only if message is successfully queued
-            int ret = can_messaging_async_tx(&msg);
-            if (ret == RET_SUCCESS) {
-                is_charging = currently_charging;
-            }
+            ret |= publish_new(&is_charging, sizeof(is_charging),
+                               McuToJetson_battery_is_charging_tag,
+                               CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+        }
+
+        // store new state only if messages successfully queued
+        if (ret == RET_SUCCESS) {
+            state_499 = *new_state;
         }
 
         LOG_DBG("Battery PCB temperature: %u.%u°C",

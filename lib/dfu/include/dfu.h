@@ -11,8 +11,8 @@
 
 int
 dfu_load(uint32_t current_block_number, uint32_t block_count,
-         const uint8_t *data, size_t size, uint32_t ack_number,
-         void (*process_cb)(uint32_t ack, int err));
+         const uint8_t *data, size_t size, void *ctx,
+         void (*process_cb)(void *ctx, int err));
 
 int
 dfu_secondary_activate_permanently(void);
