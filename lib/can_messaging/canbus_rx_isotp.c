@@ -70,10 +70,6 @@ jetson_to_mcu_rx_thread()
     int ret, rem_len;
     size_t wr_idx = 0;
 
-    // set CAN type for incoming message handler to respond
-    // using the same transport
-    k_thread_custom_data_set((void *)CAN_ISOTP);
-
     // listen remotes
     bind_to_remotes();
     while (1) {
@@ -81,7 +77,7 @@ jetson_to_mcu_rx_thread()
         ret = k_poll(poll_evt, ARRAY_SIZE(poll_evt), K_FOREVER);
 
         if (ret != 0) {
-            // todo handling of errors
+            LOG_ERR("ISO-TP rx error, k_poll ret %i", ret);
             continue;
         }
 
