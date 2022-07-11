@@ -13,21 +13,25 @@
 #define THREAD_PRIORITY_POWER_MANAGEMENT   3
 #define THREAD_STACK_SIZE_POWER_MANAGEMENT 512
 
+// Runner / default message processing
+#define THREAD_PRIORITY_RUNNER   6
+#define THREAD_STACK_SIZE_RUNNER 2048
+
 // Front unit RGB LEDs
-#define THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS   6
+#define THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS   7
 #define THREAD_STACK_SIZE_FRONT_UNIT_RGB_LEDS 512
 
 // Operator RGB LEDs
-#define THREAD_PRIORITY_OPERATOR_RGB_LEDS   6
+#define THREAD_PRIORITY_OPERATOR_RGB_LEDS   7
 #define THREAD_STACK_SIZE_OPERATOR_RGB_LEDS 512
 
-// Runner / default message processing
-#define THREAD_PRIORITY_RUNNER   7
-#define THREAD_STACK_SIZE_RUNNER 2048
+// Liquid Lens
+#define THREAD_PRIORITY_LIQUID_LENS   7
+#define THREAD_STACK_SIZE_LIQUID_LENS 512
 
 // Battery
 #define THREAD_PRIORITY_BATTERY   8
-#define THREAD_STACK_SIZE_BATTERY 512
+#define THREAD_STACK_SIZE_BATTERY 1024
 
 // Temperature
 #define THREAD_PRIORITY_TEMPERATURE   8
@@ -47,9 +51,8 @@
 // main thread priority                 10
 // logging thread priority              14
 
-// Liquid Lens
-#define THREAD_PRIORITY_LIQUID_LENS   8
-#define THREAD_STACK_SIZE_LIQUID_LENS 512
+// Battery CAN rx thread
+#define THREAD_PRIORITY_CAN_BATTERY_RX
 
 #define SYS_INIT_POWER_SUPPLY_PHASE2_PRIORITY   55
 #define SYS_INIT_FAN_INIT_PRIORITY              54

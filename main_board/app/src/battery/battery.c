@@ -14,6 +14,10 @@
 LOG_MODULE_REGISTER(battery);
 
 static const struct device *can_dev;
+K_THREAD_STACK_DEFINE(can_battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
+static struct k_thread rx_thread_data = {0};
+
+CAN_MSGQ_DEFINE(can_battery_recv_queue, 4);
 
 // accept everything and discard unwanted messages in software
 static const struct zcan_filter battery_can_filter = {
@@ -117,27 +121,37 @@ handle_415(struct zcan_frame *frame)
 }
 
 static void
-can_rx_callback(const struct device *dev, struct zcan_frame *frame,
-                void *user_data)
+rx_thread()
 {
-    ARG_UNUSED(dev);
-    ARG_UNUSED(user_data);
+    int ret;
+    struct zcan_frame rx_frame;
 
-    switch (frame->id) {
-    case 0x499:
-        handle_499(frame);
-        break;
-    case 0x415:
-        handle_415(frame);
-        break;
+    ret = can_add_rx_filter_msgq(can_dev, &can_battery_recv_queue,
+                                 &battery_can_filter);
+    if (ret < 0) {
+        LOG_ERR("Error attaching message queue (%d)!", ret);
+        return;
+    }
+
+    while (1) {
+        k_msgq_get(&can_battery_recv_queue, &rx_frame, K_FOREVER);
+
+        switch (rx_frame.id) {
+        case 0x499:
+            handle_499(&rx_frame);
+            break;
+        case 0x415:
+            handle_415(&rx_frame);
+            break;
+        default:
+            break;
+        }
     }
 }
 
 ret_code_t
 battery_init(void)
 {
-    int ret;
-
     can_dev = DEVICE_DT_GET(DT_ALIAS(battery_can_bus));
     if (!can_dev) {
         LOG_ERR("CAN: Device driver not found.");
@@ -151,12 +165,10 @@ battery_init(void)
         LOG_INF("CAN ready");
     }
 
-    ret =
-        can_add_rx_filter(can_dev, can_rx_callback, NULL, &battery_can_filter);
-    if (ret < 0) {
-        LOG_ERR("Error attaching can message filter (%d)!", ret);
-        return RET_ERROR_INTERNAL;
-    }
+    k_thread_create(&rx_thread_data, can_battery_rx_thread_stack,
+                    K_THREAD_STACK_SIZEOF(can_battery_rx_thread_stack),
+                    rx_thread, NULL, NULL, NULL, THREAD_PRIORITY_BATTERY, 0,
+                    K_NO_WAIT);
 
     return RET_SUCCESS;
 }
