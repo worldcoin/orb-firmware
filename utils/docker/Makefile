@@ -1,5 +1,5 @@
-DOCKER_VER := 2
-DOCKER_TAG ?= ghcr.io/worldcoin/mcu-zephyr-build:$(DOCKER_VER)
+DOCKER_VER := "sha256:dcc0e3cdb924cfb34da681909190a43a05128859da3e1b8e71210f1e33e58437"
+DOCKER_TAG ?= ghcr.io/worldcoin/mcu-zephyr-build@$(DOCKER_VER)
 
 ifneq ($(filter help all build,$(MAKECMDGOALS)),)
 

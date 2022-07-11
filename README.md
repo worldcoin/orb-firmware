@@ -39,7 +39,7 @@ and that you have access to all of the MCU repos. These repositories are enumera
 
    ```shell
    cd "$REPO_DIR"
-   west init -m git@github.com:worldcoin/proto2-mcu.git --mr main
+   west init -m git@github.com:worldcoin/orb-mcu-firmware.git --mr main
    ```
 
    This will create a directory called `orb`.
@@ -52,7 +52,7 @@ and that you have access to all of the MCU repos. These repositories are enumera
 
 #### Docker-specific Steps
 
-5. Enter the Docker container to perform your work.
+5. Enter the Docker container to perform your work. (Note: you need to first configure github to read the [container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry))
    ```shell
    cd "$REPO_DIR"/orb/utils/docker
    make shell
