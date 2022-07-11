@@ -15,7 +15,7 @@ static bool send_temperature_messages = false;
 
 #define MAIN_BOARD_OVERTEMP_C 65
 #define FRONT_UNIT_OVERTEMP_C 90
-#define OVERTEMP_DROP_C       5 // drop in temperature needed to stop over-temp mode
+#define OVERTEMP_DROP_C       3 // drop in temperature needed to stop over-temp mode
 
 static_assert((int)(MAIN_BOARD_OVERTEMP_C - OVERTEMP_DROP_C) > 0 &&
                   (int)(FRONT_UNIT_OVERTEMP_C - OVERTEMP_DROP_C) > 0,
