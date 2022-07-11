@@ -39,7 +39,7 @@ and that you have access to all of the MCU repos. These repositories are enumera
 
    ```shell
    cd "$REPO_DIR"
-   west init -m git@github.com:worldcoin/orb-mcu-firmware.git --mr main
+   west init -m git@github.com:worldcoin/proto2-mcu.git --mr main
    ```
 
    This will create a directory called `orb`.
