@@ -15,6 +15,31 @@ static const struct gpio_dt_spec button_spec =
 static struct gpio_callback button_cb_data;
 static bool is_init = false;
 
+struct k_work button_pressed_work;
+struct k_work button_released_work;
+
+static void
+button_released(struct k_work *item)
+{
+    UNUSED_PARAMETER(item);
+
+    PowerButton button_state = {.pressed = false};
+    publish_new(&button_state, sizeof(button_state),
+                McuToJetson_power_button_tag,
+                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+}
+
+static void
+button_pressed(struct k_work *item)
+{
+    UNUSED_PARAMETER(item);
+
+    PowerButton button_state = {.pressed = true};
+    publish_new(&button_state, sizeof(button_state),
+                McuToJetson_power_button_tag,
+                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+}
+
 /// Interrupt context
 static void
 button_event_handler(const struct device *dev, struct gpio_callback *cb,
@@ -25,11 +50,14 @@ button_event_handler(const struct device *dev, struct gpio_callback *cb,
 
     if (pins & BIT(button_spec.pin)) {
         int ret = gpio_pin_get_dt(&button_spec);
-        if (ret >= 0) {
-            PowerButton button_state = {.pressed = ret};
-            publish_new(&button_state, sizeof(button_state),
-                        McuToJetson_power_button_tag,
-                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+
+        // queue work depending on button state
+        if (ret == 1) {
+            k_work_submit(&button_pressed_work);
+        } else if (ret == 0) {
+            k_work_submit(&button_released_work);
+        } else {
+            // error, do nothing
         }
     }
 }
@@ -86,6 +114,9 @@ button_init(void)
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
+
+    k_work_init(&button_pressed_work, button_pressed);
+    k_work_init(&button_released_work, button_released);
 
     gpio_init_callback(&button_cb_data, button_event_handler,
                        BIT(button_spec.pin));
