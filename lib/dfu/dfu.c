@@ -6,7 +6,6 @@
 #include <devicetree.h>
 #include <errors.h>
 #include <flash_map_backend/flash_map_backend.h>
-#include <inttypes.h>
 #include <logging/log.h>
 #include <storage/flash_map.h>
 #include <sys/crc.h>
@@ -80,10 +79,6 @@ static void (*dfu_block_process_cb)(void *ctx, int err) = NULL;
 K_SEM_DEFINE(sem_dfu_free_space, 1, 1);
 K_SEM_DEFINE(sem_dfu_full, 0, 1);
 
-/**
- * Queue new Firmware image block for processing
- * @param msg
- */
 int
 dfu_load(uint32_t current_block_number, uint32_t block_count,
          const uint8_t *data, size_t size, void *ctx,

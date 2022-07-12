@@ -46,7 +46,9 @@ print_log_can(const char *data, size_t size, bool blocking)
 int
 logs_init(void)
 {
+#ifdef CONFIG_ORB_LIB_LOG_BACKEND_CAN
     log_backend_can_register_print(print_log_can);
+#endif
 
     return RET_SUCCESS;
 }
