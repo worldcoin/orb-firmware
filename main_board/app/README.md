@@ -28,7 +28,7 @@ Let's build and run the application, you have two options:
 > 💡 Important notes:
 >
 > - Firmware images are signed and encrypted. If you don't have development keys already created locally, then run
->   `./generate_dev_keys` while in the directory `"$REPO_DIR"/utils/ota/`.
+>   `./generate_dev_keys` while in the directory `"$REPO_DIR"/orb/utils/ota/`.
 > - Make sure to have the [bootloader flashed](../../bootloader_main/README.md) _before_ flashing the application.
 
 #### With Makefile
@@ -36,7 +36,7 @@ Let's build and run the application, you have two options:
 - Go to `${REPO_DIR}/orb/utils/docker`.
 - Run `make help` to see all options
 
-To Build: `make mcu-build`
+To Build: `make main_board-build`
 
 To Flash: `make mcu-flash`
 
