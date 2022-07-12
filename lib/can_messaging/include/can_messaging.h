@@ -38,13 +38,13 @@ typedef struct {
 /// \param message
 /// \return RET_SUCCESS on success, error code otherwise
 ret_code_t
-can_messaging_async_tx(can_message_t *message);
+can_messaging_async_tx(const can_message_t *message);
 
 /// Send new message using ISO-TP transport
 /// \param message
 /// \return RET_SUCCESS on success, error code otherwise
 ret_code_t
-can_isotp_messaging_async_tx(can_message_t *message);
+can_isotp_messaging_async_tx(const can_message_t *message);
 
 /// Send CAN message and wait for completion (1-second timeout)
 /// ⚠️ Cannot be used in ISR context
@@ -55,7 +55,7 @@ can_isotp_messaging_async_tx(can_message_t *message);
 /// * RET_ERROR_INVALID_PARAM if error encoding the message
 /// * RET_ERROR_INTERNAL for CAN errors
 ret_code_t
-can_messaging_blocking_tx(can_message_t *message);
+can_messaging_blocking_tx(const can_message_t *message);
 
 /// Reset CAN TX queues, keep RX threads running
 /// Can be used in ISR context

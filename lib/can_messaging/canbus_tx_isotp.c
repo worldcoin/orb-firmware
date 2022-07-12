@@ -88,7 +88,7 @@ process_tx_messages_thread()
 // ⚠️ Do not print log message in this function if
 // CONFIG_ORB_LIB_LOG_BACKEND_CAN is defined
 ret_code_t
-can_isotp_messaging_async_tx(can_message_t *message)
+can_isotp_messaging_async_tx(const can_message_t *message)
 {
     if (!is_init) {
         return RET_ERROR_INVALID_STATE;
