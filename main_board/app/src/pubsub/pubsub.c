@@ -48,12 +48,13 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
 
         // send
         if (encoded) {
+            LOG_DBG("%s remote: 0x%03x, tag %u",
+                    (remote_addr & CAN_ADDR_IS_ISOTP ? "ISO-TP" : "CAN"),
+                    to_send.destination, which_payload);
             if (remote_addr & CAN_ADDR_IS_ISOTP) {
-                LOG_DBG("ISO-TP");
                 err_code = can_isotp_messaging_async_tx(&to_send);
                 ASSERT_SOFT(err_code);
             } else {
-                LOG_DBG("CAN");
                 err_code = can_messaging_async_tx(&to_send);
                 ASSERT_SOFT(err_code);
             }
