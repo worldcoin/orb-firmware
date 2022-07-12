@@ -34,11 +34,15 @@ static k_tid_t auto_homing_tid = NULL;
 
 static uint32_t job_counter = 0;
 
+/// Keep context information in this module
+/// for Device Firmware Upgrade (DFU) library,
+/// so that we can ack firmware blocks
 struct handle_error_context_s {
     uint32_t remote_addr;
     uint32_t ack_number;
 };
 
+/// Job to run with the identifier of the remote job initiator
 typedef struct {
     uint32_t
         remote_addr; // destination ID to use to respond to the job initiator
@@ -60,7 +64,7 @@ runner_successful_jobs_count(void)
 }
 
 static void
-message_ack(Ack_ErrorCode error, job_t *job)
+job_ack(Ack_ErrorCode error, job_t *job)
 {
     // get ack number from job's message
     uint32_t ack_number = job->mcu_message.message.j_message.ack_number;
@@ -71,7 +75,9 @@ message_ack(Ack_ErrorCode error, job_t *job)
         publish_new(&ack, sizeof(ack), McuToJetson_ack_tag, job->remote_addr);
     ASSERT_SOFT(err_code);
 
-    ++job_counter;
+    if (error == Ack_ErrorCode_SUCCESS) {
+        ++job_counter;
+    }
 }
 
 /// Convert error codes to ack codes
@@ -180,7 +186,7 @@ handle_infrared_leds_message(job_t *job)
 
     LOG_DBG("Got LED wavelength message = %d", wavelength);
     ir_camera_system_enable_leds(wavelength);
-    message_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
@@ -195,11 +201,11 @@ handle_led_on_time_message(job_t *job)
     LOG_DBG("Got LED on time message = %uus", on_time_us);
     ret_code_t ret = ir_camera_system_set_on_time_us(on_time_us);
     if (ret == RET_SUCCESS) {
-        message_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(Ack_ErrorCode_SUCCESS, job);
     } else if (ret == RET_ERROR_INVALID_PARAM) {
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
     } else {
-        message_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(Ack_ErrorCode_FAIL, job);
     }
 }
 
@@ -215,9 +221,9 @@ handle_led_on_time_740nm_message(job_t *job)
     LOG_DBG("Got LED on time for 740nm message = %uus", on_time_us);
     ret_code_t ret = ir_camera_system_set_on_time_740nm_us(on_time_us);
     if (ret == RET_SUCCESS) {
-        message_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(Ack_ErrorCode_SUCCESS, job);
     } else {
-        message_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(Ack_ErrorCode_FAIL, job);
     }
 }
 
@@ -229,7 +235,7 @@ handle_start_triggering_ir_eye_camera_message(job_t *job)
 
     LOG_DBG("");
     ir_camera_system_enable_ir_eye_camera();
-    message_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
@@ -240,7 +246,7 @@ handle_stop_triggering_ir_eye_camera_message(job_t *job)
 
     LOG_DBG("");
     ir_camera_system_disable_ir_eye_camera();
-    message_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
@@ -251,7 +257,7 @@ handle_start_triggering_ir_face_camera_message(job_t *job)
 
     LOG_DBG("");
     ir_camera_system_enable_ir_face_camera();
-    message_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
@@ -262,7 +268,7 @@ handle_stop_triggering_ir_face_camera_message(job_t *job)
 
     LOG_DBG("");
     ir_camera_system_disable_ir_face_camera();
-    message_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
@@ -273,7 +279,7 @@ handle_start_triggering_2dtof_camera_message(job_t *job)
 
     LOG_DBG("");
     ir_camera_system_enable_2d_tof_camera();
-    message_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
@@ -284,7 +290,7 @@ handle_stop_triggering_2dtof_camera_message(job_t *job)
 
     LOG_DBG("");
     ir_camera_system_disable_2d_tof_camera();
-    message_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
@@ -297,14 +303,14 @@ handle_shutdown(job_t *job)
     LOG_DBG("Got shutdown in %us", delay);
 
     if (delay > 30) {
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
     } else {
         int ret = power_reset(delay);
 
         if (ret == RET_SUCCESS) {
-            message_ack(Ack_ErrorCode_SUCCESS, job);
+            job_ack(Ack_ErrorCode_SUCCESS, job);
         } else {
-            message_ack(Ack_ErrorCode_FAIL, job);
+            job_ack(Ack_ErrorCode_FAIL, job);
         }
     }
 }
@@ -320,15 +326,15 @@ handle_reboot_message(job_t *job)
     LOG_DBG("Got reboot in %us", delay);
 
     if (delay > 60) {
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
         LOG_ERR("Reboot with delay > 60 seconds: %u", delay);
     } else {
         int ret = power_reset(delay);
 
         if (ret == RET_SUCCESS) {
-            message_ack(Ack_ErrorCode_SUCCESS, job);
+            job_ack(Ack_ErrorCode_SUCCESS, job);
         } else {
-            message_ack(Ack_ErrorCode_FAIL, job);
+            job_ack(Ack_ErrorCode_FAIL, job);
         }
     }
 }
@@ -348,7 +354,7 @@ handle_mirror_angle_message(job_t *job)
         horizontal_angle < MOTORS_ANGLE_HORIZONTAL_MIN) {
         LOG_ERR("Horizontal angle of %u out of range [%u;%u]", horizontal_angle,
                 MOTORS_ANGLE_HORIZONTAL_MIN, MOTORS_ANGLE_HORIZONTAL_MAX);
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
         return;
     }
 
@@ -356,7 +362,7 @@ handle_mirror_angle_message(job_t *job)
         vertical_angle < MOTORS_ANGLE_VERTICAL_MIN) {
         LOG_ERR("Vertical angle of %d out of range [%d;%d]", vertical_angle,
                 MOTORS_ANGLE_VERTICAL_MIN, MOTORS_ANGLE_VERTICAL_MAX);
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
         return;
     }
 
@@ -364,11 +370,11 @@ handle_mirror_angle_message(job_t *job)
             horizontal_angle);
 
     if (motors_angle_horizontal(horizontal_angle) != RET_SUCCESS) {
-        message_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(Ack_ErrorCode_FAIL, job);
     } else if (motors_angle_vertical(vertical_angle) != RET_SUCCESS) {
-        message_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(Ack_ErrorCode_FAIL, job);
     } else {
-        message_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
@@ -384,10 +390,10 @@ handle_temperature_sample_period_message(job_t *job)
     LOG_DBG("Got new temperature sampling period: %ums", sample_period_ms);
 
     if (sample_period_ms > 15000) {
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
     } else {
         temperature_set_sampling_period_ms(sample_period_ms);
-        message_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
@@ -402,17 +408,17 @@ handle_fan_speed(job_t *job)
 
     if (temperature_is_in_overtemp()) {
         LOG_WRN("Fan speed command rejected do to overtemperature condition");
-        message_ack(Ack_ErrorCode_OVER_TEMPERATURE, job);
+        job_ack(Ack_ErrorCode_OVER_TEMPERATURE, job);
     } else {
         if (fan_speed_percentage > 100) {
             LOG_ERR("Got fan speed of %u out of range [0;100]",
                     fan_speed_percentage);
-            message_ack(Ack_ErrorCode_RANGE, job);
+            job_ack(Ack_ErrorCode_RANGE, job);
         } else {
             LOG_DBG("Got fan speed message: %u%%", fan_speed_percentage);
 
             fan_set_speed(fan_speed_percentage);
-            message_ack(Ack_ErrorCode_SUCCESS, job);
+            job_ack(Ack_ErrorCode_SUCCESS, job);
         }
     }
 }
@@ -435,7 +441,7 @@ handle_user_leds_pattern(job_t *job)
 
     if (start_angle > FULL_RING_DEGREES ||
         abs(angle_length) > FULL_RING_DEGREES) {
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
     } else {
         RgbColor *color_ptr = NULL;
         if (msg->message.j_message.payload.user_leds_pattern.pattern ==
@@ -444,7 +450,7 @@ handle_user_leds_pattern(job_t *job)
                 &msg->message.j_message.payload.user_leds_pattern.custom_color;
         }
         front_leds_set_pattern(pattern, start_angle, angle_length, color_ptr);
-        message_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
@@ -460,11 +466,11 @@ handle_user_leds_brightness(job_t *job)
     if (brightness > 255) {
         LOG_ERR("Got user LED brightness value of %u out of range [0,255]",
                 brightness);
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
     } else {
         LOG_DBG("Got user LED brightness value of %u", brightness);
         front_leds_set_brightness(brightness);
-        message_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
@@ -482,7 +488,7 @@ handle_distributor_leds_pattern(job_t *job)
     LOG_DBG("Got distributor LED pattern: %u, mask 0x%x", pattern, mask);
 
     if (mask > OPERATOR_LEDS_ALL_MASK) {
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
     } else {
         RgbColor *color_ptr = NULL;
         if (msg->message.j_message.payload.distributor_leds_pattern.pattern ==
@@ -492,9 +498,9 @@ handle_distributor_leds_pattern(job_t *job)
         }
         if (operator_leds_set_pattern(pattern, mask, color_ptr) !=
             RET_SUCCESS) {
-            message_ack(Ack_ErrorCode_FAIL, job);
+            job_ack(Ack_ErrorCode_FAIL, job);
         } else {
-            message_ack(Ack_ErrorCode_SUCCESS, job);
+            job_ack(Ack_ErrorCode_SUCCESS, job);
         }
     }
 }
@@ -510,13 +516,13 @@ handle_distributor_leds_brightness(job_t *job)
     if (brightness > 255) {
         LOG_ERR("Got user LED brightness value of %u out of range [0,255]",
                 brightness);
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
     } else {
         LOG_DBG("Got distributor LED brightness: %u", brightness);
         if (operator_leds_set_brightness((uint8_t)brightness) != RET_SUCCESS) {
-            message_ack(Ack_ErrorCode_FAIL, job);
+            job_ack(Ack_ErrorCode_FAIL, job);
         } else {
-            message_ack(Ack_ErrorCode_SUCCESS, job);
+            job_ack(Ack_ErrorCode_SUCCESS, job);
         }
     }
 }
@@ -531,9 +537,9 @@ handle_fw_img_crc(job_t *job)
     int ret = dfu_secondary_check(
         msg->message.j_message.payload.fw_image_check.crc32);
     if (ret) {
-        message_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(Ack_ErrorCode_FAIL, job);
     } else {
-        message_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
@@ -553,9 +559,9 @@ handle_fw_img_sec_activate(job_t *job)
     }
 
     if (ret) {
-        message_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(Ack_ErrorCode_FAIL, job);
     } else {
-        message_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(Ack_ErrorCode_SUCCESS, job);
 
         // turn operator LEDs orange
         operator_leds_set_pattern(
@@ -578,11 +584,11 @@ handle_fps(job_t *job)
     LOG_DBG("Got FPS message = %u", fps);
     ret_code_t ret = ir_camera_system_set_fps(fps);
     if (ret == RET_SUCCESS) {
-        message_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(Ack_ErrorCode_SUCCESS, job);
     } else if (ret == RET_ERROR_INVALID_PARAM) {
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
     } else {
-        message_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(Ack_ErrorCode_FAIL, job);
     }
 }
 
@@ -613,15 +619,15 @@ handle_dfu_block_message(job_t *job)
 
     switch (ret) {
     case RET_ERROR_INVALID_PARAM:
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
         break;
 
     case RET_ERROR_BUSY:
-        message_ack(Ack_ErrorCode_IN_PROGRESS, job);
+        job_ack(Ack_ErrorCode_IN_PROGRESS, job);
         break;
 
     case RET_SUCCESS:
-        message_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(Ack_ErrorCode_SUCCESS, job);
         break;
     default:
         LOG_ERR("Unhandled error code %d", ret);
@@ -641,7 +647,7 @@ handle_do_homing(job_t *job)
     LOG_DBG("Got do autohoming message, mode = %u, angle = %u", mode, angle);
 
     if (auto_homing_tid != NULL || motors_auto_homing_in_progress()) {
-        message_ack(Ack_ErrorCode_IN_PROGRESS, job);
+        job_ack(Ack_ErrorCode_IN_PROGRESS, job);
     } else {
         auto_homing_tid =
             k_thread_create(&auto_homing_thread, auto_homing_stack,
@@ -650,7 +656,7 @@ handle_do_homing(job_t *job)
                             (void *)angle, NULL, 4, 0, K_NO_WAIT);
 
         // send ack before timeout even though auto-homing not completed
-        message_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
@@ -666,7 +672,7 @@ handle_liquid_lens(job_t *job)
     if (current < -400 || current > 400) {
         LOG_ERR("Got liquid lens current value of %d out of range [-400,400]",
                 current);
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
     } else {
         LOG_DBG("Got liquid lens current value of %d", current);
         liquid_set_target_current_ma(current);
@@ -677,7 +683,7 @@ handle_liquid_lens(job_t *job)
             liquid_lens_disable();
         }
 
-        message_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
@@ -692,9 +698,9 @@ handle_heartbeat(job_t *job)
         msg->message.j_message.payload.heartbeat.timeout_seconds);
 
     if (ret == RET_SUCCESS) {
-        message_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(Ack_ErrorCode_SUCCESS, job);
     } else {
-        message_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(Ack_ErrorCode_FAIL, job);
     }
 }
 
@@ -712,13 +718,13 @@ handle_mirror_angle_relative_message(job_t *job)
     if (abs(horizontal_angle) > MOTORS_ANGLE_HORIZONTAL_RANGE) {
         LOG_ERR("Horizontal angle of %u out of range (max %u)",
                 horizontal_angle, MOTORS_ANGLE_HORIZONTAL_RANGE);
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
         return;
     }
     if (abs(vertical_angle) > MOTORS_ANGLE_VERTICAL_RANGE) {
         LOG_ERR("Vertical angle of %u out of range (max %u)", vertical_angle,
                 MOTORS_ANGLE_VERTICAL_RANGE);
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
         return;
     }
 
@@ -726,11 +732,11 @@ handle_mirror_angle_relative_message(job_t *job)
             vertical_angle, horizontal_angle);
 
     if (motors_angle_horizontal_relative(horizontal_angle) != RET_SUCCESS) {
-        message_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(Ack_ErrorCode_FAIL, job);
     } else if (motors_angle_vertical_relative(vertical_angle) != RET_SUCCESS) {
-        message_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(Ack_ErrorCode_FAIL, job);
     } else {
-        message_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
@@ -749,12 +755,12 @@ handle_value_get_message(job_t *job)
         break;
     default: {
         // unknown value, respond with error
-        message_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(Ack_ErrorCode_RANGE, job);
         return;
     }
     }
 
-    message_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 typedef void (*hm_callback)(job_t *job);
@@ -830,7 +836,7 @@ runner_process_jobs_thread()
             LOG_ERR("A handler for message with a payload ID of %d is not "
                     "implemented",
                     new.mcu_message.message.j_message.which_payload);
-            message_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, &new);
+            job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, &new);
         }
     }
 }

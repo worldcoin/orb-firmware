@@ -2,11 +2,10 @@
 #include "mcu_messaging.pb.h"
 #include "pubsub/pubsub.h"
 #include <app_assert.h>
-#include <can_messaging.h>
 #include <device.h>
 #include <drivers/gpio.h>
+
 #include <logging/log.h>
-#include <pb_encode.h>
 LOG_MODULE_REGISTER(button);
 
 #define POWER_BUTTON_NODE DT_PATH(buttons, power_button)

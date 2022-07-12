@@ -4,10 +4,12 @@
 #include "ir_camera_system/ir_camera_system.h"
 #include "liquid_lens/liquid_lens.h"
 #include "power_sequence/power_sequence.h"
+#include "pubsub/pubsub.h"
 #include "runner/runner.h"
 #include "sound/sound.h"
 #include "stepper_motors/motors_tests.h"
 #include "stepper_motors/stepper_motors.h"
+#include "system/logs.h"
 #include "ui/front_leds/front_leds.h"
 #include "ui/front_leds/front_leds_tests.h"
 #include "ui/operator_leds/operator_leds.h"
@@ -20,19 +22,18 @@
 #include <dfu.h>
 #include <dfu/tests.h>
 #include <drivers/gpio.h>
+#include <pb_encode.h>
 #include <temperature/temperature.h>
 #include <zephyr.h>
+
 #ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
 #include <ir_camera_system/ir_camera_system_test.h>
 #endif
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
 #include "heartbeat.h"
-#include "pubsub/pubsub.h"
-#include "system/logs.h"
 #endif
 
 #include <logging/log.h>
-#include <pb_encode.h>
 LOG_MODULE_REGISTER(main);
 
 static bool jetson_up_and_running = false;
@@ -56,7 +57,8 @@ run_tests()
 
 /**
  * Callback called in fatal assertion before system reset
- * ⚠️ No context-switch should be performed
+ * ⚠️ No context-switch should be performed:
+ *     to be provided by the caller of this function
  */
 static void
 app_assert_cb(fatal_error_info_t *err_info)

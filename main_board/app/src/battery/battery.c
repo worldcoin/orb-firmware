@@ -1,5 +1,4 @@
 #include "app_config.h"
-#include "can_messaging.h"
 #include "errors.h"
 #include "mcu_messaging.pb.h"
 #include "pubsub/pubsub.h"
