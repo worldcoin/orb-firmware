@@ -751,7 +751,7 @@ handle_value_get_message(job_t *job)
     ValueGet_Value value = msg->message.j_message.payload.value_get.value;
     switch (value) {
     case ValueGet_Value_FIRMWARE_VERSIONS:
-        version_send();
+        version_send(job->remote_addr);
         break;
     default: {
         // unknown value, respond with error

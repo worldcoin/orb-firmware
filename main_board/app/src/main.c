@@ -182,7 +182,7 @@ main(void)
         // come back after the delay above and another message from the Jetson
         // to confirm the image
         if (!jetson_up_and_running && runner_successful_jobs_count() > 0) {
-            version_send();
+            version_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
             temperature_start_sending();
 
             uint32_t error_count = app_assert_soft_count();

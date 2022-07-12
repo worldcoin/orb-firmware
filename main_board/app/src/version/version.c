@@ -55,7 +55,7 @@ version_get_hardware_rev(uint16_t *hw_version)
 }
 
 int
-version_send(void)
+version_send(uint32_t remote)
 {
     struct image_version version = {0};
 
@@ -79,5 +79,5 @@ version_send(void)
     }
 
     return publish_new(&versions, sizeof(versions), McuToJetson_versions_tag,
-                       CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                       remote);
 }
