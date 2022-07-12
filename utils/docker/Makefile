@@ -1,5 +1,15 @@
-DOCKER_VER := "sha256:dcc0e3cdb924cfb34da681909190a43a05128859da3e1b8e71210f1e33e58437"
-DOCKER_TAG ?= ghcr.io/worldcoin/mcu-zephyr-build@$(DOCKER_VER)
+DOCKER_CI_SHA := $(shell cat ci_docker_image_sha)
+ifeq ($(DOCKER_CI_SHA),)
+    $(error Error reading DOCKER_CI_SHA or SHA is empty!)
+endif
+
+DOCKER_REPO := $(shell cat docker_image_repo)
+ifeq ($(DOCKER_REPO),)
+    $(error Error reading DOCKER_REPO or repo is empty!)
+endif
+
+# Use DOCKER_TAG passed in from command line, or use the SHA used in CI
+DOCKER_IMAGE_NAME := $(DOCKER_REPO)$(if $(DOCKER_TAG),:$(DOCKER_TAG),@$(DOCKER_CI_SHA))
 
 ifneq ($(filter help all build,$(MAKECMDGOALS)),)
 
@@ -35,7 +45,7 @@ help:
 all build: .docker_image_built
 
 .docker_image_built: Dockerfile Makefile
-	docker build . -t $(DOCKER_TAG)
+	docker build . -t $(DOCKER_REPO):local
 	touch $@
 
 else
@@ -60,7 +70,7 @@ DOCKER_CMD := \
 		-e REPO_DIR='$(REPO_DIR)' \
 		-e HOME='$(HOME)' \
 		-w '$(REPO_DIR)' \
-		$(DOCKER_TAG)
+		$(DOCKER_IMAGE_NAME)
 
 .PHONY: shell
 shell:
