@@ -2,9 +2,9 @@
 #define ORB_FIRMWARE_APP_MAIN_SRC_DFU_TESTS_H
 
 void
-tests_dfu_init(void);
+dfu_tests_init(void);
 
 void
-tests_crc_init(void);
+dfu_crc_tests_init(void);
 
 #endif // ORB_FIRMWARE_APP_MAIN_SRC_DFU_TESTS_H

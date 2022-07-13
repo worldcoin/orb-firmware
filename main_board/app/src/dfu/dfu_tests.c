@@ -1,4 +1,4 @@
-#include "tests.h"
+#include "dfu_tests.h"
 #include <logging/log.h>
 #define LOG_LEVEL LOG_LEVEL_DBG
 LOG_MODULE_REGISTER(dfutest);
@@ -13,7 +13,7 @@ LOG_MODULE_REGISTER(dfutest);
 #include <sys/crc.h>
 #include <zephyr.h>
 
-K_THREAD_STACK_DEFINE(dfu_test_thread_stack_upload, 2048);
+K_THREAD_STACK_DEFINE(dfu_test_thread_stack_upload, 3072);
 static struct k_thread test_thread_data_upload;
 
 K_THREAD_STACK_DEFINE(dfu_test_thread_stack_crc, 1024);
@@ -120,7 +120,7 @@ test_dfu_upload()
 }
 
 void
-tests_dfu_init(void)
+dfu_tests_init(void)
 {
     LOG_INF("Creating DFU test thread");
 
@@ -159,7 +159,7 @@ test_crc()
 }
 
 void
-tests_crc_init(void)
+dfu_crc_tests_init(void)
 {
     LOG_INF("Creating CRC test thread");
 

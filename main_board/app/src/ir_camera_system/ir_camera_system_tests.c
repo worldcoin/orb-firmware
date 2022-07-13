@@ -3,7 +3,7 @@
 #include <zephyr.h>
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(ir_camera_system_test);
+LOG_MODULE_REGISTER(ir_camera_system_tests_init);
 
 // These tests are intended to be observed with a logic analyzer
 
@@ -279,7 +279,7 @@ ir_camera_system_test_thread(void *a, void *b, void *c)
 }
 
 void
-ir_camera_system_test_async(void)
+ir_camera_system_tests_init(void)
 {
     k_tid_t tid = k_thread_create(
         &ir_camera_system_thread_data, ir_camera_system_test_stack_area,
@@ -287,10 +287,4 @@ ir_camera_system_test_async(void)
         ir_camera_system_test_thread, NULL, NULL, NULL,
         THREAD_PRIORITY_IR_CAMERA_SYSTEM_TEST, 0, K_NO_WAIT);
     k_thread_name_set(tid, "ir_cam_test");
-}
-
-void
-ir_camera_system_test(void)
-{
-    ir_camera_system_test_thread(NULL, NULL, NULL);
 }

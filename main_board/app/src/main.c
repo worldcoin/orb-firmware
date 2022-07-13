@@ -4,7 +4,6 @@
 #include "ir_camera_system/ir_camera_system.h"
 #include "liquid_lens/liquid_lens.h"
 #include "power_sequence/power_sequence.h"
-#include "pubsub/pubsub.h"
 #include "runner/runner.h"
 #include "sound/sound.h"
 #include "stepper_motors/motors_tests.h"
@@ -20,15 +19,12 @@
 #include <can_messaging.h>
 #include <device.h>
 #include <dfu.h>
-#include <dfu/tests.h>
-#include <drivers/gpio.h>
+#include <dfu/dfu_tests.h>
+#include <ir_camera_system/ir_camera_system_tests.h>
 #include <pb_encode.h>
 #include <temperature/temperature.h>
 #include <zephyr.h>
 
-#ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
-#include <ir_camera_system/ir_camera_system_test.h>
-#endif
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
 #include "heartbeat.h"
 #endif
@@ -41,17 +37,20 @@ static bool jetson_up_and_running = false;
 void
 run_tests()
 {
-#ifdef CONFIG_TEST_MOTORS
+#if defined(CONFIG_TEST_MOTORS) || defined(RUN_ALL_TESTS)
     motors_tests_init();
 #endif
-#ifdef CONFIG_TEST_DFU
-    tests_dfu_init();
+#if defined(CONFIG_TEST_DFU) || defined(RUN_ALL_TESTS)
+    dfu_tests_init();
 #endif
-#ifdef CONFIG_TEST_OPERATOR_LEDS
+#if defined(CONFIG_TEST_OPERATOR_LEDS) || defined(RUN_ALL_TESTS)
     operator_leds_tests_init();
 #endif
-#ifdef CONFIG_TEST_USER_LEDS
+#if defined(CONFIG_TEST_USER_LEDS) || defined(RUN_ALL_TESTS)
     front_unit_rdb_leds_tests_init();
+#endif
+#if defined(CONFIG_TEST_IR_CAMERA_SYSTEM) || defined(RUN_ALL_TESTS)
+    ir_camera_system_tests_init();
 #endif
 }
 
@@ -85,16 +84,6 @@ app_assert_cb(fatal_error_info_t *err_info)
     }
 }
 
-#ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
-void
-main()
-{
-    int ret = ir_camera_system_init();
-    ASSERT_HARD(ret);
-
-    ir_camera_system_test();
-}
-#else // CONFIG_TEST_IR_CAMERA_SYSTEM
 void
 main(void)
 {
@@ -211,5 +200,3 @@ main(void)
         }
     }
 }
-
-#endif // CONFIG_TEST_IR_CAMERA_SYSTEM

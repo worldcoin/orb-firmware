@@ -1,19 +1,13 @@
 cmake_minimum_required(VERSION 3.20.0)
 set(TARGET app)
 
-# Options
-option(TEST_IR_CAMERA_SYSTEM "Run the IR camera system tests instead of the normal application on boot" OFF)
-if (TEST_IR_CAMERA_SYSTEM)
-    add_compile_definitions(CONFIG_TEST_IR_CAMERA_SYSTEM)
-endif ()
-
-# Get paths to project and workspace directories
 get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../ ABSOLUTE)
 get_filename_component(WORKSPACE_DIR ${PROJECT_DIR} DIRECTORY)
 
-# Compile options for our source files
-set(APP_FILES_COMPILE_OPTIONS -Wextra)
-# Compile options added depending on build type
+if(RUN_ALL_TESTS)
+    add_definitions(-DRUN_ALL_TESTS)
+endif()
+
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
     message(STATUS "Maximum optimization for speed")
 
@@ -80,7 +74,7 @@ add_custom_command(OUTPUT ${SINE_LUT_SRC_FILE}
 set(SOURCES_FILES
     src/main.c
 
-    src/dfu/tests.c
+    src/dfu/dfu_tests.c
 
     src/pubsub/pubsub.c
 
@@ -99,7 +93,7 @@ set(SOURCES_FILES
     src/ui/operator_leds/operator_leds_tests.c
 
     src/ir_camera_system/ir_camera_timer_settings.c
-    src/ir_camera_system/ir_camera_system_test.c
+    src/ir_camera_system/ir_camera_system_tests.c
 
     src/stepper_motors/stepper_motors.c
     src/stepper_motors/motors_tests.c
