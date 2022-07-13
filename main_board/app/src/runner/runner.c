@@ -848,7 +848,7 @@ runner_handle_new(can_message_t *msg)
 {
     static job_t new = {0}; // declared as static not to use caller stack
 
-    pb_istream_t stream = pb_istream_from_buffer(msg->bytes, sizeof msg->bytes);
+    pb_istream_t stream = pb_istream_from_buffer(msg->bytes, msg->size);
 
     int ret = k_mutex_lock(&new_job_mutex, K_MSEC(5));
     if (ret == 0) {
@@ -874,7 +874,10 @@ runner_handle_new(can_message_t *msg)
                 new.remote_addr = CONFIG_CAN_ADDRESS_DEFAULT_REMOTE;
             }
 
-            k_msgq_put(&process_queue, &new, K_NO_WAIT);
+            ret = k_msgq_put(&process_queue, &new, K_NO_WAIT);
+            ASSERT_SOFT(ret);
+        } else {
+            LOG_ERR("Unable to decode");
         }
 
         k_mutex_unlock(&new_job_mutex);

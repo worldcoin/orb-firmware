@@ -117,6 +117,7 @@ jetson_to_mcu_rx_thread()
                 if (rem_len == ISOTP_N_OK) {
                     // push for processing and keep destination ID to send
                     // any response to the sender
+                    rx_message.size = wr_idx;
                     rx_message.destination = rx_ctx[app_id].rx_addr.std_id;
                     if (incoming_message_handler != NULL) {
                         incoming_message_handler(&rx_message);
