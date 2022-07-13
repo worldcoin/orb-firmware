@@ -9,9 +9,12 @@
 #include <zephyr.h>
 
 #include <logging/log.h>
+#include <math.h>
 LOG_MODULE_REGISTER(temperature);
 
 static bool send_temperature_messages = false;
+
+#define TEMPERATURE_AVERAGE_SAMPLE_COUNT 3
 
 #define MAIN_BOARD_OVERTEMP_C 85
 #define FRONT_UNIT_OVERTEMP_C 90
@@ -41,6 +44,8 @@ struct sensor_and_channel {
     const Temperature_TemperatureSource temperature_source;
     temperature_callback cb;
     struct overtemp_info *cb_data;
+    int32_t history[TEMPERATURE_AVERAGE_SAMPLE_COUNT];
+    size_t wr_idx;
 };
 
 static struct sensor_and_channel sensors_and_channels[] = {
@@ -50,7 +55,9 @@ static struct sensor_and_channel sensors_and_channels[] = {
      .cb = overtemp_callback,
      .cb_data = &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
                                         .overtemp_drop_c = OVERTEMP_DROP_C,
-                                        .in_overtemp = false}},
+                                        .in_overtemp = false},
+     .history = {0},
+     .wr_idx = 0},
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V31
     {.sensor = DEVICE_DT_GET(DT_NODELABEL(main_board_tmp_sensor)),
@@ -59,7 +66,9 @@ static struct sensor_and_channel sensors_and_channels[] = {
      .cb = overtemp_callback,
      .cb_data = &(struct overtemp_info){.overtemp_c = MAIN_BOARD_OVERTEMP_C,
                                         .overtemp_drop_c = OVERTEMP_DROP_C,
-                                        .in_overtemp = false}},
+                                        .in_overtemp = false},
+     .history = {0},
+     .wr_idx = 0},
 #endif
 
     {.sensor = DEVICE_DT_GET(DT_PATH(stm_tmp)),
@@ -82,7 +91,8 @@ static volatile k_timeout_t global_sample_period;
 void
 temperature_set_sampling_period_ms(uint32_t sample_period)
 {
-    global_sample_period = K_MSEC(sample_period);
+    global_sample_period =
+        K_MSEC(sample_period / TEMPERATURE_AVERAGE_SAMPLE_COUNT);
     k_wakeup(thread_id);
 }
 
@@ -103,8 +113,9 @@ get_ambient_temperature(const struct device *dev, int32_t *temp,
                 ret);
         return RET_ERROR_INTERNAL;
     }
-    LOG_DBG("%s: %uC", dev->name, temp_value.val1);
-    *temp = temp_value.val1;
+    double temp_float =
+        (double)temp_value.val1 + (double)temp_value.val2 / 1000000.0;
+    *temp = (int32_t)roundl(temp_float);
 
     return RET_SUCCESS;
 }
@@ -147,15 +158,34 @@ temperature_report(Temperature_TemperatureSource source,
     }
 }
 
+static int32_t
+average(const int32_t *array)
+{
+    double avg = 0.0;
+    for (size_t i = 0; i < TEMPERATURE_AVERAGE_SAMPLE_COUNT; ++i) {
+        avg += (double)array[i];
+    }
+    avg /= (double)TEMPERATURE_AVERAGE_SAMPLE_COUNT;
+
+    return (int32_t)roundl(avg);
+}
+
 static void
 sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
 {
     int ret;
     int32_t temp;
 
-    ret = get_ambient_temperature(sensor_and_channel->sensor, &temp,
-                                  sensor_and_channel->channel);
-    if (ret == RET_SUCCESS) {
+    ret = get_ambient_temperature(
+        sensor_and_channel->sensor,
+        &sensor_and_channel->history[sensor_and_channel->wr_idx],
+        sensor_and_channel->channel);
+    sensor_and_channel->wr_idx =
+        (sensor_and_channel->wr_idx + 1) % TEMPERATURE_AVERAGE_SAMPLE_COUNT;
+
+    if (ret == RET_SUCCESS && sensor_and_channel->wr_idx == 0) {
+        temp = average(sensor_and_channel->history);
+        LOG_DBG("%s: %iC", sensor_and_channel->sensor->name, temp);
         temperature_report_internal(sensor_and_channel, temp);
     }
 }
@@ -202,7 +232,7 @@ void
 temperature_init(void)
 {
     check_ready();
-    global_sample_period = K_SECONDS(1);
+    global_sample_period = K_MSEC(1000 / TEMPERATURE_AVERAGE_SAMPLE_COUNT);
 
     if (thread_id == NULL) {
         thread_id = k_thread_create(&thread_data, stack_area,
