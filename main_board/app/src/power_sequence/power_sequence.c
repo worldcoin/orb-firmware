@@ -536,10 +536,11 @@ power_turn_on_jetson(void)
 #endif
 
     // Spawn reboot thread
-    k_thread_create(&reboot_thread_data, reboot_thread_stack,
-                    K_THREAD_STACK_SIZEOF(reboot_thread_stack), reboot_thread,
-                    NULL, NULL, NULL, THREAD_PRIORITY_POWER_MANAGEMENT, 0,
-                    K_NO_WAIT);
+    k_tid_t tid = k_thread_create(
+        &reboot_thread_data, reboot_thread_stack,
+        K_THREAD_STACK_SIZEOF(reboot_thread_stack), reboot_thread, NULL, NULL,
+        NULL, THREAD_PRIORITY_POWER_MANAGEMENT, 0, K_NO_WAIT);
+    k_thread_name_set(tid, "reboot");
 
     return RET_SUCCESS;
 }

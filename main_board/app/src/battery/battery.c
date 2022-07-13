@@ -16,7 +16,7 @@ static const struct device *can_dev;
 K_THREAD_STACK_DEFINE(can_battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
 static struct k_thread rx_thread_data = {0};
 
-CAN_MSGQ_DEFINE(can_battery_recv_queue, 4);
+CAN_MSGQ_DEFINE(can_battery_recv_queue, 8);
 
 // accept everything and discard unwanted messages in software
 static const struct zcan_filter battery_can_filter = {
@@ -164,10 +164,11 @@ battery_init(void)
         LOG_INF("CAN ready");
     }
 
-    k_thread_create(&rx_thread_data, can_battery_rx_thread_stack,
-                    K_THREAD_STACK_SIZEOF(can_battery_rx_thread_stack),
-                    rx_thread, NULL, NULL, NULL, THREAD_PRIORITY_BATTERY, 0,
-                    K_NO_WAIT);
+    k_tid_t tid = k_thread_create(
+        &rx_thread_data, can_battery_rx_thread_stack,
+        K_THREAD_STACK_SIZEOF(can_battery_rx_thread_stack), rx_thread, NULL,
+        NULL, NULL, THREAD_PRIORITY_BATTERY, 0, K_NO_WAIT);
+    k_thread_name_set(tid, "battery");
 
     return RET_SUCCESS;
 }

@@ -42,8 +42,10 @@ operator_leds_test_thread()
 void
 operator_leds_tests_init(void)
 {
-    k_thread_create(&test_thread_data, operator_leds_test_thread_stack,
-                    K_THREAD_STACK_SIZEOF(operator_leds_test_thread_stack),
-                    operator_leds_test_thread, NULL, NULL, NULL,
-                    THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
+    k_tid_t tid =
+        k_thread_create(&test_thread_data, operator_leds_test_thread_stack,
+                        K_THREAD_STACK_SIZEOF(operator_leds_test_thread_stack),
+                        operator_leds_test_thread, NULL, NULL, NULL,
+                        THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
+    k_thread_name_set(tid, "operator_leds_test");
 }

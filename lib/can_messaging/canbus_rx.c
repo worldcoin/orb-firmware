@@ -1,10 +1,11 @@
 #include "can_messaging.h"
-#include <logging/log.h>
-LOG_MODULE_REGISTER(can_rx);
 #include <device.h>
 #include <drivers/can.h>
+#include <logging/log.h>
 #include <pb_decode.h>
 #include <zephyr.h>
+
+LOG_MODULE_REGISTER(can_rx);
 
 #ifndef McuMessage_size
 // Nanopb allows us to specify sizes in order to know the maximum
@@ -77,10 +78,11 @@ canbus_rx_init(void (*in_handler)(can_message_t *msg))
         LOG_INF("CAN ready");
     }
 
-    k_thread_create(&rx_thread_data, can_rx_thread_stack,
-                    K_THREAD_STACK_SIZEOF(can_rx_thread_stack), rx_thread, NULL,
-                    NULL, NULL, CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_RX, 0,
-                    K_NO_WAIT);
+    k_tid_t tid = k_thread_create(
+        &rx_thread_data, can_rx_thread_stack,
+        K_THREAD_STACK_SIZEOF(can_rx_thread_stack), rx_thread, NULL, NULL, NULL,
+        CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_RX, 0, K_NO_WAIT);
+    k_thread_name_set(tid, "can_rx");
 
     return RET_SUCCESS;
 }

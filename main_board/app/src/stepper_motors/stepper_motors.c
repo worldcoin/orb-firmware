@@ -874,7 +874,7 @@ motors_auto_homing_stall_detection(motor_t motor, struct k_thread **thread_ret)
             K_THREAD_STACK_SIZEOF(stack_area_motor_horizontal_init),
             motors_auto_homing_thread, (void *)MOTOR_HORIZONTAL, NULL, NULL,
             THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
-        k_thread_name_set(tid, "motors_auto_homing_horizontal");
+        k_thread_name_set(tid, "motors_ah_horizontal_stalldetect");
     } else {
         if (thread_ret) {
             *thread_ret = &thread_data_motor_vertical;
@@ -884,7 +884,7 @@ motors_auto_homing_stall_detection(motor_t motor, struct k_thread **thread_ret)
             K_THREAD_STACK_SIZEOF(stack_area_motor_vertical_init),
             motors_auto_homing_thread, (void *)MOTOR_VERTICAL, NULL, NULL,
             THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
-        k_thread_name_set(tid, "motors_auto_homing_vertical");
+        k_thread_name_set(tid, "motors_ah_vertical_stalldetect");
     }
 
     return RET_SUCCESS;
@@ -1019,7 +1019,7 @@ motors_auto_homing_one_end(motor_t motor, struct k_thread **thread_ret)
             K_THREAD_STACK_SIZEOF(stack_area_motor_horizontal_init),
             motors_auto_homing_one_end_thread, (void *)MOTOR_HORIZONTAL, NULL,
             NULL, THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
-        k_thread_name_set(tid, "motors_auto_homing_horizontal");
+        k_thread_name_set(tid, "motors_ah_horizontal_one_end");
     } else {
         if (thread_ret) {
             *thread_ret = &thread_data_motor_vertical;
@@ -1035,7 +1035,7 @@ motors_auto_homing_one_end(motor_t motor, struct k_thread **thread_ret)
             K_THREAD_STACK_SIZEOF(stack_area_motor_vertical_init),
             motors_auto_homing_one_end_thread, (void *)MOTOR_VERTICAL, NULL,
             NULL, THREAD_PRIORITY_MOTORS_INIT, 0, delay);
-        k_thread_name_set(tid, "motors_auto_homing_vertical");
+        k_thread_name_set(tid, "motors_ah_vertical_one_end");
     }
 
     return RET_SUCCESS;

@@ -22,7 +22,7 @@
 #include <zephyr.h>
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(incoming_message_handling);
+LOG_MODULE_REGISTER(runner);
 
 static K_THREAD_STACK_DEFINE(auto_homing_stack, 600);
 static struct k_thread auto_homing_thread;
@@ -654,6 +654,7 @@ handle_do_homing(job_t *job)
                             K_THREAD_STACK_SIZEOF(auto_homing_stack),
                             auto_homing_thread_entry_point, (void *)mode,
                             (void *)angle, NULL, 4, 0, K_NO_WAIT);
+        k_thread_name_set(auto_homing_tid, "autohoming");
 
         // send ack before timeout even though auto-homing not completed
         job_ack(Ack_ErrorCode_SUCCESS, job);
@@ -822,7 +823,9 @@ runner_process_jobs_thread()
             continue;
         }
 
-        LOG_DBG("Got a message with payload ID %d, ack #%u",
+        LOG_INF("⬇️ Received message from remote 0x%03x with payload ID "
+                "%02d, ack #%u",
+                new.remote_addr,
                 new.mcu_message.message.j_message.which_payload,
                 new.mcu_message.message.j_message.ack_number);
 
@@ -866,10 +869,6 @@ runner_handle_new(can_message_t *msg)
                 new.remote_addr = (msg->destination & ~0xFF);
                 new.remote_addr |= (msg->destination & 0xF) << 4;
                 new.remote_addr |= (msg->destination & 0xF0) >> 4;
-
-                LOG_DBG("Message sent to 0x%x, responding to 0x%x",
-                        msg->destination, new.remote_addr);
-
             } else {
                 new.remote_addr = CONFIG_CAN_ADDRESS_DEFAULT_REMOTE;
             }
@@ -886,6 +885,5 @@ runner_handle_new(can_message_t *msg)
     }
 }
 
-K_THREAD_DEFINE(runner_process, THREAD_STACK_SIZE_RUNNER,
-                runner_process_jobs_thread, NULL, NULL, NULL,
-                THREAD_PRIORITY_RUNNER, 0, 0);
+K_THREAD_DEFINE(runner, THREAD_STACK_SIZE_RUNNER, runner_process_jobs_thread,
+                NULL, NULL, NULL, THREAD_PRIORITY_RUNNER, 0, 0);

@@ -259,7 +259,7 @@ front_leds_init(void)
                         K_THREAD_STACK_SIZEOF(front_leds_stack_area),
                         front_leds_thread, (void *)led_strip, NULL, NULL,
                         THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS, 0, K_NO_WAIT);
-    k_thread_name_set(tid, "User RGB LED");
+    k_thread_name_set(tid, "front_leds");
 
     return RET_SUCCESS;
 }

@@ -198,6 +198,7 @@ temperature_init(void)
                                     K_THREAD_STACK_SIZEOF(stack_area),
                                     temperature_thread, NULL, NULL, NULL,
                                     THREAD_PRIORITY_TEMPERATURE, 0, K_NO_WAIT);
+        k_thread_name_set(thread_id, "temperature");
     } else {
         LOG_ERR("Sampling already started");
     }

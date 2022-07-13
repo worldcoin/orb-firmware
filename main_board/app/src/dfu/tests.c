@@ -128,6 +128,7 @@ tests_dfu_init(void)
         &test_thread_data_upload, dfu_test_thread_stack_upload,
         K_THREAD_STACK_SIZEOF(dfu_test_thread_stack_upload), test_dfu_upload,
         NULL, NULL, NULL, THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
+    k_thread_name_set(tid, "dfu_test");
     if (!tid) {
         LOG_ERR("ERROR spawning test_dfu_upload thread");
     }
@@ -166,7 +167,5 @@ tests_crc_init(void)
         &test_thread_data_crc, dfu_test_thread_stack_crc,
         K_THREAD_STACK_SIZEOF(dfu_test_thread_stack_crc), test_crc, NULL, NULL,
         NULL, THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
-    if (!tid) {
-        LOG_ERR("ERROR spawning test_crc thread");
-    }
+    k_thread_name_set(tid, "dfu_crc_test");
 }

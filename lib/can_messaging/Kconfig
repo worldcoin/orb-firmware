@@ -19,7 +19,7 @@ config ORB_LIB_THREAD_PRIORITY_CANBUS_RX
 
 config ORB_LIB_THREAD_STACK_SIZE_CANBUS_RX
 	int "Stack size for CAN RX thread"
-	default 2048
+	default 1536
 	depends on ORB_LIB_CAN_MESSAGE
 
 config ORB_LIB_THREAD_PRIORITY_CANBUS_TX
@@ -29,7 +29,7 @@ config ORB_LIB_THREAD_PRIORITY_CANBUS_TX
 
 config ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX
 	int "Stack size for CAN TX thread"
-	default 2048
+	default 1536
 	depends on ORB_LIB_CAN_MESSAGE
 
 config ORB_LIB_CANBUS_TX_QUEUE_SIZE

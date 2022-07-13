@@ -117,6 +117,7 @@ dfu_load(uint32_t current_block_number, uint32_t block_count,
                                       process_dfu_blocks_thread, NULL, NULL,
                                       NULL, CONFIG_ORB_LIB_THREAD_PRIORITY_DFU,
                                       0, K_NO_WAIT);
+            k_thread_name_set(tid_dfu, "dfu");
         }
     }
 

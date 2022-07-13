@@ -85,7 +85,7 @@ jetson_to_mcu_rx_thread()
         for (uint32_t app_id = 0; app_id <= CONFIG_CAN_ISOTP_REMOTE_APP_COUNT;
              ++app_id) {
             if (poll_evt[app_id].state == K_POLL_STATE_DATA_AVAILABLE) {
-                LOG_INF("Handling rx_ctx #%u, dest 0x%x", app_id,
+                LOG_DBG("Handling rx_ctx #%u, dest 0x%x", app_id,
                         rx_ctx[app_id].rx_addr.std_id);
 
                 // reset wr_idx to copy into fresh receiving buffer
@@ -154,10 +154,12 @@ canbus_isotp_rx_init(void (*in_handler)(can_message_t *msg))
         LOG_INF("CAN ready");
     }
 
-    k_thread_create(&rx_thread_data, isotp_rx_thread_stack,
-                    K_THREAD_STACK_SIZEOF(isotp_rx_thread_stack),
-                    jetson_to_mcu_rx_thread, NULL, NULL, NULL,
-                    CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_RX, 0, K_NO_WAIT);
+    k_tid_t tid =
+        k_thread_create(&rx_thread_data, isotp_rx_thread_stack,
+                        K_THREAD_STACK_SIZEOF(isotp_rx_thread_stack),
+                        jetson_to_mcu_rx_thread, NULL, NULL, NULL,
+                        CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_RX, 0, K_NO_WAIT);
+    k_thread_name_set(tid, "can_isotp_rx");
 
     return RET_SUCCESS;
 }

@@ -443,6 +443,7 @@ liquid_lens_init(void)
                                 K_THREAD_STACK_SIZEOF(liquid_lens_stack_area),
                                 liquid_lens_thread, NULL, NULL, NULL,
                                 THREAD_PRIORITY_LIQUID_LENS, 0, K_NO_WAIT);
+    k_thread_name_set(thread_id, "liquid_lens");
 
     return RET_SUCCESS;
 }
