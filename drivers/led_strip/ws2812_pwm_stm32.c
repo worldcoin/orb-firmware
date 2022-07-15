@@ -150,14 +150,14 @@ nsec_to_cycles(uint32_t ns, struct ws2812_pwm_stm32_data *data)
 // NOTE: We refer to each LED is a "pixel" sometimes.
 //
 // We are given pixel values in RGB form, with one byte for each color, so three
-// bytes per pixel Each bit that is sent to the pixels is encoded as a
+// bytes per pixel. Each bit that is sent to the pixels is encoded as a
 // particular duty cycle with an 800kHz frequency. This means that we need to
 // continuously change the CCR (capture/compare register) of a timer channel
 // after each PWM period. We do this by using DMA to update CCR every time the
 // timer rolls over, which is an UPDATE event in timer terms. As a consequence,
 // we need to expand every bit of the RGB values into a byte, since DMA works on
 // bytes as the smallest unit. This means for X number of pixels, we need (8
-// bytes for red) + (8 bytes for green) + (8 bytes for blue) = 24 So X * 24
+// bytes for red) + (8 bytes for green) + (8 bytes for blue) = 24. So X * 24
 //
 // The first pixel waits for a reset signal, which is just a 0% duty cycle for
 // at least 50us, or 40 cycles at 800KHz (1.25us period)
@@ -521,7 +521,7 @@ ws2812_pwm_stm32_init(const struct device *dev)
         timer_ch2ccr_offset[config->timer_channel - 1u];
     dma_init.MemoryOrM2MDstAddress = (uint32_t)data->pixel_bits;
     dma_init.Direction = LL_DMA_DIRECTION_MEMORY_TO_PERIPH;
-    dma_init.Mode = LL_DMA_MODE_CIRCULAR;
+    dma_init.Mode = LL_DMA_MODE_NORMAL;
     dma_init.PeriphOrM2MSrcIncMode = LL_DMA_PERIPH_NOINCREMENT;
     dma_init.MemoryOrM2MDstIncMode = LL_DMA_MEMORY_INCREMENT;
     // We are writing to a CCR register, which is 16 bits without dithering.

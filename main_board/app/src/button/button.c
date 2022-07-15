@@ -1,5 +1,7 @@
 #include "button.h"
 #include "mcu_messaging.pb.h"
+#include "power_sequence/power_sequence.h"
+#include "ui/front_leds/front_leds.h"
 #include <app_assert.h>
 #include <can_messaging.h>
 #include <device.h>
