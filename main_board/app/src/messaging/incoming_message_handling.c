@@ -359,22 +359,43 @@ handle_fan_speed(McuMessage *msg)
 {
     MAKE_ASSERTS(JetsonToMcu_fan_speed_tag);
 
-    uint32_t fan_speed_percentage =
-        msg->message.j_message.payload.fan_speed.percentage;
+    // value and percentage have the same representation,
+    // so there's no point switching on which one
+    uint32_t fan_speed = msg->message.j_message.payload.fan_speed.payload.value;
 
     if (temperature_is_in_overtemp()) {
         LOG_WRN("Fan speed command rejected do to overtemperature condition");
         incoming_message_ack(Ack_ErrorCode_OVER_TEMPERATURE, get_ack_num(msg));
     } else {
-        if (fan_speed_percentage > 100) {
-            LOG_ERR("Got fan speed of %u out of range [0;100]",
-                    fan_speed_percentage);
-            incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
-        } else {
-            LOG_DBG("Got fan speed message: %u%%", fan_speed_percentage);
+        switch (msg->message.j_message.payload.fan_speed.which_payload) {
+        case FanSpeed_percentage_tag:
+            if (fan_speed > 100) {
+                LOG_ERR("Got fan speed of %" PRIu32 " out of range [0;100]",
+                        fan_speed);
+                incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+            } else {
+                LOG_DBG("Got fan speed percentage message: %" PRIu32 "%%",
+                        fan_speed);
 
-            fan_set_speed(fan_speed_percentage);
-            incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+                fan_set_speed_by_percentage(fan_speed);
+                incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+            }
+            break;
+        case FanSpeed_value_tag:
+            if (fan_speed > UINT16_MAX) {
+                LOG_ERR("Got fan speed of %" PRIu32 " out of range [0;%u]",
+                        fan_speed, UINT16_MAX);
+                incoming_message_ack(Ack_ErrorCode_RANGE, get_ack_num(msg));
+            } else {
+                LOG_DBG("Got fan speed value message: %" PRIu32, fan_speed);
+
+                fan_set_speed_by_value(fan_speed);
+                incoming_message_ack(Ack_ErrorCode_SUCCESS, get_ack_num(msg));
+            }
+            break;
+        default:
+            ASSERT_SOFT(RET_ERROR_INTERNAL);
+            break;
         }
     }
 }
