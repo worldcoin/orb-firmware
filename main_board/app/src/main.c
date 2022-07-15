@@ -99,6 +99,8 @@ main(void)
 
     app_assert_init(app_assert_cb);
 
+    temperature_init();
+
     // CAN initialization first to allow logs over CAN
     err_code = can_messaging_init(incoming_message_handle);
     ASSERT_SOFT(err_code);
@@ -142,8 +144,6 @@ main(void)
     err_code = version_get_hardware_rev(&hw);
     ASSERT_SOFT(err_code);
     LOG_INF("Hardware version: %u", hw);
-
-    temperature_init();
 
     err_code = button_init();
     ASSERT_SOFT(err_code);
