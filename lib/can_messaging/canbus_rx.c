@@ -7,14 +7,6 @@
 
 LOG_MODULE_REGISTER(can_rx);
 
-#ifndef McuMessage_size
-// Nanopb allows us to specify sizes in order to know the maximum
-// size of an McuMessage at compile time
-// see comments in mcu_messaging.pb.h to fix that error
-#error                                                                         \
-    "Please define a maximum size to any field that can have a dynamic size, see NanoPb option file"
-#endif
-
 K_THREAD_STACK_DEFINE(can_rx_thread_stack,
                       CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_RX);
 static struct k_thread rx_thread_data = {0};

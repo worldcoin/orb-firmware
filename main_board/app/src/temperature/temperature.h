@@ -1,7 +1,7 @@
 #ifndef TEMPERATURE_H
 #define TEMPERATURE_H
 
-#include <can_messaging.h>
+#include <mcu_messaging.pb.h>
 #include <stdbool.h>
 #include <stdint.h>
 

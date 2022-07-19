@@ -2,13 +2,8 @@
 #define ORB_LIB_CAN_MESSAGING_H
 
 #include "errors.h"
-#include "mcu_messaging.pb.h"
 #include <stddef.h>
-
-enum can_type_e {
-    CAN_RAW,
-    CAN_ISOTP,
-};
+#include <stdint.h>
 
 /// ISO-TP addressing scheme
 /// 11-bit standard ID
