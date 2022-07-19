@@ -1,6 +1,8 @@
 #include "button.h"
 #include "mcu_messaging.pb.h"
+#include "power_sequence/power_sequence.h"
 #include "pubsub/pubsub.h"
+#include "ui/front_leds/front_leds.h"
 #include <app_assert.h>
 #include <device.h>
 #include <drivers/gpio.h>

@@ -159,6 +159,9 @@ operator_leds_init(void)
     return RET_SUCCESS;
 }
 
+/// Turn one operator LED during boot to indicate battery switch is turned on
+/// \param dev
+/// \return 0 on success, error code otherwise
 int
 operator_leds_initial_state(const struct device *dev)
 {
@@ -179,5 +182,4 @@ operator_leds_initial_state(const struct device *dev)
     return 0;
 }
 
-SYS_INIT(operator_leds_initial_state, POST_KERNEL,
-         SYS_INIT_OPERATOR_LED_PRIORITY);
+SYS_INIT(operator_leds_initial_state, POST_KERNEL, SYS_INIT_UI_LEDS_PRIORITY);

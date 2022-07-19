@@ -32,7 +32,8 @@ version_get_hardware_rev(uint16_t *hw_version)
             return RET_ERROR_NOT_INITIALIZED;
         }
 
-        int err_code = gpio_pin_configure_dt(&hardware_version_gpio, 0);
+        int err_code =
+            gpio_pin_configure_dt(&hardware_version_gpio, GPIO_INPUT);
         if (err_code != 0) {
             ASSERT_SOFT(err_code);
             return RET_ERROR_INTERNAL;

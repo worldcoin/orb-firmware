@@ -39,7 +39,7 @@ and that you have access to all of the MCU repos. These repositories are enumera
 
    ```shell
    cd "$REPO_DIR"
-   west init -m git@github.com:worldcoin/proto2-mcu.git --mr main
+   west init -m git@github.com:worldcoin/orb-mcu-firmware.git --mr main
    ```
 
    This will create a directory called `orb`.
@@ -52,12 +52,23 @@ and that you have access to all of the MCU repos. These repositories are enumera
 
 #### Docker-specific Steps
 
-5. Enter the Docker container to perform your work.
+5. Enter the Docker container to perform your work. (Note: you need to first configure Github to read the [container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry))
+
    ```shell
    cd "$REPO_DIR"/orb/utils/docker
    make shell
    ```
+
    You may also build the Docker image locally.
+   NOTE: when you build locally, you will get a image with the tag `local`,
+   but when you run `make *-build`, Make will use the SHA of the known good
+   Docker image used by CI, _unless_ you set the make variable
+   `DOCKER_TAG` to something. For instance, do
+   `make main_board-build DOCKER_TAG=local` to use the Docker image you built
+   locally.
+   This locally-built image may not work since Ubuntu-based containers
+   are not strictly reproducible.
+
    ```shell
    cd "$REPO_DIR"/orb/utils/docker
    make build
