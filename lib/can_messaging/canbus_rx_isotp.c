@@ -8,8 +8,11 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(isotp_rx);
 
+#define ISOTP_FLOWCTRL_BS 8
+
 const struct device *can_dev;
-const struct isotp_fc_opts flow_control_opts = {.bs = 8, .stmin = 0};
+const struct isotp_fc_opts flow_control_opts = {.bs = ISOTP_FLOWCTRL_BS,
+                                                .stmin = 0};
 
 K_THREAD_STACK_DEFINE(isotp_rx_thread_stack,
                       CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_ISOTP_RX);
@@ -25,11 +28,13 @@ static can_message_t rx_message = {0};
 
 static_assert(CONFIG_CAN_ISOTP_REMOTE_APP_COUNT <= 15,
               "ISO-TP binding allowed to a maximum of 15 apps");
-static_assert(CONFIG_ISOTP_RX_BUF_COUNT >=
-                      (CONFIG_CAN_ISOTP_REMOTE_APP_COUNT + 1) &&
-                  CONFIG_ISOTP_RX_SF_FF_BUF_COUNT >=
-                      (CONFIG_CAN_ISOTP_REMOTE_APP_COUNT + 1),
+static_assert(CONFIG_ISOTP_RX_SF_FF_BUF_COUNT >=
+                  (CONFIG_CAN_ISOTP_REMOTE_APP_COUNT + 1),
               "Not enough receiving buffers configured for the ISO-TP module");
+
+// one buffer takes ISOTP_FLOWCTRL_BS*7
+static_assert(CONFIG_ISOTP_RX_BUF_COUNT * ISOTP_FLOWCTRL_BS * 7 >= 541,
+              "We need enough buffers to receive 512-byte long messages");
 
 static void
 bind_to_remotes(void)
@@ -95,9 +100,14 @@ jetson_to_mcu_rx_thread()
                 // we will not exit until all the bytes are received or timeout
                 do {
                     // get new block (BS)
+                    buf = NULL;
                     rem_len = isotp_recv_net(&rx_ctx[app_id], &buf, K_FOREVER);
                     if (rem_len < ISOTP_N_OK) {
-                        LOG_DBG("Receiving error [%d]", rem_len);
+                        LOG_ERR("ISO-TP rx error: %d", rem_len);
+                        // destroy allocated buffer if it exists
+                        if (buf != NULL) {
+                            net_buf_unref(buf);
+                        }
                         break;
                     }
 
@@ -128,6 +138,9 @@ jetson_to_mcu_rx_thread()
                     LOG_DBG("Data not received: %d", rem_len);
                 }
             }
+
+            // in any case, reset state of current poll event
+            poll_evt[app_id].state = K_POLL_STATE_NOT_READY;
         }
     }
 }
