@@ -11,11 +11,23 @@ LOG_MODULE_REGISTER(pubsub);
 
 K_MUTEX_DEFINE(new_pub_mutex);
 
+static bool sending = false;
+
+void
+publish_start(void)
+{
+    sending = true;
+}
+
 int
 publish_new(void *payload, size_t size, uint32_t which_payload,
             uint32_t remote_addr)
 {
     int err_code = RET_SUCCESS;
+
+    if (!sending) {
+        return RET_ERROR_OFFLINE;
+    }
 
     // make sure payload is smaller than McuToJetson payload size
     if (size > STRUCT_MEMBER_SIZE_BYTES(McuToJetson, payload)) {

@@ -5,6 +5,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+void
+publish_start(void);
+
 /// Send new message by passing only the dynamic size payload and associated tag
 /// ⚠️ Do not call from ISR
 /// \param payload McuToJetson's payload

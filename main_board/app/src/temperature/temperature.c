@@ -1,7 +1,6 @@
 #include "temperature.h"
 #include "fan/fan.h"
 #include "pubsub/pubsub.h"
-#include <app_assert.h>
 #include <app_config.h>
 #include <assert.h>
 #include <device.h>
@@ -12,8 +11,6 @@
 #include <logging/log.h>
 #include <math.h>
 LOG_MODULE_REGISTER(temperature);
-
-static bool send_temperature_messages = false;
 
 #define TEMPERATURE_AVERAGE_SAMPLE_COUNT 3
 
@@ -137,14 +134,10 @@ void
 temperature_report(Temperature_TemperatureSource source,
                    int32_t temperature_in_c)
 {
-    if (send_temperature_messages) {
-        Temperature temperature = {.source = source,
-                                   .temperature_c = temperature_in_c};
-        int err_code = publish_new(&temperature, sizeof(temperature),
-                                   McuToJetson_temperature_tag,
-                                   CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-        ASSERT_SOFT(err_code);
-    }
+    Temperature temperature = {.source = source,
+                               .temperature_c = temperature_in_c};
+    publish_new(&temperature, sizeof(temperature), McuToJetson_temperature_tag,
+                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 
 static int32_t
@@ -208,13 +201,6 @@ check_ready(void)
         }
     }
     return ret;
-}
-
-void
-temperature_start_sending(void)
-{
-    LOG_INF("Starting to send temperatures to Jetson");
-    send_temperature_messages = true;
 }
 
 void

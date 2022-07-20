@@ -9,9 +9,6 @@ void
 temperature_set_sampling_period_ms(uint32_t sample_period);
 
 void
-temperature_start_sending(void);
-
-void
 temperature_init(void);
 
 void

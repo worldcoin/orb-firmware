@@ -809,10 +809,8 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                                                  : MotorRange_Motor_HORIZONTAL),
                     .range_microsteps = motors_refs[motor].full_course,
                     .range_millidegrees = angle_millid};
-                int ret = publish_new(&range, sizeof(range),
-                                      McuToJetson_motor_range_tag,
-                                      CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-                ASSERT_SOFT(ret);
+                publish_new(&range, sizeof(range), McuToJetson_motor_range_tag,
+                            CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 
                 // go to middle position
                 // setting in positioning mode after this loop
@@ -964,10 +962,8 @@ motors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                                                  : MotorRange_Motor_HORIZONTAL),
                     .range_microsteps = motors_refs[motor].full_course,
                     .range_millidegrees = angle_millid};
-                int ret = publish_new(&range, sizeof(range),
-                                      McuToJetson_motor_range_tag,
-                                      CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-                ASSERT_SOFT(ret);
+                publish_new(&range, sizeof(range), McuToJetson_motor_range_tag,
+                            CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 
                 motors_refs[motor].auto_homing_state = AH_SUCCESS;
             }

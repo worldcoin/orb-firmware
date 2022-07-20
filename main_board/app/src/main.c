@@ -27,6 +27,7 @@
 
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
 #include "heartbeat.h"
+#include "pubsub/pubsub.h"
 #endif
 
 #include <logging/log.h>
@@ -172,7 +173,6 @@ main(void)
         // to confirm the image
         if (!jetson_up_and_running && runner_successful_jobs_count() > 0) {
             version_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-            temperature_start_sending();
 
             uint32_t error_count = app_assert_soft_count();
             if (error_count) {
