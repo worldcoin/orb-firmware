@@ -51,9 +51,6 @@
 // main thread priority                 10
 // logging thread priority              14
 
-// Battery CAN rx thread
-#define THREAD_PRIORITY_CAN_BATTERY_RX
-
 #define SYS_INIT_POWER_SUPPLY_PHASE2_PRIORITY   55
 #define SYS_INIT_FAN_INIT_PRIORITY              54
 #define SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY 53
