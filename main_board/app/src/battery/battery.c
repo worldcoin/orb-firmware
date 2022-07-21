@@ -88,6 +88,13 @@ handle_499(struct zcan_frame *frame)
                                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
 
+        if (new_state->flags != state_499.flags) {
+            BatteryDiagnostic diag = {.flags = new_state->flags};
+            ret |=
+                publish_new(&diag, sizeof(diag), McuToJetson_battery_diag_tag,
+                            CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+        }
+
         if ((new_state->flags & BIT(IS_CHARGING_BIT)) !=
             (state_499.flags & BIT(IS_CHARGING_BIT))) {
             is_charging.battery_is_charging =
