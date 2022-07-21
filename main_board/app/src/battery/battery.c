@@ -43,12 +43,21 @@ __PACKED_STRUCT battery_415_s
 // | Bit 1 | Host Present | Battery is inserted, the host present pin is pulled low (high state) |
 // | Bit 0 | User button pressed | User button on the battery is pressed |
 // clang-format on
+
 __PACKED_STRUCT battery_499_s
 {
     int16_t pcb_temperature;  // unit 0.1ºC
     int16_t pack_temperature; // unit 0.1ºC
     uint8_t flags;
     uint8_t state_of_charge; // percentage
+};
+
+__PACKED_STRUCT battery_414_s
+{
+    int16_t voltage_group_1; // unit milli-volts
+    int16_t voltage_group_2; // unit milli-volts
+    int16_t voltage_group_3; // unit milli-volts
+    int16_t voltage_group_4; // unit milli-volts
 };
 
 static struct battery_499_s state_499 = {0};
@@ -105,6 +114,27 @@ handle_499(struct zcan_frame *frame)
 }
 
 static void
+handle_414(struct zcan_frame *frame)
+{
+    if (can_dlc_to_bytes(frame->dlc) == 8) {
+        struct battery_414_s *new_state = (struct battery_414_s *)frame->data;
+        LOG_DBG("Battery voltage: (%d, %d, %d, %d) mV",
+                new_state->voltage_group_1, new_state->voltage_group_2,
+                new_state->voltage_group_3, new_state->voltage_group_4);
+        BatteryVoltage voltages = {
+            .battery_cell1_mv = new_state->voltage_group_1,
+            .battery_cell2_mv = new_state->voltage_group_2,
+            .battery_cell3_mv = new_state->voltage_group_3,
+            .battery_cell4_mv = new_state->voltage_group_4,
+        };
+        publish_new(&voltages, sizeof voltages, McuToJetson_battery_voltage_tag,
+                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+    } else {
+        ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
+    }
+}
+
+static void
 handle_415(struct zcan_frame *frame)
 {
     if (can_dlc_to_bytes(frame->dlc) == 4) {
@@ -138,6 +168,9 @@ rx_thread()
         switch (rx_frame.id) {
         case 0x499:
             handle_499(&rx_frame);
+            break;
+        case 0x414:
+            handle_414(&rx_frame);
             break;
         case 0x415:
             handle_415(&rx_frame);
