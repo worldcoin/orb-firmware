@@ -159,6 +159,16 @@ operator_leds_init(void)
     return RET_SUCCESS;
 }
 
+void
+operator_leds_blocking_set(RgbColor *color, uint32_t mask)
+{
+    const struct device *led_strip =
+        DEVICE_DT_GET(DT_NODELABEL(operator_rgb_leds));
+    struct led_rgb c = {.r = color->red, .g = color->green, .b = color->blue};
+    apply_pattern(mask, &c);
+    led_strip_update_rgb(led_strip, leds, ARRAY_SIZE(leds));
+}
+
 /// Turn one operator LED during boot to indicate battery switch is turned on
 /// \param dev
 /// \return 0 on success, error code otherwise

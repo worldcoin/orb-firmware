@@ -95,11 +95,14 @@ main(void)
 
     app_assert_init(app_assert_cb);
 
-    temperature_init();
-
-    // CAN initialization first to allow logs over CAN
     err_code = can_messaging_init(runner_handle_new);
     ASSERT_SOFT(err_code);
+
+#ifdef CONFIG_BOARD_MCU_MAIN_V31
+    // check battery state early on
+    err_code = battery_init();
+    ASSERT_SOFT(err_code);
+#endif
 
     err_code = logs_init();
     ASSERT_SOFT(err_code);
@@ -108,6 +111,8 @@ main(void)
     err_code = power_turn_on_jetson();
     ASSERT_SOFT(err_code);
 #endif // CONFIG_NO_JETSON_BOOT
+
+    temperature_init();
 
     err_code = sound_init();
     ASSERT_SOFT(err_code);
@@ -150,11 +155,6 @@ main(void)
 
     err_code = button_init();
     ASSERT_SOFT(err_code);
-
-#ifdef CONFIG_BOARD_MCU_MAIN_V31
-    err_code = battery_init();
-    ASSERT_SOFT(err_code);
-#endif
 
     // set up operator LED depending on image state
     if (dfu_primary_is_confirmed()) {

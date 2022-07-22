@@ -34,4 +34,11 @@ operator_leds_set_pattern(
 int
 operator_leds_init(void);
 
+/// Force setting of the color and mask
+/// ⚠️ Not to be used in normal condition, use \c operator_leds_set_pattern
+/// instead \param color rgb color \param mask Bit mask to control LED
+/// individually (max is OPERATOR_LEDS_ALL_MASK)
+void
+operator_leds_blocking_set(RgbColor *color, uint32_t mask);
+
 #endif // DISTRIBUTOR_LEDS_H

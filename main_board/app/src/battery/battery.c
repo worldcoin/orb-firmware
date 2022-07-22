@@ -3,6 +3,7 @@
 #include "mcu_messaging.pb.h"
 #include "pubsub/pubsub.h"
 #include "temperature/temperature.h"
+#include "ui/operator_leds/operator_leds.h"
 #include <app_assert.h>
 #include <device.h>
 #include <drivers/can.h>
@@ -17,6 +18,9 @@ K_THREAD_STACK_DEFINE(can_battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
 static struct k_thread rx_thread_data = {0};
 
 CAN_MSGQ_DEFINE(can_battery_recv_queue, 8);
+
+// minimum voltage needed to boot the Orb during startup (in millivolts)
+#define BATTERY_MINIMUM_VOLTAGE_STARTUP_MV 13500
 
 // accept everything and discard unwanted messages in software
 static const struct zcan_filter battery_can_filter = {
@@ -61,6 +65,7 @@ __PACKED_STRUCT battery_414_s
 };
 
 static struct battery_499_s state_499 = {0};
+static struct battery_414_s state_414 = {0};
 
 static void
 handle_499(struct zcan_frame *frame)
@@ -125,6 +130,8 @@ handle_414(struct zcan_frame *frame)
 {
     if (can_dlc_to_bytes(frame->dlc) == 8) {
         struct battery_414_s *new_state = (struct battery_414_s *)frame->data;
+        state_414 = *new_state;
+
         LOG_DBG("Battery voltage: (%d, %d, %d, %d) mV",
                 new_state->voltage_group_1, new_state->voltage_group_2,
                 new_state->voltage_group_3, new_state->voltage_group_4);
@@ -157,8 +164,11 @@ handle_415(struct zcan_frame *frame)
 }
 
 static void
-rx_thread()
+battery_rx_thread(void *p1, void *p2, void *p3)
 {
+    UNUSED_PARAMETER(p2);
+    UNUSED_PARAMETER(p3);
+
     int ret;
     struct zcan_frame rx_frame;
 
@@ -169,9 +179,12 @@ rx_thread()
         return;
     }
 
-    while (1) {
-        k_msgq_get(&can_battery_recv_queue, &rx_frame, K_FOREVER);
-
+    while (p1 == NULL || (rx_frame.id != (uint32_t)p1)) {
+        ret = k_msgq_get(&can_battery_recv_queue, &rx_frame,
+                         p1 == NULL ? K_FOREVER : K_MSEC(2000));
+        if (ret != 0 && p1 != NULL) {
+            return;
+        }
         switch (rx_frame.id) {
         case 0x499:
             handle_499(&rx_frame);
@@ -204,10 +217,37 @@ battery_init(void)
         LOG_INF("CAN ready");
     }
 
+    // blocking wait until receiving frame 0x414 providing battery cell voltages
+    battery_rx_thread((void *)0x414, NULL, NULL);
+
+    // voltages received or timeout that will give a full_voltage of 0,
+    // can be because of a removed battery
+    uint32_t full_voltage =
+        state_414.voltage_group_1 + state_414.voltage_group_2 +
+        state_414.voltage_group_3 + state_414.voltage_group_4;
+    LOG_INF("Battery voltage: %umV", full_voltage);
+
+    // if voltage low:
+    // - show the user by blinking the operator LED in red
+    // - reboot to allow for button startup again, hopefully with
+    //   more charge
+    if (full_voltage < BATTERY_MINIMUM_VOLTAGE_STARTUP_MV) {
+        // blink in red before rebooting
+        RgbColor color = {.red = 5, .green = 0, .blue = 0};
+        for (int i = 0; i < 3; ++i) {
+            operator_leds_blocking_set(&color, 0b11111);
+            k_msleep(500);
+            operator_leds_blocking_set(&color, 0b00000);
+            k_msleep(500);
+        }
+
+        NVIC_SystemReset();
+    }
+
     k_tid_t tid = k_thread_create(
         &rx_thread_data, can_battery_rx_thread_stack,
-        K_THREAD_STACK_SIZEOF(can_battery_rx_thread_stack), rx_thread, NULL,
-        NULL, NULL, THREAD_PRIORITY_BATTERY, 0, K_NO_WAIT);
+        K_THREAD_STACK_SIZEOF(can_battery_rx_thread_stack), battery_rx_thread,
+        NULL, NULL, NULL, THREAD_PRIORITY_BATTERY, 0, K_NO_WAIT);
     k_thread_name_set(tid, "battery");
 
     return RET_SUCCESS;
