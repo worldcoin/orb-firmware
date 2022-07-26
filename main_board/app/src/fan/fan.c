@@ -10,6 +10,8 @@ LOG_MODULE_REGISTER(fan);
 
 #include "fan.h"
 
+#define FAN_MAX_SPEED_PERCENTAGE (80)
+
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
 #define FAN_MAIN_NODE DT_PATH(fan)
 #else
@@ -44,6 +46,12 @@ fan_get_speed(void)
 }
 
 void
+fan_set_max_speed(void)
+{
+    fan_set_speed(FAN_MAX_SPEED_PERCENTAGE);
+}
+
+void
 fan_set_speed(uint32_t percentage)
 {
     percentage = MIN(percentage, 100);
@@ -70,7 +78,7 @@ fan_set_speed(uint32_t percentage)
 
     // Even at 0%, the fan spins. This will kill power to the fans in the case
     // of 0%.
-    if (percentage > 0) {
+    if (fan_speed > 0) {
         gpio_pin_set_dt(&fan_enable_spec, 1);
     } else {
         gpio_pin_set_dt(&fan_enable_spec, 0);
