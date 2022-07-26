@@ -5,6 +5,9 @@
 #include <stdint.h>
 
 void
+fan_set_max_speed();
+
+void
 fan_set_speed(uint32_t percentage);
 
 // Get speed as a percentage
