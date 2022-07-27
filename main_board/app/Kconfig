@@ -10,10 +10,6 @@ config ORB_MCU_LIBRARIES_LIB
     default y
     bool "Orb shared components"
 
-if ORB_MCU_LIBRARIES_LIB
-source "../orb/Kconfig"
-endif
-
 # Convenience/Developer options
 
 config INSTA_BOOT
