@@ -12,6 +12,7 @@ config ORB_LIB_ERRORS_TESTS
 	bool "Provide fatal errors examples"
 	select TEST
 	select IRQ_OFFLOAD
+	select ASSERT
 	depends on ORB_LIB_ERRORS_APP_ASSERT
 	help
 		Allows for testing fatal errors and asserts
