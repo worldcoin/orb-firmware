@@ -11,6 +11,7 @@
 #include <logging/log.h>
 #include <stdio.h>
 #include <zephyr.h>
+#include <zephyr/logging/log_ctrl.h>
 LOG_MODULE_REGISTER(power_sequence);
 
 #include "button/button.h"
@@ -36,6 +37,15 @@ K_SEM_DEFINE(sem_reboot, 0, 1);
 static bool reboot_pending_shutdown_req_line = false;
 static uint32_t reboot_delay_s = 0;
 static struct gpio_callback shutdown_cb_data;
+
+// log immediately, i.e., log and wait for messages to flush
+#define LOG_INF_IMM(...)                                                       \
+    LOG_INF(__VA_ARGS__);                                                      \
+    while (LOG_PROCESS())
+
+#define LOG_ERR_IMM(...)                                                       \
+    LOG_ERR(__VA_ARGS__);                                                      \
+    while (LOG_PROCESS())
 
 #define FORMAT_STRING "Checking that %s is ready... "
 
@@ -106,7 +116,7 @@ power_turn_on_supplies_phase1(const struct device *dev)
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
     if (gpio_pin_configure(supply_5v_pg, SUPPLY_5V_PG_PIN,
                            SUPPLY_5V_PG_FLAGS | GPIO_INPUT)) {
-        LOG_ERR("Error configuring 5v pg pin!");
+        LOG_ERR_IMM("Error configuring 5v pg pin!");
         return 1;
     }
 #endif
@@ -115,7 +125,7 @@ power_turn_on_supplies_phase1(const struct device *dev)
     LOG_INF("5V power supply enabled");
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
-    LOG_INF("Waiting on power good...");
+    LOG_INF_IMM("Waiting on power good...");
     // Wait forever, because if we can't enable this then we can't turn on
     // anything else
     while (!gpio_pin_get(supply_5v_pg, SUPPLY_5V_PG_PIN))
@@ -128,7 +138,7 @@ power_turn_on_supplies_phase1(const struct device *dev)
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
     if (gpio_pin_configure(supply_3v3_pg, SUPPLY_3V3_PG_PIN,
                            SUPPLY_3V3_PG_FLAGS | GPIO_INPUT)) {
-        LOG_ERR("Error configuring 3.3v pg pin!");
+        LOG_ERR_IMM("Error configuring 3.3v pg pin!");
         return 1;
     }
 #endif
@@ -136,7 +146,7 @@ power_turn_on_supplies_phase1(const struct device *dev)
     regulator_enable(supply_3v3, NULL);
     LOG_INF("3.3V power supply enabled");
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
-    LOG_INF("Waiting on power good...");
+    LOG_INF_IMM("Waiting on power good...");
     // Wait forever, because if we can't enable this then we can't turn on the
     // fan. If we can't turn on the fan, then we don't want to turn on
     // anything else
@@ -179,7 +189,7 @@ power_turn_on_supplies_phase2(const struct device *dev)
     regulator_enable(supply_3v3, NULL);
     LOG_INF("3.3V power supply re-enabled");
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
-    LOG_INF("Waiting on power good...");
+    LOG_INF_IMM("Waiting on power good...");
     // Wait forever, because if we can't enable this then we can't turn on the
     // fan. If we can't turn on the fan, then we don't want to turn on
     // anything else
@@ -199,7 +209,7 @@ power_turn_on_supplies_phase2(const struct device *dev)
     // re-configure this pin as SCL.
     if (gpio_pin_configure(i2c_clock, I2C_CLOCK_PIN,
                            GPIO_OUTPUT | I2C_CLOCK_FLAGS)) {
-        LOG_ERR("Error configuring I2C clock pin!");
+        LOG_ERR_IMM("Error configuring I2C clock pin!");
         return 1;
     }
 
@@ -212,7 +222,7 @@ power_turn_on_supplies_phase2(const struct device *dev)
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
     if (gpio_pin_configure(supply_1v8_pg, SUPPLY_1V8_PG_PIN,
                            SUPPLY_1V8_PG_FLAGS | GPIO_INPUT)) {
-        LOG_ERR("Error configuring 1.8 pg pin!");
+        LOG_ERR_IMM("Error configuring 1.8 pg pin!");
         return 1;
     }
 #endif
@@ -221,7 +231,7 @@ power_turn_on_supplies_phase2(const struct device *dev)
     LOG_INF("1.8V power supply enabled");
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
-    LOG_INF("Waiting on power good...");
+    LOG_INF_IMM("Waiting on power good...");
     while (!gpio_pin_get(supply_1v8_pg, SUPPLY_1V8_PG_PIN))
         ;
     LOG_INF("1.8V power supply good");
@@ -312,7 +322,7 @@ app_init_state(const struct device *dev)
     } else {
         LOG_INF("Firmware image not confirmed");
     }
-    LOG_INF("Booting system...");
+    LOG_INF_IMM("Booting system...");
 
     return ret;
 }
@@ -429,6 +439,8 @@ reboot_thread()
         DistributorLEDsPattern_DistributorRgbLedPattern_OFF, 0, NULL);
     k_msleep(SYSTEM_RESET_UI_DELAY);
 
+    while (log_process(false))
+        ;
     NVIC_SystemReset();
 }
 
@@ -512,7 +524,7 @@ power_turn_on_jetson(void)
         if (ret) {
             ASSERT_SOFT(ret);
         } else {
-            LOG_INF("Waiting for reset done signal from Jetson");
+            LOG_INF_IMM("Waiting for reset done signal from Jetson");
             while (gpio_pin_get(system_reset, SYSTEM_RESET_PIN) != OUT_OF_RESET)
                 ;
             LOG_INF("Reset done");
@@ -524,7 +536,7 @@ power_turn_on_jetson(void)
     if (ret) {
         ASSERT_SOFT(ret);
     } else {
-        LOG_INF("Setting Jetson to WAKE mode");
+        LOG_INF_IMM("Setting Jetson to WAKE mode");
         ret = gpio_pin_set(sleep_wake, SLEEP_WAKE_PIN, WAKE);
         ASSERT_SOFT(ret);
     }
