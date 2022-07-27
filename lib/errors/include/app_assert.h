@@ -99,4 +99,14 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
 #define ASSERT_SOFT_BOOL(ERR_CODE) UNUSED_VARIABLE(ERR_CODE)
 #endif
 
+#ifdef CONFIG_ORB_LIB_ERRORS_TESTS
+
+/// Test a fatal error condition
+/// Does not return: make sure the microcontroller resets after
+/// hitting the fatal error
+void
+fatal_errors_test(void);
+
+#endif
+
 #endif // FIRMWARE_ORB_APP_INCLUDE_ERRORS_H
