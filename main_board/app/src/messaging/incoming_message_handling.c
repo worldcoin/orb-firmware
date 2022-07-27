@@ -308,6 +308,11 @@ handle_mirror_angle_message(McuMessage *msg)
     int32_t vertical_angle =
         msg->message.j_message.payload.mirror_angle.vertical_angle;
 
+    if (auto_homing_tid != NULL || motors_auto_homing_in_progress()) {
+        incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, get_ack_num(msg));
+        return;
+    }
+
     if (horizontal_angle > MOTORS_ANGLE_HORIZONTAL_MAX ||
         horizontal_angle < MOTORS_ANGLE_HORIZONTAL_MIN) {
         LOG_ERR("Horizontal angle of %u out of range [%u;%u]", horizontal_angle,
@@ -653,6 +658,11 @@ handle_mirror_angle_relative_message(McuMessage *msg)
         msg->message.j_message.payload.mirror_angle_relative.horizontal_angle;
     int32_t vertical_angle =
         msg->message.j_message.payload.mirror_angle_relative.vertical_angle;
+
+    if (auto_homing_tid != NULL || motors_auto_homing_in_progress()) {
+        incoming_message_ack(Ack_ErrorCode_IN_PROGRESS, get_ack_num(msg));
+        return;
+    }
 
     if (abs(horizontal_angle) > MOTORS_ANGLE_HORIZONTAL_RANGE) {
         LOG_ERR("Horizontal angle of %u out of range (max %u)",
