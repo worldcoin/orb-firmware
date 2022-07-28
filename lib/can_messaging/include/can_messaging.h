@@ -26,7 +26,7 @@
 typedef struct {
     uint32_t destination; // CAN ID the message is sent to
     uint8_t bytes[CONFIG_CAN_MESSAGE_MAX_SIZE_BYTES];
-    size_t size; // usable bytes
+    size_t size; // actual number of bytes used in the `byte` member
 } can_message_t;
 
 /// Send new message using CAN-FD
