@@ -9,7 +9,7 @@ twister-out/
 win/
 .dll
 
-# Macos
+# macOS
 *.DS_Store
 
 # Python
