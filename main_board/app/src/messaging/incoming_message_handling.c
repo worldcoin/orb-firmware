@@ -395,6 +395,8 @@ handle_fan_speed(McuMessage *msg)
             }
             break;
         default:
+            incoming_message_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED,
+                                 get_ack_num(msg));
             ASSERT_SOFT(RET_ERROR_INTERNAL);
             break;
         }
