@@ -38,7 +38,7 @@ rx_thread()
     while (1) {
         k_msgq_get(&can_recv_queue, &rx_frame, K_FOREVER);
         rx_message.size = can_dlc_to_bytes(rx_frame.dlc);
-        rx_message.destination = recv_queue_filter.id;
+        rx_message.destination = rx_frame.id;
         memcpy(&rx_message.bytes, rx_frame.data, rx_message.size);
 
         if (incoming_message_handler != NULL) {
