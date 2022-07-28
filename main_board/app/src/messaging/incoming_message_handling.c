@@ -368,6 +368,7 @@ handle_fan_speed(McuMessage *msg)
         incoming_message_ack(Ack_ErrorCode_OVER_TEMPERATURE, get_ack_num(msg));
     } else {
         switch (msg->message.j_message.payload.fan_speed.which_payload) {
+        case 0: /* no tag provided with legacy API */
         case FanSpeed_percentage_tag:
             if (fan_speed > 100) {
                 LOG_ERR("Got fan speed of %" PRIu32 " out of range [0;100]",
