@@ -89,7 +89,7 @@ fan_set_speed_by_value(uint16_t value)
 
     // Even at 0%, the fan spins. This will kill power to the fans in the case
     // of 0%.
-    if (fan_speed > 0) {
+    if (value > 0) {
         gpio_pin_set_dt(&fan_enable_spec, 1);
     } else {
         gpio_pin_set_dt(&fan_enable_spec, 0);
