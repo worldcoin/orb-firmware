@@ -266,6 +266,12 @@
         conversions-per-second = "0.25";
         resolution = <8>;
     };
+
+    tof_sensor: vl53l1x@29 {
+        compatible = "st,vl53l1x";
+        reg = <0x29>;
+        label = "VL53L1X";
+    };
 };
 
 &can1 {

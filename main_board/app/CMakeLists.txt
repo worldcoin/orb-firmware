@@ -98,6 +98,7 @@ set(SOURCES_FILES
     src/stepper_motors/stepper_motors.c
     src/stepper_motors/motors_tests.c
 
+    src/1d_tof/tof_1d.c
 
     src/temperature/temperature.c
 
