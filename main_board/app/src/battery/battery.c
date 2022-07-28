@@ -48,7 +48,7 @@ __PACKED_STRUCT battery_415_s
 // | Bit 0 | User button pressed | User button on the battery is pressed |
 // clang-format on
 
-__PACKED_STRUCT battery_499_s
+__PACKED_STRUCT __may_alias battery_499_s
 {
     int16_t pcb_temperature;  // unit 0.1ºC
     int16_t pack_temperature; // unit 0.1ºC
@@ -56,7 +56,7 @@ __PACKED_STRUCT battery_499_s
     uint8_t state_of_charge; // percentage
 };
 
-__PACKED_STRUCT battery_414_s
+__PACKED_STRUCT __may_alias battery_414_s
 {
     int16_t voltage_group_1; // unit milli-volts
     int16_t voltage_group_2; // unit milli-volts
