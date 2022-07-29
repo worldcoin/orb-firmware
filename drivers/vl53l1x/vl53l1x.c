@@ -102,6 +102,12 @@ vl53l1x_start(const struct device *dev)
         goto exit;
     }
 
+    ret = VL53L1_SetDistanceMode(&drv_data->vl53l1x, VL53L1_DISTANCEMODE_SHORT);
+    if (ret) {
+        LOG_ERR("[%s] VL53L1_SetDistanceMode failed: %d", dev->name, ret);
+        goto exit;
+    }
+
     ret = VL53L1_PerformRefSpadManagement(&drv_data->vl53l1x);
     if (ret) {
         LOG_ERR("[%s] VL53L1_PerformRefSpadManagement failed: %d", dev->name,
