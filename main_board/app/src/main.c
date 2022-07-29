@@ -4,6 +4,7 @@
 #include "ir_camera_system/ir_camera_system.h"
 #include "liquid_lens/liquid_lens.h"
 #include "power_sequence/power_sequence.h"
+#include "pubsub/pubsub.h"
 #include "runner/runner.h"
 #include "sound/sound.h"
 #include "stepper_motors/motors_tests.h"
@@ -27,7 +28,6 @@
 
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
 #include "heartbeat.h"
-#include "pubsub/pubsub.h"
 #endif
 
 #include <logging/log.h>
@@ -92,6 +92,8 @@ main(void)
 
     app_assert_init(app_assert_cb);
 
+    temperature_init();
+
     // CAN initialization first to allow logs over CAN
     err_code = can_messaging_init(runner_handle_new);
     ASSERT_SOFT(err_code);
@@ -138,8 +140,6 @@ main(void)
     err_code = version_get_hardware_rev(&hw);
     ASSERT_SOFT(err_code);
     LOG_INF("Hardware version: %u", hw);
-
-    temperature_init();
 
     err_code = button_init();
     ASSERT_SOFT(err_code);

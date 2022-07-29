@@ -12,11 +12,15 @@
 #include <math.h>
 LOG_MODULE_REGISTER(temperature);
 
-#define TEMPERATURE_AVERAGE_SAMPLE_COUNT 3
+// These values are informed by
+// https://www.notion.so/PCBA-thermals-96849052d5c24a0bafaedb4363f460b5
 
-#define MAIN_BOARD_OVERTEMP_C 85
-#define FRONT_UNIT_OVERTEMP_C 90
-#define OVERTEMP_DROP_C       5 // drop in temperature needed to stop over-temp mode
+#define MAIN_BOARD_OVERTEMP_C            85
+#define FRONT_UNIT_OVERTEMP_C            75
+#define MCU_DIE_OVERTEMP_C               70
+#define LIQUID_LENS_OVERTEMP_C           85
+#define OVERTEMP_DROP_C                  5 // drop in temperature needed to stop over-temp mode
+#define TEMPERATURE_AVERAGE_SAMPLE_COUNT 3
 
 static_assert((int)(MAIN_BOARD_OVERTEMP_C - OVERTEMP_DROP_C) > 0 &&
                   (int)(FRONT_UNIT_OVERTEMP_C - OVERTEMP_DROP_C) > 0,
@@ -72,13 +76,23 @@ static struct sensor_and_channel sensors_and_channels[] = {
     {.sensor = DEVICE_DT_GET(DT_PATH(stm_tmp)),
      .channel = SENSOR_CHAN_DIE_TEMP,
      .temperature_source = Temperature_TemperatureSource_MAIN_MCU,
-     .cb = NULL,
-     .cb_data = NULL},
+     .cb = overtemp_callback,
+     .cb_data = &(struct overtemp_info){.overtemp_c = MCU_DIE_OVERTEMP_C,
+                                        .overtemp_drop_c = OVERTEMP_DROP_C,
+                                        .in_overtemp = false},
+     .history = {0},
+     .wr_idx = 0},
+
     {.sensor = DEVICE_DT_GET(DT_NODELABEL(liquid_lens_tmp_sensor)),
      .channel = SENSOR_CHAN_AMBIENT_TEMP,
      .temperature_source = Temperature_TemperatureSource_LIQUID_LENS,
-     .cb = NULL,
-     .cb_data = NULL}};
+     .cb = overtemp_callback,
+     .cb_data = &(struct overtemp_info){.overtemp_c = LIQUID_LENS_OVERTEMP_C,
+                                        .overtemp_drop_c = OVERTEMP_DROP_C,
+                                        .in_overtemp = false},
+     .history = {0},
+     .wr_idx = 0},
+};
 
 static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_TEMPERATURE);
 static struct k_thread thread_data;
