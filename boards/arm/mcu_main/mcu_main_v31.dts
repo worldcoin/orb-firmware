@@ -47,12 +47,12 @@
 
     fan_main {
         compatible = "pwm-fan";
-        pwms = <&fan_main_and_aux_pwm 1 10000 PWM_POLARITY_NORMAL>;
+        pwms = <&fan_main_and_aux_pwm 1 40000 PWM_POLARITY_NORMAL>;
     };
 
     fan_aux {
         compatible = "pwm-fan";
-        pwms = <&fan_main_and_aux_pwm 2 10000 PWM_POLARITY_NORMAL>;
+        pwms = <&fan_main_and_aux_pwm 2 40000 PWM_POLARITY_NORMAL>;
     };
 };
 

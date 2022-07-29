@@ -286,7 +286,7 @@ temperature_is_in_overtemp(void)
 static void
 check_overtemp_conditions(void)
 {
-    static uint8_t fan_speed_before_overtemperature = 0;
+    static uint32_t fan_speed_before_overtemperature = 0;
 
     if (old_num_sensors_in_overtemp_conditions == 1 &&
         num_sensors_in_overtemp_conditions == 0) {
@@ -294,12 +294,12 @@ check_overtemp_conditions(void)
         LOG_WRN("All over-temperature conditions have abated, restoring fan "
                 "to old value of %u%%",
                 fan_speed_before_overtemperature);
-        fan_set_speed(fan_speed_before_overtemperature);
+        fan_set_speed_by_value(fan_speed_before_overtemperature);
     } else if (old_num_sensors_in_overtemp_conditions == 0 &&
                num_sensors_in_overtemp_conditions > 0) {
         LOG_WRN("Over-temperature detected, setting fan to max speed "
                 "until condition abates");
-        fan_speed_before_overtemperature = fan_get_speed();
+        fan_speed_before_overtemperature = fan_get_speed_setting();
         fan_set_max_speed();
     }
 }
