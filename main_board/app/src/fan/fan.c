@@ -10,6 +10,8 @@ LOG_MODULE_REGISTER(fan);
 
 #include "fan.h"
 
+#define FAN_MAX_SPEED_PERCENTAGE (80)
+
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
 #define FAN_MAIN_NODE DT_PATH(fan)
 #else
@@ -35,47 +37,70 @@ static_assert(DEVICE_DT_GET(DT_PWMS_CTLR(FAN_MAIN_NODE)) ==
 
 #define MSG "Checking that fan PWM controller is ready... "
 
-static uint8_t fan_speed = 0;
+static uint32_t fan_speed = 0;
 
-uint8_t
-fan_get_speed(void)
+uint32_t
+fan_get_speed_setting(void)
 {
     return fan_speed;
 }
 
 void
-fan_set_speed(uint32_t percentage)
+fan_set_max_speed(void)
 {
-    percentage = MIN(percentage, 100);
+    fan_set_speed_by_percentage(FAN_MAX_SPEED_PERCENTAGE);
+}
 
-    fan_speed = percentage;
+// For PWM control, ultimately the timer peripheral uses three (main) registers:
+// ARR, CCR, and CNT ARR is a 16-bit value that represents the frequency of the
+// PWM signal. CCR is used to set the duty cycle. CNT is the register that is
+// continually incremented from 0 and compared against ARR and CCR.
+//
+// When CNT == ARR, CNT is reset to 0 and the next PWM period begins.
+// During each PWM period, the output starts HIGH and only goes low when CNT ==
+// CCR.
+//
+// Therefore CCR <= ARR and the number of distinct duty cycle settings is equal
+// to ARR. The amount of time represented by each increment of CNT is determined
+// by the clock feeding the timer peripheral and the prescaler of the timer.
+//
+// So, this function's purpose is to map a 16-bit value into the range 0..ARR,
+// inclusive, and assign it to CCR. The maximum value of ARR is 65535, and the
+// maximum value of uint16_t is 65535, thus a 16-bit value allows the caller to
+// adjust the duty cycle of the fan controller as finely as is possible. In the
+// case that ARR < 65535 (which is likely), the 16-bit argument to this function
+// will have some values that map to the same CCR value.
+void
+fan_set_speed_by_value(uint16_t value)
+{
+    LOG_INF("Switching fan to approximately %.2f%% speed",
+            ((float)value / UINT16_MAX) * 100);
 
-    LOG_INF("Switching fan to %d%% speed", percentage);
-
-    /* PWM goes to fan directly on 3.0, but it drives an N-channel MOSFET
-     * on 3.1, which when activated turns the fan off. So it works in an
-     * opposite manner.
-     */
-
+    fan_speed =
 #ifdef CONFIG_BOARD_MCU_MAIN_V31
-    percentage = 100 - percentage;
+        main_fan_spec.period -
 #endif
+        (((float)main_fan_spec.period / UINT16_MAX) * value);
 
-    pwm_set_dt(&main_fan_spec, main_fan_spec.period,
-               (main_fan_spec.period * percentage) / 100);
+    pwm_set_dt(&main_fan_spec, main_fan_spec.period, fan_speed);
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V31
-    pwm_set_dt(&aux_fan_spec, aux_fan_spec.period,
-               (aux_fan_spec.period * percentage) / 100);
+    pwm_set_dt(&aux_fan_spec, aux_fan_spec.period, fan_speed);
 
     // Even at 0%, the fan spins. This will kill power to the fans in the case
     // of 0%.
-    if (percentage > 0) {
+    if (value > 0) {
         gpio_pin_set_dt(&fan_enable_spec, 1);
     } else {
         gpio_pin_set_dt(&fan_enable_spec, 0);
     }
 #endif
+}
+
+void
+fan_set_speed_by_percentage(uint32_t percentage)
+{
+    fan_set_speed_by_value(UINT16_MAX * (MIN(percentage, 100) / 100.0f));
 }
 
 int
@@ -107,9 +132,9 @@ fan_init(const struct device *dev)
 #endif
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
-    fan_set_speed(40);
+    fan_set_speed_by_percentage(40);
 #else
-    fan_set_speed(1);
+    fan_set_speed_by_percentage(1);
 #endif
 
     return RET_SUCCESS;

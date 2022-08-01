@@ -246,8 +246,8 @@ temperature_init(void)
 // one provides a temperature drop which indicates how far a temperature
 // source's temperature must drop from its overtemperature threshold before we
 // consider the temperature nominal and the overtemperature condition resolved.
-// The current overtemperature response is to command the fan(s) to run at 100%
-// power. We activate and stay in the overtemperature response as long as at
+// The current overtemperature response is to command the fan(s) to run at max
+// speed. We activate and stay in the overtemperature response as long as at
 // least one temperature source has reached its overtemperature condition.
 
 static uint8_t num_sensors_in_overtemp_conditions = 0;
@@ -262,20 +262,21 @@ temperature_is_in_overtemp(void)
 static void
 check_overtemp_conditions(void)
 {
-    static uint8_t fan_speed_before_overtemperature = 0;
+    static uint32_t fan_speed_before_overtemperature = 0;
 
     if (old_num_sensors_in_overtemp_conditions == 1 &&
         num_sensors_in_overtemp_conditions == 0) {
-        LOG_INF("All overtemp conditions have abated -- restoring fan to old "
-                "value of %u%%",
+        // Warning so that it's logged over CAN
+        LOG_WRN("All over-temperature conditions have abated, restoring fan "
+                "to old value of %u%%",
                 fan_speed_before_overtemperature);
-        fan_set_speed(fan_speed_before_overtemperature);
+        fan_set_speed_by_value(fan_speed_before_overtemperature);
     } else if (old_num_sensors_in_overtemp_conditions == 0 &&
                num_sensors_in_overtemp_conditions > 0) {
-        LOG_WRN("Overtemperature condition detected -- setting fan to 100%% "
+        LOG_WRN("Over-temperature detected, setting fan to max speed "
                 "until condition abates");
-        fan_speed_before_overtemperature = fan_get_speed();
-        fan_set_speed(100);
+        fan_speed_before_overtemperature = fan_get_speed_setting();
+        fan_set_max_speed();
     }
 }
 

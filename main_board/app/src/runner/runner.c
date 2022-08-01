@@ -350,6 +350,11 @@ handle_mirror_angle_message(job_t *job)
     int32_t vertical_angle =
         msg->message.j_message.payload.mirror_angle.vertical_angle;
 
+    if (auto_homing_tid != NULL || motors_auto_homing_in_progress()) {
+        job_ack(Ack_ErrorCode_IN_PROGRESS, job);
+        return;
+    }
+
     if (horizontal_angle > MOTORS_ANGLE_HORIZONTAL_MAX ||
         horizontal_angle < MOTORS_ANGLE_HORIZONTAL_MIN) {
         LOG_ERR("Horizontal angle of %u out of range [%u;%u]", horizontal_angle,
@@ -403,22 +408,45 @@ handle_fan_speed(job_t *job)
     McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_fan_speed_tag);
 
-    uint32_t fan_speed_percentage =
-        msg->message.j_message.payload.fan_speed.percentage;
+    // value and percentage have the same representation,
+    // so there's no point switching on which one
+    uint32_t fan_speed = msg->message.j_message.payload.fan_speed.payload.value;
 
     if (temperature_is_in_overtemp()) {
         LOG_WRN("Fan speed command rejected do to overtemperature condition");
         job_ack(Ack_ErrorCode_OVER_TEMPERATURE, job);
     } else {
-        if (fan_speed_percentage > 100) {
-            LOG_ERR("Got fan speed of %u out of range [0;100]",
-                    fan_speed_percentage);
-            job_ack(Ack_ErrorCode_RANGE, job);
-        } else {
-            LOG_DBG("Got fan speed message: %u%%", fan_speed_percentage);
+        switch (msg->message.j_message.payload.fan_speed.which_payload) {
+        case 0: /* no tag provided with legacy API */
+        case FanSpeed_percentage_tag:
+            if (fan_speed > 100) {
+                LOG_ERR("Got fan speed of %" PRIu32 " out of range [0;100]",
+                        fan_speed);
+                job_ack(Ack_ErrorCode_RANGE, job);
+            } else {
+                LOG_DBG("Got fan speed percentage message: %" PRIu32 "%%",
+                        fan_speed);
 
-            fan_set_speed(fan_speed_percentage);
-            job_ack(Ack_ErrorCode_SUCCESS, job);
+                fan_set_speed_by_percentage(fan_speed);
+                job_ack(Ack_ErrorCode_SUCCESS, job);
+            }
+            break;
+        case FanSpeed_value_tag:
+            if (fan_speed > UINT16_MAX) {
+                LOG_ERR("Got fan speed of %" PRIu32 " out of range [0;%u]",
+                        fan_speed, UINT16_MAX);
+                job_ack(Ack_ErrorCode_RANGE, job);
+            } else {
+                LOG_DBG("Got fan speed value message: %" PRIu32, fan_speed);
+
+                fan_set_speed_by_value(fan_speed);
+                job_ack(Ack_ErrorCode_SUCCESS, job);
+            }
+            break;
+        default:
+            job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+            ASSERT_SOFT(RET_ERROR_INTERNAL);
+            break;
         }
     }
 }
@@ -715,6 +743,11 @@ handle_mirror_angle_relative_message(job_t *job)
         msg->message.j_message.payload.mirror_angle_relative.horizontal_angle;
     int32_t vertical_angle =
         msg->message.j_message.payload.mirror_angle_relative.vertical_angle;
+
+    if (auto_homing_tid != NULL || motors_auto_homing_in_progress()) {
+        job_ack(Ack_ErrorCode_IN_PROGRESS, job);
+        return;
+    }
 
     if (abs(horizontal_angle) > MOTORS_ANGLE_HORIZONTAL_RANGE) {
         LOG_ERR("Horizontal angle of %u out of range (max %u)",
