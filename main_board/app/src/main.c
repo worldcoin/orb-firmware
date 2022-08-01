@@ -105,8 +105,10 @@ main(void)
     err_code = can_messaging_init(incoming_message_handle);
     ASSERT_SOFT(err_code);
 
+#ifndef CONFIG_NO_JETSON_BOOT
     err_code = power_turn_on_jetson();
     ASSERT_SOFT(err_code);
+#endif // CONFIG_NO_JETSON_BOOT
 
     err_code = sound_init();
     ASSERT_SOFT(err_code);
@@ -118,6 +120,7 @@ main(void)
     ASSERT_SOFT(err_code);
 
     // PVCC supplies IR LEDs
+#ifndef CONFIG_NO_SUPER_CAPS
     err_code = power_turn_on_super_cap_charger();
     if (err_code == RET_SUCCESS) {
         err_code = power_turn_on_pvcc();
@@ -130,6 +133,7 @@ main(void)
     } else {
         ASSERT_SOFT(err_code);
     }
+#endif
 
     err_code = motors_init();
     ASSERT_SOFT(err_code);
