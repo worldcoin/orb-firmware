@@ -72,6 +72,8 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
                 err_code = can_messaging_async_tx(&to_send);
                 ASSERT_SOFT(err_code);
             }
+        } else {
+            LOG_ERR("PB encoding failed");
         }
 
         k_mutex_unlock(&new_pub_mutex);
