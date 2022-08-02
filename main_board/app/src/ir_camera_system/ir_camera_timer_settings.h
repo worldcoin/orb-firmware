@@ -14,8 +14,9 @@ struct ir_camera_timer_settings {
     uint16_t arr; // full period to trigger the camera (1/FPS), in timer unit
                   // (FREQ/(PSC+1))
     uint16_t ccr; // on-time in timer unit (FREQ/(PSC+1)), 940nm & 850nm LEDs
-    uint32_t ccr_740nm; // 740nm LEDs w/ different duty cycle constraints
+    uint16_t ccr_740nm; // 740nm LEDs w/ different duty cycle constraints
     uint16_t on_time_in_us;
+    uint32_t on_time_in_us_740nm;
 };
 
 void

@@ -171,6 +171,105 @@ static bool enable_2d_tof_camera;
 static InfraredLEDs_Wavelength enabled_led_wavelength =
     InfraredLEDs_Wavelength_WAVELENGTH_NONE;
 
+static bool
+ir_leds_are_on(void)
+{
+    if (enabled_led_wavelength == InfraredLEDs_Wavelength_WAVELENGTH_NONE) {
+        return false;
+    } else if (enabled_led_wavelength ==
+               InfraredLEDs_Wavelength_WAVELENGTH_740NM) {
+        return (global_timer_settings.fps > 0) &&
+               (global_timer_settings.ccr_740nm > 0);
+    } else {
+        return (global_timer_settings.fps > 0) &&
+               (global_timer_settings.ccr > 0);
+    }
+}
+
+static void
+print_wavelength(void)
+{
+    const char *s = "";
+    switch (enabled_led_wavelength) {
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:;
+        s = "940nm R";
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:;
+        s = "940nm L";
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM:;
+        s = "940nm LR";
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:;
+        s = "850nm R";
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:;
+        s = "850nm L";
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM:;
+        s = "850nm LR";
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_740NM:;
+        s = "740nm";
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_NONE:;
+        s = "None";
+        break;
+    }
+
+    LOG_DBG("%s", s);
+}
+
+static void
+print_ir_camera_triggering(void)
+{
+    LOG_DBG("IR eye? %c", enable_ir_eye_camera ? 'y' : 'n');
+    LOG_DBG("IR face? %c", enable_ir_face_camera ? 'y' : 'n');
+    LOG_DBG("2dtof? %c", enable_2d_tof_camera ? 'y' : 'n');
+}
+
+static void
+print_ir_leds_are_on(void)
+{
+    LOG_DBG("%c", ir_leds_are_on() ? 'y' : 'n');
+}
+
+static void
+debug_print(void)
+{
+    timer_settings_print(&global_timer_settings);
+    print_wavelength();
+    print_ir_leds_are_on();
+    print_ir_camera_triggering();
+}
+
+#define IR_LED_AUTO_OFF_TIMEOUT_S (60 * 3)
+
+static void
+disable_ir_leds()
+{
+    LOG_WRN("Turning off IR LEDs after %" PRIu32 "s of inactivity",
+            IR_LED_AUTO_OFF_TIMEOUT_S);
+    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+}
+
+void
+configure_timeout(void)
+{
+    static K_TIMER_DEFINE(ir_leds_auto_off_timer, disable_ir_leds, NULL);
+
+    if (ir_leds_are_on()) {
+        // one-shot
+        // starting an already started timer will simply reset it
+        k_timer_start(&ir_leds_auto_off_timer,
+                      K_SECONDS(IR_LED_AUTO_OFF_TIMEOUT_S), K_NO_WAIT);
+        LOG_DBG("Resetting timout (%" PRIu32 "s).", IR_LED_AUTO_OFF_TIMEOUT_S);
+    } else {
+        // stopping an already stopped timer is ok and has no effect.
+        k_timer_stop(&ir_leds_auto_off_timer);
+    }
+}
+
 #define TIMER_MAX_CH 4
 
 /** Channel to LL mapping. */
@@ -601,6 +700,7 @@ ir_camera_system_enable_ir_eye_camera(void)
     enable_ir_eye_camera = true;
     set_timer_compare[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
         CAMERA_TRIGGER_TIMER, global_timer_settings.ccr);
+    debug_print();
 }
 
 void
@@ -609,6 +709,7 @@ ir_camera_system_disable_ir_eye_camera(void)
     enable_ir_eye_camera = false;
     set_timer_compare[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
         CAMERA_TRIGGER_TIMER, 0);
+    debug_print();
 }
 
 bool
@@ -623,6 +724,7 @@ ir_camera_system_enable_ir_face_camera(void)
     enable_ir_face_camera = true;
     set_timer_compare[IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
         CAMERA_TRIGGER_TIMER, global_timer_settings.ccr);
+    debug_print();
 }
 
 void
@@ -631,6 +733,7 @@ ir_camera_system_disable_ir_face_camera(void)
     enable_ir_face_camera = false;
     set_timer_compare[IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
         CAMERA_TRIGGER_TIMER, 0);
+    debug_print();
 }
 
 bool
@@ -645,6 +748,7 @@ ir_camera_system_enable_2d_tof_camera(void)
     enable_2d_tof_camera = true;
     set_timer_compare[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
         CAMERA_TRIGGER_TIMER, global_timer_settings.ccr);
+    debug_print();
 }
 
 void
@@ -653,6 +757,7 @@ ir_camera_system_disable_2d_tof_camera(void)
     enable_2d_tof_camera = false;
     set_timer_compare[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
         CAMERA_TRIGGER_TIMER, 0);
+    debug_print();
 }
 
 bool
@@ -708,7 +813,8 @@ ir_camera_system_set_fps(uint16_t fps)
         } else {
             apply_new_timer_settings();
         }
-        timer_settings_print(&global_timer_settings);
+        debug_print();
+        configure_timeout();
     }
 
     return ret;
@@ -729,7 +835,8 @@ ir_camera_system_set_on_time_us(uint16_t on_time_us)
         } else {
             apply_new_timer_settings();
         }
-        timer_settings_print(&global_timer_settings);
+        debug_print();
+        configure_timeout();
     }
 
     return ret;
@@ -744,6 +851,9 @@ ir_camera_system_set_on_time_740nm_us(uint16_t on_time_us)
     if (ret == RET_SUCCESS) {
         apply_new_timer_settings();
     }
+
+    debug_print();
+    configure_timeout();
 
     return ret;
 }
@@ -766,6 +876,9 @@ ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength)
     set_ccr_ir_leds();
 
     CRITICAL_SECTION_EXIT(k);
+
+    debug_print();
+    configure_timeout();
 }
 
 InfraredLEDs_Wavelength

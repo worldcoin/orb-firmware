@@ -97,11 +97,16 @@ test_on_time_within_45_percent_duty_cycle_740nm(void)
     timer_settings_from_fps(fps, &settings, &settings);
 
     // FPS = 0 so no CCR calculation
-    int ret = timer_740nm_ccr_from_on_time_us(12, &settings, &settings);
+    timer_740nm_ccr_from_on_time_us(12, &settings, &settings);
     zassert_equal(0, settings.ccr_740nm, "must be 0, actual %u",
                   settings.ccr_740nm);
-    zassert_equal(RET_ERROR_INVALID_STATE, ret,
-                  "must be RET_INVALID_STATE, actual %u", ret);
+    zassert_equal(settings.ccr_740nm, 0,
+                  "ccr_740nm should be 0 when FPS = 0, but it was %u",
+                  settings.ccr_740nm);
+    zassert_equal(settings.on_time_in_us_740nm, 12,
+                  "on_time_in_us_740nm should be set no matter what, in this "
+                  "case to 12, but it was %u",
+                  settings.on_time_in_us_740nm);
 
     fps = 1;
     timer_settings_from_fps(fps, &settings, &settings);
@@ -336,7 +341,9 @@ test_on_time_set_valid_then_increase_to_another_valid_value(void)
 
     ret = timer_settings_from_fps(fps, &ts, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
-    zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
+    zassert_equal(ts.on_time_in_us, on_time_us,
+                  "ts.on_time_in_us (%u) should equal on_time_us (%u)",
+                  ts.on_time_in_us, on_time_us);
     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
     zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
     zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
@@ -543,7 +550,7 @@ test_fps_set_valid_then_increase_to_another_valid_value(void)
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(fps, ts.fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_true(settings.psc <= ts.psc, "must be <=, changed from %u to %u",
+    zassert_true(settings.psc >= ts.psc, "must be >=, changed from %u to %u",
                  settings.psc, ts.psc);
     zassert_not_equal(0, ts.arr, "must not be zero");
     zassert_not_equal(0, ts.ccr, "must not be zero");
