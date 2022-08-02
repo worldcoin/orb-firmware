@@ -119,7 +119,6 @@ jetson_to_mcu_rx_thread()
                         LOG_ERR("CAN message too long: %u", wr_idx + buf->len);
                     }
 
-                    memset(buf->data, 0, buf->len);
                     net_buf_unref(buf);
                 } while (rem_len > 0);
 
