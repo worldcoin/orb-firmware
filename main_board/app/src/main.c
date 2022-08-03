@@ -68,13 +68,16 @@ app_assert_cb(fatal_error_info_t *err_info)
         McuMessage fatal_error = {.which_message = McuMessage_m_message_tag,
                                   .message.m_message.which_payload =
                                       McuToJetson_fatal_error_tag};
-        can_message_t to_send;
-        pb_ostream_t stream =
-            pb_ostream_from_buffer(to_send.bytes, sizeof(to_send.bytes));
+
+        uint8_t buffer[CAN_FRAME_MAX_SIZE];
+        pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
         bool encoded = pb_encode_ex(&stream, McuMessage_fields, &fatal_error,
                                     PB_ENCODE_DELIMITED);
-        to_send.size = stream.bytes_written;
-        to_send.destination = CONFIG_CAN_ADDRESS_DEFAULT_REMOTE;
+
+        can_message_t to_send = {.destination =
+                                     CONFIG_CAN_ADDRESS_DEFAULT_REMOTE,
+                                 .bytes = buffer,
+                                 .size = stream.bytes_written};
 
         if (encoded) {
             // important: send in blocking mode

@@ -18,15 +18,18 @@ K_THREAD_DEFINE(can_isotp_tx, CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX,
                 process_tx_messages_thread, NULL, NULL, NULL,
                 CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0, 0);
 
-#define QUEUE_ALIGN 8
+#define QUEUE_ALIGN 4
 static_assert(QUEUE_ALIGN % 2 == 0, "QUEUE_ALIGN must be a multiple of 2");
 static_assert(sizeof(can_message_t) % QUEUE_ALIGN == 0,
-              "sizeof McuMessage must be a multiple of QUEUE_ALIGN");
+              "sizeof can_message_t must be a multiple of QUEUE_ALIGN");
 
 // Message queue to send messages
 K_MSGQ_DEFINE(isotp_tx_msg_queue, sizeof(can_message_t),
               CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE, QUEUE_ALIGN);
 
+static K_HEAP_DEFINE(
+    can_tx_isotp_memory_heap,
+    CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE *CONFIG_CAN_ISOTP_MAX_SIZE_BYTES);
 static K_SEM_DEFINE(tx_sem, 1, 1);
 
 static bool is_init = false;
@@ -36,6 +39,10 @@ tx_complete_cb(int error_nr, void *arg)
 {
     ARG_UNUSED(error_nr);
     ARG_UNUSED(arg);
+
+    // free heap allocated buffer
+    uint8_t *to_free = arg;
+    k_heap_free(&can_tx_isotp_memory_heap, to_free);
 
     // don't care about the error: failing tx are discarded
 
@@ -71,13 +78,17 @@ process_tx_messages_thread()
         mcu_to_jetson_src_addr.std_id = new.destination & ~CAN_ADDR_IS_DEST;
         ret = isotp_send(&send_ctx, can_dev, new.bytes, new.size,
                          &mcu_to_jetson_dst_addr, &mcu_to_jetson_src_addr,
-                         tx_complete_cb, NULL);
+                         tx_complete_cb, new.bytes);
+
         if (ret != ISOTP_N_OK) {
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
             LOG_WRN("Error sending message");
 #else
             printk("<wrn> Error sending message!\r\n");
 #endif
+            // free heap allocated buffer
+            k_heap_free(&can_tx_isotp_memory_heap, new.bytes);
+
             // release semaphore, we are not waiting for
             // completion
             k_sem_give(&tx_sem);
@@ -94,15 +105,24 @@ can_isotp_messaging_async_tx(const can_message_t *message)
         return RET_ERROR_INVALID_STATE;
     }
 
-    int ret = k_msgq_put(&isotp_tx_msg_queue, message, K_NO_WAIT);
-    if (ret) {
+    can_message_t to_send = *message;
+    to_send.bytes =
+        k_heap_alloc(&can_tx_isotp_memory_heap, message->size, K_NO_WAIT);
+    if (to_send.bytes != NULL) {
+        memcpy(to_send.bytes, message->bytes, message->size);
+
+        int ret = k_msgq_put(&isotp_tx_msg_queue, &to_send, K_NO_WAIT);
+        if (ret) {
 
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
-        LOG_ERR("Too many tx messages");
+            LOG_ERR("Too many tx messages");
 #else
-        printk("<err> too many tx messages\r\n");
+            printk("<err> too many tx messages\r\n");
 #endif
-        return RET_ERROR_BUSY;
+            return RET_ERROR_BUSY;
+        }
+    } else {
+        return RET_ERROR_NO_MEM;
     }
 
     return RET_SUCCESS;

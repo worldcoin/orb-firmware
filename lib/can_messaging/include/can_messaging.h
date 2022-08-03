@@ -2,8 +2,12 @@
 #define ORB_LIB_CAN_MESSAGING_H
 
 #include "errors.h"
+#include <drivers/can.h>
 #include <stddef.h>
 #include <stdint.h>
+
+/// Maximum CAN frame size depends on CAN driver configuration
+#define CAN_FRAME_MAX_SIZE (CAN_MAX_DLEN)
 
 /// ISO-TP addressing scheme
 /// 11-bit standard ID
@@ -23,10 +27,11 @@
 #define CAN_ISOTP_STDID_SOURCE(src, dest)                                      \
     (CAN_ADDR_IS_ISOTP_SOURCE | src << CAN_ADDR_SOURCE_ID_POS | dest)
 
+/// CAN message holder
 typedef struct {
     uint32_t destination; // CAN ID the message is sent to
-    uint8_t bytes[CONFIG_CAN_MESSAGE_MAX_SIZE_BYTES];
-    size_t size; // actual number of bytes used in the `byte` member
+    uint8_t *bytes;       // pointer to the CAN message payload
+    size_t size;          // actual number of bytes used in the `byte` member
 } can_message_t;
 
 /// Send new message using CAN-FD

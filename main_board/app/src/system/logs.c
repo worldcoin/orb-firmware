@@ -29,13 +29,15 @@ print_log_can(const char *data, size_t size, bool blocking)
                                   McuToJetson_log_tag,
                               .message.m_message.payload.log = log};
 
-        can_message_t to_send;
-        pb_ostream_t stream =
-            pb_ostream_from_buffer(to_send.bytes, sizeof(to_send.bytes));
+        uint8_t buffer[CAN_FRAME_MAX_SIZE];
+        pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
         bool encoded = pb_encode_ex(&stream, McuMessage_fields, &log_msg,
                                     PB_ENCODE_DELIMITED);
-        to_send.size = stream.bytes_written;
-        to_send.destination = CONFIG_CAN_ADDRESS_DEFAULT_REMOTE;
+
+        can_message_t to_send = {.destination =
+                                     CONFIG_CAN_ADDRESS_DEFAULT_REMOTE,
+                                 .bytes = buffer,
+                                 .size = stream.bytes_written};
 
         if (encoded) {
             (void)can_messaging_blocking_tx(&to_send);

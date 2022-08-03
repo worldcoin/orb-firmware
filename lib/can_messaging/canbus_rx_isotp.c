@@ -24,7 +24,6 @@ static struct k_poll_event poll_evt[1 + CONFIG_CAN_ISOTP_REMOTE_APP_COUNT] = {
     0};
 
 static void (*incoming_message_handler)(can_message_t *msg);
-static can_message_t rx_message = {0};
 
 static_assert(CONFIG_CAN_ISOTP_REMOTE_APP_COUNT <= 15,
               "ISO-TP binding allowed to a maximum of 15 apps");
@@ -74,6 +73,8 @@ jetson_to_mcu_rx_thread()
     struct net_buf *buf = NULL;
     int ret, rem_len;
     size_t wr_idx = 0;
+    static can_message_t rx_message = {0};
+    static uint8_t buffer[CONFIG_CAN_ISOTP_MAX_SIZE_BYTES];
 
     // listen remotes
     bind_to_remotes();
@@ -111,8 +112,8 @@ jetson_to_mcu_rx_thread()
                         break;
                     }
 
-                    if (wr_idx + buf->len <= sizeof(rx_message.bytes)) {
-                        memcpy(&rx_message.bytes[wr_idx], buf->data, buf->len);
+                    if (wr_idx + buf->len <= sizeof(buffer)) {
+                        memcpy(&buffer[wr_idx], buf->data, buf->len);
                         wr_idx += buf->len;
                     } else {
                         ASSERT_SOFT(RET_ERROR_NO_MEM);
@@ -127,6 +128,7 @@ jetson_to_mcu_rx_thread()
                     // push for processing and keep destination ID to send
                     // any response to the sender
                     rx_message.size = wr_idx;
+                    rx_message.bytes = buffer;
                     rx_message.destination = rx_ctx[app_id].rx_addr.std_id;
                     if (incoming_message_handler != NULL) {
                         incoming_message_handler(&rx_message);

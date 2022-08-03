@@ -17,7 +17,7 @@ K_THREAD_DEFINE(can_tx, CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX,
                 process_tx_messages_thread, NULL, NULL, NULL,
                 CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0, 0);
 
-#define QUEUE_ALIGN 8
+#define QUEUE_ALIGN 4
 static_assert(QUEUE_ALIGN % 2 == 0, "QUEUE_ALIGN must be a multiple of 2");
 static_assert(sizeof(can_message_t) % QUEUE_ALIGN == 0,
               "sizeof McuMessage must be a multiple of QUEUE_ALIGN");
@@ -25,6 +25,9 @@ static_assert(sizeof(can_message_t) % QUEUE_ALIGN == 0,
 // Message queue to send messages
 K_MSGQ_DEFINE(can_tx_msg_queue, sizeof(can_message_t),
               CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE, QUEUE_ALIGN);
+// Memory slab to allocate message content
+K_MEM_SLAB_DEFINE(can_tx_memory_slab, CAN_FRAME_MAX_SIZE,
+                  CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE, 4);
 
 static K_SEM_DEFINE(tx_sem, 1, 1);
 
@@ -88,6 +91,9 @@ process_tx_messages_thread()
 
         ret_code_t err_code =
             send(new.bytes, new.size, tx_complete_cb, new.destination);
+
+        k_mem_slab_free(&can_tx_memory_slab, (void **)&new.bytes);
+
         if (err_code != RET_SUCCESS) {
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
             LOG_WRN("Error sending message");
@@ -114,14 +120,22 @@ can_messaging_async_tx(const can_message_t *message)
         return RET_ERROR_INVALID_PARAM;
     }
 
-    int ret = k_msgq_put(&can_tx_msg_queue, message, K_NO_WAIT);
-    if (ret) {
+    can_message_t to_send = *message;
+    if (k_mem_slab_alloc(&can_tx_memory_slab, (void **)&to_send.bytes,
+                         K_NO_WAIT) == 0) {
+        memcpy(to_send.bytes, message->bytes, message->size);
+
+        int ret = k_msgq_put(&can_tx_msg_queue, &to_send, K_NO_WAIT);
+        if (ret) {
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
-        LOG_ERR("Too many tx messages");
+            LOG_ERR("Too many tx messages");
 #else
-        printk("<err> too many tx messages\r\n");
+            printk("<err> too many tx messages\r\n");
 #endif
-        return RET_ERROR_BUSY;
+            return RET_ERROR_BUSY;
+        }
+    } else {
+        return RET_ERROR_NO_MEM;
     }
 
     return RET_SUCCESS;
