@@ -28,7 +28,6 @@ rx_thread()
 {
     int ret;
     static can_message_t rx_message = {0};
-    static uint8_t buffer[CAN_FRAME_MAX_SIZE];
 
     ret = can_add_rx_filter_msgq(can_dev, &can_recv_queue, &recv_queue_filter);
     if (ret < 0) {
@@ -40,8 +39,7 @@ rx_thread()
         k_msgq_get(&can_recv_queue, &rx_frame, K_FOREVER);
         rx_message.size = can_dlc_to_bytes(rx_frame.dlc);
         rx_message.destination = rx_frame.id;
-        memcpy(buffer, rx_frame.data, rx_message.size);
-        rx_message.bytes = buffer;
+        rx_message.bytes = rx_frame.data;
 
         if (incoming_message_handler != NULL) {
             incoming_message_handler(&rx_message);
