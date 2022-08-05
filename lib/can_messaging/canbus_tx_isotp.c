@@ -35,14 +35,12 @@ static K_SEM_DEFINE(tx_sem, 1, 1);
 static bool is_init = false;
 
 static void
-tx_complete_cb(int error_nr, void *arg)
+tx_complete_cb(int error_nr, void *buffer_to_free)
 {
     ARG_UNUSED(error_nr);
-    ARG_UNUSED(arg);
 
     // free heap allocated buffer
-    uint8_t *to_free = arg;
-    k_heap_free(&can_tx_isotp_memory_heap, to_free);
+    k_heap_free(&can_tx_isotp_memory_heap, buffer_to_free);
 
     // don't care about the error: failing tx are discarded
 
