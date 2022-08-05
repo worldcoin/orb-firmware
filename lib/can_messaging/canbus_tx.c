@@ -50,7 +50,7 @@ static ret_code_t
 send(const char *data, size_t len,
      void (*tx_complete_cb)(const struct device *, int, void *), uint32_t dest)
 {
-    ASSERT_HARD_BOOL(len < CAN_MAX_DLEN);
+    ASSERT_HARD_BOOL(len < CAN_FRAME_MAX_SIZE);
 
     struct zcan_frame frame = {.id_type = CAN_EXTENDED_IDENTIFIER,
                                .fd = true,
@@ -116,7 +116,7 @@ can_messaging_async_tx(const can_message_t *message)
         return RET_ERROR_INVALID_STATE;
     }
 
-    if (message->size > CAN_MAX_DLEN) {
+    if (message->size > CAN_FRAME_MAX_SIZE) {
         return RET_ERROR_INVALID_PARAM;
     }
 
