@@ -2,6 +2,10 @@
 
 cmake-build-*/
 
+CMakeCache.txt
+CMakeFiles/
+app_version.conf
+
 build/
 .docker_image_built
 *.egg-info/

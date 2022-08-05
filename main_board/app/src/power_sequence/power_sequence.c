@@ -253,6 +253,14 @@ SYS_INIT(power_turn_on_supplies_phase2, POST_KERNEL,
 #define POWER_BUTTON_PIN   DT_GPIO_PIN(POWER_BUTTON_NODE, gpios)
 #define POWER_BUTTON_FLAGS DT_GPIO_FLAGS(POWER_BUTTON_NODE, gpios)
 
+#ifdef CONFIG_INSTA_BOOT
+static int
+power_wait_for_power_button_press(void)
+{
+    LOG_INF("INSTA_BOOT enabled -- not waiting for a button press to boot!");
+    return 0;
+}
+#else
 static int
 power_wait_for_power_button_press(void)
 {
@@ -286,6 +294,7 @@ power_wait_for_power_button_press(void)
 
     return 0;
 }
+#endif // CONFIG_INSTA_BOOT
 
 /**
  * Decide whether to wait for user to press the button to start the Orb

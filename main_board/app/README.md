@@ -72,6 +72,19 @@ su-exec root pyocd flash combined_mcu_main_<board_version>_<version>.hex --targe
 
 ## Misc Documentation
 
+### Cmake build options
+
+Use `west build -DCONFIG_<option>=y` to use any of these convenience build options:
+
+- `TEST_IR_CAMERA_SYSTEM`
+- `INSTA_BOOT`
+- `NO_JETSON_BOOT`
+- `NO_BOOT_LEDS`
+- `NO_SUPER_CAPS`
+- `MCU_DEVEL`
+
+Example: `west build -- -DCONFIG_MCU_DEVEL=y`.
+
 ### Memory map
 
 | Region                              | Location   | Size  |
