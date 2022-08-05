@@ -46,7 +46,7 @@ rx_thread()
         if (incoming_message_handler != NULL) {
             incoming_message_handler(&rx_message);
         } else {
-            LOG_ERR("Cannot handle message");
+            LOG_ERR("No message handler installed!");
         }
     }
 }
