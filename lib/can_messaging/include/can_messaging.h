@@ -31,7 +31,7 @@
 typedef struct {
     uint32_t destination; // CAN ID the message is sent to
     uint8_t *bytes;       // pointer to the CAN message payload
-    size_t size;          // actual number of bytes used in the `byte` member
+    size_t size;          // actual number of bytes used in the `bytes` member
 } can_message_t;
 
 /// Send new message using CAN-FD
