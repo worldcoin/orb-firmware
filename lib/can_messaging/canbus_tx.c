@@ -20,7 +20,7 @@ K_THREAD_DEFINE(can_tx, CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX,
 #define QUEUE_ALIGN 4
 static_assert(QUEUE_ALIGN % 2 == 0, "QUEUE_ALIGN must be a multiple of 2");
 static_assert(sizeof(can_message_t) % QUEUE_ALIGN == 0,
-              "sizeof McuMessage must be a multiple of QUEUE_ALIGN");
+              "sizeof can_message_t must be a multiple of QUEUE_ALIGN");
 
 // Message queue to send messages
 K_MSGQ_DEFINE(can_tx_msg_queue, sizeof(can_message_t),
