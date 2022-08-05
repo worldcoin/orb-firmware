@@ -68,6 +68,7 @@ process_tx_messages_thread()
         int ret = k_msgq_get(&isotp_tx_msg_queue, &new, K_FOREVER);
         if (ret != 0) {
             // error
+            ASSERT_SOFT(ret);
             continue;
         }
 
