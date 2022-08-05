@@ -127,6 +127,8 @@ can_messaging_async_tx(const can_message_t *message)
 
         int ret = k_msgq_put(&can_tx_msg_queue, &to_send, K_NO_WAIT);
         if (ret) {
+            k_mem_slab_free(&can_tx_memory_slab, (void **)&to_send.bytes);
+
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
             LOG_ERR("Too many tx messages");
 #else

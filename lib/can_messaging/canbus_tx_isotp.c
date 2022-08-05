@@ -112,6 +112,8 @@ can_isotp_messaging_async_tx(const can_message_t *message)
 
         int ret = k_msgq_put(&isotp_tx_msg_queue, &to_send, K_NO_WAIT);
         if (ret) {
+            // free heap allocated buffer
+            k_heap_free(&can_tx_isotp_memory_heap, to_send.bytes);
 
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
             LOG_ERR("Too many tx messages");
