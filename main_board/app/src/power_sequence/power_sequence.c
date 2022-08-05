@@ -253,7 +253,7 @@ power_turn_on_supplies_phase2(const struct device *dev)
 SYS_INIT(power_turn_on_supplies_phase2, POST_KERNEL,
          SYS_INIT_POWER_SUPPLY_PHASE2_PRIORITY);
 
-#define BUTTON_PRESS_TIME_MS    1500
+#define BUTTON_PRESS_TIME_MS    500
 #define BUTTON_SAMPLE_PERIOD_MS 10
 
 #define POWER_BUTTON_NODE  DT_PATH(buttons, power_button)
