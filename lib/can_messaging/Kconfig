@@ -61,7 +61,7 @@ config CAN_ISOTP_REMOTE_APP_COUNT
 config CAN_ISOTP_MAX_SIZE_BYTES
 	int "CAN ISO-TP message maximum size."
 	default 1024
-	range 0 4096
+	range 1 4096
 	depends on ORB_LIB_CAN_MESSAGE && ISOTP
 	help
 		"An ISO-TP message can contain up to 4096 bytes but we might want to cap the value depending on application's constraints"
