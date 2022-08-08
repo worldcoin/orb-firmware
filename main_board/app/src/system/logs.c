@@ -22,9 +22,9 @@ print_log_can(const char *data, size_t size, bool blocking)
                                      McuToJetson_log_tag,
                                  .message.m_message.payload.log.log = {0}};
 
-    memset(log_msg.message.m_message.payload.log.log, 0,
-           sizeof(log_msg.message.m_message.payload.log.log));
     memcpy(log_msg.message.m_message.payload.log.log, data, size);
+    memset(&log_msg.message.m_message.payload.log.log[size], 0,
+           (sizeof(log_msg.message.m_message.payload.log.log) - size));
 
     if (!blocking) {
         // use the pubsub API
