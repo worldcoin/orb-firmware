@@ -1,6 +1,6 @@
 #include "temperature.h"
 #include "fan/fan.h"
-#include <app_assert.h>
+#include "pubsub/pubsub.h"
 #include <app_config.h>
 #include <assert.h>
 #include <device.h>
@@ -11,8 +11,6 @@
 #include <logging/log.h>
 #include <math.h>
 LOG_MODULE_REGISTER(temperature);
-
-static bool send_temperature_messages = false;
 
 // These values are informed by
 // https://www.notion.so/PCBA-thermals-96849052d5c24a0bafaedb4363f460b5
@@ -138,18 +136,9 @@ static void
 temperature_report_internal(struct sensor_and_channel *sensor_and_channel,
                             int32_t temperature_in_c)
 {
-    static McuMessage msg = {
-        .which_message = McuMessage_m_message_tag,
-        .message.m_message.which_payload = McuToJetson_temperature_tag,
-    };
+    temperature_report(sensor_and_channel->temperature_source,
+                       temperature_in_c);
 
-    if (send_temperature_messages) {
-        msg.message.m_message.payload.temperature.source =
-            sensor_and_channel->temperature_source;
-        msg.message.m_message.payload.temperature.temperature_c =
-            temperature_in_c;
-        can_messaging_async_tx(&msg);
-    }
     if (sensor_and_channel->cb) {
         sensor_and_channel->cb(sensor_and_channel, temperature_in_c);
     }
@@ -159,17 +148,10 @@ void
 temperature_report(Temperature_TemperatureSource source,
                    int32_t temperature_in_c)
 {
-    static McuMessage msg = {
-        .which_message = McuMessage_m_message_tag,
-        .message.m_message.which_payload = McuToJetson_temperature_tag,
-    };
-
-    if (send_temperature_messages) {
-        msg.message.m_message.payload.temperature.source = source;
-        msg.message.m_message.payload.temperature.temperature_c =
-            temperature_in_c;
-        can_messaging_async_tx(&msg);
-    }
+    Temperature temperature = {.source = source,
+                               .temperature_c = temperature_in_c};
+    publish_new(&temperature, sizeof(temperature), McuToJetson_temperature_tag,
+                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 
 static int32_t
@@ -236,13 +218,6 @@ check_ready(void)
 }
 
 void
-temperature_start_sending(void)
-{
-    LOG_INF("Starting to send temperatures to Jetson");
-    send_temperature_messages = true;
-}
-
-void
 temperature_init(void)
 {
     check_ready();
@@ -253,6 +228,7 @@ temperature_init(void)
                                     K_THREAD_STACK_SIZEOF(stack_area),
                                     temperature_thread, NULL, NULL, NULL,
                                     THREAD_PRIORITY_TEMPERATURE, 0, K_NO_WAIT);
+        k_thread_name_set(thread_id, "temperature");
     } else {
         LOG_ERR("Sampling already started");
     }

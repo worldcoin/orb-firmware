@@ -154,7 +154,7 @@ operator_leds_init(void)
                         K_THREAD_STACK_SIZEOF(operator_leds_stack_area),
                         operator_leds_thread, (void *)led_strip, NULL, NULL,
                         THREAD_PRIORITY_OPERATOR_RGB_LEDS, 0, K_NO_WAIT);
-    k_thread_name_set(tid, "Operator RGB LED");
+    k_thread_name_set(tid, "operator_leds");
 
     return RET_SUCCESS;
 }

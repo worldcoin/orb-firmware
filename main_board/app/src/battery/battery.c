@@ -1,7 +1,7 @@
 #include "app_config.h"
-#include "can_messaging.h"
 #include "errors.h"
 #include "mcu_messaging.pb.h"
+#include "pubsub/pubsub.h"
 #include "temperature/temperature.h"
 #include <app_assert.h>
 #include <device.h>
@@ -13,6 +13,10 @@
 LOG_MODULE_REGISTER(battery);
 
 static const struct device *can_dev;
+K_THREAD_STACK_DEFINE(can_battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
+static struct k_thread rx_thread_data = {0};
+
+CAN_MSGQ_DEFINE(can_battery_recv_queue, 8);
 
 // accept everything and discard unwanted messages in software
 static const struct zcan_filter battery_can_filter = {
@@ -52,46 +56,42 @@ static struct battery_499_s state_499 = {0};
 static void
 handle_499(struct zcan_frame *frame)
 {
-    static McuMessage msg = {
-        .which_message = McuMessage_m_message_tag,
-    };
-    static bool is_charging = false;
+    static BatteryCapacity battery_cap = {UINT32_MAX};
+    static BatteryIsCharging is_charging = {.battery_is_charging = false};
+
+    int ret = 0;
 
     if (can_dlc_to_bytes(frame->dlc) == 6) {
         // Let's extract the info we care about
         struct battery_499_s *new_state = (struct battery_499_s *)frame->data;
 
         // logging
-        LOG_DBG("state of charge: %u%%", new_state->state_of_charge);
-        LOG_DBG("is charging? %s", is_charging ? "yes" : "no");
+        LOG_DBG("State of charge: %u%%", new_state->state_of_charge);
+        LOG_DBG("Is charging? %s",
+                is_charging.battery_is_charging ? "yes" : "no");
 
         // now let's report the data if it has changed
         if (state_499.state_of_charge != new_state->state_of_charge) {
-            msg.message.m_message.which_payload =
-                McuToJetson_battery_capacity_tag;
-            msg.message.m_message.payload.battery_capacity.percentage =
-                new_state->state_of_charge;
+            battery_cap.percentage = new_state->state_of_charge;
 
-            // store new state only if message is successfully queued
-            int ret = can_messaging_async_tx(&msg);
-            if (ret == RET_SUCCESS) {
-                state_499.state_of_charge = new_state->state_of_charge;
-            }
+            ret |= publish_new(&battery_cap, sizeof(battery_cap),
+                               McuToJetson_battery_capacity_tag,
+                               CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
 
-        bool currently_charging =
-            ((new_state->flags & BIT(IS_CHARGING_BIT)) != 0);
-        if (is_charging != currently_charging) {
-            msg.message.m_message.which_payload =
-                McuToJetson_battery_is_charging_tag;
-            msg.message.m_message.payload.battery_is_charging
-                .battery_is_charging = is_charging;
+        if ((new_state->flags & BIT(IS_CHARGING_BIT)) !=
+            (state_499.flags & BIT(IS_CHARGING_BIT))) {
+            is_charging.battery_is_charging =
+                (new_state->flags & BIT(IS_CHARGING_BIT)) != 0;
 
-            // store new state only if message is successfully queued
-            int ret = can_messaging_async_tx(&msg);
-            if (ret == RET_SUCCESS) {
-                is_charging = currently_charging;
-            }
+            ret |= publish_new(&is_charging, sizeof(is_charging),
+                               McuToJetson_battery_is_charging_tag,
+                               CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+        }
+
+        // store new state only if messages successfully queued
+        if (ret == RET_SUCCESS) {
+            state_499 = *new_state;
         }
 
         LOG_DBG("Battery PCB temperature: %u.%u°C",
@@ -120,27 +120,37 @@ handle_415(struct zcan_frame *frame)
 }
 
 static void
-can_rx_callback(const struct device *dev, struct zcan_frame *frame,
-                void *user_data)
+rx_thread()
 {
-    ARG_UNUSED(dev);
-    ARG_UNUSED(user_data);
+    int ret;
+    struct zcan_frame rx_frame;
 
-    switch (frame->id) {
-    case 0x499:
-        handle_499(frame);
-        break;
-    case 0x415:
-        handle_415(frame);
-        break;
+    ret = can_add_rx_filter_msgq(can_dev, &can_battery_recv_queue,
+                                 &battery_can_filter);
+    if (ret < 0) {
+        LOG_ERR("Error attaching message queue (%d)!", ret);
+        return;
+    }
+
+    while (1) {
+        k_msgq_get(&can_battery_recv_queue, &rx_frame, K_FOREVER);
+
+        switch (rx_frame.id) {
+        case 0x499:
+            handle_499(&rx_frame);
+            break;
+        case 0x415:
+            handle_415(&rx_frame);
+            break;
+        default:
+            break;
+        }
     }
 }
 
 ret_code_t
 battery_init(void)
 {
-    int ret;
-
     can_dev = DEVICE_DT_GET(DT_ALIAS(battery_can_bus));
     if (!can_dev) {
         LOG_ERR("CAN: Device driver not found.");
@@ -154,12 +164,11 @@ battery_init(void)
         LOG_INF("CAN ready");
     }
 
-    ret =
-        can_add_rx_filter(can_dev, can_rx_callback, NULL, &battery_can_filter);
-    if (ret < 0) {
-        LOG_ERR("Error attaching can message filter (%d)!", ret);
-        return RET_ERROR_INTERNAL;
-    }
+    k_tid_t tid = k_thread_create(
+        &rx_thread_data, can_battery_rx_thread_stack,
+        K_THREAD_STACK_SIZEOF(can_battery_rx_thread_stack), rx_thread, NULL,
+        NULL, NULL, THREAD_PRIORITY_BATTERY, 0, K_NO_WAIT);
+    k_thread_name_set(tid, "battery");
 
     return RET_SUCCESS;
 }

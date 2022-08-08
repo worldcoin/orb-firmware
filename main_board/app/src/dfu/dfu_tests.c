@@ -1,18 +1,19 @@
-#include "tests.h"
+#include "dfu_tests.h"
 #include <logging/log.h>
 #define LOG_LEVEL LOG_LEVEL_DBG
 LOG_MODULE_REGISTER(dfutest);
 
 #include "dfu.h"
-#include "messaging/incoming_message_handling.h"
+#include "runner/runner.h"
 #include <app_config.h>
 #include <errors.h>
 #include <flash_map_backend/flash_map_backend.h>
+#include <pb_encode.h>
 #include <random/rand32.h>
 #include <sys/crc.h>
 #include <zephyr.h>
 
-K_THREAD_STACK_DEFINE(dfu_test_thread_stack_upload, 2048);
+K_THREAD_STACK_DEFINE(dfu_test_thread_stack_upload, 3072);
 static struct k_thread test_thread_data_upload;
 
 K_THREAD_STACK_DEFINE(dfu_test_thread_stack_crc, 1024);
@@ -27,6 +28,7 @@ test_dfu_upload()
     // - byte count in final buffer isn't aligned on double-word
     uint32_t test_block_count = 53; // sys_rand32_get() % 50 + 50;
 
+    can_message_t to_send;
     McuMessage dfu_block = McuMessage_init_zero;
     dfu_block.version = Version_VERSION_0;
     dfu_block.which_message = McuMessage_j_message_tag;
@@ -49,7 +51,19 @@ test_dfu_upload()
     LOG_INF("Writing %u blocks for the test", block_to_send);
 
     while (block_to_send--) {
-        incoming_message_handle(&dfu_block);
+        pb_ostream_t stream =
+            pb_ostream_from_buffer(to_send.bytes, sizeof(to_send.bytes));
+        bool encoded = pb_encode_ex(&stream, McuMessage_fields, &dfu_block,
+                                    PB_ENCODE_DELIMITED);
+        to_send.size = stream.bytes_written;
+        to_send.destination = 0;
+
+        if (encoded) {
+            runner_handle_new(&to_send);
+        } else {
+            LOG_ERR("Error encoding DFU block");
+            return;
+        }
 
         // update next block
         dfu_block.message.j_message.ack_number += 1;
@@ -106,7 +120,7 @@ test_dfu_upload()
 }
 
 void
-tests_dfu_init(void)
+dfu_tests_init(void)
 {
     LOG_INF("Creating DFU test thread");
 
@@ -114,6 +128,7 @@ tests_dfu_init(void)
         &test_thread_data_upload, dfu_test_thread_stack_upload,
         K_THREAD_STACK_SIZEOF(dfu_test_thread_stack_upload), test_dfu_upload,
         NULL, NULL, NULL, THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
+    k_thread_name_set(tid, "dfu_test");
     if (!tid) {
         LOG_ERR("ERROR spawning test_dfu_upload thread");
     }
@@ -144,7 +159,7 @@ test_crc()
 }
 
 void
-tests_crc_init(void)
+dfu_crc_tests_init(void)
 {
     LOG_INF("Creating CRC test thread");
 
@@ -152,7 +167,5 @@ tests_crc_init(void)
         &test_thread_data_crc, dfu_test_thread_stack_crc,
         K_THREAD_STACK_SIZEOF(dfu_test_thread_stack_crc), test_crc, NULL, NULL,
         NULL, THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
-    if (!tid) {
-        LOG_ERR("ERROR spawning test_crc thread");
-    }
+    k_thread_name_set(tid, "dfu_crc_test");
 }

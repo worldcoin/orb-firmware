@@ -6,7 +6,6 @@
 #include <devicetree.h>
 #include <errors.h>
 #include <flash_map_backend/flash_map_backend.h>
-#include <inttypes.h>
 #include <logging/log.h>
 #include <storage/flash_map.h>
 #include <sys/crc.h>
@@ -66,27 +65,24 @@ static struct {
     // make sure `bytes` is the first field to ensure alignment
     uint8_t bytes[DFU_BLOCKS_BUFFER_SIZE];
     uint32_t wr_idx;
-    uint32_t last_ack_number;
     uint32_t block_number;
     uint32_t block_count;
     uint32_t flash_offset;
+    void *ctx; // pointer to the caller context, to be used with the
+               // `dfu_block_process_cb`
 } dfu_state __ALIGN(8) = {0};
 
-static void (*dfu_block_process_cb)(uint32_t ack, int err) = NULL;
+static void (*dfu_block_process_cb)(void *ctx, int err) = NULL;
 
 // 1 producer and 1 consumer sharing dfu_state
 // we need two semaphores
 K_SEM_DEFINE(sem_dfu_free_space, 1, 1);
 K_SEM_DEFINE(sem_dfu_full, 0, 1);
 
-/**
- * Queue new Firmware image block for processing
- * @param msg
- */
 int
 dfu_load(uint32_t current_block_number, uint32_t block_count,
-         const uint8_t *data, size_t size, uint32_t ack_number,
-         void (*process_cb)(uint32_t ack, int err))
+         const uint8_t *data, size_t size, void *ctx,
+         void (*process_cb)(void *ctx, int err))
 {
     dfu_block_process_cb = process_cb;
 
@@ -121,6 +117,7 @@ dfu_load(uint32_t current_block_number, uint32_t block_count,
                                       process_dfu_blocks_thread, NULL, NULL,
                                       NULL, CONFIG_ORB_LIB_THREAD_PRIORITY_DFU,
                                       0, K_NO_WAIT);
+            k_thread_name_set(tid_dfu, "dfu");
         }
     }
 
@@ -132,7 +129,7 @@ dfu_load(uint32_t current_block_number, uint32_t block_count,
     memcpy(&dfu_state.bytes[dfu_state.wr_idx], data, size);
     dfu_state.wr_idx += size;
 
-    dfu_state.last_ack_number = ack_number;
+    dfu_state.ctx = ctx;
 
     // write if enough bytes ready: DFU_BLOCKS_WRITE_SIZE
     // or last block
@@ -183,7 +180,7 @@ process_dfu_blocks_thread()
                             image_slot_size);
 
                     if (dfu_block_process_cb != NULL) {
-                        dfu_block_process_cb(dfu_state.last_ack_number,
+                        dfu_block_process_cb(dfu_state.ctx,
                                              RET_ERROR_INVALID_PARAM);
                     }
                     break;
@@ -226,8 +223,7 @@ process_dfu_blocks_thread()
                     LOG_ERR("Unable to erase sector, err %i", err_code);
 
                     if (dfu_block_process_cb != NULL) {
-                        dfu_block_process_cb(dfu_state.last_ack_number,
-                                             RET_ERROR_INTERNAL);
+                        dfu_block_process_cb(dfu_state.ctx, RET_ERROR_INTERNAL);
                     }
                     break;
                 }
@@ -242,8 +238,7 @@ process_dfu_blocks_thread()
                 LOG_ERR("Unable to write into Flash, err %i", err_code);
 
                 if (dfu_block_process_cb != NULL) {
-                    dfu_block_process_cb(dfu_state.last_ack_number,
-                                         RET_ERROR_INTERNAL);
+                    dfu_block_process_cb(dfu_state.ctx, RET_ERROR_INTERNAL);
                 }
                 break;
             } else if (dfu_state.wr_idx >= bytes_to_write) {
@@ -266,7 +261,7 @@ process_dfu_blocks_thread()
         k_sem_give(&sem_dfu_free_space);
 
         if (dfu_block_process_cb != NULL) {
-            dfu_block_process_cb(dfu_state.last_ack_number, RET_SUCCESS);
+            dfu_block_process_cb(dfu_state.ctx, RET_SUCCESS);
         }
     }
 }

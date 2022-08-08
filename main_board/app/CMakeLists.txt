@@ -1,19 +1,13 @@
 cmake_minimum_required(VERSION 3.20.0)
 set(TARGET app)
 
-# Options
-option(TEST_IR_CAMERA_SYSTEM "Run the IR camera system tests instead of the normal application on boot" OFF)
-if (TEST_IR_CAMERA_SYSTEM)
-    add_compile_definitions(CONFIG_TEST_IR_CAMERA_SYSTEM)
-endif()
-
-# Get paths to project and workspace directories
 get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../ ABSOLUTE)
 get_filename_component(WORKSPACE_DIR ${PROJECT_DIR} DIRECTORY)
 
-# Compile options for our source files
-set(APP_FILES_COMPILE_OPTIONS -Wextra)
-# Compile options added depending on build type
+if(RUN_ALL_TESTS)
+    add_definitions(-DRUN_ALL_TESTS)
+endif()
+
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
     message(STATUS "Maximum optimization for speed")
 
@@ -34,9 +28,9 @@ include(${PROJECT_DIR}/utils/cmake/version.cmake)
 application_version(APP_VERSION)
 message(STATUS "Application version: ${APP_VERSION}")
 set_property(
-        DIRECTORY
-        APPEND
-        PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/VERSION
+    DIRECTORY
+    APPEND
+    PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/VERSION
 )
 
 set_property(GLOBAL PROPERTY CSTD gnu11)
@@ -61,7 +55,7 @@ if (DTC_OVERLAY_FILE)
         "${DTC_OVERLAY_FILE} ${CMAKE_CURRENT_LIST_DIR}/dts.overlay"
         CACHE STRING "" FORCE
         )
-else()
+else ()
     set(DTC_OVERLAY_FILE dts.overlay)
 endif ()
 
@@ -75,15 +69,16 @@ set(SINE_TABLE_LENGTH 100)
 add_compile_definitions(PULSING_NUM_UPDATES_PER_PERIOD=${SINE_TABLE_LENGTH})
 set(SINE_LUT_SRC_FILE ${CMAKE_BINARY_DIR}/zephyr/sine_lut.c)
 add_custom_command(OUTPUT ${SINE_LUT_SRC_FILE}
-        COMMAND python3 ${PROJECT_DIR}/utils/math/generate_sine.py ${SINE_TABLE_LENGTH} > ${SINE_LUT_SRC_FILE})
+    COMMAND python3 ${PROJECT_DIR}/utils/math/generate_sine.py ${SINE_TABLE_LENGTH} > ${SINE_LUT_SRC_FILE})
 
 set(SOURCES_FILES
     src/main.c
 
-    src/dfu/tests.c
+    src/dfu/dfu_tests.c
 
-    src/messaging/incoming_message_handling.c
-    src/messaging/messaging_tests.c
+    src/pubsub/pubsub.c
+
+    src/runner/runner.c
 
     src/power_sequence/power_sequence.c
     src/fan/fan.c
@@ -98,27 +93,29 @@ set(SOURCES_FILES
     src/ui/operator_leds/operator_leds_tests.c
 
     src/ir_camera_system/ir_camera_timer_settings.c
-    src/ir_camera_system/ir_camera_system_test.c
+    src/ir_camera_system/ir_camera_system_tests.c
 
     src/stepper_motors/stepper_motors.c
     src/stepper_motors/motors_tests.c
+
 
     src/temperature/temperature.c
 
     src/liquid_lens/liquid_lens.c
 
     src/system/fatal.c
+    src/system/logs.c
     src/version/version.c
     )
 
-if(DEFINED CONFIG_BOARD_MCU_MAIN_V31)
+if (DEFINED CONFIG_BOARD_MCU_MAIN_V31)
     list(APPEND SOURCES_FILES src/ir_camera_system/ir_camera_system_v31.c)
     list(APPEND SOURCES_FILES src/battery/battery.c)
-elseif(DEFINED CONFIG_BOARD_MCU_MAIN_V30)
+elseif (DEFINED CONFIG_BOARD_MCU_MAIN_V30)
     list(APPEND SOURCES_FILES src/ir_camera_system/ir_camera_system_v30.c)
-else()
-    message(FATAL_ERROR One of the above board configurations must be defined!)
-endif()
+else ()
+    message(FATAL_ERROR "Please build for board 'mcu_main_v31' or 'mcu_main_v30'")
+endif ()
 
 set(INCLUDE_DIRS
     include
@@ -147,9 +144,9 @@ zephyr_link_libraries_ifdef(CONFIG_MCUBOOT_BOOTUTIL_LIB MCUBOOT_BOOTUTIL)
 # the bootloader will then swap the images before launching the new image as a Test
 set(SIGNED_ENCRYPTED_BINARY ${CMAKE_BINARY_DIR}/zephyr/zephyr.signed.encrypted.bin)
 add_custom_target(
-        openocd_load_encrypted_sec_slot
-        DEPENDS zephyr_final
-        COMMAND openocd -f ${WORKSPACE_DIR}/orb/boards/arm/mcu_main/support/openocd.cfg -c "tcl_port disabled" -c "gdb_port disabled" -c "tcl_port disabled" -c "program \"${SIGNED_ENCRYPTED_BINARY}\" 0x8044000" -c reset -c shutdown
-        # TODO flash "image OK" flags at the end of the secondary slot to mark image as pending
-        COMMENT "Loading signed+encrypted binary into secondary slot"
+    openocd_load_encrypted_sec_slot
+    DEPENDS zephyr_final
+    COMMAND openocd -f ${WORKSPACE_DIR}/orb/boards/arm/mcu_main/support/openocd.cfg -c "tcl_port disabled" -c "gdb_port disabled" -c "tcl_port disabled" -c "program \"${SIGNED_ENCRYPTED_BINARY}\" 0x8044000" -c reset -c shutdown
+    # TODO flash "image OK" flags at the end of the secondary slot to mark image as pending
+    COMMENT "Loading signed+encrypted binary into secondary slot"
 )

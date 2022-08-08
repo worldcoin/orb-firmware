@@ -1,6 +1,8 @@
 #ifndef FIRMWARE_UTILS_H
 #define FIRMWARE_UTILS_H
 
+#include "zephyr/sys/util.h"
+
 // Number of elements in member 'field' of structure 'type'
 #define STRUCT_MEMBER_ARRAY_SIZE(type, field) ARRAY_SIZE(((type *)0)->field)
 

@@ -51,10 +51,11 @@ heartbeat_boom(uint32_t delay_s)
     global_delay_s = delay_s;
 
     if (thread_id == NULL && global_delay_s != 0) {
-        k_thread_create(&thread_data, stack_area,
-                        K_THREAD_STACK_SIZEOF(stack_area), thread_entry_point,
-                        NULL, NULL, NULL, THREAD_PRIORITY_HEARTBEAT, 0,
-                        K_NO_WAIT);
+        k_tid_t tid = k_thread_create(&thread_data, stack_area,
+                                      K_THREAD_STACK_SIZEOF(stack_area),
+                                      thread_entry_point, NULL, NULL, NULL,
+                                      THREAD_PRIORITY_HEARTBEAT, 0, K_NO_WAIT);
+        k_thread_name_set(tid, "heartbeat");
 
         // make sure timeout handler is initialized
         if (heartbeat_timeout_cb == NULL) {

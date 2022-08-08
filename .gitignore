@@ -1,5 +1,4 @@
-*.DS_Store
-
+# Build artifacts
 cmake-build-*/
 
 CMakeCache.txt
@@ -7,12 +6,16 @@ CMakeFiles/
 app_version.conf
 
 build/
+twister-out/
 .docker_image_built
 *.egg-info/
 
 # Windows
 win/
 .dll
+
+# macOS
+*.DS_Store
 
 # Python
 .pyd
@@ -21,14 +24,19 @@ __pycache__/
 # docs
 _htmresc/
 
-# board-specific OpenOCD config that shouldn't be tracked
-# copy-pasted from utils/debug/my_board.cfg.template
-utils/debug/my_board.cfg
+# Local config files
 
+## Environement
+.envrc
+
+## board-specific OpenOCD config that shouldn't be tracked
+## copy-pasted from utils/debug/my_board.cfg.template
+utils/debug/*.cfg
+
+## Keys
 utils/ota/enc-ec256-priv.pem
 utils/ota/enc-ec256-pub.pem
 utils/ota/root-ec-p256.pem
 
-twister-out/
-
+## Indexers
 cscope.*

@@ -1,15 +1,12 @@
 #ifndef TEMPERATURE_H
 #define TEMPERATURE_H
 
-#include <can_messaging.h>
+#include <mcu_messaging.pb.h>
 #include <stdbool.h>
 #include <stdint.h>
 
 void
 temperature_set_sampling_period_ms(uint32_t sample_period);
-
-void
-temperature_start_sending(void);
 
 void
 temperature_init(void);

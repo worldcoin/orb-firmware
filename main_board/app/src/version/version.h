@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 int
-version_send(void);
+version_send(uint32_t remote);
 
 /// Get hardware revision
 /// \return RET_SUCCESS if successful, error code otherwise

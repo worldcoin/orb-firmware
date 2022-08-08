@@ -6,25 +6,28 @@
 #include <pb_encode.h>
 #include <sys/__assert.h>
 #include <zephyr.h>
+
 LOG_MODULE_REGISTER(can_tx);
 
 static const struct device *can_dev;
 
 static void
 process_tx_messages_thread();
-K_THREAD_DEFINE(process_can_tx_messages,
-                CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX,
+K_THREAD_DEFINE(can_tx, CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX,
                 process_tx_messages_thread, NULL, NULL, NULL,
                 CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0, 0);
 
-#define QUEUE_ALIGN 8
+#define QUEUE_ALIGN 4
 static_assert(QUEUE_ALIGN % 2 == 0, "QUEUE_ALIGN must be a multiple of 2");
-static_assert(sizeof(McuMessage) % QUEUE_ALIGN == 0,
-              "sizeof McuMessage must be a multiple of QUEUE_ALIGN");
+static_assert(sizeof(can_message_t) % QUEUE_ALIGN == 0,
+              "sizeof can_message_t must be a multiple of QUEUE_ALIGN");
 
 // Message queue to send messages
-K_MSGQ_DEFINE(can_tx_msg_queue, sizeof(McuMessage),
+K_MSGQ_DEFINE(can_tx_msg_queue, sizeof(can_message_t),
               CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE, QUEUE_ALIGN);
+// Memory slab to allocate message content
+K_MEM_SLAB_DEFINE(can_tx_memory_slab, CAN_FRAME_MAX_SIZE,
+                  CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE, 4);
 
 static K_SEM_DEFINE(tx_sem, 1, 1);
 
@@ -47,7 +50,7 @@ static ret_code_t
 send(const char *data, size_t len,
      void (*tx_complete_cb)(const struct device *, int, void *), uint32_t dest)
 {
-    ASSERT_HARD_BOOL(len < CAN_MAX_DLEN);
+    ASSERT_HARD_BOOL(len < CAN_FRAME_MAX_SIZE);
 
     struct zcan_frame frame = {.id_type = CAN_EXTENDED_IDENTIFIER,
                                .fd = true,
@@ -66,8 +69,7 @@ send(const char *data, size_t len,
 _Noreturn static void
 process_tx_messages_thread()
 {
-    McuMessage new;
-    char tx_buffer[CAN_MAX_DLEN];
+    can_message_t new;
     int ret;
 
     while (1) {
@@ -87,31 +89,20 @@ process_tx_messages_thread()
             continue;
         }
 
-        // encode protobuf format
-        pb_ostream_t stream =
-            pb_ostream_from_buffer(tx_buffer, sizeof(tx_buffer));
-        bool encoded =
-            pb_encode_ex(&stream, McuMessage_fields, &new, PB_ENCODE_DELIMITED);
-        if (encoded) {
-            ret_code_t err_code =
-                send(tx_buffer, stream.bytes_written, tx_complete_cb,
-                     CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-            if (err_code != RET_SUCCESS) {
+        ret_code_t err_code =
+            send(new.bytes, new.size, tx_complete_cb, new.destination);
+
+        k_mem_slab_free(&can_tx_memory_slab, (void **)&new.bytes);
+
+        if (err_code != RET_SUCCESS) {
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
-                LOG_WRN("Error sending message");
+            LOG_WRN("Error sending message");
 #else
-                printk("<wrn> Error sending message!\r\n");
+            printk("<wrn> Error sending message!\r\n");
 #endif
-                // release semaphore, we are not waiting for
-                // completion
-                k_sem_give(&tx_sem);
-            }
-        } else {
-#ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
-            LOG_ERR("Error encoding message!");
-#else
-            printk("<err> Error encoding message!\r\n");
-#endif
+            // release semaphore, we are not waiting for
+            // completion
+            k_sem_give(&tx_sem);
         }
     }
 }
@@ -119,24 +110,34 @@ process_tx_messages_thread()
 // ⚠️ Do not print log message in this function if
 // CONFIG_ORB_LIB_LOG_BACKEND_CAN is defined
 ret_code_t
-can_messaging_async_tx(McuMessage *message)
+can_messaging_async_tx(const can_message_t *message)
 {
     if (!is_init) {
         return RET_ERROR_INVALID_STATE;
     }
 
-    // make sure data "header" is correctly set
-    message->version = Version_VERSION_0;
+    if (message->size > CAN_FRAME_MAX_SIZE) {
+        return RET_ERROR_INVALID_PARAM;
+    }
 
-    int ret = k_msgq_put(&can_tx_msg_queue, message, K_NO_WAIT);
-    if (ret) {
+    can_message_t to_send = *message;
+    if (k_mem_slab_alloc(&can_tx_memory_slab, (void **)&to_send.bytes,
+                         K_NO_WAIT) == 0) {
+        memcpy(to_send.bytes, message->bytes, message->size);
+
+        int ret = k_msgq_put(&can_tx_msg_queue, &to_send, K_NO_WAIT);
+        if (ret) {
+            k_mem_slab_free(&can_tx_memory_slab, (void **)&to_send.bytes);
 
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
-        LOG_ERR("Too many tx messages");
+            LOG_ERR("Too many tx messages");
 #else
-        printk("<err> too many tx messages\r\n");
+            printk("<err> too many tx messages\r\n");
 #endif
-        return RET_ERROR_BUSY;
+            return RET_ERROR_BUSY;
+        }
+    } else {
+        return RET_ERROR_NO_MEM;
     }
 
     return RET_SUCCESS;
@@ -146,25 +147,14 @@ can_messaging_async_tx(McuMessage *message)
 // ⚠️ Do not print log message in this function if
 // CONFIG_ORB_LIB_LOG_BACKEND_CAN is defined
 ret_code_t
-can_messaging_blocking_tx(McuMessage *message)
+can_messaging_blocking_tx(const can_message_t *message)
 {
-    char tx_buffer[CAN_MAX_DLEN];
-
     if (k_is_in_isr()) {
         return RET_ERROR_INVALID_STATE;
     }
 
-    // encode protobuf format
-    pb_ostream_t stream = pb_ostream_from_buffer(tx_buffer, sizeof(tx_buffer));
-    bool encoded =
-        pb_encode_ex(&stream, McuMessage_fields, &message, PB_ENCODE_DELIMITED);
-    if (encoded) {
-        ret_code_t err_code = send(tx_buffer, stream.bytes_written, NULL,
-                                   CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-        return err_code;
-    }
-
-    return RET_ERROR_INVALID_PARAM;
+    return send(message->bytes, message->size, NULL,
+                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 
 ret_code_t

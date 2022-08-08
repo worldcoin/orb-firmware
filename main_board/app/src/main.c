@@ -1,70 +1,64 @@
+#include "battery/battery.h"
 #include "button/button.h"
 #include "fan/fan.h"
 #include "ir_camera_system/ir_camera_system.h"
-#include "power_sequence/power_sequence.h"
-#include "ui/front_leds/front_leds.h"
-#include "ui/operator_leds/operator_leds.h"
-#include <app_assert.h>
-#include <device.h>
-#include <drivers/gpio.h>
-
-static bool jetson_up_and_running = false;
-
-#ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
-#include <ir_camera_system/ir_camera_system_test.h>
-#endif
-#include "battery/battery.h"
 #include "liquid_lens/liquid_lens.h"
-#include "messaging/incoming_message_handling.h"
+#include "power_sequence/power_sequence.h"
+#include "pubsub/pubsub.h"
+#include "runner/runner.h"
 #include "sound/sound.h"
 #include "stepper_motors/motors_tests.h"
 #include "stepper_motors/stepper_motors.h"
+#include "system/logs.h"
+#include "ui/front_leds/front_leds.h"
 #include "ui/front_leds/front_leds_tests.h"
+#include "ui/operator_leds/operator_leds.h"
 #include "ui/operator_leds/operator_leds_tests.h"
 #include "ui/rgb_leds.h"
 #include "version/version.h"
+#include <app_assert.h>
+#include <can_messaging.h>
+#include <device.h>
+#include <dfu.h>
+#include <dfu/dfu_tests.h>
+#include <ir_camera_system/ir_camera_system_tests.h>
+#include <pb_encode.h>
+#include <temperature/temperature.h>
+#include <zephyr.h>
 
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
 #include "heartbeat.h"
 #endif
 
-#if CONFIG_BOARD_STM32G484_EVAL
-#include "messaging/messaging_tests.h"
-#endif
-
-#include <temperature/temperature.h>
-
 #include <logging/log.h>
 LOG_MODULE_REGISTER(main);
-#include <can_messaging.h>
-#include <dfu.h>
-#include <dfu/tests.h>
-#include <zephyr.h>
+
+static bool jetson_up_and_running = false;
 
 void
 run_tests()
 {
-#ifdef CONFIG_BOARD_STM32G484_EVAL
-    LOG_WRN("Running tests");
-    messaging_tests_init();
-#endif
-#ifdef CONFIG_TEST_MOTORS
+#if defined(CONFIG_TEST_MOTORS) || defined(RUN_ALL_TESTS)
     motors_tests_init();
 #endif
-#ifdef CONFIG_TEST_DFU
-    tests_dfu_init();
+#if defined(CONFIG_TEST_DFU) || defined(RUN_ALL_TESTS)
+    dfu_tests_init();
 #endif
-#ifdef CONFIG_TEST_OPERATOR_LEDS
+#if defined(CONFIG_TEST_OPERATOR_LEDS) || defined(RUN_ALL_TESTS)
     operator_leds_tests_init();
 #endif
-#ifdef CONFIG_TEST_USER_LEDS
+#if defined(CONFIG_TEST_USER_LEDS) || defined(RUN_ALL_TESTS)
     front_unit_rdb_leds_tests_init();
+#endif
+#if defined(CONFIG_TEST_IR_CAMERA_SYSTEM) || defined(RUN_ALL_TESTS)
+    ir_camera_system_tests_init();
 #endif
 }
 
 /**
  * Callback called in fatal assertion before system reset
- * ⚠️ No context-switch should be performed
+ * ⚠️ No context-switch should be performed:
+ *     to be provided by the caller of this function
  */
 static void
 app_assert_cb(fatal_error_info_t *err_info)
@@ -75,23 +69,25 @@ app_assert_cb(fatal_error_info_t *err_info)
                                   .message.m_message.which_payload =
                                       McuToJetson_fatal_error_tag};
 
-        // important: send in blocking mode
-        (void)can_messaging_blocking_tx(&fatal_error);
+        uint8_t buffer[CAN_FRAME_MAX_SIZE];
+        pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
+        bool encoded = pb_encode_ex(&stream, McuMessage_fields, &fatal_error,
+                                    PB_ENCODE_DELIMITED);
+
+        can_message_t to_send = {.destination =
+                                     CONFIG_CAN_ADDRESS_DEFAULT_REMOTE,
+                                 .bytes = buffer,
+                                 .size = stream.bytes_written};
+
+        if (encoded) {
+            // important: send in blocking mode
+            (void)can_messaging_blocking_tx(&to_send);
+        }
     } else if (err_info != NULL) {
         // TODO store error
     }
 }
 
-#ifdef CONFIG_TEST_IR_CAMERA_SYSTEM
-void
-main()
-{
-    int ret = ir_camera_system_init();
-    ASSERT_HARD(ret);
-
-    ir_camera_system_test();
-}
-#else // CONFIG_TEST_IR_CAMERA_SYSTEM
 void
 main(void)
 {
@@ -102,7 +98,10 @@ main(void)
     temperature_init();
 
     // CAN initialization first to allow logs over CAN
-    err_code = can_messaging_init(incoming_message_handle);
+    err_code = can_messaging_init(runner_handle_new);
+    ASSERT_SOFT(err_code);
+
+    err_code = logs_init();
     ASSERT_SOFT(err_code);
 
 #ifndef CONFIG_NO_JETSON_BOOT
@@ -179,9 +178,8 @@ main(void)
         // as soon as the Jetson sends the first message, send firmware version
         // come back after the delay above and another message from the Jetson
         // to confirm the image
-        if (!jetson_up_and_running && incoming_message_acked_counter() > 0) {
-            version_send();
-            temperature_start_sending();
+        if (!jetson_up_and_running && runner_successful_jobs_count() > 0) {
+            version_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 
             uint32_t error_count = app_assert_soft_count();
             if (error_count) {
@@ -195,7 +193,7 @@ main(void)
             continue;
         }
 
-        if (jetson_up_and_running && incoming_message_acked_counter() > 1) {
+        if (jetson_up_and_running && runner_successful_jobs_count() > 1) {
             // the orb is now up and running
             LOG_INF("Confirming image");
             int err_code = dfu_primary_confirm();
@@ -209,5 +207,3 @@ main(void)
         }
     }
 }
-
-#endif // CONFIG_TEST_IR_CAMERA_SYSTEM

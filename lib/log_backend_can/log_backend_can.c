@@ -10,23 +10,23 @@ static bool panic_mode = false;
 // Max log string length per message, without NULL termination character
 #define LOG_MAX_CHAR_COUNT (sizeof(Log) - 1)
 
+static void (*print_log)(const char *log, size_t size, bool blocking) = NULL;
+
+void
+log_backend_can_register_print(void (*print)(const char *log, size_t size,
+                                             bool blocking))
+{
+    print_log = print;
+}
+
 static int
 can_message_out(uint8_t *data, size_t length, void *ctx)
 {
     (void)ctx;
 
-    McuMessage log = {.which_message = McuMessage_m_message_tag,
-                      .message.m_message.which_payload = McuToJetson_log_tag,
-                      .message.m_message.payload.log.log = {0}};
-    // keep NULL termination character at the end so subtract one to array size
-    memcpy(log.message.m_message.payload.log.log, data,
-           MIN(length, LOG_MAX_CHAR_COUNT));
-
-    if (!panic_mode) {
-        can_messaging_async_tx(&log);
-    } else {
-        // ⚠️ block until message is sent
-        can_messaging_blocking_tx(&log);
+    if (print_log != NULL) {
+        // ⚠️ if panic, block until message is sent
+        print_log(data, MIN(length, LOG_MAX_CHAR_COUNT), panic_mode);
     }
 
     // no matter if the bytes have been sent
@@ -55,6 +55,11 @@ static void
 process(const struct log_backend *const backend, union log_msg2_generic *msg)
 {
     (void)backend;
+
+    if (print_log == NULL) {
+        // print_log function not registered, do not process
+        return;
+    }
 
     if (log_msg2_get_level(&msg->log) > CONFIG_ORB_LIB_LOG_BACKEND_LEVEL ||
         log_msg2_get_level(&msg->log) == LOG_LEVEL_NONE) {
