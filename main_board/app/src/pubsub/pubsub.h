@@ -1,7 +1,6 @@
 #ifndef FIRMWARE_PUBSUB_H
 #define FIRMWARE_PUBSUB_H
 
-#include "mcu_messaging.pb.h"
 #include <stddef.h>
 #include <stdint.h>
 
