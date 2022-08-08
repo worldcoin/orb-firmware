@@ -853,6 +853,7 @@ runner_process_jobs_thread()
     while (1) {
         ret = k_msgq_get(&process_queue, &new, K_FOREVER);
         if (ret != 0) {
+            ASSERT_SOFT(ret);
             continue;
         }
 
