@@ -1,5 +1,10 @@
 # Build artifacts
 cmake-build-*/
+
+CMakeCache.txt
+CMakeFiles/
+app_version.conf
+
 build/
 twister-out/
 .docker_image_built

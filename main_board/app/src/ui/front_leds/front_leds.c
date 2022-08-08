@@ -36,8 +36,14 @@ typedef union {
 static user_leds_t leds;
 
 // default values
+
 static volatile UserLEDsPattern_UserRgbLedPattern global_pattern =
+#ifdef CONFIG_NO_BOOT_LEDS
+    UserLEDsPattern_UserRgbLedPattern_OFF;
+#else
     UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE;
+#endif // CONFIG_NO_BOOT_LEDS
+
 static volatile uint32_t global_start_angle_degrees = 0;
 static volatile int32_t global_angle_length_degrees = FULL_RING_DEGREES;
 static volatile uint8_t global_intensity = 30;
