@@ -56,10 +56,6 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
 
     int ret = k_mutex_lock(&new_pub_mutex, K_MSEC(5));
     if (ret == 0) {
-        // reset struct before filling it
-        memset(&message.message.m_message.payload, 0,
-               STRUCT_MEMBER_SIZE_BYTES(McuToJetson, payload));
-
         // copy payload
         message.message.m_message.which_payload = which_payload;
         memcpy(&message.message.m_message.payload, payload, size);
