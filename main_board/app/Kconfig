@@ -36,7 +36,7 @@ config MCU_DEVEL
     default n
     bool "Select all developer options"
     select INSTA_BOOT
-    select NO_JETSON
+    select NO_JETSON_BOOT
     select NO_BOOT_LEDS
     select NO_SUPER_CAPS
 
