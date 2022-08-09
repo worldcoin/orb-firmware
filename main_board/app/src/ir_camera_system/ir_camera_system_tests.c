@@ -285,13 +285,11 @@ test_leds(void)
 }
 
 static void (*tests[])(void) = {
-    /*
-        test_camera_triggers,
-        test_camera_triggers_with_fps_changing,
-        test_camera_triggers_with_fps_changing_and_cameras_enable_and_disable,
-    */
+    test_camera_triggers,
+    test_camera_triggers_with_fps_changing,
+    test_camera_triggers_with_fps_changing_and_cameras_enable_and_disable,
     test_camera_triggers_and_leds_changing_fps,
-    //    test_leds,
+    test_leds,
 };
 
 static void

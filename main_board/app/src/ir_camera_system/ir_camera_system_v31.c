@@ -497,12 +497,17 @@ set_ccr_ir_leds(void)
     }
 }
 
+#define TRIGGER_PULSE_WIDTH_US 15
+
 static inline void
 set_trigger_cc(bool enabled, int channel)
 {
-    if (enabled) {
-        set_timer_compare[channel - 1](CAMERA_TRIGGER_TIMER,
-                                       global_timer_settings.ccr);
+    if (enabled && global_timer_settings.fps > 0) {
+        uint16_t ccr =
+            ((TRIGGER_PULSE_WIDTH_US * ASSUMED_TIMER_CLOCK_FREQ_MHZ) /
+             (global_timer_settings.psc + 1)) +
+            1;
+        set_timer_compare[channel - 1](CAMERA_TRIGGER_TIMER, ccr);
     } else {
         set_timer_compare[channel - 1](CAMERA_TRIGGER_TIMER, 0);
     }
@@ -698,8 +703,7 @@ void
 ir_camera_system_enable_ir_eye_camera(void)
 {
     enable_ir_eye_camera = true;
-    set_timer_compare[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
-        CAMERA_TRIGGER_TIMER, global_timer_settings.ccr);
+    set_trigger_cc(enable_ir_eye_camera, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
 }
 
@@ -707,8 +711,7 @@ void
 ir_camera_system_disable_ir_eye_camera(void)
 {
     enable_ir_eye_camera = false;
-    set_timer_compare[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
-        CAMERA_TRIGGER_TIMER, 0);
+    set_trigger_cc(enable_ir_eye_camera, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
 }
 
@@ -722,8 +725,7 @@ void
 ir_camera_system_enable_ir_face_camera(void)
 {
     enable_ir_face_camera = true;
-    set_timer_compare[IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
-        CAMERA_TRIGGER_TIMER, global_timer_settings.ccr);
+    set_trigger_cc(enable_ir_face_camera, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
 }
 
@@ -731,8 +733,7 @@ void
 ir_camera_system_disable_ir_face_camera(void)
 {
     enable_ir_face_camera = false;
-    set_timer_compare[IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
-        CAMERA_TRIGGER_TIMER, 0);
+    set_trigger_cc(enable_ir_face_camera, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
 }
 
@@ -746,8 +747,7 @@ void
 ir_camera_system_enable_2d_tof_camera(void)
 {
     enable_2d_tof_camera = true;
-    set_timer_compare[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
-        CAMERA_TRIGGER_TIMER, global_timer_settings.ccr);
+    set_trigger_cc(enable_2d_tof_camera, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
 }
 
@@ -755,8 +755,7 @@ void
 ir_camera_system_disable_2d_tof_camera(void)
 {
     enable_2d_tof_camera = false;
-    set_timer_compare[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
-        CAMERA_TRIGGER_TIMER, 0);
+    set_trigger_cc(enable_2d_tof_camera, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
 }
 

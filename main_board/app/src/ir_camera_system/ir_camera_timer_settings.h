@@ -6,7 +6,8 @@
 
 #define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US 5000
 #define IR_CAMERA_SYSTEM_MAX_FPS               60
-#define ASSUMED_TIMER_CLOCK_FREQ               170000000
+#define ASSUMED_TIMER_CLOCK_FREQ_MHZ           170
+#define ASSUMED_TIMER_CLOCK_FREQ               (ASSUMED_TIMER_CLOCK_FREQ_MHZ * 1000000)
 
 struct ir_camera_timer_settings {
     uint16_t fps;

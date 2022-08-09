@@ -5,8 +5,7 @@
 #include <utils.h>
 LOG_MODULE_REGISTER(ir_camera_timer_settings);
 
-#define MAX_PSC_DIV                  65536U
-#define ASSUMED_TIMER_CLOCK_FREQ_MHZ 170
+#define MAX_PSC_DIV 65536U
 
 ret_code_t
 timer_settings_from_on_time_us(
@@ -150,12 +149,6 @@ timer_settings_from_fps(uint16_t fps,
     } else if (fps > IR_CAMERA_SYSTEM_MAX_FPS) {
         // Do nothing if we have an invalid FPS parameter.
         ret = RET_ERROR_INVALID_PARAM;
-    } else if (current_settings->on_time_in_us == 0 &&
-               current_settings->on_time_in_us_740nm == 0) {
-        // There's nothing to calculate if the on-time for all LEDs is zero.
-        ret = RET_SUCCESS;
-        ts = *current_settings;
-        ts.fps = fps;
     } else {
         // Now we know that we have a valid FPS and either the 850nm/940nm LEDs
         // have an on-time value greater than zero, or we have a 740nm on-time
@@ -164,6 +157,7 @@ timer_settings_from_fps(uint16_t fps,
         // 0, we ensure that it is valid before trying to compute ccr_740nm. If
         // the 740nm on-time setting only is >0, then we just calculate its CCR.
         // In any case, we need to compute PSC and ARR.
+        ret = RET_SUCCESS;
         ts = *current_settings;
         ts.fps = fps;
         ts.psc = ASSUMED_TIMER_CLOCK_FREQ / (MAX_PSC_DIV * ts.fps);
@@ -185,7 +179,6 @@ timer_settings_from_fps(uint16_t fps,
                     current_settings->on_time_in_us);
                 ret = RET_ERROR_INVALID_PARAM;
             } else {
-                ret = RET_SUCCESS;
                 ts.on_time_in_us = current_settings->on_time_in_us;
                 ts.ccr = (ASSUMED_TIMER_CLOCK_FREQ_MHZ * ts.on_time_in_us) /
                          (ts.psc + 1);
@@ -198,8 +191,7 @@ timer_settings_from_fps(uint16_t fps,
                     ts.ccr_740nm = calc_ccr_740nm(&ts);
                 }
             }
-        } else {
-            ret = RET_SUCCESS;
+        } else if (ts.on_time_in_us_740nm != 0) {
             ts.ccr_740nm = calc_ccr_740nm(&ts);
         }
 
@@ -208,6 +200,12 @@ timer_settings_from_fps(uint16_t fps,
             // PSC=65535 only possible if on-time duration < accuracy in
             // this specific case: always < 10% duty cycle
             ts.ccr = 1;
+        }
+        if (ts.ccr_740nm == 0 && ts.on_time_in_us_740nm) {
+            // at least `accuracy_us` in the worst case scenario where
+            // PSC=65535 only possible if on-time duration < accuracy in
+            // this specific case: always < 10% duty cycle
+            ts.ccr_740nm = 1;
         }
     }
 
