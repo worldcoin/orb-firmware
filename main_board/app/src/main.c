@@ -124,7 +124,6 @@ main(void)
     err_code = operator_leds_init();
     ASSERT_SOFT(err_code);
 
-    // PVCC supplies IR LEDs
 #ifndef CONFIG_NO_SUPER_CAPS
     err_code = power_turn_on_super_cap_charger();
     if (err_code == RET_SUCCESS) {
@@ -138,7 +137,10 @@ main(void)
     } else {
         ASSERT_SOFT(err_code);
     }
-#endif
+#else
+    err_code = ir_camera_system_init();
+    ASSERT_SOFT(err_code);
+#endif // CONFIG_NO_SUPER_CAPS
 
     err_code = motors_init();
     ASSERT_SOFT(err_code);
