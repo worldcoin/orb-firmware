@@ -41,11 +41,19 @@ static struct gpio_callback shutdown_cb_data;
 // log immediately, i.e., log and wait for messages to flush
 #define LOG_INF_IMM(...)                                                       \
     LOG_INF(__VA_ARGS__);                                                      \
-    while (LOG_PROCESS())
+    do {                                                                       \
+        uint32_t log_buffered_count = log_buffered_cnt();                      \
+        while (LOG_PROCESS() && --log_buffered_count)                          \
+            ;                                                                  \
+    } while (0)
 
 #define LOG_ERR_IMM(...)                                                       \
     LOG_ERR(__VA_ARGS__);                                                      \
-    while (LOG_PROCESS())
+    do {                                                                       \
+        uint32_t log_buffered_count = log_buffered_cnt();                      \
+        while (LOG_PROCESS() && --log_buffered_count)                          \
+            ;                                                                  \
+    } while (0)
 
 #define FORMAT_STRING "Checking that %s is ready... "
 
