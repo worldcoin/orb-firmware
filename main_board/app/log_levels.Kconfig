@@ -1,0 +1,7 @@
+module = TEMPERATURE
+module-str = TEMPERATURE
+source "subsys/logging/Kconfig.template.log_config"
+
+module = BATTERY
+module-str = BATTERY
+source "subsys/logging/Kconfig.template.log_config"

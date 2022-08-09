@@ -11,7 +11,7 @@
 #include <zephyr.h>
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(battery);
+LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
 
 static const struct device *can_dev;
 K_THREAD_STACK_DEFINE(can_battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);

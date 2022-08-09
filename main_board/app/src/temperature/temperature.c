@@ -5,12 +5,12 @@
 #include <assert.h>
 #include <device.h>
 #include <drivers/sensor.h>
+#include <math.h>
 #include <sys_clock.h>
 #include <zephyr.h>
 
 #include <logging/log.h>
-#include <math.h>
-LOG_MODULE_REGISTER(temperature);
+LOG_MODULE_REGISTER(temperature, CONFIG_TEMPERATURE_LOG_LEVEL);
 
 // These values are informed by
 // https://www.notion.so/PCBA-thermals-96849052d5c24a0bafaedb4363f460b5

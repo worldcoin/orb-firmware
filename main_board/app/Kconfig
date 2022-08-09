@@ -1,5 +1,9 @@
 mainmenu "Application configuration"
 
+menu "Log levels"
+source "../orb/main_board/app/log_levels.Kconfig"
+endmenu
+
 config ORB_PROTOBUF_DEFINITIONS_LIB
     default y
     bool "Orb Protobuf definitions"
