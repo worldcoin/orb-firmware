@@ -18,6 +18,9 @@ front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
 ret_code_t
 front_leds_set_center_leds_sequence(uint8_t *bytes, uint32_t size);
 
+ret_code_t
+front_leds_set_ring_leds_sequence(uint8_t *bytes, uint32_t size);
+
 void
 front_leds_set_brightness(uint32_t brightness); // 0 - 255
 
