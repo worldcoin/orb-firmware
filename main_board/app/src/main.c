@@ -156,17 +156,6 @@ main(void)
     err_code = button_init();
     ASSERT_SOFT(err_code);
 
-    // set up operator LED depending on image state
-    if (dfu_primary_is_confirmed()) {
-        operator_leds_set_pattern(
-            DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN,
-            OPERATOR_LEDS_ALL_MASK, NULL);
-    } else {
-        operator_leds_set_pattern(
-            DistributorLEDsPattern_DistributorRgbLedPattern_RGB,
-            OPERATOR_LEDS_ALL_MASK, &(RgbColor)RGB_ORANGE);
-    }
-
     // launch tests if any is defined
     run_tests();
 
