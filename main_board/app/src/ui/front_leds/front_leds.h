@@ -9,10 +9,11 @@
 ret_code_t
 front_leds_init(void);
 
-void
+ret_code_t
 front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
                        uint32_t start_angle, int32_t angle_length,
-                       RgbColor *color);
+                       RgbColor *color, uint32_t pulsing_period_ms,
+                       float pulsing_scale);
 
 void
 front_leds_set_brightness(uint32_t brightness); // 0 - 255

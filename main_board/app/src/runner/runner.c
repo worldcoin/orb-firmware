@@ -463,6 +463,10 @@ handle_user_leds_pattern(job_t *job)
         msg->message.j_message.payload.user_leds_pattern.start_angle;
     int32_t angle_length =
         msg->message.j_message.payload.user_leds_pattern.angle_length;
+    uint32_t pulsing_period_ms =
+        msg->message.j_message.payload.user_leds_pattern.pulsing_period_ms;
+    float pulsing_scale =
+        msg->message.j_message.payload.user_leds_pattern.pulsing_scale;
 
     LOG_DBG("Got new user RBG pattern message: %d, start %uº, angle length %dº",
             pattern, start_angle, angle_length);
@@ -477,8 +481,12 @@ handle_user_leds_pattern(job_t *job)
             color_ptr =
                 &msg->message.j_message.payload.user_leds_pattern.custom_color;
         }
-        front_leds_set_pattern(pattern, start_angle, angle_length, color_ptr);
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        ret_code_t ret =
+            front_leds_set_pattern(pattern, start_angle, angle_length,
+                                   color_ptr, pulsing_period_ms, pulsing_scale);
+
+        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+                job);
     }
 }
 

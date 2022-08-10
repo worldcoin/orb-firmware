@@ -6,10 +6,12 @@
 #include <device.h>
 #include <drivers/led_strip.h>
 #include <logging/log.h>
+#include <math.h>
 #include <random/rand32.h>
 #include <stdlib.h>
 #include <utils.h>
 #include <zephyr.h>
+
 LOG_MODULE_REGISTER(front_unit_rgb_leds);
 
 static K_THREAD_STACK_DEFINE(front_leds_stack_area,
@@ -41,13 +43,19 @@ static volatile UserLEDsPattern_UserRgbLedPattern global_pattern =
 #ifdef CONFIG_NO_BOOT_LEDS
     UserLEDsPattern_UserRgbLedPattern_OFF;
 #else
-    UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE;
+    UserLEDsPattern_UserRgbLedPattern_PULSING_RGB;
 #endif // CONFIG_NO_BOOT_LEDS
+
+#define INITIAL_PULSING_PERIOD_MS 2000
 
 static volatile uint32_t global_start_angle_degrees = 0;
 static volatile int32_t global_angle_length_degrees = FULL_RING_DEGREES;
 static volatile uint8_t global_intensity = 30;
-static volatile struct led_rgb global_color = {0};
+static volatile struct led_rgb global_color = {.r = 0, .g = 0, .b = 4};
+static volatile float global_pulsing_scale = 2.25;
+static volatile uint32_t global_pulsing_period_ms = INITIAL_PULSING_PERIOD_MS;
+static volatile uint32_t global_pulsing_delay_time_ms =
+    INITIAL_PULSING_PERIOD_MS / PULSING_NUM_UPDATES_PER_PERIOD;
 
 #define PULSING_PERIOD_MS 2000
 #define PULSING_DELAY_TIME_US                                                  \
@@ -120,6 +128,8 @@ front_leds_thread(void *a, void *b, void *c)
     UserLEDsPattern_UserRgbLedPattern pattern;
     uint32_t start_angle_degrees;
     int32_t angle_length_degrees;
+    float pulsing_scale;
+    uint32_t pulsing_period_ms;
 
     for (;;) {
         // wait for next command
@@ -133,9 +143,12 @@ front_leds_thread(void *a, void *b, void *c)
         color = global_color;
         start_angle_degrees = global_start_angle_degrees;
         angle_length_degrees = global_angle_length_degrees;
+        pulsing_scale = global_pulsing_scale;
+        pulsing_period_ms = global_pulsing_period_ms;
         CRITICAL_SECTION_EXIT(k);
 
-        if (pattern != UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE) {
+        if (pattern != UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE &&
+            pattern != UserLEDsPattern_UserRgbLedPattern_PULSING_RGB) {
             pulsing_index = 0;
         }
 
@@ -186,40 +199,37 @@ front_leds_thread(void *a, void *b, void *c)
             color.r = intensity;
             color.g = 0;
             color.b = 0;
-            set_center(color);
             set_ring(color, start_angle_degrees, angle_length_degrees);
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_GREEN:
             color.r = 0;
             color.g = intensity;
             color.b = 0;
-            set_center(color);
             set_ring(color, start_angle_degrees, angle_length_degrees);
             break;
         case UserLEDsPattern_UserRgbLedPattern_ALL_BLUE:
             color.r = 0;
             color.g = 0;
             color.b = intensity;
-            set_center(color);
             set_ring(color, start_angle_degrees, angle_length_degrees);
             break;
-        case UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE:
-            if (intensity > 0) {
-                uint8_t v = (SINE_LUT[pulsing_index] * intensity) +
-                            PULSING_MIN_INTENSITY;
-                color.r = v;
-                color.g = v;
-                color.b = v;
-                wait_until = K_MSEC(PULSING_DELAY_TIME_US);
-                pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
-            } else {
-                color = (struct led_rgb)RGB_OFF;
-            }
-            set_center(color);
+        case UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE:;
+            color.r = 10;
+            color.g = 10;
+            color.b = 10;
+            pulsing_scale = 2;
+            // fallthrough
+        case UserLEDsPattern_UserRgbLedPattern_PULSING_RGB:;
+            float scaler = (SINE_LUT[pulsing_index] * pulsing_scale) + 1;
+            color.r = roundf(scaler * color.r);
+            color.g = roundf(scaler * color.g);
+            color.b = roundf(scaler * color.b);
+
+            wait_until = K_MSEC(global_pulsing_delay_time_ms);
+            pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
             set_ring(color, start_angle_degrees, angle_length_degrees);
             break;
         case UserLEDsPattern_UserRgbLedPattern_RGB:
-            set_center(color);
             set_ring(color, start_angle_degrees, angle_length_degrees);
             break;
         default:
@@ -232,16 +242,28 @@ front_leds_thread(void *a, void *b, void *c)
     }
 }
 
-void
+ret_code_t
 front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
                        uint32_t start_angle, int32_t angle_length,
-                       RgbColor *color)
+                       RgbColor *color, uint32_t pulsing_period_ms,
+                       float pulsing_scale)
 {
     CRITICAL_SECTION_ENTER(k);
+
+    if ((roundf(color->red * (pulsing_scale + 1)) > 255) ||
+        (roundf(color->green * (pulsing_scale + 1)) > 255) ||
+        (roundf(color->blue * (pulsing_scale + 1)) > 255)) {
+        LOG_ERR("pulsing scale too large");
+        return RET_ERROR_INVALID_PARAM;
+    }
 
     global_pattern = pattern;
     global_start_angle_degrees = start_angle;
     global_angle_length_degrees = angle_length;
+    global_pulsing_scale = pulsing_scale;
+    global_pulsing_period_ms = pulsing_period_ms;
+    global_pulsing_delay_time_ms =
+        global_pulsing_period_ms / PULSING_NUM_UPDATES_PER_PERIOD;
     if (color != NULL) {
         global_color.r = color->red;
         global_color.g = color->green;
@@ -251,6 +273,7 @@ front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
     CRITICAL_SECTION_EXIT(k);
 
     k_sem_give(&sem);
+    return RET_SUCCESS;
 }
 
 void
