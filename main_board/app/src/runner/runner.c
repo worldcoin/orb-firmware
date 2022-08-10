@@ -518,6 +518,34 @@ handle_user_center_leds_sequence(job_t *job)
 }
 
 static void
+handle_distributor_leds_sequence(job_t *job)
+{
+    McuMessage *msg = &job->mcu_message;
+    MAKE_ASSERTS(JetsonToMcu_distributor_leds_sequence_tag);
+
+    ret_code_t ret;
+    uint32_t data_format = msg->message.j_message.payload
+                               .distributor_leds_sequence.which_data_format;
+
+    switch (data_format) {
+    case DistributorLEDsSequence_rgb_uncompressed_tag:;
+        uint8_t *bytes =
+            msg->message.j_message.payload.distributor_leds_sequence.data_format
+                .rgb_uncompressed.bytes;
+        uint32_t size = msg->message.j_message.payload.distributor_leds_sequence
+                            .data_format.rgb_uncompressed.size;
+
+        ret = operator_leds_set_leds_sequence(bytes, size);
+        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+                job);
+
+    default:
+        LOG_WRN("Unkown data format: %" PRIu32, data_format);
+        job_ack(Ack_ErrorCode_FAIL, job);
+    }
+}
+
+static void
 handle_user_leds_brightness(job_t *job)
 {
     McuMessage *msg = &job->mcu_message;
@@ -874,10 +902,12 @@ static const hm_callback handle_message_callbacks[] = {
         handle_mirror_angle_relative_message,
     [JetsonToMcu_value_get_tag] = handle_value_get_message,
     [JetsonToMcu_center_leds_sequence_tag] = handle_user_center_leds_sequence,
+    [JetsonToMcu_distributor_leds_sequence_tag] =
+        handle_distributor_leds_sequence,
 };
 
 static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 36,
+    ARRAY_SIZE(handle_message_callbacks) <= 37,
     "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
