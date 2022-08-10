@@ -106,6 +106,8 @@ set(SOURCES_FILES
     src/system/fatal.c
     src/system/logs.c
     src/version/version.c
+
+    src/gnss/gnss.c
     )
 
 if (DEFINED CONFIG_BOARD_MCU_MAIN_V31)

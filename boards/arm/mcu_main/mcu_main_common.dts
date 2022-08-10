@@ -2,6 +2,13 @@
 #include <st/g4/stm32g474Xe.dtsi>
 #include <st/g4/stm32g474v(b-c-e)tx-pinctrl.dtsi>
 
+#define DMAMUX_REQ_USART3_RX 0x1C
+#define DMAMUX_REQ_USART3_TX 0x1D
+#define DMA_CONFIG_DIR_SHIFT 6
+#define DMA_DIR_MEM_TO_PERIPH 1
+#define DMA_DIR_PERIPH_TO_MEM 2
+#define DMA_MEM_INC_ADDR_SHIFT 10
+
 / {
     model = "Worldcoin Orb Main MCU";
     compatible = "worldcoin,mcu_main";
@@ -20,9 +27,9 @@
         // 0 == Jetson
         sound-amp-mux-gpios = <&gpioe 10 GPIO_ACTIVE_HIGH>;
         i2c_clock_gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
-
         // GPIO used to get hardware version dynamically
         hw-version-gpios = <&gpiob 12 GPIO_ACTIVE_HIGH>;
+        gnss = <&usart3>;
     };
 
     vbat_sw {
@@ -241,6 +248,18 @@
     pinctrl-names = "default";
     current-speed = <115200>;
     status = "okay";
+};
+
+&usart3 {
+    pinctrl-0 = <&usart3_tx_pb10 &usart3_rx_pb11>;
+    pinctrl-names = "default";
+    current-speed = <9600>;
+    status = "okay";
+
+    // DMA1 channels 3 and 4 (1 and 2 used by front and operator LEDs).
+    dmas = <&dma1 3 DMAMUX_REQ_USART3_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>,
+           <&dma1 4 DMAMUX_REQ_USART3_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>;
+    dma-names = "rx", "tx";
 };
 
 &rtc {

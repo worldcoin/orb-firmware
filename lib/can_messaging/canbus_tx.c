@@ -121,6 +121,8 @@ can_messaging_async_tx(const can_message_t *message)
     }
 
     can_message_t to_send = *message;
+    LOG_DBG("Num slabs used: %" PRIu32,
+            k_mem_slab_num_used_get(&can_tx_memory_slab));
     if (k_mem_slab_alloc(&can_tx_memory_slab, (void **)&to_send.bytes,
                          K_NO_WAIT) == 0) {
         memcpy(to_send.bytes, message->bytes, message->size);

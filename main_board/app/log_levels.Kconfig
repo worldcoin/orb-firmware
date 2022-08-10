@@ -5,3 +5,7 @@ source "subsys/logging/Kconfig.template.log_config"
 module = BATTERY
 module-str = BATTERY
 source "subsys/logging/Kconfig.template.log_config"
+
+module = GNSS
+module-str = GNSS
+source "subsys/logging/Kconfig.template.log_config"
