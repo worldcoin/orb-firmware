@@ -276,6 +276,35 @@ front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
     return RET_SUCCESS;
 }
 
+ret_code_t
+front_leds_set_center_leds_sequence(uint8_t *bytes, uint32_t size)
+{
+    ret_code_t ret = RET_SUCCESS;
+
+    if (size % 3 != 0) {
+        LOG_ERR("Bytes must be a multiple of 3");
+        ret = RET_ERROR_INVALID_PARAM;
+        ASSERT_SOFT(ret);
+        return ret;
+    }
+
+    size = MIN(size, ARRAY_SIZE(leds.part.center_leds) * 3);
+
+    CRITICAL_SECTION_ENTER(k);
+    for (size_t i = 0; i < (size / 3); ++i) {
+        leds.part.center_leds[i].r = bytes[i * 3];
+        leds.part.center_leds[i].g = bytes[i * 3 + 1];
+        leds.part.center_leds[i].b = bytes[i * 3 + 2];
+    }
+    for (size_t i = size / 3; i < ARRAY_SIZE(leds.part.center_leds); ++i) {
+        leds.part.center_leds[i] = (struct led_rgb)RGB_OFF;
+    }
+    CRITICAL_SECTION_EXIT(k);
+
+    k_sem_give(&sem);
+    return ret;
+}
+
 void
 front_leds_set_brightness(uint32_t brightness)
 {
