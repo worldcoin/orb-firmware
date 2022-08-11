@@ -26,7 +26,7 @@ LOG_MODULE_REGISTER(worldsemi_ws2812_pwm_stm32);
 #define WS2812_PERIOD_NS       1250
 #define WS2812_PERIOD_1_BIT_NS 600
 #define WS2812_PERIOD_0_BIT_NS 300
-#define NUM_RESET_PIXELS       41
+#define NUM_RESET_PIXELS       65
 
 #if defined(CONFIG_SOC_SERIES_STM32F3X) ||                                     \
     defined(CONFIG_SOC_SERIES_STM32F7X) ||                                     \
@@ -185,18 +185,19 @@ rgb_to_dma_pixels(const struct device *dev, struct led_rgb *pixels,
     size_t i, j;
     for (i = 0; i < num_pixels; ++i) {
         for (j = 0; j < 8; ++j) {
-            data->pixel_bits[NUM_RESET_PIXELS + i * 24 + j] =
+            data->pixel_bits[i * 24 + j] =
                 (pixels[i].g & (0x80 >> j)) ? one_bit : zero_bit;
         }
         for (j = 8; j < 16; ++j) {
-            data->pixel_bits[NUM_RESET_PIXELS + i * 24 + j] =
+            data->pixel_bits[i * 24 + j] =
                 (pixels[i].r & (0x80 >> (j - 8))) ? one_bit : zero_bit;
         }
         for (j = 16; j < 24; ++j) {
-            data->pixel_bits[NUM_RESET_PIXELS + i * 24 + j] =
+            data->pixel_bits[i * 24 + j] =
                 (pixels[i].b & (0x80 >> (j - 16))) ? one_bit : zero_bit;
         }
     }
+    memset(data->pixel_bits + num_pixels * 24, 0, NUM_RESET_PIXELS);
 }
 
 static int
@@ -222,6 +223,7 @@ ws2812_pwm_stm32_update_rgb(const struct device *dev, struct led_rgb *pixels,
     rgb_to_dma_pixels(dev, pixels, num_pixels);
     data->one_shot = true;
     LL_DMA_DisableChannel(config->dma, dma_channel);
+
     LL_DMA_SetDataLength(config->dma, dma_channel,
                          NUM_RESET_PIXELS + num_pixels * 24);
     // We use the DMA complete interrupt to turn on the timer interrupt so that
@@ -230,11 +232,15 @@ ws2812_pwm_stm32_update_rgb(const struct device *dev, struct led_rgb *pixels,
     // then you will kill the timer before it can output its final cycle and
     // thus the timer will drop a bit.
     LL_DMA_EnableIT_TC(config->dma, dma_channel);
+
     LL_TIM_SetPrescaler(config->timer, 0);
     LL_TIM_SetAutoReload(config->timer,
                          nsec_to_cycles(WS2812_PERIOD_NS, data) - 1u);
     LL_TIM_CC_EnableChannel(config->timer,
                             timer_ch2ll[config->timer_channel - 1u]);
+
+    LL_TIM_GenerateEvent_UPDATE(config->timer);
+
     LL_TIM_EnableDMAReq_UPDATE(config->timer);
     LL_TIM_DisableIT_UPDATE(config->timer);
     LL_DMA_EnableChannel(config->dma, dma_channel);
@@ -243,7 +249,7 @@ ws2812_pwm_stm32_update_rgb(const struct device *dev, struct led_rgb *pixels,
     // (representing the PWM duty cycle) is loaded with the first DMA-provided
     // value before we start the timer. If we don't do this, then when the timer
     // starts, the first duty cycle it has is indeterminant
-    LL_TIM_GenerateEvent_UPDATE(config->timer);
+
     LL_TIM_EnableCounter(config->timer);
 
     // Wait until the LEDs have finished updating
@@ -367,22 +373,6 @@ get_tim_clk(const struct stm32_pclken *pclken, uint32_t *tim_clk)
 }
 
 static void
-timer_wait_isr(const void *arg)
-{
-    const struct device *dev = arg;
-    const struct ws2812_pwm_stm32_config *config = dev->config;
-    struct ws2812_pwm_stm32_data *data = dev->data;
-
-    LL_TIM_ClearFlag_UPDATE(config->timer);
-
-    if (data->one_shot) {
-        LL_TIM_DisableCounter(config->timer);
-        k_sem_give(&data->update_sem);
-        return;
-    }
-}
-
-static void
 dma_complete_isr(const void *arg)
 {
     const struct device *dev = arg;
@@ -395,10 +385,13 @@ dma_complete_isr(const void *arg)
     WRITE_REG(config->dma->IFCR,
               dma_ch2TC_clear_flag[config->dma_channel - 1u]);
 
-    if (data->one_shot) {
-        LL_TIM_EnableIT_UPDATE(config->timer);
-        return;
-    }
+    /*
+        if (data->one_shot) {
+            LL_TIM_EnableIT_UPDATE(config->timer);
+            return;
+        }
+    */
+    k_sem_give(&data->update_sem);
 }
 
 static int
@@ -437,8 +430,6 @@ ws2812_pwm_stm32_init(const struct device *dev)
         LOG_ERR("Could not obtain timer clock (%d)", r);
         return r;
     }
-
-    memset(data->pixel_bits, 0, NUM_RESET_PIXELS);
 
     // configure GPIO pin alternate function
     r = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
@@ -557,9 +548,6 @@ ws2812_pwm_stm32_init(const struct device *dev)
     irq_connect_dynamic(DMA1_Channel1_IRQn + config->dma_channel - 1u, 1,
                         &dma_complete_isr, dev, 0);
     irq_enable(DMA1_Channel1_IRQn + config->dma_channel - 1u);
-
-    irq_connect_dynamic(config->timer_up_irq_num, 1, &timer_wait_isr, dev, 0);
-    irq_enable(config->timer_up_irq_num);
 
     LL_DMA_EnableIT_TC(dma, dma_channel);
     LL_DMA_EnableChannel(dma, dma_channel);

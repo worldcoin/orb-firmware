@@ -262,8 +262,7 @@
         compatible = "maxim,max31875";
         reg = <0x4a>;
         label = "LIQUID_LENS_TEMP_SENSOR";
-        extended-mode;
-        conversions-per-second = "0.25";
+        conversions-per-second = "1";
         resolution = <8>;
     };
 };
