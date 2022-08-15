@@ -170,10 +170,6 @@ operator_leds_set_leds_sequence(uint8_t *bytes, uint32_t size)
     use_sequence = true;
     CRITICAL_SECTION_EXIT(k);
 
-    for (int i = 0; i < ARRAY_SIZE(leds); ++i) {
-        printk("leds[%d] = %u,%u,%u\r\n", i, leds[i].r, leds[i].g, leds[i].b);
-    }
-
     k_sem_give(&sem_new_setting);
     return ret;
 }
