@@ -477,7 +477,9 @@ handle_user_leds_pattern(job_t *job)
     } else {
         RgbColor *color_ptr = NULL;
         if (msg->message.j_message.payload.user_leds_pattern.pattern ==
-            UserLEDsPattern_UserRgbLedPattern_RGB) {
+                UserLEDsPattern_UserRgbLedPattern_RGB ||
+            msg->message.j_message.payload.user_leds_pattern.pattern ==
+                UserLEDsPattern_UserRgbLedPattern_PULSING_RGB) {
             color_ptr =
                 &msg->message.j_message.payload.user_leds_pattern.custom_color;
         }

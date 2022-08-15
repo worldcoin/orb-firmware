@@ -24,4 +24,7 @@ front_leds_set_ring_leds_sequence(uint8_t *bytes, uint32_t size);
 void
 front_leds_set_brightness(uint32_t brightness); // 0 - 255
 
+void
+front_leds_turn_off_final(void);
+
 #endif // FRONT_UNIT_RGB_LEDS_H
