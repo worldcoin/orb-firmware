@@ -159,11 +159,6 @@ front_leds_thread(void *a, void *b, void *c)
         pulsing_period_ms = global_pulsing_period_ms;
         CRITICAL_SECTION_EXIT(k);
 
-        if (pattern != UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE &&
-            pattern != UserLEDsPattern_UserRgbLedPattern_PULSING_RGB) {
-            pulsing_index = 0;
-        }
-
         if (!use_sequence) {
             switch (pattern) {
             case UserLEDsPattern_UserRgbLedPattern_OFF:
