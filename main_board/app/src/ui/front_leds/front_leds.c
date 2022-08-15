@@ -255,27 +255,71 @@ front_leds_thread(void *a, void *b, void *c)
     }
 }
 
-ret_code_t
-front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
-                       uint32_t start_angle, int32_t angle_length,
-                       RgbColor *color, uint32_t pulsing_period_ms,
-                       float pulsing_scale)
+static void
+print_new(UserLEDsPattern_UserRgbLedPattern pattern, uint32_t start_angle,
+          int32_t angle_length, RgbColor *color, uint32_t pulsing_period_ms,
+          float pulsing_scale)
 {
+    LOG_DBG("pattern = %d", pattern);
+    LOG_DBG("start angle = %" PRIu32, start_angle);
+    LOG_DBG("angle length = %" PRId32, angle_length);
+    if (color) {
+        LOG_DBG("color = #%02X%02X%02X", color->red, color->green, color->blue);
+    } else {
+        LOG_DBG("color = NULL");
+    }
+    LOG_DBG("pulsing period = %" PRIu32 "ms", pulsing_period_ms);
+    LOG_DBG("pulsing scale = %g", pulsing_scale);
+}
+
+static ret_code_t
+pulsing_rgb_check_range(RgbColor *color, float pulsing_scale)
+{
+    if ((roundf(color->red * (pulsing_scale + 1)) > 255) ||
+        (roundf(color->green * (pulsing_scale + 1)) > 255) ||
+        (roundf(color->blue * (pulsing_scale + 1)) > 255)) {
+        LOG_ERR("pulsing scale too large");
+        return RET_ERROR_INVALID_PARAM;
+    } else {
+        return RET_SUCCESS;
+    }
+}
+
+static bool
+previous_settings_are_identical(UserLEDsPattern_UserRgbLedPattern pattern,
+                                uint32_t start_angle, int32_t angle_length,
+                                RgbColor *color, uint32_t pulsing_period_ms,
+                                float pulsing_scale)
+{
+    bool ret = (global_pulsing_scale == pulsing_scale) &&
+               (global_pulsing_period_ms == pulsing_period_ms) &&
+               (global_pulsing_delay_time_ms ==
+                global_pulsing_period_ms / PULSING_NUM_UPDATES_PER_PERIOD) &&
+               (global_pattern == pattern) &&
+               (global_start_angle_degrees == start_angle) &&
+               (global_angle_length_degrees == angle_length);
+
+    if (color != NULL) {
+        return ret && (global_color.r == color->red) &&
+               (global_color.g == color->green) &&
+               (global_color.b == color->blue);
+    } else {
+        return ret;
+    }
+}
+
+static void
+update_parameters(UserLEDsPattern_UserRgbLedPattern pattern,
+                  uint32_t start_angle, int32_t angle_length, RgbColor *color,
+                  uint32_t pulsing_period_ms, float pulsing_scale)
+{
+
     CRITICAL_SECTION_ENTER(k);
 
-    if (pattern == UserLEDsPattern_UserRgbLedPattern_PULSING_RGB) {
-        if ((roundf(color->red * (pulsing_scale + 1)) > 255) ||
-            (roundf(color->green * (pulsing_scale + 1)) > 255) ||
-            (roundf(color->blue * (pulsing_scale + 1)) > 255)) {
-            LOG_ERR("pulsing scale too large");
-            return RET_ERROR_INVALID_PARAM;
-        }
-        global_pulsing_scale = pulsing_scale;
-        global_pulsing_period_ms = pulsing_period_ms;
-        global_pulsing_delay_time_ms =
-            global_pulsing_period_ms / PULSING_NUM_UPDATES_PER_PERIOD;
-    }
-
+    global_pulsing_scale = pulsing_scale;
+    global_pulsing_period_ms = pulsing_period_ms;
+    global_pulsing_delay_time_ms =
+        global_pulsing_period_ms / PULSING_NUM_UPDATES_PER_PERIOD;
     global_pattern = pattern;
     global_start_angle_degrees = start_angle;
     global_angle_length_degrees = angle_length;
@@ -285,16 +329,84 @@ front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
         global_color.b = color->blue;
     }
     use_sequence = false;
-    CRITICAL_SECTION_EXIT(k);
 
-    k_sem_give(&sem);
-    return RET_SUCCESS;
+    CRITICAL_SECTION_EXIT(k);
+}
+
+ret_code_t
+front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
+                       uint32_t start_angle, int32_t angle_length,
+                       RgbColor *color, uint32_t pulsing_period_ms,
+                       float pulsing_scale)
+{
+    ret_code_t ret = RET_ERROR_INTERNAL;
+    static bool ignored_last = false;
+
+    if (pattern == UserLEDsPattern_UserRgbLedPattern_PULSING_RGB) {
+        ret = pulsing_rgb_check_range(color, pulsing_scale);
+        if (ret == RET_SUCCESS) {
+            if (previous_settings_are_identical(
+                    pattern, start_angle, angle_length, color,
+                    pulsing_period_ms, pulsing_scale)) {
+                if (!ignored_last) {
+                    LOG_DBG("ignorning identical");
+                    ignored_last = true;
+                }
+            } else {
+                ignored_last = false;
+                print_new(pattern, start_angle, angle_length, color,
+                          pulsing_period_ms, pulsing_scale);
+                update_parameters(pattern, start_angle, angle_length, color,
+                                  pulsing_period_ms, pulsing_scale);
+                k_sem_give(&sem);
+            }
+        }
+    } else {
+        if (previous_settings_are_identical(pattern, start_angle, angle_length,
+                                            color, pulsing_period_ms,
+                                            pulsing_scale)) {
+            if (!ignored_last) {
+                LOG_DBG("ignorning identical");
+                ignored_last = true;
+            }
+        } else {
+            ignored_last = false;
+            print_new(pattern, start_angle, angle_length, color,
+                      pulsing_period_ms, pulsing_scale);
+            update_parameters(pattern, start_angle, angle_length, color,
+                              pulsing_period_ms, pulsing_scale);
+            k_sem_give(&sem);
+        }
+    }
+
+    return ret;
+}
+
+static bool
+center_leds_are_identical(uint8_t *bytes, uint32_t size)
+{
+    for (size_t i = 0; i < (size / 3); ++i) {
+        if (leds.part.center_leds[i].r != bytes[i * 3]) {
+            return false;
+        }
+        if (leds.part.center_leds[i].g != bytes[i * 3 + 1]) {
+            return false;
+        }
+        if (leds.part.center_leds[i].b != bytes[i * 3 + 2]) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 ret_code_t
 front_leds_set_center_leds_sequence(uint8_t *bytes, uint32_t size)
 {
     ret_code_t ret = RET_SUCCESS;
+    static uint32_t old_size =
+        ARRAY_SIZE(leds.part.center_leds) * 3 + 1; // impossible old size
+    static bool ignored_last = false;
 
     if (size % 3 != 0) {
         LOG_ERR("Bytes must be a multiple of 3");
@@ -304,6 +416,19 @@ front_leds_set_center_leds_sequence(uint8_t *bytes, uint32_t size)
     }
 
     size = MIN(size, ARRAY_SIZE(leds.part.center_leds) * 3);
+
+    if (old_size == size && center_leds_are_identical(bytes, size)) {
+        if (!ignored_last) {
+            LOG_DBG("ignorning identical");
+            ignored_last = true;
+        }
+        return RET_SUCCESS;
+    } else {
+        ignored_last = false;
+    }
+
+    old_size = size;
+    LOG_DBG("got new");
 
     CRITICAL_SECTION_ENTER(k);
     for (size_t i = 0; i < (size / 3); ++i) {
