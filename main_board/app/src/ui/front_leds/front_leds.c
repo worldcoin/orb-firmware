@@ -52,7 +52,7 @@ static volatile bool use_sequence;
 static volatile uint32_t global_start_angle_degrees = 0;
 static volatile int32_t global_angle_length_degrees = FULL_RING_DEGREES;
 static volatile uint8_t global_intensity = 30;
-static volatile struct led_rgb global_color = {.r = 0, .g = 0, .b = 4};
+static volatile struct led_rgb global_color = {.r = 0, .g = 0, .b = 64};
 static volatile float global_pulsing_scale = 2.25;
 static volatile uint32_t global_pulsing_period_ms = INITIAL_PULSING_PERIOD_MS;
 static volatile uint32_t global_pulsing_delay_time_ms =
