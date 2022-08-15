@@ -442,8 +442,11 @@ reboot_thread()
 
     operator_leds_set_pattern(
         DistributorLEDsPattern_DistributorRgbLedPattern_OFF, 0, NULL);
+    front_leds_turn_off_final();
 
     k_msleep(SYSTEM_RESET_UI_DELAY_MS);
+
+    LOG_INF("Going down!");
 
     uint32_t log_buffered_count = log_buffered_cnt();
     while (LOG_PROCESS() && --log_buffered_count)

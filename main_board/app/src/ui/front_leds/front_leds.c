@@ -19,6 +19,8 @@ static K_THREAD_STACK_DEFINE(front_leds_stack_area,
 static struct k_thread front_led_thread_data;
 static K_SEM_DEFINE(sem, 1, 1); // init to 1 to use default values below
 
+const struct device *led_strip;
+
 #define NUM_LEDS         DT_PROP(DT_NODELABEL(front_unit_rgb_leds), num_leds)
 #define NUM_CENTER_LEDS  9
 #define NUM_RING_LEDS    (NUM_LEDS - NUM_CENTER_LEDS)
@@ -36,6 +38,9 @@ typedef union {
     struct led_rgb all[NUM_LEDS];
 } user_leds_t;
 static user_leds_t leds;
+
+K_MUTEX_DEFINE(leds_update_mutex);
+static volatile bool final_done = false;
 
 // default values
 
@@ -247,7 +252,11 @@ front_leds_thread(void *a, void *b, void *c)
             }
         }
         // update LEDs
-        led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+        k_mutex_lock(&leds_update_mutex, K_FOREVER);
+        if (!final_done) {
+            led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+        }
+        k_mutex_unlock(&leds_update_mutex);
     }
 }
 
@@ -356,6 +365,17 @@ front_leds_set_brightness(uint32_t brightness)
     k_sem_give(&sem);
 }
 
+void
+front_leds_turn_off_final(void)
+{
+    k_mutex_lock(&leds_update_mutex, K_FOREVER);
+    final_done = true;
+    memset(leds.all, 0, sizeof leds.all);
+    led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+    led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+    k_mutex_unlock(&leds_update_mutex);
+}
+
 ret_code_t
 front_leds_init(void)
 {
@@ -385,8 +405,7 @@ front_leds_initial_state(const struct device *dev)
 {
     ARG_UNUSED(dev);
 
-    const struct device *led_strip =
-        DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds));
+    led_strip = DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds));
 
     if (!device_is_ready(led_strip)) {
         LOG_ERR("Front unit LED strip not ready!");
