@@ -9,3 +9,11 @@ source "subsys/logging/Kconfig.template.log_config"
 module = GNSS
 module-str = GNSS
 source "subsys/logging/Kconfig.template.log_config"
+
+module = PUBSUB
+module-str = PUBSUB
+source "subsys/logging/Kconfig.template.log_config"
+
+module = RUNNER
+module-str = RUNNER
+source "subsys/logging/Kconfig.template.log_config"
