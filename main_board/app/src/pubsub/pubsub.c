@@ -8,7 +8,7 @@
 #include <zephyr.h>
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(pubsub);
+LOG_MODULE_REGISTER(pubsub, CONFIG_PUBSUB_LOG_LEVEL);
 
 // Check that CONFIG_CAN_ISOTP_MAX_SIZE_BYTES is large enough
 // print friendly message if CONFIG_CAN_ISOTP_MAX_SIZE_BYTES can be reduced
@@ -73,7 +73,7 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
 
         // send
         if (encoded) {
-            LOG_INF(
+            LOG_DBG(
                 "⬆️ Sending %s message to remote 0x%03x with payload ID "
                 "%02d",
                 (remote_addr & CAN_ADDR_IS_ISOTP ? "ISO-TP" : "CAN"),

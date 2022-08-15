@@ -22,7 +22,7 @@
 #include <zephyr.h>
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(runner);
+LOG_MODULE_REGISTER(runner, CONFIG_RUNNER_LOG_LEVEL);
 
 static K_THREAD_STACK_DEFINE(auto_homing_stack, 600);
 static struct k_thread auto_homing_thread;
@@ -951,7 +951,7 @@ runner_process_jobs_thread()
             continue;
         }
 
-        LOG_INF("⬇️ Received message from remote 0x%03x with payload ID "
+        LOG_DBG("⬇️ Received message from remote 0x%03x with payload ID "
                 "%02d, ack #%u",
                 new.remote_addr,
                 new.mcu_message.message.j_message.which_payload,
