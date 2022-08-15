@@ -14,21 +14,27 @@
 LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
 
 static const struct device *can_dev;
-K_THREAD_STACK_DEFINE(can_battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
-static struct k_thread rx_thread_data = {0};
-
-CAN_MSGQ_DEFINE(can_battery_recv_queue, 8);
 
 // minimum voltage needed to boot the Orb during startup (in millivolts)
 #define BATTERY_MINIMUM_VOLTAGE_STARTUP_MV 13500
 
-// accept everything and discard unwanted messages in software
-static const struct zcan_filter battery_can_filter = {
-    .id_type = CAN_STANDARD_IDENTIFIER,
-    .rtr = CAN_DATAFRAME,
-    .id = 0,
-    .rtr_mask = 1,
-    .id_mask = 0};
+// the time between sends of battery data to the Jetson
+#define BATTERY_INFO_SEND_PERIOD_MS 1000
+
+K_SEM_DEFINE(first_414_wait_sem, 0, 1);
+
+struct battery_can_msg {
+    uint32_t can_id;
+    uint8_t msg_len;
+    void (*handler)(struct zcan_frame *frame);
+};
+
+static struct zcan_filter battery_can_filter = {.id_type =
+                                                    CAN_STANDARD_IDENTIFIER,
+                                                .rtr = CAN_DATAFRAME,
+                                                .id = 0,
+                                                .rtr_mask = 1,
+                                                .id_mask = CAN_STD_ID_MASK};
 
 __PACKED_STRUCT battery_415_s
 {
@@ -66,144 +72,170 @@ __PACKED_STRUCT __may_alias battery_414_s
 
 static struct battery_499_s state_499 = {0};
 static struct battery_414_s state_414 = {0};
+static struct battery_415_s state_415 = {0};
+
+static void
+publish_battery_voltages(void)
+{
+    static BatteryVoltage voltages;
+    voltages = (BatteryVoltage){
+        .battery_cell1_mv = state_414.voltage_group_1,
+        .battery_cell2_mv = state_414.voltage_group_2,
+        .battery_cell3_mv = state_414.voltage_group_3,
+        .battery_cell4_mv = state_414.voltage_group_4,
+    };
+    LOG_DBG("Battery voltage: (%d, %d, %d, %d) mV", state_414.voltage_group_1,
+            state_414.voltage_group_2, state_414.voltage_group_3,
+            state_414.voltage_group_4);
+    publish_new(&voltages, sizeof voltages, McuToJetson_battery_voltage_tag,
+                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+}
+
+static void
+publish_battery_capacity(void)
+{
+    static BatteryCapacity battery_cap;
+    battery_cap.percentage = state_499.state_of_charge;
+    LOG_DBG("State of charge: %u%%", state_499.state_of_charge);
+    publish_new(&battery_cap, sizeof(battery_cap),
+                McuToJetson_battery_capacity_tag,
+                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+}
+
+static void
+publish_battery_is_charging(void)
+{
+    static BatteryIsCharging is_charging;
+    is_charging.battery_is_charging = state_499.flags & BIT(IS_CHARGING_BIT);
+    LOG_DBG("Is charging? %s", is_charging.battery_is_charging ? "yes" : "no");
+    publish_new(&is_charging, sizeof(is_charging),
+                McuToJetson_battery_is_charging_tag,
+                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+}
+
+static void
+publish_battery_cell_temperature(void)
+{
+    LOG_DBG("Battery cell temperature: %u.%u°C",
+            state_415.cell_temperature / 10, state_415.cell_temperature % 10);
+    temperature_report(Temperature_TemperatureSource_BATTERY_CELL,
+                       state_415.cell_temperature / 10);
+}
+
+static void
+publish_battery_diagnostic_flags(void)
+{
+    static BatteryDiagnostic diag;
+    diag.flags = state_499.flags;
+    LOG_DBG("Battery diag flags: 0x%02x", diag.flags);
+    publish_new(&diag, sizeof(diag), McuToJetson_battery_diag_tag,
+                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+}
+
+static void
+publish_battery_pcb_temperature(void)
+{
+    LOG_DBG("Battery PCB temperature: %u.%u°C", state_499.pcb_temperature / 10,
+            state_499.pcb_temperature % 10);
+    temperature_report(Temperature_TemperatureSource_BATTERY_PCB,
+                       state_499.pcb_temperature / 10);
+}
+
+static void
+send_battery_info_to_jetson_work_func(struct k_work *work)
+{
+    ARG_UNUSED(work);
+
+    publish_battery_voltages();
+    publish_battery_capacity();
+    publish_battery_is_charging();
+    publish_battery_cell_temperature();
+    publish_battery_diagnostic_flags();
+    publish_battery_pcb_temperature();
+}
+
+K_WORK_DEFINE(battery_work, send_battery_info_to_jetson_work_func);
+
+// This function is called from an interrupt context, so let's do the least
+// amount of work possible in it
+static void
+send_battery_info_to_jetson_timer_func(struct k_timer *timer)
+{
+    ARG_UNUSED(timer);
+
+    k_work_submit(&battery_work);
+}
+
+K_TIMER_DEFINE(send_battery_info_timer, send_battery_info_to_jetson_timer_func,
+               NULL);
 
 static void
 handle_499(struct zcan_frame *frame)
 {
-    static BatteryCapacity battery_cap = {UINT32_MAX};
-    static BatteryIsCharging is_charging = {.battery_is_charging = false};
-
-    int ret = 0;
-
-    if (can_dlc_to_bytes(frame->dlc) == 6) {
-        // Let's extract the info we care about
-        struct battery_499_s *new_state = (struct battery_499_s *)frame->data;
-
-        // logging
-        LOG_DBG("State of charge: %u%%", new_state->state_of_charge);
-        LOG_DBG("Is charging? %s",
-                is_charging.battery_is_charging ? "yes" : "no");
-
-        // now let's report the data if it has changed
-        if (state_499.state_of_charge != new_state->state_of_charge) {
-            battery_cap.percentage = new_state->state_of_charge;
-
-            ret |= publish_new(&battery_cap, sizeof(battery_cap),
-                               McuToJetson_battery_capacity_tag,
-                               CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-        }
-
-        if (new_state->flags != state_499.flags) {
-            BatteryDiagnostic diag = {.flags = new_state->flags};
-            ret |=
-                publish_new(&diag, sizeof(diag), McuToJetson_battery_diag_tag,
-                            CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-        }
-
-        if ((new_state->flags & BIT(IS_CHARGING_BIT)) !=
-            (state_499.flags & BIT(IS_CHARGING_BIT))) {
-            is_charging.battery_is_charging =
-                (new_state->flags & BIT(IS_CHARGING_BIT)) != 0;
-
-            ret |= publish_new(&is_charging, sizeof(is_charging),
-                               McuToJetson_battery_is_charging_tag,
-                               CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-        }
-
-        // store new state only if messages successfully queued
-        if (ret == RET_SUCCESS) {
-            state_499 = *new_state;
-        }
-
-        LOG_DBG("Battery PCB temperature: %u.%u°C",
-                new_state->pcb_temperature / 10,
-                new_state->pcb_temperature % 10);
-        temperature_report(Temperature_TemperatureSource_BATTERY_PCB,
-                           new_state->pcb_temperature / 10);
-    } else {
-        ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
-    }
+    state_499 = *(struct battery_499_s *)frame->data;
 }
 
 static void
 handle_414(struct zcan_frame *frame)
 {
-    if (can_dlc_to_bytes(frame->dlc) == 8) {
-        struct battery_414_s *new_state = (struct battery_414_s *)frame->data;
-        state_414 = *new_state;
-
-        LOG_DBG("Battery voltage: (%d, %d, %d, %d) mV",
-                new_state->voltage_group_1, new_state->voltage_group_2,
-                new_state->voltage_group_3, new_state->voltage_group_4);
-        BatteryVoltage voltages = {
-            .battery_cell1_mv = new_state->voltage_group_1,
-            .battery_cell2_mv = new_state->voltage_group_2,
-            .battery_cell3_mv = new_state->voltage_group_3,
-            .battery_cell4_mv = new_state->voltage_group_4,
-        };
-        publish_new(&voltages, sizeof voltages, McuToJetson_battery_voltage_tag,
-                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-    } else {
-        ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
-    }
+    state_414 = *(struct battery_414_s *)frame->data;
 }
 
 static void
 handle_415(struct zcan_frame *frame)
 {
-    if (can_dlc_to_bytes(frame->dlc) == 4) {
-        struct battery_415_s *new_state = (struct battery_415_s *)frame->data;
-        LOG_DBG("Battery cell temperature: %u.%u°C",
-                new_state->cell_temperature / 10,
-                new_state->cell_temperature % 10);
-        temperature_report(Temperature_TemperatureSource_BATTERY_CELL,
-                           new_state->cell_temperature / 10);
+    state_415 = *(struct battery_415_s *)frame->data;
+}
+
+static struct battery_can_msg messages[] = {
+    // 0x414 must be the first element of this array!
+    {.can_id = 0x414, .msg_len = 8, .handler = handle_414},
+    {.can_id = 0x415, .msg_len = 4, .handler = handle_415},
+    {.can_id = 0x499, .msg_len = 6, .handler = handle_499}};
+
+static void
+message_checker(const struct device *dev, struct zcan_frame *frame,
+                void *user_data)
+{
+    ARG_UNUSED(dev);
+    struct battery_can_msg *msg = user_data;
+
+    if (can_dlc_to_bytes(frame->dlc) == msg->msg_len) {
+        msg->handler(frame);
     } else {
         ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
     }
 }
 
 static void
-battery_rx_thread(void *p1, void *p2, void *p3)
+sem_give_414(const struct device *dev, struct zcan_frame *frame,
+             void *user_data)
 {
-    UNUSED_PARAMETER(p2);
-    UNUSED_PARAMETER(p3);
+    message_checker(dev, frame, user_data);
+    k_sem_give(&first_414_wait_sem);
+}
 
+static ret_code_t
+setup_filters(void)
+{
     int ret;
-    struct zcan_frame rx_frame;
 
-    ret = can_add_rx_filter_msgq(can_dev, &can_battery_recv_queue,
-                                 &battery_can_filter);
-    if (ret < 0) {
-        LOG_ERR("Error attaching message queue (%d)!", ret);
-        return;
-    }
-
-    while (p1 == NULL || (rx_frame.id != (uint32_t)p1)) {
-        ret = k_msgq_get(&can_battery_recv_queue, &rx_frame,
-                         p1 == NULL ? K_FOREVER : K_MSEC(2000));
-        if (ret != 0 && p1 != NULL) {
-            return;
-        }
-        switch (rx_frame.id) {
-        case 0x499:
-            handle_499(&rx_frame);
-            break;
-        case 0x414:
-            handle_414(&rx_frame);
-            break;
-        case 0x415:
-            handle_415(&rx_frame);
-            break;
-        default:
-            break;
+    for (size_t i = 0; i < ARRAY_SIZE(messages); ++i) {
+        battery_can_filter.id = messages[i].can_id;
+        ret = can_add_rx_filter(can_dev, message_checker, &messages[i],
+                                &battery_can_filter);
+        if (ret < 0) {
+            LOG_ERR("Error adding can rx filter (%d)", ret);
+            return RET_ERROR_INTERNAL;
         }
     }
+    return RET_SUCCESS;
 }
 
 ret_code_t
 battery_init(void)
 {
+    int ret;
     can_dev = DEVICE_DT_GET(DT_ALIAS(battery_can_bus));
     if (!can_dev) {
         LOG_ERR("CAN: Device driver not found.");
@@ -217,15 +249,26 @@ battery_init(void)
         LOG_INF("CAN ready");
     }
 
-    // blocking wait until receiving frame 0x414 providing battery cell voltages
-    battery_rx_thread((void *)0x414, NULL, NULL);
+    ASSERT_HARD_BOOL(messages[0].can_id == 0x414);
+
+    battery_can_filter.id = 0x414;
+    ret = can_add_rx_filter(can_dev, sem_give_414, &messages[0],
+                            &battery_can_filter);
+    if (ret < 0) {
+        LOG_ERR("Error adding can rx filter (%d)", ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    // we are simulating a blocking read with a timeout
+    k_sem_take(&first_414_wait_sem, K_SECONDS(2));
+    can_remove_rx_filter(can_dev, ret);
 
     // voltages received or timeout that will give a full_voltage of 0,
     // can be because of a removed battery
     uint32_t full_voltage =
         state_414.voltage_group_1 + state_414.voltage_group_2 +
         state_414.voltage_group_3 + state_414.voltage_group_4;
-    LOG_INF("Battery voltage: %umV", full_voltage);
+    LOG_INF("Got initial battery voltage: %umV", full_voltage);
 
     // if voltage low:
     // - show the user by blinking the operator LED in red
@@ -242,13 +285,12 @@ battery_init(void)
         }
 
         NVIC_SystemReset();
+    } else {
+        LOG_INF("Battery voltage is ok");
     }
 
-    k_tid_t tid = k_thread_create(
-        &rx_thread_data, can_battery_rx_thread_stack,
-        K_THREAD_STACK_SIZEOF(can_battery_rx_thread_stack), battery_rx_thread,
-        NULL, NULL, NULL, THREAD_PRIORITY_BATTERY, 0, K_NO_WAIT);
-    k_thread_name_set(tid, "battery");
+    k_timer_start(&send_battery_info_timer, K_MSEC(BATTERY_INFO_SEND_PERIOD_MS),
+                  K_MSEC(BATTERY_INFO_SEND_PERIOD_MS));
 
-    return RET_SUCCESS;
+    return setup_filters();
 }
