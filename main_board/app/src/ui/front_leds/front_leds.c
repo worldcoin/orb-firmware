@@ -12,7 +12,7 @@
 #include <utils.h>
 #include <zephyr.h>
 
-LOG_MODULE_REGISTER(front_unit_rgb_leds);
+LOG_MODULE_REGISTER(front_unit_rgb_leds, CONFIG_FRONT_UNIT_RGB_LEDS_LOG_LEVEL);
 
 static K_THREAD_STACK_DEFINE(front_leds_stack_area,
                              THREAD_STACK_SIZE_FRONT_UNIT_RGB_LEDS);

@@ -14,6 +14,10 @@ module = PUBSUB
 module-str = PUBSUB
 source "subsys/logging/Kconfig.template.log_config"
 
+module = FRONT_UNIT_RGB_LEDS
+module-str = FRONT_UNIT_RGB_LEDS
+source "subsys/logging/Kconfig.template.log_config"
+
 module = RUNNER
 module-str = RUNNER
 source "subsys/logging/Kconfig.template.log_config"
