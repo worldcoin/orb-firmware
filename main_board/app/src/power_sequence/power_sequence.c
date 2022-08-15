@@ -253,7 +253,7 @@ power_turn_on_supplies_phase2(const struct device *dev)
 SYS_INIT(power_turn_on_supplies_phase2, POST_KERNEL,
          SYS_INIT_POWER_SUPPLY_PHASE2_PRIORITY);
 
-#define BUTTON_PRESS_TIME_MS    1500
+#define BUTTON_PRESS_TIME_MS    500
 #define BUTTON_SAMPLE_PERIOD_MS 10
 
 #define POWER_BUTTON_NODE  DT_PATH(buttons, power_button)
@@ -381,7 +381,7 @@ static const struct gpio_dt_spec shutdown_pin =
 static const struct device *power_enable = DEVICE_DT_GET(SLEEP_WAKE_CTLR);
 static const struct device *system_reset = DEVICE_DT_GET(SYSTEM_RESET_CTLR);
 
-#define SYSTEM_RESET_UI_DELAY 200
+#define SYSTEM_RESET_UI_DELAY_MS 200
 
 /// SHUTDOWN_REQ interrupt callback
 /// From the Jetson Datasheet DS-10184-001 § 2.6.2 Power Down
@@ -437,26 +437,16 @@ reboot_thread()
             secondary_slot.image_ok);
 
     if (reboot_delay_s > 0) {
-        k_msleep(reboot_delay_s * 1000 - SYSTEM_RESET_UI_DELAY);
+        k_msleep(reboot_delay_s * 1000 - SYSTEM_RESET_UI_DELAY_MS);
     }
 
-    // check if a new firmware image is about to be installed
-    // turn on center LEDs in white during update
-    // otherwise turn UI off so that re-enabling regulators during boot
-    // doesn't make the LEDs blink with previous configuration
-    if (secondary_slot.magic == BOOT_MAGIC_GOOD) {
-        front_leds_set_pattern(
-            UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_ONLY_CENTER, 0, 0,
-            NULL);
-    } else {
-        front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern_OFF, 0, 0,
-                               NULL);
-    }
     operator_leds_set_pattern(
         DistributorLEDsPattern_DistributorRgbLedPattern_OFF, 0, NULL);
-    k_msleep(SYSTEM_RESET_UI_DELAY);
 
-    while (log_process(false))
+    k_msleep(SYSTEM_RESET_UI_DELAY_MS);
+
+    uint32_t log_buffered_count = log_buffered_cnt();
+    while (LOG_PROCESS() && --log_buffered_count)
         ;
     NVIC_SystemReset();
 }

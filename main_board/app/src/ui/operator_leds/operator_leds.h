@@ -1,6 +1,7 @@
 #ifndef DISTRIBUTOR_LEDS_H
 #define DISTRIBUTOR_LEDS_H
 
+#include <errors.h>
 #include <mcu_messaging.pb.h>
 
 #define OPERATOR_LEDS_COUNT    DT_PROP(DT_NODELABEL(operator_rgb_leds), num_leds)
@@ -33,6 +34,10 @@ operator_leds_set_pattern(
 /// * RET_SUCCESS successfully initialized
 int
 operator_leds_init(void);
+
+// Set a sequence of LEDs. Details in protobuf
+ret_code_t
+operator_leds_set_leds_sequence(uint8_t *bytes, uint32_t size);
 
 /// Force setting of the color and mask
 /// ⚠️ Not to be used in normal condition, use \c operator_leds_set_pattern

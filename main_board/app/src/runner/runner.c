@@ -463,6 +463,10 @@ handle_user_leds_pattern(job_t *job)
         msg->message.j_message.payload.user_leds_pattern.start_angle;
     int32_t angle_length =
         msg->message.j_message.payload.user_leds_pattern.angle_length;
+    uint32_t pulsing_period_ms =
+        msg->message.j_message.payload.user_leds_pattern.pulsing_period_ms;
+    float pulsing_scale =
+        msg->message.j_message.payload.user_leds_pattern.pulsing_scale;
 
     LOG_DBG("Got new user RBG pattern message: %d, start %uº, angle length %dº",
             pattern, start_angle, angle_length);
@@ -477,8 +481,94 @@ handle_user_leds_pattern(job_t *job)
             color_ptr =
                 &msg->message.j_message.payload.user_leds_pattern.custom_color;
         }
-        front_leds_set_pattern(pattern, start_angle, angle_length, color_ptr);
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        ret_code_t ret =
+            front_leds_set_pattern(pattern, start_angle, angle_length,
+                                   color_ptr, pulsing_period_ms, pulsing_scale);
+
+        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+                job);
+    }
+}
+
+static void
+handle_user_center_leds_sequence(job_t *job)
+{
+    McuMessage *msg = &job->mcu_message;
+    MAKE_ASSERTS(JetsonToMcu_center_leds_sequence_tag);
+
+    ret_code_t ret;
+    uint32_t data_format =
+        msg->message.j_message.payload.center_leds_sequence.which_data_format;
+
+    switch (data_format) {
+    case UserCenterLEDsSequence_rgb_uncompressed_tag:;
+        uint8_t *bytes = msg->message.j_message.payload.center_leds_sequence
+                             .data_format.rgb_uncompressed.bytes;
+        uint32_t size = msg->message.j_message.payload.center_leds_sequence
+                            .data_format.rgb_uncompressed.size;
+
+        ret = front_leds_set_center_leds_sequence(bytes, size);
+        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+                job);
+        break;
+    default:
+        LOG_WRN("Unkown data format: %" PRIu32, data_format);
+        job_ack(Ack_ErrorCode_FAIL, job);
+    }
+}
+
+static void
+handle_user_ring_leds_sequence(job_t *job)
+{
+    McuMessage *msg = &job->mcu_message;
+    MAKE_ASSERTS(JetsonToMcu_ring_leds_sequence_tag);
+
+    ret_code_t ret;
+    uint32_t data_format =
+        msg->message.j_message.payload.ring_leds_sequence.which_data_format;
+
+    switch (data_format) {
+    case UserRingLEDsSequence_rgb_uncompressed_tag:;
+        uint8_t *bytes = msg->message.j_message.payload.ring_leds_sequence
+                             .data_format.rgb_uncompressed.bytes;
+        uint32_t size = msg->message.j_message.payload.ring_leds_sequence
+                            .data_format.rgb_uncompressed.size;
+
+        ret = front_leds_set_ring_leds_sequence(bytes, size);
+        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+                job);
+        break;
+    default:
+        LOG_WRN("Unkown data format: %" PRIu32, data_format);
+        job_ack(Ack_ErrorCode_FAIL, job);
+    }
+}
+
+static void
+handle_distributor_leds_sequence(job_t *job)
+{
+    McuMessage *msg = &job->mcu_message;
+    MAKE_ASSERTS(JetsonToMcu_distributor_leds_sequence_tag);
+
+    ret_code_t ret;
+    uint32_t data_format = msg->message.j_message.payload
+                               .distributor_leds_sequence.which_data_format;
+
+    switch (data_format) {
+    case DistributorLEDsSequence_rgb_uncompressed_tag:;
+        uint8_t *bytes =
+            msg->message.j_message.payload.distributor_leds_sequence.data_format
+                .rgb_uncompressed.bytes;
+        uint32_t size = msg->message.j_message.payload.distributor_leds_sequence
+                            .data_format.rgb_uncompressed.size;
+
+        ret = operator_leds_set_leds_sequence(bytes, size);
+        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+                job);
+        break;
+    default:
+        LOG_WRN("Unkown data format: %" PRIu32, data_format);
+        job_ack(Ack_ErrorCode_FAIL, job);
     }
 }
 
@@ -838,10 +928,14 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_mirror_angle_relative_tag] =
         handle_mirror_angle_relative_message,
     [JetsonToMcu_value_get_tag] = handle_value_get_message,
+    [JetsonToMcu_center_leds_sequence_tag] = handle_user_center_leds_sequence,
+    [JetsonToMcu_distributor_leds_sequence_tag] =
+        handle_distributor_leds_sequence,
+    [JetsonToMcu_ring_leds_sequence_tag] = handle_user_ring_leds_sequence,
 };
 
 static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 34,
+    ARRAY_SIZE(handle_message_callbacks) <= 37,
     "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void

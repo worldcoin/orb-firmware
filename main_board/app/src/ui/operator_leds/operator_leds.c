@@ -1,3 +1,4 @@
+#include <app_assert.h>
 #include <app_config.h>
 #include <device.h>
 #include <drivers/led_strip.h>
@@ -28,6 +29,7 @@ static volatile DistributorLEDsPattern_DistributorRgbLedPattern global_pattern =
 static volatile uint8_t global_intensity = 20;
 static volatile uint32_t global_mask = 0b00100;
 static volatile struct led_rgb global_color = RGB_ORANGE_LIGHT;
+static volatile bool use_sequence;
 
 static void
 apply_pattern(uint32_t mask, struct led_rgb *color)
@@ -100,7 +102,11 @@ operator_leds_thread(void *a, void *b, void *c)
             break;
         }
 
-        apply_pattern(mask, &color);
+        if (!use_sequence) {
+            CRITICAL_SECTION_ENTER(k);
+            apply_pattern(mask, &color);
+            CRITICAL_SECTION_EXIT(k);
+        }
         led_strip_update_rgb(led_strip, leds, ARRAY_SIZE(leds));
     }
 }
@@ -130,12 +136,46 @@ operator_leds_set_pattern(
         global_color.g = color->green;
         global_color.b = color->blue;
     }
-
+    use_sequence = false;
     CRITICAL_SECTION_EXIT(k);
 
     k_sem_give(&sem_new_setting);
 
     return RET_SUCCESS;
+}
+
+ret_code_t
+operator_leds_set_leds_sequence(uint8_t *bytes, uint32_t size)
+{
+    ret_code_t ret = RET_SUCCESS;
+
+    if (size % 3 != 0) {
+        LOG_ERR("Bytes must be a multiple of 3");
+        ret = RET_ERROR_INVALID_PARAM;
+        ASSERT_SOFT(ret);
+        return ret;
+    }
+
+    size = MIN(size, ARRAY_SIZE(leds) * 3);
+
+    CRITICAL_SECTION_ENTER(k);
+    for (size_t i = 0; i < (size / 3); ++i) {
+        leds[i].r = bytes[i * 3];
+        leds[i].g = bytes[i * 3 + 1];
+        leds[i].b = bytes[i * 3 + 2];
+    }
+    for (size_t i = size / 3; i < ARRAY_SIZE(leds); ++i) {
+        leds[i] = (struct led_rgb)RGB_OFF;
+    }
+    use_sequence = true;
+    CRITICAL_SECTION_EXIT(k);
+
+    for (int i = 0; i < ARRAY_SIZE(leds); ++i) {
+        printk("leds[%d] = %u,%u,%u\r\n", i, leds[i].r, leds[i].g, leds[i].b);
+    }
+
+    k_sem_give(&sem_new_setting);
+    return ret;
 }
 
 int
