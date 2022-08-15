@@ -1,6 +1,7 @@
 #include "battery/battery.h"
 #include "button/button.h"
 #include "fan/fan.h"
+#include "gnss/gnss.h"
 #include "ir_camera_system/ir_camera_system.h"
 #include "liquid_lens/liquid_lens.h"
 #include "power_sequence/power_sequence.h"
@@ -154,6 +155,9 @@ main(void)
     LOG_INF("Hardware version: %u", hw);
 
     err_code = button_init();
+    ASSERT_SOFT(err_code);
+
+    err_code = gnss_init();
     ASSERT_SOFT(err_code);
 
     // launch tests if any is defined
