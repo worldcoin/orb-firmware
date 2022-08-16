@@ -187,7 +187,7 @@ handle_415(struct zcan_frame *frame)
     state_415 = *(struct battery_415_s *)frame->data;
 }
 
-static struct battery_can_msg messages[] = {
+const static struct battery_can_msg messages[] = {
     // 0x414 must be the first element of this array!
     {.can_id = 0x414, .msg_len = 8, .handler = handle_414},
     {.can_id = 0x415, .msg_len = 4, .handler = handle_415},
@@ -222,7 +222,7 @@ setup_filters(void)
 
     for (size_t i = 0; i < ARRAY_SIZE(messages); ++i) {
         battery_can_filter.id = messages[i].can_id;
-        ret = can_add_rx_filter(can_dev, message_checker, &messages[i],
+        ret = can_add_rx_filter(can_dev, message_checker, (void *)&messages[i],
                                 &battery_can_filter);
         if (ret < 0) {
             LOG_ERR("Error adding can rx filter (%d)", ret);
@@ -249,10 +249,11 @@ battery_init(void)
         LOG_INF("CAN ready");
     }
 
-    ASSERT_HARD_BOOL(messages[0].can_id == 0x414);
+    // check that messages[0] contains handling data for 0x414 frames
+    ASSERT_CONST_ARRAY_VALUE(messages[0].can_id, 0x414);
 
     battery_can_filter.id = 0x414;
-    ret = can_add_rx_filter(can_dev, sem_give_414, &messages[0],
+    ret = can_add_rx_filter(can_dev, sem_give_414, (void *)&messages[0],
                             &battery_can_filter);
     if (ret < 0) {
         LOG_ERR("Error adding can rx filter (%d)", ret);
