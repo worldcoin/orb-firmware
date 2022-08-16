@@ -14,7 +14,6 @@
 /// | 10     | 9       | 8        |    [4-7]  |   [0-3]  |
 /// | ------ | ------- | -------- | --------- | -------- |
 /// | rsrvd  | is_dest | is_isotp | source ID | dest ID  |
-/// with extended addressing: app ID is the first byte from the data field
 #define CAN_ADDR_IS_ISOTP             (1 << 8)
 #define CAN_ADDR_IS_DEST              (1 << 9)
 #define CAN_ADDR_SOURCE_ID_POS        (4)
