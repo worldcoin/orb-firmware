@@ -36,8 +36,12 @@ config MCU_DEVEL
     default n
     bool "Select all developer options"
     select INSTA_BOOT
-    select NO_JETSON
+    select NO_JETSON_BOOT
     select NO_BOOT_LEDS
     select NO_SUPER_CAPS
+
+config TEST_IR_CAMERA_SYSTEM
+    default n
+    bool "Test the IR camera system"
 
 source "Kconfig.zephyr"

@@ -155,7 +155,6 @@ test_camera_triggers_and_leds_changing_fps(void)
     ir_camera_system_set_on_time_us(1000);
 
     // set FPS = 30
-    // on-time duration = 3333us
     ir_camera_system_set_fps(30);
 
     ir_camera_system_enable_ir_eye_camera();
@@ -166,29 +165,60 @@ test_camera_triggers_and_leds_changing_fps(void)
     // decrease FPS
     // on-time should still be valid
     ir_camera_system_set_fps(15);
+
+    k_msleep(SEPARATION_TIME_MS);
+
+    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_740NM);
+    ir_camera_system_set_on_time_740nm_us(1000);
+
     k_msleep(SEPARATION_TIME_MS);
 
     // increase FPS to 50
     // on-time should still be valid
     ir_camera_system_set_fps(50);
+
     k_msleep(SEPARATION_TIME_MS);
 
     // decrease on-time duration
     // on-time should still be valid
     ir_camera_system_set_on_time_us(500);
+
     k_msleep(SEPARATION_TIME_MS);
 
     // increase on-time duration to 4000us
     // this should fail and no change should be observed in the output
     ir_camera_system_set_on_time_us(4000);
+
     k_msleep(SEPARATION_TIME_MS);
 
     // turn off
     ir_camera_system_set_fps(0);
+
+    k_msleep(SEPARATION_TIME_MS);
+
+    ir_camera_system_set_fps(50);
+
+    k_msleep(SEPARATION_TIME_MS);
+
+    ir_camera_system_set_on_time_740nm_us(5000);
+
     k_msleep(SEPARATION_TIME_MS);
 
     ir_camera_system_disable_ir_eye_camera();
+
+    k_msleep(SEPARATION_TIME_MS);
+
+    ir_camera_system_enable_2d_tof_camera();
+    ir_camera_system_enable_ir_eye_camera();
+    ir_camera_system_enable_ir_face_camera();
+
+    k_msleep(SEPARATION_TIME_MS);
+
+    // final, turn off everything at end of test
     ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    ir_camera_system_disable_2d_tof_camera();
+    ir_camera_system_disable_ir_eye_camera();
+    ir_camera_system_disable_ir_face_camera();
 }
 
 static void
@@ -198,6 +228,7 @@ test_leds(void)
 
     ir_camera_system_set_fps(30);
     ir_camera_system_set_on_time_us(1000);
+    ir_camera_system_set_on_time_740nm_us(1000);
 
     ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_850NM);
 
@@ -243,6 +274,10 @@ test_leds(void)
 
     ir_camera_system_enable_leds(
         InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT);
+
+    k_msleep(SEPARATION_TIME_MS);
+
+    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_740NM);
 
     k_msleep(SEPARATION_TIME_MS);
 
