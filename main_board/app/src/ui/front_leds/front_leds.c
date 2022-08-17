@@ -19,7 +19,8 @@ static K_THREAD_STACK_DEFINE(front_leds_stack_area,
 static struct k_thread front_led_thread_data;
 static K_SEM_DEFINE(sem, 1, 1); // init to 1 to use default values below
 
-const struct device *led_strip;
+const struct device *const led_strip =
+    DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds));
 
 #define NUM_LEDS         DT_PROP(DT_NODELABEL(front_unit_rgb_leds), num_leds)
 #define NUM_CENTER_LEDS  9
@@ -256,9 +257,9 @@ front_leds_thread(void *a, void *b, void *c)
 }
 
 static void
-print_new(UserLEDsPattern_UserRgbLedPattern pattern, uint32_t start_angle,
-          int32_t angle_length, RgbColor *color, uint32_t pulsing_period_ms,
-          float pulsing_scale)
+print_new_debug(UserLEDsPattern_UserRgbLedPattern pattern, uint32_t start_angle,
+                int32_t angle_length, RgbColor *color,
+                uint32_t pulsing_period_ms, float pulsing_scale)
 {
     LOG_DBG("pattern = %d", pattern);
     LOG_DBG("start angle = %" PRIu32, start_angle);
@@ -339,110 +340,72 @@ front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
                        RgbColor *color, uint32_t pulsing_period_ms,
                        float pulsing_scale)
 {
-    ret_code_t ret = RET_ERROR_INTERNAL;
-    static bool ignored_last = false;
-
     if (pattern == UserLEDsPattern_UserRgbLedPattern_PULSING_RGB) {
-        ret = pulsing_rgb_check_range(color, pulsing_scale);
-        if (ret == RET_SUCCESS) {
-            if (previous_settings_are_identical(
-                    pattern, start_angle, angle_length, color,
-                    pulsing_period_ms, pulsing_scale)) {
-                if (!ignored_last) {
-                    LOG_DBG("ignorning identical");
-                    ignored_last = true;
-                }
-            } else {
-                ignored_last = false;
-                print_new(pattern, start_angle, angle_length, color,
+        ret_code_t ret = pulsing_rgb_check_range(color, pulsing_scale);
+        if (ret != RET_SUCCESS) {
+            return RET_ERROR_INVALID_PARAM;
+        }
+    }
+
+    if (!previous_settings_are_identical(pattern, start_angle, angle_length,
+                                         color, pulsing_period_ms,
+                                         pulsing_scale)) {
+        print_new_debug(pattern, start_angle, angle_length, color,
+                        pulsing_period_ms, pulsing_scale);
+        update_parameters(pattern, start_angle, angle_length, color,
                           pulsing_period_ms, pulsing_scale);
-                update_parameters(pattern, start_angle, angle_length, color,
-                                  pulsing_period_ms, pulsing_scale);
-                k_sem_give(&sem);
-            }
-        }
-    } else {
-        if (previous_settings_are_identical(pattern, start_angle, angle_length,
-                                            color, pulsing_period_ms,
-                                            pulsing_scale)) {
-            if (!ignored_last) {
-                LOG_DBG("ignorning identical");
-                ignored_last = true;
-            }
-        } else {
-            ignored_last = false;
-            print_new(pattern, start_angle, angle_length, color,
-                      pulsing_period_ms, pulsing_scale);
-            update_parameters(pattern, start_angle, angle_length, color,
-                              pulsing_period_ms, pulsing_scale);
-            k_sem_give(&sem);
-        }
+        k_sem_give(&sem);
     }
 
-    return ret;
-}
-
-static bool
-center_leds_are_identical(uint8_t *bytes, uint32_t size)
-{
-    for (size_t i = 0; i < (size / 3); ++i) {
-        if (leds.part.center_leds[i].r != bytes[i * 3]) {
-            return false;
-        }
-        if (leds.part.center_leds[i].g != bytes[i * 3 + 1]) {
-            return false;
-        }
-        if (leds.part.center_leds[i].b != bytes[i * 3 + 2]) {
-            return false;
-        }
-    }
-
-    return true;
+    return RET_SUCCESS;
 }
 
 ret_code_t
 front_leds_set_center_leds_sequence(uint8_t *bytes, uint32_t size)
 {
-    ret_code_t ret = RET_SUCCESS;
-    static uint32_t old_size =
-        ARRAY_SIZE(leds.part.center_leds) * 3 + 1; // impossible old size
-    static bool ignored_last = false;
+    bool found_a_difference = false;
 
     if (size % 3 != 0) {
         LOG_ERR("Bytes must be a multiple of 3");
-        ret = RET_ERROR_INVALID_PARAM;
+        ret_code_t ret = RET_ERROR_INVALID_PARAM;
         ASSERT_SOFT(ret);
         return ret;
     }
 
     size = MIN(size, ARRAY_SIZE(leds.part.center_leds) * 3);
 
-    if (old_size == size && center_leds_are_identical(bytes, size)) {
-        if (!ignored_last) {
-            LOG_DBG("ignorning identical");
-            ignored_last = true;
-        }
-        return RET_SUCCESS;
-    } else {
-        ignored_last = false;
-    }
-
-    old_size = size;
-    LOG_DBG("got new");
-
     CRITICAL_SECTION_ENTER(k);
     for (size_t i = 0; i < (size / 3); ++i) {
+        if (leds.part.center_leds[i].r != bytes[i * 3]) {
+            found_a_difference = true;
+        }
+        if (leds.part.center_leds[i].g != bytes[i * 3 + 1]) {
+            found_a_difference = true;
+        }
+        if (leds.part.center_leds[i].b != bytes[i * 3 + 2]) {
+            found_a_difference = true;
+        }
         leds.part.center_leds[i].r = bytes[i * 3];
         leds.part.center_leds[i].g = bytes[i * 3 + 1];
         leds.part.center_leds[i].b = bytes[i * 3 + 2];
     }
+
     for (size_t i = size / 3; i < ARRAY_SIZE(leds.part.center_leds); ++i) {
+        if (leds.part.center_leds[i].r != 0 ||
+            leds.part.center_leds[i].g != 0 ||
+            leds.part.center_leds[i].b != 0) {
+            found_a_difference = true;
+        }
         leds.part.center_leds[i] = (struct led_rgb)RGB_OFF;
     }
+
     CRITICAL_SECTION_EXIT(k);
 
-    k_sem_give(&sem);
-    return ret;
+    if (found_a_difference) {
+        k_sem_give(&sem);
+    }
+
+    return RET_SUCCESS;
 }
 
 ret_code_t
@@ -488,12 +451,14 @@ front_leds_set_brightness(uint32_t brightness)
 void
 front_leds_turn_off_final(void)
 {
-    k_mutex_lock(&leds_update_mutex, K_FOREVER);
-    final_done = true;
-    memset(leds.all, 0, sizeof leds.all);
-    led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
-    led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
-    k_mutex_unlock(&leds_update_mutex);
+    if (led_strip) {
+        k_mutex_lock(&leds_update_mutex, K_FOREVER);
+        final_done = true;
+        memset(leds.all, 0, sizeof leds.all);
+        led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+        led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+        k_mutex_unlock(&leds_update_mutex);
+    }
 }
 
 ret_code_t
@@ -524,8 +489,6 @@ int
 front_leds_initial_state(const struct device *dev)
 {
     ARG_UNUSED(dev);
-
-    led_strip = DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds));
 
     if (!device_is_ready(led_strip)) {
         LOG_ERR("Front unit LED strip not ready!");
