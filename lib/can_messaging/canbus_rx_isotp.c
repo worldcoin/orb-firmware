@@ -84,6 +84,17 @@ jetson_to_mcu_rx_thread()
 
         if (ret != 0) {
             LOG_ERR("ISO-TP rx error, k_poll ret %i", ret);
+
+            if (ret == -EINTR) {
+                // one of the k_poll event is K_POLL_STATE_CANCELLED
+                // reset states and wait for new k_poll event
+                // one message will be lost
+                for (uint32_t app_id = 0;
+                     app_id <= CONFIG_CAN_ISOTP_REMOTE_APP_COUNT; ++app_id) {
+                    poll_evt[app_id].state = K_POLL_STATE_NOT_READY;
+                }
+            }
+
             continue;
         }
 
