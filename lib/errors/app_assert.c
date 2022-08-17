@@ -4,7 +4,7 @@
 #include <arch/cpu.h>
 #include <logging/log.h>
 #include <logging/log_ctrl.h>
-LOG_MODULE_REGISTER(assert);
+LOG_MODULE_REGISTER(assert, CONFIG_ASSERT_LOG_LEVEL);
 
 static uint32_t error_count = 0;
 // user-registered callback that can be called before hard reset

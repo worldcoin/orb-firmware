@@ -5,7 +5,7 @@
 #include <errors.h>
 #include <logging/log.h>
 #include <zephyr.h>
-LOG_MODULE_REGISTER(sound);
+LOG_MODULE_REGISTER(sound, CONFIG_SOUND_LOG_LEVEL);
 
 #define SOUND_AMP_MUX_NODE DT_PATH(zephyr_user)
 #define SOUND_AMP_MUX_CTLR DT_GPIO_CTLR(SOUND_AMP_MUX_NODE, sound_amp_mux_gpios)

@@ -7,7 +7,7 @@
 #include <sys/__assert.h>
 #include <zephyr.h>
 
-LOG_MODULE_REGISTER(can_tx);
+LOG_MODULE_REGISTER(can_tx, CONFIG_CAN_TX_LOG_LEVEL);
 
 static const struct device *can_dev;
 

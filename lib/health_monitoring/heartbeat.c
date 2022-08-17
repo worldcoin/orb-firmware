@@ -3,7 +3,7 @@
 #include "zephyr.h"
 #include <app_assert.h>
 #include <logging/log.h>
-LOG_MODULE_REGISTER(heartbeat);
+LOG_MODULE_REGISTER(heartbeat, CONFIG_HEARTBEAT_LOG_LEVEL);
 
 #define THREAD_PRIORITY_HEARTBEAT   8
 #define THREAD_STACK_SIZE_HEARTBEAT 512

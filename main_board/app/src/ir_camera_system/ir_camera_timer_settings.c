@@ -3,7 +3,12 @@
 #include <logging/log.h>
 #include <sys/util.h>
 #include <utils.h>
-LOG_MODULE_REGISTER(ir_camera_timer_settings);
+
+#ifdef CONFIG_ZTEST
+LOG_MODULE_REGISTER(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
+#else
+LOG_MODULE_DECLARE(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
+#endif
 
 #define MAX_PSC_DIV 65536U
 

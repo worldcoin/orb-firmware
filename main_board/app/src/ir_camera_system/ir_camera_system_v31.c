@@ -12,7 +12,7 @@
 #include <stm32_ll_tim.h>
 #include <utils.h>
 #include <zephyr.h>
-LOG_MODULE_REGISTER(ir_camera_system);
+LOG_MODULE_REGISTER(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
 
 #define DT_INST_CLK(inst)                                                      \
     {                                                                          \

@@ -6,7 +6,7 @@
 #include <kernel.h>
 #include <logging/log.h>
 #include <sys/__assert.h>
-LOG_MODULE_REGISTER(can_messaging);
+LOG_MODULE_REGISTER(can_messaging, CONFIG_CAN_MESSAGING_LOG_LEVEL);
 
 static const struct device *can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
 

@@ -11,7 +11,7 @@
 #include <sys/crc.h>
 #include <zephyr.h>
 
-LOG_MODULE_REGISTER(dfu);
+LOG_MODULE_REGISTER(dfu, CONFIG_DFU_LOG_LEVEL);
 
 static void
 process_dfu_blocks_thread();
