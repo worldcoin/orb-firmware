@@ -81,7 +81,12 @@ assert_pointer_value_check(char *details);
 /// Usage of `static_assert` doesn't work because an array value is a pointer
 /// which is not considered const
 #define ASSERT_CONST_ARRAY_VALUE(array_val, expected)                          \
-    if (array_val != expected) {                                               \
+    if ((array_val) != (expected)) {                                           \
+        assert_pointer_value_check("");                                        \
+    }
+
+#define ASSERT_CONST_POINTER_NOT_NULL(ptr)                                     \
+    if ((ptr) == NULL) {                                                       \
         assert_pointer_value_check("");                                        \
     }
 
