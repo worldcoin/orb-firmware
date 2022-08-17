@@ -26,9 +26,14 @@ static_assert(sizeof(can_message_t) % QUEUE_ALIGN == 0,
 K_MSGQ_DEFINE(can_tx_msg_queue, sizeof(can_message_t),
               CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE, QUEUE_ALIGN);
 static struct k_mem_slab can_tx_memory_slab;
-static char
-    __aligned(4) can_tx_memory_slab_buffer[CAN_FRAME_MAX_SIZE *
-                                           CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE];
+#define SLAB_BUFFER_ALIGNMENT 4
+static char __aligned(SLAB_BUFFER_ALIGNMENT)
+    can_tx_memory_slab_buffer[CAN_FRAME_MAX_SIZE *
+                              CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE];
+static_assert(CAN_FRAME_MAX_SIZE % SLAB_BUFFER_ALIGNMENT == 0 &&
+                  CAN_FRAME_MAX_SIZE > SLAB_BUFFER_ALIGNMENT,
+              "Each block must be at least SLAB_BUFFER_ALIGNMENT*N bytes long "
+              "and aligned on this boundary");
 static K_SEM_DEFINE(tx_sem, 1, 1);
 
 static bool is_init = false;
