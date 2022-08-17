@@ -187,6 +187,7 @@ test_camera_triggers_and_leds_changing_fps(void)
 
     // increase on-time duration to 4000us
     // this should fail and no change should be observed in the output
+    LOG_WRN("Setting next on-time value will fail");
     ir_camera_system_set_on_time_us(4000);
 
     k_msleep(SEPARATION_TIME_MS);
