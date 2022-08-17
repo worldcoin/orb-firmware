@@ -91,8 +91,6 @@ set_center(struct led_rgb color)
 
 K_MUTEX_DEFINE(ring_write);
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wreturn-type"
 static void
 set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
 {
@@ -124,15 +122,10 @@ set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
     }
     k_mutex_unlock(&ring_write);
 }
-#pragma GCC diagnostic pop
 
 _Noreturn static void
-front_leds_thread(void *a, void *b, void *c)
+front_leds_thread()
 {
-    ARG_UNUSED(b);
-    ARG_UNUSED(c);
-
-    const struct device *led_strip = a;
     k_timeout_t wait_until = K_FOREVER;
     uint32_t pulsing_index = 0;
 
@@ -250,6 +243,8 @@ front_leds_thread(void *a, void *b, void *c)
         // update LEDs
         k_mutex_lock(&leds_update_mutex, K_FOREVER);
         if (!final_done) {
+            ASSERT_CONST_POINTER_NOT_NULL(led_strip);
+
             led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
         }
         k_mutex_unlock(&leds_update_mutex);
@@ -451,32 +446,28 @@ front_leds_set_brightness(uint32_t brightness)
 void
 front_leds_turn_off_final(void)
 {
-    if (led_strip) {
-        k_mutex_lock(&leds_update_mutex, K_FOREVER);
-        final_done = true;
-        memset(leds.all, 0, sizeof leds.all);
-        led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
-        led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
-        k_mutex_unlock(&leds_update_mutex);
-    }
+    ASSERT_CONST_POINTER_NOT_NULL(led_strip);
+
+    k_mutex_lock(&leds_update_mutex, K_FOREVER);
+    final_done = true;
+    memset(leds.all, 0, sizeof leds.all);
+    led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+    led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+    k_mutex_unlock(&leds_update_mutex);
 }
 
 ret_code_t
 front_leds_init(void)
 {
-    const struct device *led_strip =
-        DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds));
-
     if (!device_is_ready(led_strip)) {
         LOG_ERR("Front unit LED strip not ready!");
         return RET_ERROR_INTERNAL;
     }
 
-    k_tid_t tid =
-        k_thread_create(&front_led_thread_data, front_leds_stack_area,
-                        K_THREAD_STACK_SIZEOF(front_leds_stack_area),
-                        front_leds_thread, (void *)led_strip, NULL, NULL,
-                        THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS, 0, K_NO_WAIT);
+    k_tid_t tid = k_thread_create(
+        &front_led_thread_data, front_leds_stack_area,
+        K_THREAD_STACK_SIZEOF(front_leds_stack_area), front_leds_thread, NULL,
+        NULL, NULL, THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS, 0, K_NO_WAIT);
     k_thread_name_set(tid, "front_leds");
 
     return RET_SUCCESS;
@@ -489,6 +480,7 @@ int
 front_leds_initial_state(const struct device *dev)
 {
     ARG_UNUSED(dev);
+    ASSERT_CONST_POINTER_NOT_NULL(led_strip);
 
     if (!device_is_ready(led_strip)) {
         LOG_ERR("Front unit LED strip not ready!");
