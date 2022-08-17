@@ -25,10 +25,10 @@ static_assert(sizeof(can_message_t) % QUEUE_ALIGN == 0,
 // Message queue to send messages
 K_MSGQ_DEFINE(can_tx_msg_queue, sizeof(can_message_t),
               CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE, QUEUE_ALIGN);
-// Memory slab to allocate message content
-K_MEM_SLAB_DEFINE(can_tx_memory_slab, CAN_FRAME_MAX_SIZE,
-                  CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE, 4);
-
+static struct k_mem_slab can_tx_memory_slab;
+static char
+    __aligned(4) can_tx_memory_slab_buffer[CAN_FRAME_MAX_SIZE *
+                                           CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE];
 static K_SEM_DEFINE(tx_sem, 1, 1);
 
 static bool is_init = false;
@@ -46,7 +46,7 @@ tx_complete_cb(const struct device *dev, int error_nr, void *arg)
     k_sem_give(&tx_sem);
 }
 
-static ret_code_t
+static int
 send(const char *data, size_t len,
      void (*tx_complete_cb)(const struct device *, int, void *), uint32_t dest)
 {
@@ -61,9 +61,15 @@ send(const char *data, size_t len,
     memset(frame.data, 0, sizeof frame.data);
     memcpy(frame.data, data, len);
 
-    return (can_send(can_dev, &frame, K_MSEC(1000), tx_complete_cb, NULL) == 0)
-               ? RET_SUCCESS
-               : RET_ERROR_INTERNAL;
+    int ret = can_send(can_dev, &frame, K_MSEC(1000), tx_complete_cb, NULL);
+    if (ret == -ENETDOWN) {
+        // CAN bus in off state
+        if (can_recover(can_dev, K_MSEC(2000)) != 0) {
+            ASSERT_HARD(RET_ERROR_OFFLINE);
+        }
+    }
+
+    return ret;
 }
 
 _Noreturn static void
@@ -89,7 +95,7 @@ process_tx_messages_thread()
             continue;
         }
 
-        ret_code_t err_code =
+        int err_code =
             send(new.bytes, new.size, tx_complete_cb, new.destination);
 
         k_mem_slab_free(&can_tx_memory_slab, (void **)&new.bytes);
@@ -98,7 +104,8 @@ process_tx_messages_thread()
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
             LOG_WRN("Error sending message");
 #else
-            printk("<wrn> Error sending message!\r\n");
+            printk("<wrn> Error sending raw CAN message, err %i!\r\n",
+                   err_code);
 #endif
             // release semaphore, we are not waiting for
             // completion
@@ -162,6 +169,8 @@ can_messaging_blocking_tx(const can_message_t *message)
 ret_code_t
 canbus_tx_init(void)
 {
+    int ret;
+
     can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
     if (!can_dev) {
         LOG_ERR("CAN: Device driver not found.");
@@ -172,7 +181,13 @@ canbus_tx_init(void)
     // so purge before resetting the semaphore to make sure tx thread
     // blocks on the empty queue once the semaphore is freed
     k_msgq_purge(&can_tx_msg_queue);
-    k_sem_init(&tx_sem, 1, 1);
+    ret = k_mem_slab_init(&can_tx_memory_slab, can_tx_memory_slab_buffer,
+                          CAN_FRAME_MAX_SIZE,
+                          CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE);
+    ASSERT_SOFT(ret);
+    ret = k_sem_init(&tx_sem, 1, 1);
+    ASSERT_SOFT(ret);
+
     is_init = true;
 
     return RET_SUCCESS;

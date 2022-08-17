@@ -48,6 +48,10 @@ state_change_work_handler(struct k_work *work)
 
         if (can_recover(can_dev, K_MSEC(2000)) != 0) {
             ASSERT_HARD(RET_ERROR_OFFLINE);
+        } else {
+            // reset TX queues and buffers
+            canbus_tx_init();
+            canbus_isotp_tx_init();
         }
     }
 }
