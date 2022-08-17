@@ -38,6 +38,9 @@
 
 #define THREAD_PRIORITY_MOTORS_INIT 8
 
+#define THREAD_PRIORITY_BATTERY   8
+#define THREAD_STACK_SIZE_BATTERY 1024
+
 // Testing threads
 // - CAN
 // - DFU
