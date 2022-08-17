@@ -40,3 +40,6 @@ utils/ota/root-ec-p256.pem
 
 ## Indexers
 cscope.*
+
+## Debugging
+.gdb_history
