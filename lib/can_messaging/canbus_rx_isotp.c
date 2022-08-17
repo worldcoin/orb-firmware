@@ -6,7 +6,7 @@
 #include <zephyr.h>
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(isotp_rx);
+LOG_MODULE_REGISTER(isotp_rx, CONFIG_ISOTP_RX_LOG_LEVEL);
 
 #define ISOTP_FLOWCTRL_BS 8
 

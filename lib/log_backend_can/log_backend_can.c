@@ -3,7 +3,7 @@
 #include "mcu_messaging.pb.h"
 #include <logging/log.h>
 #include <logging/log_backend.h>
-LOG_MODULE_REGISTER(log_can);
+LOG_MODULE_REGISTER(log_can, CONFIG_LOG_CAN_LOG_LEVEL);
 
 static bool panic_mode = false;
 

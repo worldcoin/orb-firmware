@@ -7,7 +7,7 @@
 #include <drivers/gpio.h>
 #include <logging/log.h>
 
-LOG_MODULE_REGISTER(version);
+LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
 
 // Hardware version can be fetched using UC_ADC_HW_VERSION on the main board:
 // - 3.0 firmware is specific, so we can provide an hardcoded implementation

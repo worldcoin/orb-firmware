@@ -1,0 +1,3 @@
+module = I2C_SCAN
+module-str = I2C_SCAN
+source "subsys/logging/Kconfig.template.log_config"

@@ -13,7 +13,7 @@
 #include <stm32_ll_rcc.h>
 #include <sys_clock.h>
 #include <zephyr.h>
-LOG_MODULE_REGISTER(liquid_lens);
+LOG_MODULE_REGISTER(liquid_lens, CONFIG_LIQUID_LENS_LOG_LEVEL);
 
 #define HR_TIMER         (HRTIM_TypeDef *)HRTIM1_BASE
 #define ADC              (ADC_TypeDef *)ADC3_BASE

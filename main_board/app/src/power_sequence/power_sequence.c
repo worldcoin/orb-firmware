@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <zephyr.h>
 #include <zephyr/logging/log_ctrl.h>
-LOG_MODULE_REGISTER(power_sequence);
+LOG_MODULE_REGISTER(power_sequence, CONFIG_POWER_SEQUENCE_LOG_LEVEL);
 
 #include "button/button.h"
 #include "power_sequence.h"

@@ -5,7 +5,7 @@
 #include <pb_decode.h>
 #include <zephyr.h>
 
-LOG_MODULE_REGISTER(can_rx);
+LOG_MODULE_REGISTER(can_rx, CONFIG_CAN_RX_LOG_LEVEL);
 
 K_THREAD_STACK_DEFINE(can_rx_thread_stack,
                       CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_RX);

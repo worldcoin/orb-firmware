@@ -1,0 +1,3 @@
+source "../orb/main_board/app/log_levels.Kconfig"
+
+source "Kconfig.zephyr"

@@ -8,7 +8,7 @@
 #include <sys/__assert.h>
 #include <zephyr.h>
 
-LOG_MODULE_REGISTER(isotp_tx);
+LOG_MODULE_REGISTER(isotp_tx, CONFIG_ISOTP_TX_LOG_LEVEL);
 
 static const struct device *can_dev;
 

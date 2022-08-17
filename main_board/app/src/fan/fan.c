@@ -6,7 +6,7 @@
 #include <zephyr.h>
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(fan);
+LOG_MODULE_REGISTER(fan, CONFIG_FAN_LOG_LEVEL);
 
 #include "fan.h"
 

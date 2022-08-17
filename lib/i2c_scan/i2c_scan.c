@@ -2,7 +2,7 @@
 #include <logging/log.h>
 #include <zephyr.h>
 
-LOG_MODULE_REGISTER(i2c_scan);
+LOG_MODULE_REGISTER(i2c_scan, CONFIG_I2C_SCAN_LOG_LEVEL);
 
 // not re-entrant
 static const char *
