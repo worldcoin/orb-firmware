@@ -91,29 +91,49 @@ check_is_ready(const struct device *dev, const char *name)
 #define SUPPLY_1V8_PG_PIN   DT_GPIO_PIN(SUPPLY_1V8_PG_NODE, gpios)
 #define SUPPLY_1V8_PG_FLAGS DT_GPIO_FLAGS(SUPPLY_1V8_PG_NODE, gpios)
 
-static const struct device *supply_3v3_pg = DEVICE_DT_GET(SUPPLY_3V3_PG_CTLR);
-
 #endif
 
 int
-power_turn_on_supplies_phase1(const struct device *dev)
+power_turn_on_power_supplies(const struct device *dev)
 {
     ARG_UNUSED(dev);
     const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
+    const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
     const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
+    const struct device *supply_3v8 = DEVICE_DT_GET(DT_PATH(supply_3v8));
+    const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
 
 #ifdef CONFIG_BOARD_MCU_MAIN_V30
     const struct device *supply_5v_pg = DEVICE_DT_GET(SUPPLY_5V_PG_CTLR);
+    const struct device *supply_3v3_pg = DEVICE_DT_GET(SUPPLY_3V3_PG_CTLR);
+    const struct device *supply_1v8_pg = DEVICE_DT_GET(SUPPLY_1V8_PG_CTLR);
 #endif
 
     if (check_is_ready(vbat_sw_regulator, "VBAT SW") ||
+        check_is_ready(supply_12v, "12V supply") ||
         check_is_ready(supply_5v, "5V supply") ||
-        check_is_ready(supply_3v3, "3.3V supply")
+        check_is_ready(supply_3v8, "3.8V supply") ||
+        check_is_ready(supply_3v3, "3.3V supply") ||
+        check_is_ready(supply_1v8, "1.8V supply")
 #if CONFIG_BOARD_MCU_MAIN_V30
         || check_is_ready(supply_3v3_pg, "3.3V supply power good pin") ||
-        check_is_ready(supply_5v_pg, "5V supply power good pin")
+        check_is_ready(supply_5v_pg, "5V supply power good pin") ||
+        check_is_ready(supply_1v8_pg, "1.8V supply power good pin")
 #endif
     ) {
+        return 1;
+    }
+
+    // We configure this pin here before we enable 3.3v supply
+    // just so that we can disable the automatically-enabled pull-up.
+    // We must do this because providing a voltage to the 3.3v power supply
+    // output before it is online can trigger the safety circuit.
+    //
+    // After this is configured, the I2C initialization will run and
+    // re-configure this pin as SCL.
+    if (gpio_pin_configure(i2c_clock, I2C_CLOCK_PIN,
+                           GPIO_OUTPUT | I2C_CLOCK_FLAGS)) {
+        LOG_ERR_IMM("Error configuring I2C clock pin!");
         return 1;
     }
 
@@ -165,62 +185,6 @@ power_turn_on_supplies_phase1(const struct device *dev)
     k_msleep(100);
 #endif
 
-    return 0;
-}
-
-SYS_INIT(power_turn_on_supplies_phase1, POST_KERNEL,
-         SYS_INIT_POWER_SUPPLY_PHASE1_PRIORITY);
-
-int
-power_turn_on_supplies_phase2(const struct device *dev)
-{
-    ARG_UNUSED(dev);
-
-    const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
-    const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
-    const struct device *supply_3v8 = DEVICE_DT_GET(DT_PATH(supply_3v8));
-
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    const struct device *supply_1v8_pg = DEVICE_DT_GET(SUPPLY_1V8_PG_CTLR);
-#endif
-
-    if (check_is_ready(supply_12v, "12V supply") ||
-        check_is_ready(supply_3v8, "3.8V supply") ||
-        check_is_ready(supply_1v8, "1.8V supply")
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-        || check_is_ready(supply_1v8_pg, "1.8V supply power good pin")
-#endif
-    ) {
-        return 1;
-    }
-
-    regulator_enable(supply_3v3, NULL);
-    LOG_INF("3.3V power supply re-enabled");
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    LOG_INF_IMM("Waiting on power good...");
-    // Wait forever, because if we can't enable this then we can't turn on the
-    // fan. If we can't turn on the fan, then we don't want to turn on
-    // anything else
-    while (!gpio_pin_get(supply_3v3_pg, SUPPLY_3V3_PG_PIN))
-        ;
-    LOG_INF("3.3V power supply good");
-#else
-    k_msleep(100);
-#endif
-
-    // We configure this pin here before we enable 3.3v supply
-    // just so that we can disable the automatically-enabled pull-up.
-    // We must do this because providing a voltage to the 3.3v power supply
-    // output before it is online can trigger the safety circuit.
-    //
-    // After this is configured, the I2C initialization will run and
-    // re-configure this pin as SCL.
-    if (gpio_pin_configure(i2c_clock, I2C_CLOCK_PIN,
-                           GPIO_OUTPUT | I2C_CLOCK_FLAGS)) {
-        LOG_ERR_IMM("Error configuring I2C clock pin!");
-        return 1;
-    }
-
     regulator_enable(supply_12v, NULL);
     LOG_INF("12V power supply enabled");
 
@@ -250,8 +214,12 @@ power_turn_on_supplies_phase2(const struct device *dev)
     return 0;
 }
 
-SYS_INIT(power_turn_on_supplies_phase2, POST_KERNEL,
-         SYS_INIT_POWER_SUPPLY_PHASE2_PRIORITY);
+static_assert(CONFIG_I2C_INIT_PRIORITY > SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
+              "I2C must be initialized _after_ the power supplies so that the "
+              "safety circuit does't get tripped");
+
+SYS_INIT(power_turn_on_power_supplies, POST_KERNEL,
+         SYS_INIT_POWER_SUPPLY_INIT_PRIORITY);
 
 #define BUTTON_PRESS_TIME_MS    500
 #define BUTTON_SAMPLE_PERIOD_MS 10
@@ -316,10 +284,6 @@ app_init_state(const struct device *dev)
     ARG_UNUSED(dev);
 
     int ret = 0;
-
-    // disable now that we have initialized operator LED
-    // see SYS_INIT #52
-    regulator_disable(supply_3v3);
 
     LOG_INF("Hello from " CONFIG_BOARD " :)");
 
