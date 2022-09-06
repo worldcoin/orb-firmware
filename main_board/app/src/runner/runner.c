@@ -404,7 +404,7 @@ handle_fan_speed(job_t *job)
     MAKE_ASSERTS(JetsonToMcu_fan_speed_tag);
 
     uint32_t fan_speed_percentage =
-        msg->message.j_message.payload.fan_speed.percentage;
+        msg->message.j_message.payload.fan_speed.payload.percentage;
 
     if (temperature_is_in_overtemp()) {
         LOG_WRN("Fan speed command rejected do to overtemperature condition");
