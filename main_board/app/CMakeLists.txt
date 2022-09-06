@@ -100,6 +100,8 @@ set(SOURCES_FILES
 
     src/1d_tof/tof_1d.c
 
+    src/ambient_light/als.c
+
     src/temperature/temperature.c
 
     src/liquid_lens/liquid_lens.c
