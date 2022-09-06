@@ -1,5 +1,7 @@
 #include "als.h"
 #include "app_config.h"
+#include "mcu_messaging.pb.h"
+#include "pubsub/pubsub.h"
 #include <drivers/sensor.h>
 #include <errors.h>
 
@@ -13,6 +15,7 @@ als_thread()
 {
     int ret;
     struct sensor_value als_value;
+    AmbientLight als;
 
     while (1) {
         k_msleep(1000);
@@ -28,7 +31,11 @@ als_thread()
             continue;
         }
 
+        als.ambient_light_lux = als_value.val1;
         LOG_INF("Ambient light: %u.%06u", als_value.val1, als_value.val2);
+
+        publish_new(&als, sizeof(als), McuToJetson_front_als_tag,
+                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
     }
 }
 
