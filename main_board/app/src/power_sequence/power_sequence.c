@@ -74,25 +74,6 @@ check_is_ready(const struct device *dev, const char *name)
 #define I2C_CLOCK_PIN   DT_GPIO_PIN(I2C_CLOCK_NODE, i2c_clock_gpios)
 #define I2C_CLOCK_FLAGS DT_GPIO_FLAGS(I2C_CLOCK_NODE, i2c_clock_gpios)
 
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-
-#define SUPPLY_5V_PG_NODE  DT_PATH(supply_5v, power_good)
-#define SUPPLY_5V_PG_CTLR  DT_GPIO_CTLR(SUPPLY_5V_PG_NODE, gpios)
-#define SUPPLY_5V_PG_PIN   DT_GPIO_PIN(SUPPLY_5V_PG_NODE, gpios)
-#define SUPPLY_5V_PG_FLAGS DT_GPIO_FLAGS(SUPPLY_5V_PG_NODE, gpios)
-
-#define SUPPLY_3V3_PG_NODE  DT_PATH(supply_3v3, power_good)
-#define SUPPLY_3V3_PG_CTLR  DT_GPIO_CTLR(SUPPLY_3V3_PG_NODE, gpios)
-#define SUPPLY_3V3_PG_PIN   DT_GPIO_PIN(SUPPLY_3V3_PG_NODE, gpios)
-#define SUPPLY_3V3_PG_FLAGS DT_GPIO_FLAGS(SUPPLY_3V3_PG_NODE, gpios)
-
-#define SUPPLY_1V8_PG_NODE  DT_PATH(supply_1v8, power_good)
-#define SUPPLY_1V8_PG_CTLR  DT_GPIO_CTLR(SUPPLY_1V8_PG_NODE, gpios)
-#define SUPPLY_1V8_PG_PIN   DT_GPIO_PIN(SUPPLY_1V8_PG_NODE, gpios)
-#define SUPPLY_1V8_PG_FLAGS DT_GPIO_FLAGS(SUPPLY_1V8_PG_NODE, gpios)
-
-#endif
-
 int
 power_turn_on_power_supplies(const struct device *dev)
 {
@@ -103,24 +84,12 @@ power_turn_on_power_supplies(const struct device *dev)
     const struct device *supply_3v8 = DEVICE_DT_GET(DT_PATH(supply_3v8));
     const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
 
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    const struct device *supply_5v_pg = DEVICE_DT_GET(SUPPLY_5V_PG_CTLR);
-    const struct device *supply_3v3_pg = DEVICE_DT_GET(SUPPLY_3V3_PG_CTLR);
-    const struct device *supply_1v8_pg = DEVICE_DT_GET(SUPPLY_1V8_PG_CTLR);
-#endif
-
     if (check_is_ready(vbat_sw_regulator, "VBAT SW") ||
         check_is_ready(supply_12v, "12V supply") ||
         check_is_ready(supply_5v, "5V supply") ||
         check_is_ready(supply_3v8, "3.8V supply") ||
         check_is_ready(supply_3v3, "3.3V supply") ||
-        check_is_ready(supply_1v8, "1.8V supply")
-#if CONFIG_BOARD_MCU_MAIN_V30
-        || check_is_ready(supply_3v3_pg, "3.3V supply power good pin") ||
-        check_is_ready(supply_5v_pg, "5V supply power good pin") ||
-        check_is_ready(supply_1v8_pg, "1.8V supply power good pin")
-#endif
-    ) {
+        check_is_ready(supply_1v8, "1.8V supply")) {
         return 1;
     }
 
@@ -141,49 +110,14 @@ power_turn_on_power_supplies(const struct device *dev)
     LOG_INF("VBAT SW enabled");
     k_msleep(100);
 
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    if (gpio_pin_configure(supply_5v_pg, SUPPLY_5V_PG_PIN,
-                           SUPPLY_5V_PG_FLAGS | GPIO_INPUT)) {
-        LOG_ERR_IMM("Error configuring 5v pg pin!");
-        return 1;
-    }
-#endif
-
     regulator_enable(supply_5v, NULL);
     LOG_INF("5V power supply enabled");
 
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    LOG_INF_IMM("Waiting on power good...");
-    // Wait forever, because if we can't enable this then we can't turn on
-    // anything else
-    while (!gpio_pin_get(supply_5v_pg, SUPPLY_5V_PG_PIN))
-        ;
-    LOG_INF("5V power supply good");
-#else
     k_msleep(100);
-#endif
-
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    if (gpio_pin_configure(supply_3v3_pg, SUPPLY_3V3_PG_PIN,
-                           SUPPLY_3V3_PG_FLAGS | GPIO_INPUT)) {
-        LOG_ERR_IMM("Error configuring 3.3v pg pin!");
-        return 1;
-    }
-#endif
 
     regulator_enable(supply_3v3, NULL);
     LOG_INF("3.3V power supply enabled");
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    LOG_INF_IMM("Waiting on power good...");
-    // Wait forever, because if we can't enable this then we can't turn on the
-    // fan. If we can't turn on the fan, then we don't want to turn on
-    // anything else
-    while (!gpio_pin_get(supply_3v3_pg, SUPPLY_3V3_PG_PIN))
-        ;
-    LOG_INF("3.3V power supply good");
-#else
     k_msleep(100);
-#endif
 
     regulator_enable(supply_12v, NULL);
     LOG_INF("12V power supply enabled");
@@ -191,25 +125,10 @@ power_turn_on_power_supplies(const struct device *dev)
     regulator_enable(supply_3v8, NULL);
     LOG_INF("3.8V power supply enabled");
 
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    if (gpio_pin_configure(supply_1v8_pg, SUPPLY_1V8_PG_PIN,
-                           SUPPLY_1V8_PG_FLAGS | GPIO_INPUT)) {
-        LOG_ERR_IMM("Error configuring 1.8 pg pin!");
-        return 1;
-    }
-#endif
-
     regulator_enable(supply_1v8, NULL);
     LOG_INF("1.8V power supply enabled");
 
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    LOG_INF_IMM("Waiting on power good...");
-    while (!gpio_pin_get(supply_1v8_pg, SUPPLY_1V8_PG_PIN))
-        ;
-    LOG_INF("1.8V power supply good");
-#else
     k_msleep(100);
-#endif
 
     return 0;
 }
@@ -603,12 +522,6 @@ power_reset(uint32_t delay_s)
 void
 power_reboot_set_pending(void)
 {
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    // uninit button on GPIOC13 to allow enabling GPIOE13 interrupt
-    button_uninit();
-    shutdown_req_init();
-#endif
-
     reboot_pending_shutdown_req_line = true;
 }
 
@@ -616,9 +529,4 @@ void
 power_reboot_clear_pending(void)
 {
     reboot_pending_shutdown_req_line = false;
-
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    shutdown_req_uninit();
-    button_init();
-#endif
 }

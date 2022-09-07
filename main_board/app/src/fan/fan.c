@@ -12,20 +12,16 @@ LOG_MODULE_REGISTER(fan, CONFIG_FAN_LOG_LEVEL);
 
 #define FAN_MAX_SPEED_PERCENTAGE (80)
 
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-#define FAN_MAIN_NODE DT_PATH(fan)
-#else
 // Main board 3.1
 #define FAN_MAIN_NODE DT_PATH(fan_main)
 // Aux fan
-#define FAN_AUX_NODE  DT_PATH(fan_aux)
+#define FAN_AUX_NODE DT_PATH(fan_aux)
 
 static const struct pwm_dt_spec aux_fan_spec = PWM_DT_SPEC_GET(FAN_AUX_NODE);
 
 // Fan enable/disable
 static const struct gpio_dt_spec fan_enable_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), fans_enable_gpios);
-#endif // CONFIG_BOARD_MCU_MAIN_V30
 
 static const struct pwm_dt_spec main_fan_spec = PWM_DT_SPEC_GET(FAN_MAIN_NODE);
 
@@ -131,11 +127,7 @@ fan_init(const struct device *dev)
     }
 #endif
 
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    fan_set_speed_by_percentage(40);
-#else
     fan_set_speed_by_percentage(1);
-#endif
 
     return RET_SUCCESS;
 }

@@ -7,13 +7,6 @@ config SPI_STM32_INTERRUPT
 config USE_STM32_LL_ADC
 	default y
 
-if BOARD_MCU_MAIN_V30
-
-config BOARD
-	default "mcu_main_v30"
-
-endif
-
 if BOARD_MCU_MAIN_V31
 
 config BOARD

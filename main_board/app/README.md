@@ -46,7 +46,7 @@ Make sure you are in `"$REPO_DIR"/orb/main_board/app/` directory. Compile the ap
 
 ```shell
 # 'west build' defaults to mcu_main_v31
-west build -b [stm32g484_eval | mcu_main_v30 | mcu_main_v31]
+west build -b [stm32g484_eval | mcu_main_v31]
 ```
 
 Flash the app:
