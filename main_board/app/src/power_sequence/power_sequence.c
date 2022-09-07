@@ -445,12 +445,10 @@ power_turn_on_jetson(void)
         ASSERT_SOFT(ret);
     }
 
-#ifdef CONFIG_BOARD_MCU_MAIN_V31
     // mainboard 3.0 uses PC13 and PE13 for shutdown request line and power
     // button, so we enable interrupt on shutdown line only when necessary, see
     // power_reboot_set_pending()
     shutdown_req_init();
-#endif
 
     // Spawn reboot thread
     k_tid_t tid = k_thread_create(

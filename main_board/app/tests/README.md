@@ -6,5 +6,5 @@ container if your host is different.
 From this directory, you can reach the docker image and run tests using the target `mcu-tests`:
 
 ```shell
-make -C ../../../utils/docker/ main_board-tests REPO_DIR=/path/to/firmware BOARD=mcu_main_v31
+make -C ../../../utils/docker/ main_board-tests REPO_DIR=/path/to/firmware BOARD=mcu_main
 ```
