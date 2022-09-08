@@ -114,8 +114,8 @@ static const uint32_t motors_full_course_maximum_steps[MOTOR_COUNT] = {
 static size_t hw_rev_idx = 0;
 static const uint32_t motors_center_from_end[HARDWARE_REV_COUNT][MOTOR_COUNT] =
     {
-        {55000, 55000}, // vertical, horizontal, v30 and v31
-        {55000, 87000}, // vertical, horizontal, v32
+        {55000, 55000}, // vertical, horizontal, mainboard v3.1
+        {55000, 87000}, // vertical, horizontal, mainboard v3.2
 };
 const float motors_arm_length[MOTOR_COUNT] = {12.0, 18.71};
 

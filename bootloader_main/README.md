@@ -14,11 +14,10 @@ Compile the bootloader:
 
 ```shell
 # Passing the board is mandatory to build the bootloader
-west build -b [mcu_main_v30 | mcu_main_v31 | mcu_sec]
+west build -b [mcu_main | mcu_sec]
 ```
 
-- `mcu_main_v30`: Mainboard 3.0, used on Proto2 Orb
-- `mcu_main_v31`: Mainboard 3.1, used on EVT Orb
+- `mcu_main`: mainboard MCU v3.1+, used on EVT Orbs
 - `mcu_sec`: security MCU, any version
 
 Flash the bootloader, before the application:

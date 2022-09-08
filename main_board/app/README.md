@@ -45,8 +45,8 @@ To Flash: `make mcu-flash`
 Make sure you are in `"$REPO_DIR"/orb/main_board/app/` directory. Compile the app:
 
 ```shell
-# 'west build' defaults to mcu_main_v31
-west build -b [stm32g484_eval | mcu_main_v30 | mcu_main_v31]
+# 'west build' defaults to mcu_main
+west build -b [stm32g484_eval | mcu_main]
 ```
 
 Flash the app:
