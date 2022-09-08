@@ -1,9 +1,11 @@
+#include "1d_tof/tof_1d.h"
 #include "battery/battery.h"
 #include "button/button.h"
 #include "fan/fan.h"
 #include "ir_camera_system/ir_camera_system.h"
 #include "liquid_lens/liquid_lens.h"
 #include "power_sequence/power_sequence.h"
+#include "pubsub/pubsub.h"
 #include "runner/runner.h"
 #include "sound/sound.h"
 #include "stepper_motors/motors_tests.h"
@@ -27,7 +29,6 @@
 
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
 #include "heartbeat.h"
-#include "pubsub/pubsub.h"
 #endif
 
 #include <logging/log.h>
@@ -129,6 +130,9 @@ main(void)
     ASSERT_SOFT(err_code);
 
     err_code = liquid_lens_init();
+    ASSERT_SOFT(err_code);
+
+    err_code = tof_1d_init();
     ASSERT_SOFT(err_code);
 
     err_code = dfu_init();
