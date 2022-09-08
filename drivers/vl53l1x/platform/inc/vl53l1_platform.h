@@ -26,7 +26,6 @@
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************/
 
-
 #ifndef _VL53L1_PLATFORM_H_
 #define _VL53L1_PLATFORM_H_
 
@@ -38,8 +37,7 @@
 #include "vl53l1_platform_user_data.h"
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
 /**
@@ -47,8 +45,6 @@ extern "C"
  *
  * @brief  All end user OS/platform/application porting
  */
-
-
 
 /**
  * @brief  Initialise platform comms.
@@ -61,11 +57,9 @@ extern "C"
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_CommsInitialise(
-	VL53L1_Dev_t *pdev,
-	uint8_t       comms_type,
-	uint16_t      comms_speed_khz);
-
+VL53L1_Error
+VL53L1_CommsInitialise(VL53L1_Dev_t *pdev, uint8_t comms_type,
+                       uint16_t comms_speed_khz);
 
 /**
  * @brief  Close platform comms.
@@ -76,47 +70,42 @@ VL53L1_Error VL53L1_CommsInitialise(
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_CommsClose(
-	VL53L1_Dev_t *pdev);
-
+VL53L1_Error
+VL53L1_CommsClose(VL53L1_Dev_t *pdev);
 
 /**
  * @brief Writes the supplied byte buffer to the device
  *
  * @param[in]   pdev      : pointer to device structure (device handle)
  * @param[in]   index     : uint16_t register index value
- * @param[in]   pdata     : pointer to uint8_t (byte) buffer containing the data to be written
+ * @param[in]   pdata     : pointer to uint8_t (byte) buffer containing the data
+ * to be written
  * @param[in]   count     : number of bytes in the supplied byte buffer
  *
  * @return   VL53L1_ERROR_NONE    Success
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_WriteMulti(
-		VL53L1_Dev_t *pdev,
-		uint16_t      index,
-		uint8_t      *pdata,
-		uint32_t      count);
-
+VL53L1_Error
+VL53L1_WriteMulti(VL53L1_Dev_t *pdev, uint16_t index, uint8_t *pdata,
+                  uint32_t count);
 
 /**
  * @brief  Reads the requested number of bytes from the device
  *
  * @param[in]   pdev      : pointer to device structure (device handle)
  * @param[in]   index     : uint16_t register index value
- * @param[out]  pdata     : pointer to the uint8_t (byte) buffer to store read data
+ * @param[out]  pdata     : pointer to the uint8_t (byte) buffer to store read
+ * data
  * @param[in]   count     : number of bytes to read
  *
  * @return   VL53L1_ERROR_NONE    Success
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_ReadMulti(
-		VL53L1_Dev_t *pdev,
-		uint16_t      index,
-		uint8_t      *pdata,
-		uint32_t      count);
-
+VL53L1_Error
+VL53L1_ReadMulti(VL53L1_Dev_t *pdev, uint16_t index, uint8_t *pdata,
+                 uint32_t count);
 
 /**
  * @brief  Writes a single byte to the device
@@ -129,11 +118,8 @@ VL53L1_Error VL53L1_ReadMulti(
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_WrByte(
-		VL53L1_Dev_t *pdev,
-		uint16_t      index,
-		uint8_t       data);
-
+VL53L1_Error
+VL53L1_WrByte(VL53L1_Dev_t *pdev, uint16_t index, uint8_t data);
 
 /**
  * @brief  Writes a single word (16-bit unsigned) to the device
@@ -149,11 +135,8 @@ VL53L1_Error VL53L1_WrByte(
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_WrWord(
-		VL53L1_Dev_t *pdev,
-		uint16_t      index,
-		uint16_t      data);
-
+VL53L1_Error
+VL53L1_WrWord(VL53L1_Dev_t *pdev, uint16_t index, uint16_t data);
 
 /**
  * @brief  Writes a single dword (32-bit unsigned) to the device
@@ -169,12 +152,8 @@ VL53L1_Error VL53L1_WrWord(
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_WrDWord(
-		VL53L1_Dev_t *pdev,
-		uint16_t      index,
-		uint32_t      data);
-
-
+VL53L1_Error
+VL53L1_WrDWord(VL53L1_Dev_t *pdev, uint16_t index, uint32_t data);
 
 /**
  * @brief  Reads a single byte from the device
@@ -188,11 +167,8 @@ VL53L1_Error VL53L1_WrDWord(
  *
  */
 
-VL53L1_Error VL53L1_RdByte(
-		VL53L1_Dev_t *pdev,
-		uint16_t      index,
-		uint8_t      *pdata);
-
+VL53L1_Error
+VL53L1_RdByte(VL53L1_Dev_t *pdev, uint16_t index, uint8_t *pdata);
 
 /**
  * @brief  Reads a single word (16-bit unsigned) from the device
@@ -207,11 +183,8 @@ VL53L1_Error VL53L1_RdByte(
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_RdWord(
-		VL53L1_Dev_t *pdev,
-		uint16_t      index,
-		uint16_t     *pdata);
-
+VL53L1_Error
+VL53L1_RdWord(VL53L1_Dev_t *pdev, uint16_t index, uint16_t *pdata);
 
 /**
  * @brief  Reads a single dword (32-bit unsigned) from the device
@@ -226,12 +199,8 @@ VL53L1_Error VL53L1_RdWord(
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_RdDWord(
-		VL53L1_Dev_t *pdev,
-		uint16_t      index,
-		uint32_t     *pdata);
-
-
+VL53L1_Error
+VL53L1_RdDWord(VL53L1_Dev_t *pdev, uint16_t index, uint32_t *pdata);
 
 /**
  * @brief  Implements a programmable wait in us
@@ -243,10 +212,8 @@ VL53L1_Error VL53L1_RdDWord(
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_WaitUs(
-		VL53L1_Dev_t *pdev,
-		int32_t       wait_us);
-
+VL53L1_Error
+VL53L1_WaitUs(VL53L1_Dev_t *pdev, int32_t wait_us);
 
 /**
  * @brief  Implements a programmable wait in ms
@@ -258,52 +225,55 @@ VL53L1_Error VL53L1_WaitUs(
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_WaitMs(
-		VL53L1_Dev_t *pdev,
-		int32_t       wait_ms);
-
+VL53L1_Error
+VL53L1_WaitMs(VL53L1_Dev_t *pdev, int32_t wait_ms);
 
 /**
-* @brief Get the frequency of the timer used for ranging results time stamps
-*
-* @param[out] ptimer_freq_hz : pointer for timer frequency
-*
- * @return  VL53L1_ERROR_NONE     Success
- * @return  "Other error code"    See ::VL53L1_Error
-*/
-
-VL53L1_Error VL53L1_GetTimerFrequency(int32_t *ptimer_freq_hz);
-
-/**
-* @brief Get the timer value in units of timer_freq_hz (see VL53L1_get_timestamp_frequency())
-*
-* @param[out] ptimer_count : pointer for timer count value
-*
- * @return  VL53L1_ERROR_NONE     Success
- * @return  "Other error code"    See ::VL53L1_Error
-*/
-
-VL53L1_Error VL53L1_GetTimerValue(int32_t *ptimer_count);
-
-
-/**
- * @brief Set the mode of a specified GPIO pin
+ * @brief Get the frequency of the timer used for ranging results time stamps
  *
- * @param  pin - an identifier specifying the pin being modified - defined per platform
- *
- * @param  mode - an identifier specifying the requested mode - defined per platform
+ * @param[out] ptimer_freq_hz : pointer for timer frequency
  *
  * @return  VL53L1_ERROR_NONE     Success
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_GpioSetMode(uint8_t pin, uint8_t mode);
+VL53L1_Error
+VL53L1_GetTimerFrequency(int32_t *ptimer_freq_hz);
 
+/**
+ * @brief Get the timer value in units of timer_freq_hz (see
+ * VL53L1_get_timestamp_frequency())
+ *
+ * @param[out] ptimer_count : pointer for timer count value
+ *
+ * @return  VL53L1_ERROR_NONE     Success
+ * @return  "Other error code"    See ::VL53L1_Error
+ */
+
+VL53L1_Error
+VL53L1_GetTimerValue(int32_t *ptimer_count);
+
+/**
+ * @brief Set the mode of a specified GPIO pin
+ *
+ * @param  pin - an identifier specifying the pin being modified - defined per
+ * platform
+ *
+ * @param  mode - an identifier specifying the requested mode - defined per
+ * platform
+ *
+ * @return  VL53L1_ERROR_NONE     Success
+ * @return  "Other error code"    See ::VL53L1_Error
+ */
+
+VL53L1_Error
+VL53L1_GpioSetMode(uint8_t pin, uint8_t mode);
 
 /**
  * @brief Set the value of a specified GPIO pin
  *
- * @param  pin - an identifier specifying the pin being modified - defined per platform
+ * @param  pin - an identifier specifying the pin being modified - defined per
+ * platform
  *
  * @param  value - a value to set on the GPIO pin - typically 0 or 1
  *
@@ -311,13 +281,14 @@ VL53L1_Error VL53L1_GpioSetMode(uint8_t pin, uint8_t mode);
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_GpioSetValue(uint8_t pin, uint8_t value);
-
+VL53L1_Error
+VL53L1_GpioSetValue(uint8_t pin, uint8_t value);
 
 /**
  * @brief Get the value of a specified GPIO pin
  *
- * @param  pin - an identifier specifying the pin being modified - defined per platform
+ * @param  pin - an identifier specifying the pin being modified - defined per
+ * platform
  *
  * @param  pvalue - a value retrieved from the GPIO pin - typically 0 or 1
  *
@@ -325,8 +296,8 @@ VL53L1_Error VL53L1_GpioSetValue(uint8_t pin, uint8_t value);
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_GpioGetValue(uint8_t pin, uint8_t *pvalue);
-
+VL53L1_Error
+VL53L1_GpioGetValue(uint8_t pin, uint8_t *pvalue);
 
 /**
  * @brief Sets and clears the XShutdown pin on the Ewok
@@ -337,8 +308,8 @@ VL53L1_Error VL53L1_GpioGetValue(uint8_t pin, uint8_t *pvalue);
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_GpioXshutdown(uint8_t value);
-
+VL53L1_Error
+VL53L1_GpioXshutdown(uint8_t value);
 
 /**
  * @brief Sets and clears the Comms Mode pin (NCS) on the Ewok
@@ -349,8 +320,8 @@ VL53L1_Error VL53L1_GpioXshutdown(uint8_t value);
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_GpioCommsSelect(uint8_t value);
-
+VL53L1_Error
+VL53L1_GpioCommsSelect(uint8_t value);
 
 /**
  * @brief Enables and disables the power to the Ewok module
@@ -361,20 +332,23 @@ VL53L1_Error VL53L1_GpioCommsSelect(uint8_t value);
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_GpioPowerEnable(uint8_t value);
+VL53L1_Error
+VL53L1_GpioPowerEnable(uint8_t value);
 
 /**
- * @brief Enables callbacks to the supplied funtion pointer when Ewok interrupts ocurr
+ * @brief Enables callbacks to the supplied funtion pointer when Ewok interrupts
+ * ocurr
  *
- * @param  function - a function callback supplies by the caller, for interrupt notification
+ * @param  function - a function callback supplies by the caller, for interrupt
+ * notification
  * @param  edge_type - falling edge or rising edge interrupt detection
  *
  * @return  VL53L1_ERROR_NONE     Success
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error  VL53L1_GpioInterruptEnable(void (*function)(void), uint8_t edge_type);
-
+VL53L1_Error
+VL53L1_GpioInterruptEnable(void (*function)(void), uint8_t edge_type);
 
 /**
  * @brief Disables the callback on Ewok interrupts
@@ -383,8 +357,8 @@ VL53L1_Error  VL53L1_GpioInterruptEnable(void (*function)(void), uint8_t edge_ty
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error  VL53L1_GpioInterruptDisable(void);
-
+VL53L1_Error
+VL53L1_GpioInterruptDisable(void);
 
 /*
  * @brief Gets current system tick count in [ms]
@@ -395,9 +369,8 @@ VL53L1_Error  VL53L1_GpioInterruptDisable(void);
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_GetTickCount(
-	uint32_t *ptime_ms);
-
+VL53L1_Error
+VL53L1_GetTickCount(uint32_t *ptime_ms);
 
 /**
  * @brief Register "wait for value" polling routine
@@ -415,17 +388,12 @@ VL53L1_Error VL53L1_GetTickCount(
  * @return  "Other error code"    See ::VL53L1_Error
  */
 
-VL53L1_Error VL53L1_WaitValueMaskEx(
-		VL53L1_Dev_t *pdev,
-		uint32_t      timeout_ms,
-		uint16_t      index,
-		uint8_t       value,
-		uint8_t       mask,
-		uint32_t      poll_delay_ms);
+VL53L1_Error
+VL53L1_WaitValueMaskEx(VL53L1_Dev_t *pdev, uint32_t timeout_ms, uint16_t index,
+                       uint8_t value, uint8_t mask, uint32_t poll_delay_ms);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

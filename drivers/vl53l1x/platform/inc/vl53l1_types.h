@@ -36,41 +36,43 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /** @defgroup porting_type  Basic type definition
  *  @ingroup  api_platform
  *
- *  @brief  file vl53l1_types.h files hold basic type definition that may requires porting
+ *  @brief  file vl53l1_types.h files hold basic type definition that may
+ * requires porting
  *
  *  contains type that must be defined for the platform\n
- *  when target platform and compiler provide stdint.h and stddef.h it is enough to include it.\n
- *  If stdint.h is not available review and adapt all signed and unsigned 8/16/32 bits basic types. \n
- *  If stddef.h is not available review and adapt NULL definition .
+ *  when target platform and compiler provide stdint.h and stddef.h it is enough
+ * to include it.\n If stdint.h is not available review and adapt all signed and
+ * unsigned 8/16/32 bits basic types. \n If stddef.h is not available review and
+ * adapt NULL definition .
  */
-#include <stdint.h>
 #include <stddef.h>
-#include <string.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifndef NULL
 #error "Error NULL definition should be done. Please add required include "
 #endif
 
+#if !defined(STDINT_H) && !defined(_STDINT_H) && !defined(_GCC_STDINT_H) &&    \
+    !defined(__STDINT_DECLS) && !defined(_GCC_WRAP_STDINT_H) &&                \
+    !defined(_STDINT)
 
-#if !defined(STDINT_H) && !defined(_STDINT_H) && !defined(_GCC_STDINT_H) && !defined(__STDINT_DECLS) && !defined(_GCC_WRAP_STDINT_H)  && !defined(_STDINT)
+#pragma message(                                                               \
+    "Please review  type definition of STDINT define for your platform and add to list above ")
 
- #pragma message("Please review  type definition of STDINT define for your platform and add to list above ")
-
- /*
-  *  target platform do not provide stdint or use a different #define than above
-  *  to avoid seeing the message below addapt the #define list above or implement
-  *  all type and delete these pragma
-  */
+/*
+ *  target platform do not provide stdint or use a different #define than above
+ *  to avoid seeing the message below addapt the #define list above or implement
+ *  all type and delete these pragma
+ */
 
 /** \ingroup VL53L1_portingType_group
  * @{
  */
 
-
 typedef unsigned long long uint64_t;
-
 
 /** @brief Typedef defining 32 bit unsigned int type.\n
  * The developer should modify this to suit the platform being deployed.
@@ -104,7 +106,6 @@ typedef signed char int8_t;
 
 /** @}  */
 #endif /* _STDINT_H */
-
 
 /** use where fractional values are expected
  *
