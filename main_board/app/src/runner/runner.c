@@ -90,21 +90,21 @@ handle_err_code(void *ctx, int err)
 
     switch (err) {
     case RET_SUCCESS:
-        ack.ack_number = Ack_ErrorCode_SUCCESS;
+        ack.error = Ack_ErrorCode_SUCCESS;
         break;
 
     case RET_ERROR_INVALID_PARAM:
     case RET_ERROR_NOT_FOUND:
-        ack.ack_number = Ack_ErrorCode_RANGE;
+        ack.error = Ack_ErrorCode_RANGE;
         break;
 
     case RET_ERROR_BUSY:
     case RET_ERROR_INVALID_STATE:
-        ack.ack_number = Ack_ErrorCode_IN_PROGRESS;
+        ack.error = Ack_ErrorCode_IN_PROGRESS;
         break;
 
     case RET_ERROR_FORBIDDEN:
-        ack.ack_number = Ack_ErrorCode_OPERATION_NOT_SUPPORTED;
+        ack.error = Ack_ErrorCode_OPERATION_NOT_SUPPORTED;
         break;
 
     default:

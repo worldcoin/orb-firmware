@@ -14,6 +14,8 @@
 LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
 
 static const struct device *can_dev;
+K_THREAD_STACK_DEFINE(can_battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
+static struct k_thread rx_thread_data = {0};
 
 // minimum voltage needed to boot the Orb during startup (in millivolts)
 #define BATTERY_MINIMUM_VOLTAGE_STARTUP_MV 13500
@@ -21,7 +23,8 @@ static const struct device *can_dev;
 // the time between sends of battery data to the Jetson
 #define BATTERY_INFO_SEND_PERIOD_MS 1000
 
-K_SEM_DEFINE(first_414_wait_sem, 0, 1);
+#define WAIT_FOR_VOLTAGES_TOTAL_PERIOD_MS 2000
+#define WAIT_FOR_VOLTAGES_CHECK_PERIOD_MS 100
 
 struct battery_can_msg {
     uint32_t can_id;
@@ -142,34 +145,6 @@ publish_battery_pcb_temperature(void)
 }
 
 static void
-send_battery_info_to_jetson_work_func(struct k_work *work)
-{
-    ARG_UNUSED(work);
-
-    publish_battery_voltages();
-    publish_battery_capacity();
-    publish_battery_is_charging();
-    publish_battery_cell_temperature();
-    publish_battery_diagnostic_flags();
-    publish_battery_pcb_temperature();
-}
-
-K_WORK_DEFINE(battery_work, send_battery_info_to_jetson_work_func);
-
-// This function is called from an interrupt context, so let's do the least
-// amount of work possible in it
-static void
-send_battery_info_to_jetson_timer_func(struct k_timer *timer)
-{
-    ARG_UNUSED(timer);
-
-    k_work_submit(&battery_work);
-}
-
-K_TIMER_DEFINE(send_battery_info_timer, send_battery_info_to_jetson_timer_func,
-               NULL);
-
-static void
 handle_499(struct zcan_frame *frame)
 {
     state_499 = *(struct battery_499_s *)frame->data;
@@ -187,8 +162,7 @@ handle_415(struct zcan_frame *frame)
     state_415 = *(struct battery_415_s *)frame->data;
 }
 
-static struct battery_can_msg messages[] = {
-    // 0x414 must be the first element of this array!
+const static struct battery_can_msg messages[] = {
     {.can_id = 0x414, .msg_len = 8, .handler = handle_414},
     {.can_id = 0x415, .msg_len = 4, .handler = handle_415},
     {.can_id = 0x499, .msg_len = 6, .handler = handle_499}};
@@ -207,14 +181,6 @@ message_checker(const struct device *dev, struct zcan_frame *frame,
     }
 }
 
-static void
-sem_give_414(const struct device *dev, struct zcan_frame *frame,
-             void *user_data)
-{
-    message_checker(dev, frame, user_data);
-    k_sem_give(&first_414_wait_sem);
-}
-
 static ret_code_t
 setup_filters(void)
 {
@@ -222,7 +188,7 @@ setup_filters(void)
 
     for (size_t i = 0; i < ARRAY_SIZE(messages); ++i) {
         battery_can_filter.id = messages[i].can_id;
-        ret = can_add_rx_filter(can_dev, message_checker, &messages[i],
+        ret = can_add_rx_filter(can_dev, message_checker, (void *)&messages[i],
                                 &battery_can_filter);
         if (ret < 0) {
             LOG_ERR("Error adding can rx filter (%d)", ret);
@@ -230,6 +196,21 @@ setup_filters(void)
         }
     }
     return RET_SUCCESS;
+}
+
+static void
+battery_rx_thread()
+{
+    while (1) {
+        publish_battery_voltages();
+        publish_battery_capacity();
+        publish_battery_is_charging();
+        publish_battery_cell_temperature();
+        publish_battery_diagnostic_flags();
+        publish_battery_pcb_temperature();
+
+        k_msleep(BATTERY_INFO_SEND_PERIOD_MS);
+    }
 }
 
 ret_code_t
@@ -249,25 +230,24 @@ battery_init(void)
         LOG_INF("CAN ready");
     }
 
-    ASSERT_HARD_BOOL(messages[0].can_id == 0x414);
-
-    battery_can_filter.id = 0x414;
-    ret = can_add_rx_filter(can_dev, sem_give_414, &messages[0],
-                            &battery_can_filter);
-    if (ret < 0) {
-        LOG_ERR("Error adding can rx filter (%d)", ret);
-        return RET_ERROR_INTERNAL;
+    ret = setup_filters();
+    if (ret != RET_SUCCESS) {
+        return ret;
     }
 
-    // we are simulating a blocking read with a timeout
-    k_sem_take(&first_414_wait_sem, K_SECONDS(2));
-    can_remove_rx_filter(can_dev, ret);
+    uint32_t full_voltage = 0;
 
-    // voltages received or timeout that will give a full_voltage of 0,
-    // can be because of a removed battery
-    uint32_t full_voltage =
-        state_414.voltage_group_1 + state_414.voltage_group_2 +
-        state_414.voltage_group_3 + state_414.voltage_group_4;
+    for (size_t i = 0; i < WAIT_FOR_VOLTAGES_TOTAL_PERIOD_MS /
+                               WAIT_FOR_VOLTAGES_CHECK_PERIOD_MS;
+         ++i) {
+        full_voltage = state_414.voltage_group_1 + state_414.voltage_group_2 +
+                       state_414.voltage_group_3 + state_414.voltage_group_4;
+        if (full_voltage >= BATTERY_MINIMUM_VOLTAGE_STARTUP_MV) {
+            break;
+        }
+        k_msleep(WAIT_FOR_VOLTAGES_CHECK_PERIOD_MS);
+    }
+
     LOG_INF("Got initial battery voltage: %umV", full_voltage);
 
     // if voltage low:
@@ -289,8 +269,11 @@ battery_init(void)
         LOG_INF("Battery voltage is ok");
     }
 
-    k_timer_start(&send_battery_info_timer, K_MSEC(BATTERY_INFO_SEND_PERIOD_MS),
-                  K_MSEC(BATTERY_INFO_SEND_PERIOD_MS));
+    k_tid_t tid = k_thread_create(
+        &rx_thread_data, can_battery_rx_thread_stack,
+        K_THREAD_STACK_SIZEOF(can_battery_rx_thread_stack), battery_rx_thread,
+        NULL, NULL, NULL, THREAD_PRIORITY_BATTERY, 0, K_NO_WAIT);
+    k_thread_name_set(tid, "battery");
 
-    return setup_filters();
+    return RET_SUCCESS;
 }

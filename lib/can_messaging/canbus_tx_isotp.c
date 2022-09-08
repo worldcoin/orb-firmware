@@ -27,9 +27,11 @@ static_assert(sizeof(can_message_t) % QUEUE_ALIGN == 0,
 K_MSGQ_DEFINE(isotp_tx_msg_queue, sizeof(can_message_t),
               CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE, QUEUE_ALIGN);
 
-static K_HEAP_DEFINE(
-    can_tx_isotp_memory_heap,
-    CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE *CONFIG_CAN_ISOTP_MAX_SIZE_BYTES);
+static struct k_heap can_tx_isotp_memory_heap;
+static char __aligned(4)
+    can_tx_isotp_memory_heap_buffer[CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE *
+                                    CONFIG_CAN_ISOTP_MAX_SIZE_BYTES];
+
 static K_SEM_DEFINE(tx_sem, 1, 1);
 
 static bool is_init = false;
@@ -83,7 +85,7 @@ process_tx_messages_thread()
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
             LOG_WRN("Error sending message");
 #else
-            printk("<wrn> Error sending message!\r\n");
+            printk("<wrn> Error sending ISO-TP message!\r\n");
 #endif
             // free heap allocated buffer
             k_heap_free(&can_tx_isotp_memory_heap, new.bytes);
@@ -142,6 +144,8 @@ canbus_isotp_tx_init(void)
     // so purge before resetting the semaphore to make sure tx thread
     // blocks on the empty queue once the semaphore is freed
     k_msgq_purge(&isotp_tx_msg_queue);
+    k_heap_init(&can_tx_isotp_memory_heap, can_tx_isotp_memory_heap_buffer,
+                sizeof(can_tx_isotp_memory_heap_buffer));
     k_sem_init(&tx_sem, 1, 1);
 
     is_init = true;
