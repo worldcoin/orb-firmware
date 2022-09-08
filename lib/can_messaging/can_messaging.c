@@ -84,6 +84,10 @@ can_messaging_init(void (*in_handler)(can_message_t *msg))
 {
     int err_code;
 
+    // enable CAN-FD
+    int ret = can_set_mode(can_dev, CAN_MODE_FD);
+    ASSERT_SOFT(ret);
+
     // init underlying layers: CAN bus
     err_code = canbus_rx_init(in_handler);
     ASSERT_SOFT(err_code);
