@@ -191,6 +191,15 @@ vl53l1x_channel_get(const struct device *dev, enum sensor_channel chan,
         }
         val->val2 = 0;
     } else if (chan == SENSOR_CHAN_DISTANCE) {
+        LOG_DBG("range status: %d",
+                drv_data->RangingMeasurementData.RangeStatus);
+        LOG_DBG("ambient rate: %u",
+                drv_data->RangingMeasurementData.AmbientRateRtnMegaCps);
+
+        // filter out invalid ranges
+        if (drv_data->RangingMeasurementData.RangeStatus != 0) {
+            return -ENOMSG;
+        }
         val->val1 = drv_data->RangingMeasurementData.RangeMilliMeter / 1000;
         val->val2 =
             (drv_data->RangingMeasurementData.RangeMilliMeter % 1000) * 1000;
