@@ -1,5 +1,9 @@
 mainmenu "Application configuration"
 
+menu "Log levels"
+source "../orb/main_board/app/log_levels.Kconfig"
+endmenu
+
 config ORB_PROTOBUF_DEFINITIONS_LIB
     default y
     bool "Orb Protobuf definitions"
@@ -10,8 +14,34 @@ config ORB_MCU_LIBRARIES_LIB
     default y
     bool "Orb shared components"
 
-if ORB_MCU_LIBRARIES_LIB
-source "../orb/Kconfig"
-endif
+# Convenience/Developer options
+
+config INSTA_BOOT
+    default n
+    bool "Boot right away without waiting for a button press"
+
+config NO_JETSON_BOOT
+    default n
+    bool "Do not boot the Jetson"
+
+config NO_BOOT_LEDS
+    default n
+    bool "Keep user LEDs off during boot. The Jetson may command them after it boots, however."
+
+config NO_SUPER_CAPS
+    default n
+    bool "Do not turn on super capacitor charging"
+
+config MCU_DEVEL
+    default n
+    bool "Select all developer options"
+    select INSTA_BOOT
+    select NO_JETSON_BOOT
+    select NO_BOOT_LEDS
+    select NO_SUPER_CAPS
+
+config TEST_IR_CAMERA_SYSTEM
+    default n
+    bool "Test the IR camera system"
 
 source "Kconfig.zephyr"

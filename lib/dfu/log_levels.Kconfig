@@ -1,0 +1,7 @@
+module = DFU_FLASH
+module-str = DFU_FLASH
+source "subsys/logging/Kconfig.template.log_config"
+
+module = DFU
+module-str = DFU
+source "subsys/logging/Kconfig.template.log_config"

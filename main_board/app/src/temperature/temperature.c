@@ -5,18 +5,22 @@
 #include <assert.h>
 #include <device.h>
 #include <drivers/sensor.h>
+#include <math.h>
 #include <sys_clock.h>
 #include <zephyr.h>
 
 #include <logging/log.h>
-#include <math.h>
-LOG_MODULE_REGISTER(temperature);
+LOG_MODULE_REGISTER(temperature, CONFIG_TEMPERATURE_LOG_LEVEL);
 
+// These values are informed by
+// https://www.notion.so/PCBA-thermals-96849052d5c24a0bafaedb4363f460b5
+
+#define MAIN_BOARD_OVERTEMP_C            85
+#define FRONT_UNIT_OVERTEMP_C            75
+#define MCU_DIE_OVERTEMP_C               70
+#define LIQUID_LENS_OVERTEMP_C           85
+#define OVERTEMP_DROP_C                  5 // drop in temperature needed to stop over-temp mode
 #define TEMPERATURE_AVERAGE_SAMPLE_COUNT 3
-
-#define MAIN_BOARD_OVERTEMP_C 85
-#define FRONT_UNIT_OVERTEMP_C 90
-#define OVERTEMP_DROP_C       5 // drop in temperature needed to stop over-temp mode
 
 static_assert((int)(MAIN_BOARD_OVERTEMP_C - OVERTEMP_DROP_C) > 0 &&
                   (int)(FRONT_UNIT_OVERTEMP_C - OVERTEMP_DROP_C) > 0,
@@ -57,7 +61,6 @@ static struct sensor_and_channel sensors_and_channels[] = {
      .history = {0},
      .wr_idx = 0},
 
-#ifdef CONFIG_BOARD_MCU_MAIN_V31
     {.sensor = DEVICE_DT_GET(DT_NODELABEL(main_board_tmp_sensor)),
      .channel = SENSOR_CHAN_AMBIENT_TEMP,
      .temperature_source = Temperature_TemperatureSource_MAIN_BOARD,
@@ -67,18 +70,27 @@ static struct sensor_and_channel sensors_and_channels[] = {
                                         .in_overtemp = false},
      .history = {0},
      .wr_idx = 0},
-#endif
 
     {.sensor = DEVICE_DT_GET(DT_PATH(stm_tmp)),
      .channel = SENSOR_CHAN_DIE_TEMP,
      .temperature_source = Temperature_TemperatureSource_MAIN_MCU,
-     .cb = NULL,
-     .cb_data = NULL},
+     .cb = overtemp_callback,
+     .cb_data = &(struct overtemp_info){.overtemp_c = MCU_DIE_OVERTEMP_C,
+                                        .overtemp_drop_c = OVERTEMP_DROP_C,
+                                        .in_overtemp = false},
+     .history = {0},
+     .wr_idx = 0},
+
     {.sensor = DEVICE_DT_GET(DT_NODELABEL(liquid_lens_tmp_sensor)),
      .channel = SENSOR_CHAN_AMBIENT_TEMP,
      .temperature_source = Temperature_TemperatureSource_LIQUID_LENS,
-     .cb = NULL,
-     .cb_data = NULL}};
+     .cb = overtemp_callback,
+     .cb_data = &(struct overtemp_info){.overtemp_c = LIQUID_LENS_OVERTEMP_C,
+                                        .overtemp_drop_c = OVERTEMP_DROP_C,
+                                        .in_overtemp = false},
+     .history = {0},
+     .wr_idx = 0},
+};
 
 static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_TEMPERATURE);
 static struct k_thread thread_data;
@@ -232,8 +244,8 @@ temperature_init(void)
 // one provides a temperature drop which indicates how far a temperature
 // source's temperature must drop from its overtemperature threshold before we
 // consider the temperature nominal and the overtemperature condition resolved.
-// The current overtemperature response is to command the fan(s) to run at 100%
-// power. We activate and stay in the overtemperature response as long as at
+// The current overtemperature response is to command the fan(s) to run at max
+// speed. We activate and stay in the overtemperature response as long as at
 // least one temperature source has reached its overtemperature condition.
 
 static uint8_t num_sensors_in_overtemp_conditions = 0;
@@ -248,20 +260,21 @@ temperature_is_in_overtemp(void)
 static void
 check_overtemp_conditions(void)
 {
-    static uint8_t fan_speed_before_overtemperature = 0;
+    static uint32_t fan_speed_before_overtemperature = 0;
 
     if (old_num_sensors_in_overtemp_conditions == 1 &&
         num_sensors_in_overtemp_conditions == 0) {
-        LOG_INF("All overtemp conditions have abated -- restoring fan to old "
-                "value of %u%%",
+        // Warning so that it's logged over CAN
+        LOG_WRN("All over-temperature conditions have abated, restoring fan "
+                "to old value of %u%%",
                 fan_speed_before_overtemperature);
-        fan_set_speed(fan_speed_before_overtemperature);
+        fan_set_speed_by_value(fan_speed_before_overtemperature);
     } else if (old_num_sensors_in_overtemp_conditions == 0 &&
                num_sensors_in_overtemp_conditions > 0) {
-        LOG_WRN("Overtemperature condition detected -- setting fan to 100%% "
+        LOG_WRN("Over-temperature detected, setting fan to max speed "
                 "until condition abates");
-        fan_speed_before_overtemperature = fan_get_speed();
-        fan_set_speed(100);
+        fan_speed_before_overtemperature = fan_get_speed_setting();
+        fan_set_max_speed();
     }
 }
 

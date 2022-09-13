@@ -1,5 +1,10 @@
 # Build artifacts
 cmake-build-*/
+
+CMakeCache.txt
+CMakeFiles/
+app_version.conf
+
 build/
 twister-out/
 .docker_image_built
@@ -9,7 +14,7 @@ twister-out/
 win/
 .dll
 
-# Macos
+# macOS
 *.DS_Store
 
 # Python
@@ -35,3 +40,6 @@ utils/ota/root-ec-p256.pem
 
 ## Indexers
 cscope.*
+
+## Debugging
+.gdb_history

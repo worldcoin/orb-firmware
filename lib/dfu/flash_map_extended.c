@@ -12,7 +12,7 @@
 #include <sysflash/sysflash.h>
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(dfu_flash);
+LOG_MODULE_REGISTER(dfu_flash, CONFIG_DFU_FLASH_LOG_LEVEL);
 
 #if (!defined(CONFIG_XTENSA) &&                                                \
      defined(DT_CHOSEN_ZEPHYR_FLASH_CONTROLLER_LABEL))

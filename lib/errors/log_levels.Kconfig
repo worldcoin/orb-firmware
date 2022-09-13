@@ -1,0 +1,3 @@
+module = ASSERT
+module-str = ASSERT
+source "subsys/logging/Kconfig.template.log_config"

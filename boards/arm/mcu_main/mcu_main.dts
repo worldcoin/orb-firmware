@@ -2,9 +2,20 @@
 #include <st/g4/stm32g474Xe.dtsi>
 #include <st/g4/stm32g474v(b-c-e)tx-pinctrl.dtsi>
 
+#define DMAMUX_REQ_USART3_RX 0x1C
+#define DMAMUX_REQ_USART3_TX 0x1D
+#define DMA_CONFIG_DIR_SHIFT 6
+#define DMA_DIR_MEM_TO_PERIPH 1
+#define DMA_DIR_PERIPH_TO_MEM 2
+#define DMA_MEM_INC_ADDR_SHIFT 10
+
 / {
     model = "Worldcoin Orb Main MCU";
     compatible = "worldcoin,mcu_main";
+
+    aliases {
+        battery-can-bus = &can2;
+    };
 
     chosen {
         zephyr,console = &usart2;
@@ -20,9 +31,14 @@
         // 0 == Jetson
         sound-amp-mux-gpios = <&gpioe 10 GPIO_ACTIVE_HIGH>;
         i2c_clock_gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
-
         // GPIO used to get hardware version dynamically
         hw-version-gpios = <&gpiob 12 GPIO_ACTIVE_HIGH>;
+        gnss = <&usart3>;
+        level-shifter-enable-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
+        // To be clear, the enable/disable signal only does something
+        // on mainboard versions 3.2+, but this pin is unused on
+        // mainboard 3.1, so no harm no foul
+        fans-enable-gpios = <&gpiob 13 GPIO_ACTIVE_HIGH>;
     };
 
     vbat_sw {
@@ -49,6 +65,7 @@
         compatible = "regulator-fixed-sync", "regulator-fixed";
         label = "5V Supply";
         regulator-name = "supply_5v";
+        enable-gpios = <&gpiob 1 GPIO_ACTIVE_LOW>;
     };
 
     supply_3v8 {
@@ -76,12 +93,14 @@
         compatible = "regulator-fixed-sync", "regulator-fixed";
         label = "PVCC Supply";
         regulator-name = "supply_pvcc";
+        enable-gpios = <&gpioe 6 GPIO_ACTIVE_HIGH>;
     };
 
     supply_super_cap {
         compatible = "regulator-fixed-sync", "regulator-fixed";
         label = "Super cap supply";
         regulator-name = "supply_super_cap";
+        enable-gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>;
     };
 
     buttons {
@@ -96,29 +115,36 @@
     jetson_power_pins {
         compatible = "gpio-jetson-power";
 
+        shutdown_request {
+            // input
+            // Jetson module uses this to request a shutdown sequence
+            gpios = <&gpiob 7 GPIO_ACTIVE_LOW>;
+        };
+
         power_enable {
             // output
             // this signals the Jetson module to turn on an off
+            gpios = <&gpioe 12 GPIO_ACTIVE_HIGH>;
         };
 
         system_reset {
-            gpios = <&gpioe 11 GPIO_ACTIVE_LOW>;
-
             // bidirectional
             // drive low to reset
             // driven by Jetson to indicate power sequence is complete
+            gpios = <&gpioe 11 GPIO_ACTIVE_LOW>;
+
         };
 
         module_sleep {
-            gpios = <&gpiof 2 GPIO_ACTIVE_LOW>;
-
             // input
             // when driven low indicates that the module has gone to sleep
+            gpios = <&gpiof 2 GPIO_ACTIVE_LOW>;
         };
 
         sleep_wake {
             // output
             // drive high to indicate that the Jetson should enter sleep mode
+            gpios = <&gpioe 9 GPIO_ACTIVE_LOW>;
         };
     };
 
@@ -143,6 +169,16 @@
         compatible = "st,stm32-temp";
         io-channels = <&adc1 16>;
         status = "okay";
+    };
+
+    fan_main {
+        compatible = "pwm-fan";
+        pwms = <&fan_main_and_aux_pwm 1 40000 PWM_POLARITY_NORMAL>;
+    };
+
+    fan_aux {
+        compatible = "pwm-fan";
+        pwms = <&fan_main_and_aux_pwm 2 40000 PWM_POLARITY_NORMAL>;
     };
 };
 
@@ -181,6 +217,73 @@
         timer-number = <1>;
         dma-channel = <1>;
         num-leds = <5>;
+    };
+};
+
+&timers3 {
+    status = "okay";
+
+    led_740nm: led_740nm {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&tim3_ch3_pb0>;
+        pinctrl-names = "default";
+        channels = <3>;
+    };
+
+    led_940nm: led_940nm {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&tim3_ch1_pe2 &tim3_ch4_pe5>;
+        pinctrl-names = "default";
+        channels = <1 4>;
+    };
+};
+
+&timers5 {
+    status = "okay";
+
+    fan_main_and_aux_pwm: pwm {
+        status = "okay";
+        pinctrl-0 = <&tim5_ch1_pb2 &tim5_ch2_pa1>;
+        pinctrl-names = "default";
+    };
+};
+
+&timers8 {
+    status = "okay";
+
+    // AKA CAM0
+    ir_eye_camera_trigger: ir_eye_camera_trigger {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&tim8_ch3_pc8>;
+        pinctrl-names = "default";
+        channels = <3>;
+    };
+
+    // AKA CAM2
+    ir_face_camera_trigger: ir_face_camera_trigger {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&tim8_ch4_pc9>;
+        pinctrl-names = "default";
+        channels = <4>;
+    };
+
+    // AKA CAM3
+    tof_2d_camera_trigger: tof_2d_camera_trigger {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&tim8_ch1_pc6>;
+        pinctrl-names = "default";
+        channels = <1>;
+    };
+};
+
+&timers15 {
+    status = "okay";
+
+    led_850nm: led_850nm {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&tim15_ch1_pb14 &tim15_ch2_pb15>;
+        pinctrl-names = "default";
+        channels = <1 2>;
     };
 };
 
@@ -243,6 +346,18 @@
     status = "okay";
 };
 
+&usart3 {
+    pinctrl-0 = <&usart3_tx_pb10 &usart3_rx_pb11>;
+    pinctrl-names = "default";
+    current-speed = <9600>;
+    status = "okay";
+
+    // DMA1 channels 3 and 4 (1 and 2 used by front and operator LEDs).
+    dmas = <&dma1 3 DMAMUX_REQ_USART3_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>,
+           <&dma1 4 DMAMUX_REQ_USART3_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>;
+    dma-names = "rx", "tx";
+};
+
 &rtc {
     status = "okay";
 };
@@ -262,9 +377,14 @@
         compatible = "maxim,max31875";
         reg = <0x4a>;
         label = "LIQUID_LENS_TEMP_SENSOR";
-        extended-mode;
-        conversions-per-second = "0.25";
+        conversions-per-second = "1";
         resolution = <8>;
+    };
+
+    main_board_tmp_sensor: tmp112@49 {
+        compatible = "ti,tmp112";
+        reg = <0x49>;
+        label = "MAIN_BOARD_TEMP_SENSOR";
     };
 
     tof_sensor: vl53l1x@29 {
@@ -295,6 +415,15 @@
     bus-speed-data = <1000000>;
     sjw-data = <4>;
     sample-point-data = <853>; // closest value
+    status = "okay";
+};
+
+// For battery communications
+&can2 {
+    pinctrl-0 = <&fdcan2_rx_pb5 &fdcan2_tx_pb6>;
+    pinctrl-names = "default";
+    bus-speed = <1000000>;
+    bus-speed-data = <1000000>;
     status = "okay";
 };
 

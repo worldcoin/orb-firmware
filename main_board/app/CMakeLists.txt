@@ -39,7 +39,7 @@ set_property(GLOBAL PROPERTY CSTD gnu11)
 if (DEFINED ENV{BOARD})
     set(BOARD $ENV{BOARD})
 else ()
-    set(BOARD mcu_main_v31)
+    set(BOARD mcu_main)
 endif ()
 
 # Get our custom boards definitions before loading Zephyr
@@ -107,16 +107,12 @@ set(SOURCES_FILES
     src/system/fatal.c
     src/system/logs.c
     src/version/version.c
-    )
 
-if (DEFINED CONFIG_BOARD_MCU_MAIN_V31)
-    list(APPEND SOURCES_FILES src/ir_camera_system/ir_camera_system_v31.c)
-    list(APPEND SOURCES_FILES src/battery/battery.c)
-elseif (DEFINED CONFIG_BOARD_MCU_MAIN_V30)
-    list(APPEND SOURCES_FILES src/ir_camera_system/ir_camera_system_v30.c)
-else ()
-    message(FATAL_ERROR "Please build for board 'mcu_main_v31' or 'mcu_main_v30'")
-endif ()
+    src/gnss/gnss.c
+
+    src/ir_camera_system/ir_camera_system.c
+    src/battery/battery.c
+    )
 
 set(INCLUDE_DIRS
     include

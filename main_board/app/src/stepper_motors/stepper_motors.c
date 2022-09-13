@@ -15,7 +15,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-LOG_MODULE_REGISTER(stepper_motors);
+LOG_MODULE_REGISTER(stepper_motors, CONFIG_STEPPER_MOTORS_LOG_LEVEL);
 
 K_THREAD_STACK_DEFINE(stack_area_motor_horizontal_init, 2048);
 K_THREAD_STACK_DEFINE(stack_area_motor_vertical_init, 2048);
@@ -114,8 +114,8 @@ static const uint32_t motors_full_course_maximum_steps[MOTOR_COUNT] = {
 static size_t hw_rev_idx = 0;
 static const uint32_t motors_center_from_end[HARDWARE_REV_COUNT][MOTOR_COUNT] =
     {
-        {55000, 55000}, // vertical, horizontal, v30 and v31
-        {55000, 87000}, // vertical, horizontal, v32
+        {55000, 55000}, // vertical, horizontal, mainboard v3.1
+        {55000, 87000}, // vertical, horizontal, mainboard v3.2
 };
 const float motors_arm_length[MOTOR_COUNT] = {12.0, 18.71};
 
@@ -427,7 +427,7 @@ motors_set_angle_relative(int32_t d_from_center, motor_t motor)
     int32_t steps = (int32_t)roundf(millimeters * (float)steps_per_mm);
     int32_t xtarget = motors_refs[motor].x0 + steps;
 
-    LOG_INF("Setting motor %u to: %d milli-degrees (%d)", motor, d_from_center,
+    LOG_DBG("Setting motor %u to: %d milli-degrees (%d)", motor, d_from_center,
             xtarget);
 
     motor_spi_write(spi_bus_controller,

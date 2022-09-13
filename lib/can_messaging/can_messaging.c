@@ -6,7 +6,7 @@
 #include <kernel.h>
 #include <logging/log.h>
 #include <sys/__assert.h>
-LOG_MODULE_REGISTER(can_messaging);
+LOG_MODULE_REGISTER(can_messaging, CONFIG_CAN_MESSAGING_LOG_LEVEL);
 
 static const struct device *can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
 
@@ -48,6 +48,10 @@ state_change_work_handler(struct k_work *work)
 
         if (can_recover(can_dev, K_MSEC(2000)) != 0) {
             ASSERT_HARD(RET_ERROR_OFFLINE);
+        } else {
+            // reset TX queues and buffers
+            canbus_tx_init();
+            canbus_isotp_tx_init();
         }
     }
 }

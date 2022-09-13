@@ -5,7 +5,7 @@
 #include <pb_decode.h>
 #include <zephyr.h>
 
-LOG_MODULE_REGISTER(can_rx);
+LOG_MODULE_REGISTER(can_rx, CONFIG_CAN_RX_LOG_LEVEL);
 
 K_THREAD_STACK_DEFINE(can_rx_thread_stack,
                       CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_RX);
@@ -13,7 +13,6 @@ static struct k_thread rx_thread_data = {0};
 
 static const struct device *can_dev;
 static struct zcan_frame rx_frame;
-static can_message_t rx_message = {0};
 static const struct zcan_filter recv_queue_filter = {
     .id_type = CAN_EXTENDED_IDENTIFIER,
     .rtr = CAN_DATAFRAME,
@@ -28,6 +27,7 @@ static void
 rx_thread()
 {
     int ret;
+    static can_message_t rx_message = {0};
 
     ret = can_add_rx_filter_msgq(can_dev, &can_recv_queue, &recv_queue_filter);
     if (ret < 0) {
@@ -38,13 +38,13 @@ rx_thread()
     while (1) {
         k_msgq_get(&can_recv_queue, &rx_frame, K_FOREVER);
         rx_message.size = can_dlc_to_bytes(rx_frame.dlc);
-        rx_message.destination = recv_queue_filter.id;
-        memcpy(&rx_message.bytes, rx_frame.data, rx_message.size);
+        rx_message.destination = rx_frame.id;
+        rx_message.bytes = rx_frame.data;
 
         if (incoming_message_handler != NULL) {
             incoming_message_handler(&rx_message);
         } else {
-            LOG_ERR("Cannot handle message");
+            LOG_ERR("No message handler installed!");
         }
     }
 }

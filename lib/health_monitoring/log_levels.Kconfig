@@ -1,0 +1,3 @@
+module = HEARTBEAT
+module-str = HEARTBEAT
+source "subsys/logging/Kconfig.template.log_config"

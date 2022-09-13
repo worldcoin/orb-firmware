@@ -1,0 +1,55 @@
+module = TEMPERATURE
+module-str = TEMPERATURE
+source "subsys/logging/Kconfig.template.log_config"
+
+module = BATTERY
+module-str = BATTERY
+source "subsys/logging/Kconfig.template.log_config"
+
+module = GNSS
+module-str = GNSS
+source "subsys/logging/Kconfig.template.log_config"
+
+module = PUBSUB
+module-str = PUBSUB
+source "subsys/logging/Kconfig.template.log_config"
+
+module = FRONT_UNIT_RGB_LEDS
+module-str = FRONT_UNIT_RGB_LEDS
+source "subsys/logging/Kconfig.template.log_config"
+
+module = RUNNER
+module-str = RUNNER
+source "subsys/logging/Kconfig.template.log_config"
+
+module = STEPPER_MOTORS
+module-str = STEPPER_MOTORS
+source "subsys/logging/Kconfig.template.log_config"
+
+module = LIQUID_LENS
+module-str = LIQUID_LENS
+source "subsys/logging/Kconfig.template.log_config"
+
+module = VERSION
+module-str = VERSION
+source "subsys/logging/Kconfig.template.log_config"
+
+module = SOUND
+module-str = SOUND
+source "subsys/logging/Kconfig.template.log_config"
+
+module = POWER_SEQUENCE
+module-str = POWER_SEQUENCE
+source "subsys/logging/Kconfig.template.log_config"
+
+module = IR_CAMERA_SYSTEM
+module-str = IR_CAMERA_SYSTEM
+source "subsys/logging/Kconfig.template.log_config"
+
+module = FAN
+module-str = FAN
+source "subsys/logging/Kconfig.template.log_config"
+
+module = BUTTON
+module-str = BUTTON
+source "subsys/logging/Kconfig.template.log_config"

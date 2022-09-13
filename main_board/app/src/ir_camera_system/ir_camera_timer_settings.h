@@ -6,7 +6,8 @@
 
 #define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US 5000
 #define IR_CAMERA_SYSTEM_MAX_FPS               60
-#define ASSUMED_TIMER_CLOCK_FREQ               170000000
+#define ASSUMED_TIMER_CLOCK_FREQ_MHZ           170
+#define ASSUMED_TIMER_CLOCK_FREQ               (ASSUMED_TIMER_CLOCK_FREQ_MHZ * 1000000)
 
 struct ir_camera_timer_settings {
     uint16_t fps;
@@ -14,8 +15,9 @@ struct ir_camera_timer_settings {
     uint16_t arr; // full period to trigger the camera (1/FPS), in timer unit
                   // (FREQ/(PSC+1))
     uint16_t ccr; // on-time in timer unit (FREQ/(PSC+1)), 940nm & 850nm LEDs
-    uint32_t ccr_740nm; // 740nm LEDs w/ different duty cycle constraints
+    uint16_t ccr_740nm; // 740nm LEDs w/ different duty cycle constraints
     uint16_t on_time_in_us;
+    uint32_t on_time_in_us_740nm;
 };
 
 void

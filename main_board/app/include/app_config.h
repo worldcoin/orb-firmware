@@ -11,7 +11,7 @@
 
 // Power management thread
 #define THREAD_PRIORITY_POWER_MANAGEMENT   3
-#define THREAD_STACK_SIZE_POWER_MANAGEMENT 512
+#define THREAD_STACK_SIZE_POWER_MANAGEMENT 1024
 
 // Runner / default message processing
 #define THREAD_PRIORITY_RUNNER   6
@@ -29,10 +29,6 @@
 #define THREAD_PRIORITY_LIQUID_LENS   7
 #define THREAD_STACK_SIZE_LIQUID_LENS 512
 
-// Battery
-#define THREAD_PRIORITY_BATTERY   8
-#define THREAD_STACK_SIZE_BATTERY 1024
-
 // Temperature
 #define THREAD_PRIORITY_TEMPERATURE   8
 #define THREAD_STACK_SIZE_TEMPERATURE 1024
@@ -42,6 +38,12 @@
 #define THREAD_STACK_SIZE_1DTOF 1024
 
 #define THREAD_PRIORITY_MOTORS_INIT 8
+
+#define THREAD_PRIORITY_BATTERY   8
+#define THREAD_STACK_SIZE_BATTERY 1024
+
+#define THREAD_PRIORITY_GNSS   9
+#define THREAD_STACK_SIZE_GNSS 1024
 
 // Testing threads
 // - CAN
@@ -55,11 +57,10 @@
 // main thread priority                 10
 // logging thread priority              14
 
-#define SYS_INIT_POWER_SUPPLY_PHASE2_PRIORITY   55
-#define SYS_INIT_FAN_INIT_PRIORITY              54
-#define SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY 53
-#define SYS_INIT_UI_LEDS_PRIORITY               52
-#define SYS_INIT_POWER_SUPPLY_PHASE1_PRIORITY   51
+#define SYS_INIT_UI_LEDS_PRIORITY               54
+#define SYS_INIT_FAN_INIT_PRIORITY              53
+#define SYS_INIT_POWER_SUPPLY_INIT_PRIORITY     52
+#define SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY 51
 
 ///////////////////////////////////////
 /// CAN bus config                  ///
