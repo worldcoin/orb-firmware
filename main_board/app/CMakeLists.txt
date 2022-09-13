@@ -9,15 +9,15 @@ if(RUN_ALL_TESTS)
 endif()
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
-    message(STATUS "Maximum optimization for speed")
+    message(STATUS "Building ${CMAKE_BUILD_TYPE}: optimized for speed")
 
     # Add configuration file to overwrite debug configuration
     list(APPEND OVERLAY_CONFIG "release.conf")
+    set(ZEPHYR_C_FLAGS)
 else ()
-    message(STATUS "Minimal optimization, debug info included, logging enabled")
-    #-fsanitize=undefined -fsanitize-undefined-trap-on-error
-    add_compile_options(-Og -g)
+    message(STATUS "Building default: debug info included")
     add_compile_definitions(DEBUG)
+    set(ZEPHYR_C_FLAGS -Og -g3)
 
     list(APPEND OVERLAY_CONFIG "debug.conf")
 endif ()
@@ -124,6 +124,8 @@ set_source_files_properties(${SOURCES_FILES} PROPERTIES COMPILE_OPTIONS "${APP_F
 
 target_sources(${TARGET} PRIVATE ${SOURCES_FILES})
 target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIRS})
+
+zephyr_compile_options(${ZEPHYR_C_FLAGS})
 
 # link with Zephyr modules below
 # - modules/orb-protobuf-definitions: data format definitions and serializer/deserializer for messages between MCU, Jetson and Security MCU
