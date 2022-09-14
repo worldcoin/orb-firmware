@@ -4,9 +4,12 @@
 #include <app_assert.h>
 #include <can_messaging.h>
 #include <errors.h>
-#include <log_backend_can.h>
 #include <pb_encode.h>
 #include <utils.h>
+
+#ifdef CONFIG_ORB_LIB_LOG_BACKEND_CAN
+#include <log_backend_can.h>
+#endif
 
 void
 print_log_can(const char *data, size_t size, bool blocking)
