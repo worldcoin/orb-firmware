@@ -38,6 +38,7 @@ static bool reboot_pending_shutdown_req_line = false;
 static uint32_t reboot_delay_s = 0;
 static struct gpio_callback shutdown_cb_data;
 
+#ifdef CONFIG_LOG
 // log immediately, i.e., log and wait for messages to flush
 #define LOG_INF_IMM(...)                                                       \
     LOG_INF(__VA_ARGS__);                                                      \
@@ -54,6 +55,10 @@ static struct gpio_callback shutdown_cb_data;
         while (LOG_PROCESS() && --log_buffered_count)                          \
             ;                                                                  \
     } while (0)
+#else
+#define LOG_INF_IMM(...)
+#define LOG_ERR_IMM(...)
+#endif
 
 #define FORMAT_STRING "Checking that %s is ready... "
 
@@ -331,9 +336,12 @@ reboot_thread()
 
     LOG_INF("Going down!");
 
+#ifdef CONFIG_LOG
     uint32_t log_buffered_count = log_buffered_cnt();
     while (LOG_PROCESS() && --log_buffered_count)
         ;
+#endif
+
     NVIC_SystemReset();
 }
 
