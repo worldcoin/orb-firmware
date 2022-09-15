@@ -25,7 +25,7 @@ static const struct device *uart_dev = DEVICE_DT_GET(GNSS_CTRL);
 K_SEM_DEFINE(tx_done_sem, 0, 1);
 
 static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_GNSS);
-static struct k_thread thread_data;
+static struct k_thread gnss_thread_data;
 
 static uint8_t uart_buffer1[NMEA_MAX_SIZE * 2];
 static uint8_t uart_buffer2[sizeof uart_buffer1];
@@ -182,7 +182,10 @@ gnss_thread_entry_point()
         if (ch == '$') { // NMEA 0183 message start
             ret = parse_nmea(msg);
             if (ret == RET_SUCCESS) {
-                LOG_DBG("Got NMEA message: %s", msg);
+                // prevent new line characters from being printed by using
+                // length `strlen(msg) - 2`
+                LOG_DBG("Got NMEA message: %.*s", strlen(msg) - 2, msg);
+
                 send_nmea_message(msg);
             }
         } // else ignore until we see something we recognize
@@ -205,9 +208,10 @@ gnss_init(void)
         return RET_ERROR_INVALID_STATE;
     }
 
-    k_thread_create(&thread_data, stack_area, K_THREAD_STACK_SIZEOF(stack_area),
-                    gnss_thread_entry_point, NULL, NULL, NULL,
-                    THREAD_PRIORITY_GNSS, 0, K_NO_WAIT);
+    k_thread_create(&gnss_thread_data, stack_area,
+                    K_THREAD_STACK_SIZEOF(stack_area), gnss_thread_entry_point,
+                    NULL, NULL, NULL, THREAD_PRIORITY_GNSS, 0, K_NO_WAIT);
+    k_thread_name_set(&gnss_thread_data, "gnss");
 
     ret = uart_rx_enable(uart_dev, uart_buffer1, sizeof uart_buffer1, 1000);
     if (ret) {
