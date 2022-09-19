@@ -231,26 +231,4 @@ pyocd rtt --target=stm32g474vetx
 
 ## Contributing
 
-### Pre-commit hooks
-
-These pre-commit hooks will be checked in CI, so it behooves you to install them now. This requires the `pre-commit`
-python package to be installed like so: `pip3 install pre-commit`.
-
-```shell
-cd "$REPO_DIR"/orb && pre-commit install -c utils/format/pre-commit-config.yaml
-```
-
-### Check Formatting
-
-Manually:
-
-```shell
-cd "$REPO_DIR" && pre-commit run --all-files --config orb/utils/format/pre-commit-config.yaml
-```
-
-Using Docker:
-
-```shell
-cd "$REPO_DIR"/orb/utils/docker
-make format
-```
+See [the contribution guide](CONTRIBUTING.md).
