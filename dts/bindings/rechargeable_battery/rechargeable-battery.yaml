@@ -1,0 +1,30 @@
+---
+description: Pins allowing management of a rechargeable battery
+
+compatible: "rechargeable-battery"
+
+properties:
+  charge-enable-gpios:
+    type: phandle-array
+    required: true
+    description: Enable charging of the battery
+  is-charging-gpios:
+    type: phandle-array
+    required: true
+    description: Battery is currently charging
+  is-fully-charged-gpios:
+    type: phandle-array
+    required: false
+    description: Battery is fully charged
+  power-input-enabled-gpios:
+    type: phandle-array
+    required: false
+    description: Power input is available to charge the battery
+  io-channels:
+    type: phandle-array
+    required: false
+    description: ADC conversion channels for battery voltage and battery NTC (temperature)
+  io-channel-names:
+    required: false
+    type: string-array
+    description: ADC conversion channel names ("battery_voltage", "battery_ntc" or "power_input")
