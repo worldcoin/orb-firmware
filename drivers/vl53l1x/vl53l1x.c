@@ -76,7 +76,7 @@ vl53l1x_start(const struct device *dev)
             vl53l1x_dev_info.ProductRevisionMinor);
 
     ret = VL53L1_RdWord(&drv_data->vl53l1x, VL53L1_IDENTIFICATION__MODEL_ID,
-                        (uint16_t *)&vl53l1x_id);
+                        &vl53l1x_id);
     if ((ret < 0) || (vl53l1x_id != VL53L1X_CHIP_ID)) {
         LOG_ERR("[%s] Issue on device identification", dev->name);
         return -ENOTSUP;
