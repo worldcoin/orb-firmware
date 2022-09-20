@@ -20,6 +20,10 @@ properties:
     type: phandle-array
     required: false
     description: Power input is available to charge the battery
+  bat-meas-enable-gpios:
+    type: phandle-array
+    required: false
+    description: Enable circuitry for battery voltage measurement
   io-channels:
     type: phandle-array
     required: false
@@ -27,4 +31,4 @@ properties:
   io-channel-names:
     required: false
     type: string-array
-    description: ADC conversion channel names ("battery_voltage", "battery_ntc" or "power_input")
+    description: ADC conversion channel names ("battery_voltage" or "battery_ntc")
