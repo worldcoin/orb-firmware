@@ -82,13 +82,6 @@ vl53l1x_start(const struct device *dev)
         return -ENOTSUP;
     }
 
-    ret = VL53L1_WaitDeviceBooted(&drv_data->vl53l1x);
-    if (ret < 0) {
-        LOG_ERR("[%s] VL53L1_WaitDeviceBooted return error (%d)", dev->name,
-                ret);
-        return -ENOTSUP;
-    }
-
     /* sensor init */
     ret = VL53L1_DataInit(&drv_data->vl53l1x);
     if (ret < 0) {
