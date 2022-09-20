@@ -18,6 +18,7 @@ dependencies:
   - pre-commit
   - libusb
   - openocd
+  - multi-arch-gdb
   - pip
   - pip:
       - west
