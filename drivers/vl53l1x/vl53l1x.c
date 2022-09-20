@@ -99,32 +99,31 @@ vl53l1x_start(const struct device *dev)
     ret = VL53L1_StaticInit(&drv_data->vl53l1x);
     if (ret) {
         LOG_ERR("[%s] VL53L1_StaticInit failed: %d", dev->name, ret);
-        goto exit;
+        return ret;
     }
 
     ret = VL53L1_SetDistanceMode(&drv_data->vl53l1x, VL53L1_DISTANCEMODE_SHORT);
     if (ret) {
         LOG_ERR("[%s] VL53L1_SetDistanceMode failed: %d", dev->name, ret);
-        goto exit;
+        return ret;
     }
 
     ret = VL53L1_PerformRefSpadManagement(&drv_data->vl53l1x);
     if (ret) {
         LOG_ERR("[%s] VL53L1_PerformRefSpadManagement failed: %d", dev->name,
                 ret);
-        goto exit;
+        return ret;
     }
 
     ret = VL53L1_StartMeasurement(&drv_data->vl53l1x);
     if (ret) {
         LOG_ERR("[%s] VL53L1_StartMeasurement failed: %d", dev->name, ret);
-        goto exit;
+        return ret;
     }
 
     drv_data->started = true;
     LOG_DBG("[%s] Started", dev->name);
 
-exit:
     return ret;
 }
 
@@ -218,7 +217,7 @@ static const struct sensor_driver_api vl53l1x_api_funcs = {
 static int
 vl53l1x_init(const struct device *dev)
 {
-    int r;
+    int ret;
     struct vl53l1x_data *drv_data = dev->data;
     const struct vl53l1x_config *const config = dev->config;
 
@@ -227,15 +226,16 @@ vl53l1x_init(const struct device *dev)
     drv_data->vl53l1x.i2c = config->i2c.bus;
 
     if (config->xshut.port) {
-        r = gpio_pin_configure_dt(&config->xshut, GPIO_OUTPUT);
-        if (r < 0) {
+        ret = gpio_pin_configure_dt(&config->xshut, GPIO_OUTPUT);
+        if (ret < 0) {
             LOG_ERR("[%s] Unable to configure GPIO as output", dev->name);
+            return ret;
         }
     }
 
-    r = vl53l1x_start(dev);
-    if (r) {
-        return r;
+    ret = vl53l1x_start(dev);
+    if (ret) {
+        return ret;
     }
 
     LOG_DBG("[%s] Initialized", dev->name);
