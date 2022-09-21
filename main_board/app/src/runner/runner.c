@@ -22,7 +22,7 @@
 #include <zephyr.h>
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(runner);
+LOG_MODULE_REGISTER(runner, CONFIG_RUNNER_LOG_LEVEL);
 
 static K_THREAD_STACK_DEFINE(auto_homing_stack, 600);
 static struct k_thread auto_homing_thread;
@@ -90,21 +90,21 @@ handle_err_code(void *ctx, int err)
 
     switch (err) {
     case RET_SUCCESS:
-        ack.ack_number = Ack_ErrorCode_SUCCESS;
+        ack.error = Ack_ErrorCode_SUCCESS;
         break;
 
     case RET_ERROR_INVALID_PARAM:
     case RET_ERROR_NOT_FOUND:
-        ack.ack_number = Ack_ErrorCode_RANGE;
+        ack.error = Ack_ErrorCode_RANGE;
         break;
 
     case RET_ERROR_BUSY:
     case RET_ERROR_INVALID_STATE:
-        ack.ack_number = Ack_ErrorCode_IN_PROGRESS;
+        ack.error = Ack_ErrorCode_IN_PROGRESS;
         break;
 
     case RET_ERROR_FORBIDDEN:
-        ack.ack_number = Ack_ErrorCode_OPERATION_NOT_SUPPORTED;
+        ack.error = Ack_ErrorCode_OPERATION_NOT_SUPPORTED;
         break;
 
     default:
@@ -350,6 +350,11 @@ handle_mirror_angle_message(job_t *job)
     int32_t vertical_angle =
         msg->message.j_message.payload.mirror_angle.vertical_angle;
 
+    if (auto_homing_tid != NULL || motors_auto_homing_in_progress()) {
+        job_ack(Ack_ErrorCode_IN_PROGRESS, job);
+        return;
+    }
+
     if (horizontal_angle > MOTORS_ANGLE_HORIZONTAL_MAX ||
         horizontal_angle < MOTORS_ANGLE_HORIZONTAL_MIN) {
         LOG_ERR("Horizontal angle of %u out of range [%u;%u]", horizontal_angle,
@@ -403,22 +408,45 @@ handle_fan_speed(job_t *job)
     McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_fan_speed_tag);
 
-    uint32_t fan_speed_percentage =
-        msg->message.j_message.payload.fan_speed.payload.percentage;
+    // value and percentage have the same representation,
+    // so there's no point switching on which one
+    uint32_t fan_speed = msg->message.j_message.payload.fan_speed.payload.value;
 
     if (temperature_is_in_overtemp()) {
         LOG_WRN("Fan speed command rejected do to overtemperature condition");
         job_ack(Ack_ErrorCode_OVER_TEMPERATURE, job);
     } else {
-        if (fan_speed_percentage > 100) {
-            LOG_ERR("Got fan speed of %u out of range [0;100]",
-                    fan_speed_percentage);
-            job_ack(Ack_ErrorCode_RANGE, job);
-        } else {
-            LOG_DBG("Got fan speed message: %u%%", fan_speed_percentage);
+        switch (msg->message.j_message.payload.fan_speed.which_payload) {
+        case 0: /* no tag provided with legacy API */
+        case FanSpeed_percentage_tag:
+            if (fan_speed > 100) {
+                LOG_ERR("Got fan speed of %" PRIu32 " out of range [0;100]",
+                        fan_speed);
+                job_ack(Ack_ErrorCode_RANGE, job);
+            } else {
+                LOG_DBG("Got fan speed percentage message: %" PRIu32 "%%",
+                        fan_speed);
 
-            fan_set_speed(fan_speed_percentage);
-            job_ack(Ack_ErrorCode_SUCCESS, job);
+                fan_set_speed_by_percentage(fan_speed);
+                job_ack(Ack_ErrorCode_SUCCESS, job);
+            }
+            break;
+        case FanSpeed_value_tag:
+            if (fan_speed > UINT16_MAX) {
+                LOG_ERR("Got fan speed of %" PRIu32 " out of range [0;%u]",
+                        fan_speed, UINT16_MAX);
+                job_ack(Ack_ErrorCode_RANGE, job);
+            } else {
+                LOG_DBG("Got fan speed value message: %" PRIu32, fan_speed);
+
+                fan_set_speed_by_value(fan_speed);
+                job_ack(Ack_ErrorCode_SUCCESS, job);
+            }
+            break;
+        default:
+            job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+            ASSERT_SOFT(RET_ERROR_INTERNAL);
+            break;
         }
     }
 }
@@ -435,6 +463,10 @@ handle_user_leds_pattern(job_t *job)
         msg->message.j_message.payload.user_leds_pattern.start_angle;
     int32_t angle_length =
         msg->message.j_message.payload.user_leds_pattern.angle_length;
+    uint32_t pulsing_period_ms =
+        msg->message.j_message.payload.user_leds_pattern.pulsing_period_ms;
+    float pulsing_scale =
+        msg->message.j_message.payload.user_leds_pattern.pulsing_scale;
 
     LOG_DBG("Got new user RBG pattern message: %d, start %uº, angle length %dº",
             pattern, start_angle, angle_length);
@@ -445,12 +477,100 @@ handle_user_leds_pattern(job_t *job)
     } else {
         RgbColor *color_ptr = NULL;
         if (msg->message.j_message.payload.user_leds_pattern.pattern ==
-            UserLEDsPattern_UserRgbLedPattern_RGB) {
+                UserLEDsPattern_UserRgbLedPattern_RGB ||
+            msg->message.j_message.payload.user_leds_pattern.pattern ==
+                UserLEDsPattern_UserRgbLedPattern_PULSING_RGB) {
             color_ptr =
                 &msg->message.j_message.payload.user_leds_pattern.custom_color;
         }
-        front_leds_set_pattern(pattern, start_angle, angle_length, color_ptr);
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        ret_code_t ret =
+            front_leds_set_pattern(pattern, start_angle, angle_length,
+                                   color_ptr, pulsing_period_ms, pulsing_scale);
+
+        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+                job);
+    }
+}
+
+static void
+handle_user_center_leds_sequence(job_t *job)
+{
+    McuMessage *msg = &job->mcu_message;
+    MAKE_ASSERTS(JetsonToMcu_center_leds_sequence_tag);
+
+    ret_code_t ret;
+    uint32_t data_format =
+        msg->message.j_message.payload.center_leds_sequence.which_data_format;
+
+    switch (data_format) {
+    case UserCenterLEDsSequence_rgb_uncompressed_tag:;
+        uint8_t *bytes = msg->message.j_message.payload.center_leds_sequence
+                             .data_format.rgb_uncompressed.bytes;
+        uint32_t size = msg->message.j_message.payload.center_leds_sequence
+                            .data_format.rgb_uncompressed.size;
+
+        ret = front_leds_set_center_leds_sequence(bytes, size);
+        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+                job);
+        break;
+    default:
+        LOG_WRN("Unkown data format: %" PRIu32, data_format);
+        job_ack(Ack_ErrorCode_FAIL, job);
+    }
+}
+
+static void
+handle_user_ring_leds_sequence(job_t *job)
+{
+    McuMessage *msg = &job->mcu_message;
+    MAKE_ASSERTS(JetsonToMcu_ring_leds_sequence_tag);
+
+    ret_code_t ret;
+    uint32_t data_format =
+        msg->message.j_message.payload.ring_leds_sequence.which_data_format;
+
+    switch (data_format) {
+    case UserRingLEDsSequence_rgb_uncompressed_tag:;
+        uint8_t *bytes = msg->message.j_message.payload.ring_leds_sequence
+                             .data_format.rgb_uncompressed.bytes;
+        uint32_t size = msg->message.j_message.payload.ring_leds_sequence
+                            .data_format.rgb_uncompressed.size;
+
+        ret = front_leds_set_ring_leds_sequence(bytes, size);
+        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+                job);
+        break;
+    default:
+        LOG_WRN("Unkown data format: %" PRIu32, data_format);
+        job_ack(Ack_ErrorCode_FAIL, job);
+    }
+}
+
+static void
+handle_distributor_leds_sequence(job_t *job)
+{
+    McuMessage *msg = &job->mcu_message;
+    MAKE_ASSERTS(JetsonToMcu_distributor_leds_sequence_tag);
+
+    ret_code_t ret;
+    uint32_t data_format = msg->message.j_message.payload
+                               .distributor_leds_sequence.which_data_format;
+
+    switch (data_format) {
+    case DistributorLEDsSequence_rgb_uncompressed_tag:;
+        uint8_t *bytes =
+            msg->message.j_message.payload.distributor_leds_sequence.data_format
+                .rgb_uncompressed.bytes;
+        uint32_t size = msg->message.j_message.payload.distributor_leds_sequence
+                            .data_format.rgb_uncompressed.size;
+
+        ret = operator_leds_set_leds_sequence(bytes, size);
+        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+                job);
+        break;
+    default:
+        LOG_WRN("Unkown data format: %" PRIu32, data_format);
+        job_ack(Ack_ErrorCode_FAIL, job);
     }
 }
 
@@ -716,6 +836,11 @@ handle_mirror_angle_relative_message(job_t *job)
     int32_t vertical_angle =
         msg->message.j_message.payload.mirror_angle_relative.vertical_angle;
 
+    if (auto_homing_tid != NULL || motors_auto_homing_in_progress()) {
+        job_ack(Ack_ErrorCode_IN_PROGRESS, job);
+        return;
+    }
+
     if (abs(horizontal_angle) > MOTORS_ANGLE_HORIZONTAL_RANGE) {
         LOG_ERR("Horizontal angle of %u out of range (max %u)",
                 horizontal_angle, MOTORS_ANGLE_HORIZONTAL_RANGE);
@@ -805,10 +930,14 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_mirror_angle_relative_tag] =
         handle_mirror_angle_relative_message,
     [JetsonToMcu_value_get_tag] = handle_value_get_message,
+    [JetsonToMcu_center_leds_sequence_tag] = handle_user_center_leds_sequence,
+    [JetsonToMcu_distributor_leds_sequence_tag] =
+        handle_distributor_leds_sequence,
+    [JetsonToMcu_ring_leds_sequence_tag] = handle_user_ring_leds_sequence,
 };
 
 static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 34,
+    ARRAY_SIZE(handle_message_callbacks) <= 37,
     "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
@@ -820,10 +949,11 @@ runner_process_jobs_thread()
     while (1) {
         ret = k_msgq_get(&process_queue, &new, K_FOREVER);
         if (ret != 0) {
+            ASSERT_SOFT(ret);
             continue;
         }
 
-        LOG_INF("⬇️ Received message from remote 0x%03x with payload ID "
+        LOG_DBG("⬇️ Received message from remote 0x%03x with payload ID "
                 "%02d, ack #%u",
                 new.remote_addr,
                 new.mcu_message.message.j_message.which_payload,

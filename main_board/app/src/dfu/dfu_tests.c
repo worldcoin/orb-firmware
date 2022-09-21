@@ -51,11 +51,12 @@ test_dfu_upload()
     LOG_INF("Writing %u blocks for the test", block_to_send);
 
     while (block_to_send--) {
-        pb_ostream_t stream =
-            pb_ostream_from_buffer(to_send.bytes, sizeof(to_send.bytes));
+        uint8_t buffer[CAN_FRAME_MAX_SIZE];
+        pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
         bool encoded = pb_encode_ex(&stream, McuMessage_fields, &dfu_block,
                                     PB_ENCODE_DELIMITED);
         to_send.size = stream.bytes_written;
+        to_send.bytes = buffer;
         to_send.destination = 0;
 
         if (encoded) {

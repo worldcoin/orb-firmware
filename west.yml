@@ -6,7 +6,7 @@ manifest:
     remote: worldcoin
   projects:
     - name: zephyr
-      revision: eb2e718556715304891df12e54d24618bf85623c
+      revision: zephyr-v3.1.0
       import:
         name-allowlist:
           - cmsis
@@ -16,7 +16,7 @@ manifest:
           - nanopb
           - hal_st
     - name: protobuf-definitions
-      revision: a67bf98a760965d1344b75e3334398727551eecc
+      revision: 84c5fa7970694a7d666b539d60987acdc1c36699
       path: modules/orb-protobuf-definitions
     - name: plug-and-trust
       revision: dc8923582abfb50840af9ce346a3cf4dd8ecf395

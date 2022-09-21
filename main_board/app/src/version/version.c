@@ -7,7 +7,7 @@
 #include <drivers/gpio.h>
 #include <logging/log.h>
 
-LOG_MODULE_REGISTER(version);
+LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
 
 // Hardware version can be fetched using UC_ADC_HW_VERSION on the main board:
 // - 3.0 firmware is specific, so we can provide an hardcoded implementation
@@ -18,10 +18,6 @@ LOG_MODULE_REGISTER(version);
 ret_code_t
 version_get_hardware_rev(uint16_t *hw_version)
 {
-#if defined(CONFIG_BOARD_MCU_MAIN_V30)
-    *hw_version = 30;
-    return RET_SUCCESS;
-#elif defined(CONFIG_BOARD_MCU_MAIN_V31)
     static uint16_t version = 0;
 
     // read only once and keep hardware version into `version`
@@ -50,9 +46,6 @@ version_get_hardware_rev(uint16_t *hw_version)
     *hw_version = version;
 
     return RET_SUCCESS;
-#else
-#error board unknown
-#endif
 }
 
 int

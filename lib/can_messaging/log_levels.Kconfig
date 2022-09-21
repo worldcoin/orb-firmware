@@ -1,0 +1,19 @@
+module = CAN_MESSAGING
+module-str = CAN_MESSAGING
+source "subsys/logging/Kconfig.template.log_config"
+
+module = CAN_TX
+module-str = CAN_TX
+source "subsys/logging/Kconfig.template.log_config"
+
+module = ISOTP_TX
+module-str = ISOTP_TX
+source "subsys/logging/Kconfig.template.log_config"
+
+module = CAN_RX
+module-str = CAN_RX
+source "subsys/logging/Kconfig.template.log_config"
+
+module = ISOTP_RX
+module-str = ISOTP_RX
+source "subsys/logging/Kconfig.template.log_config"

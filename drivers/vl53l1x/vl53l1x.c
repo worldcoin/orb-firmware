@@ -76,16 +76,9 @@ vl53l1x_start(const struct device *dev)
             vl53l1x_dev_info.ProductRevisionMinor);
 
     ret = VL53L1_RdWord(&drv_data->vl53l1x, VL53L1_IDENTIFICATION__MODEL_ID,
-                        (uint16_t *)&vl53l1x_id);
+                        &vl53l1x_id);
     if ((ret < 0) || (vl53l1x_id != VL53L1X_CHIP_ID)) {
         LOG_ERR("[%s] Issue on device identification", dev->name);
-        return -ENOTSUP;
-    }
-
-    ret = VL53L1_WaitDeviceBooted(&drv_data->vl53l1x);
-    if (ret < 0) {
-        LOG_ERR("[%s] VL53L1_WaitDeviceBooted return error (%d)", dev->name,
-                ret);
         return -ENOTSUP;
     }
 
@@ -99,32 +92,31 @@ vl53l1x_start(const struct device *dev)
     ret = VL53L1_StaticInit(&drv_data->vl53l1x);
     if (ret) {
         LOG_ERR("[%s] VL53L1_StaticInit failed: %d", dev->name, ret);
-        goto exit;
+        return ret;
     }
 
     ret = VL53L1_SetDistanceMode(&drv_data->vl53l1x, VL53L1_DISTANCEMODE_SHORT);
     if (ret) {
         LOG_ERR("[%s] VL53L1_SetDistanceMode failed: %d", dev->name, ret);
-        goto exit;
+        return ret;
     }
 
     ret = VL53L1_PerformRefSpadManagement(&drv_data->vl53l1x);
     if (ret) {
         LOG_ERR("[%s] VL53L1_PerformRefSpadManagement failed: %d", dev->name,
                 ret);
-        goto exit;
+        return ret;
     }
 
     ret = VL53L1_StartMeasurement(&drv_data->vl53l1x);
     if (ret) {
         LOG_ERR("[%s] VL53L1_StartMeasurement failed: %d", dev->name, ret);
-        goto exit;
+        return ret;
     }
 
     drv_data->started = true;
     LOG_DBG("[%s] Started", dev->name);
 
-exit:
     return ret;
 }
 
@@ -191,6 +183,17 @@ vl53l1x_channel_get(const struct device *dev, enum sensor_channel chan,
         }
         val->val2 = 0;
     } else if (chan == SENSOR_CHAN_DISTANCE) {
+        LOG_DBG("range status: %d",
+                drv_data->RangingMeasurementData.RangeStatus);
+        LOG_DBG("ambient rate: %u",
+                drv_data->RangingMeasurementData.AmbientRateRtnMegaCps);
+
+        // filter out invalid ranges
+        if (drv_data->RangingMeasurementData.RangeStatus != 0) {
+            return -ENOMSG;
+        }
+
+        // value in meters
         val->val1 = drv_data->RangingMeasurementData.RangeMilliMeter / 1000;
         val->val2 =
             (drv_data->RangingMeasurementData.RangeMilliMeter % 1000) * 1000;
@@ -209,7 +212,7 @@ static const struct sensor_driver_api vl53l1x_api_funcs = {
 static int
 vl53l1x_init(const struct device *dev)
 {
-    int r;
+    int ret;
     struct vl53l1x_data *drv_data = dev->data;
     const struct vl53l1x_config *const config = dev->config;
 
@@ -218,15 +221,16 @@ vl53l1x_init(const struct device *dev)
     drv_data->vl53l1x.i2c = config->i2c.bus;
 
     if (config->xshut.port) {
-        r = gpio_pin_configure_dt(&config->xshut, GPIO_OUTPUT);
-        if (r < 0) {
+        ret = gpio_pin_configure_dt(&config->xshut, GPIO_OUTPUT);
+        if (ret < 0) {
             LOG_ERR("[%s] Unable to configure GPIO as output", dev->name);
+            return ret;
         }
     }
 
-    r = vl53l1x_start(dev);
-    if (r) {
-        return r;
+    ret = vl53l1x_start(dev);
+    if (ret) {
+        return ret;
     }
 
     LOG_DBG("[%s] Initialized", dev->name);

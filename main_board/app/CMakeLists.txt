@@ -9,15 +9,15 @@ if(RUN_ALL_TESTS)
 endif()
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
-    message(STATUS "Maximum optimization for speed")
+    message(STATUS "Building ${CMAKE_BUILD_TYPE}: optimized for speed")
 
     # Add configuration file to overwrite debug configuration
     list(APPEND OVERLAY_CONFIG "release.conf")
+    set(ZEPHYR_C_FLAGS -mfloat-abi=hard -mfpu=fpv4-sp-d16)
 else ()
-    message(STATUS "Minimal optimization, debug info included, logging enabled")
-    #-fsanitize=undefined -fsanitize-undefined-trap-on-error
-    add_compile_options(-Og -g)
+    message(STATUS "Building default: debug info included")
     add_compile_definitions(DEBUG)
+    set(ZEPHYR_C_FLAGS -mfloat-abi=hard -mfpu=fpv4-sp-d16)
 
     list(APPEND OVERLAY_CONFIG "debug.conf")
 endif ()
@@ -39,7 +39,7 @@ set_property(GLOBAL PROPERTY CSTD gnu11)
 if (DEFINED ENV{BOARD})
     set(BOARD $ENV{BOARD})
 else ()
-    set(BOARD mcu_main_v31)
+    set(BOARD mcu_main)
 endif ()
 
 # Get our custom boards definitions before loading Zephyr
@@ -109,16 +109,12 @@ set(SOURCES_FILES
     src/system/fatal.c
     src/system/logs.c
     src/version/version.c
-    )
 
-if (DEFINED CONFIG_BOARD_MCU_MAIN_V31)
-    list(APPEND SOURCES_FILES src/ir_camera_system/ir_camera_system_v31.c)
-    list(APPEND SOURCES_FILES src/battery/battery.c)
-elseif (DEFINED CONFIG_BOARD_MCU_MAIN_V30)
-    list(APPEND SOURCES_FILES src/ir_camera_system/ir_camera_system_v30.c)
-else ()
-    message(FATAL_ERROR "Please build for board 'mcu_main_v31' or 'mcu_main_v30'")
-endif ()
+    src/gnss/gnss.c
+
+    src/ir_camera_system/ir_camera_system.c
+    src/battery/battery.c
+    )
 
 set(INCLUDE_DIRS
     include
@@ -131,6 +127,8 @@ set_source_files_properties(${SOURCES_FILES} PROPERTIES COMPILE_OPTIONS "${APP_F
 target_sources(${TARGET} PRIVATE ${SOURCES_FILES})
 target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIRS})
 
+zephyr_compile_options(${ZEPHYR_C_FLAGS})
+
 # link with Zephyr modules below
 # - modules/orb-protobuf-definitions: data format definitions and serializer/deserializer for messages between MCU, Jetson and Security MCU
 # - bootloader/mcuboot/boot/bootutil: public functions to access/modify mcuboot data from the application
@@ -138,7 +136,7 @@ if (CONFIG_ORB_PROTOBUF_DEFINITIONS_LIB)
     zephyr_link_libraries(ORB_PROTOBUF_DEFINITIONS_LIB)
     # dependency below doesn't have to be forced if using West but must be added when using CMake only
     # to build zephyr_final
-    add_dependencies(zephyr_final generate_proto_files)
+    add_dependencies(app generate_proto_files)
 endif ()
 zephyr_link_libraries_ifdef(CONFIG_MCUBOOT_BOOTUTIL_LIB MCUBOOT_BOOTUTIL)
 

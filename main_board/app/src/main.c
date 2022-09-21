@@ -3,6 +3,7 @@
 #include "battery/battery.h"
 #include "button/button.h"
 #include "fan/fan.h"
+#include "gnss/gnss.h"
 #include "ir_camera_system/ir_camera_system.h"
 #include "liquid_lens/liquid_lens.h"
 #include "power_sequence/power_sequence.h"
@@ -70,13 +71,16 @@ app_assert_cb(fatal_error_info_t *err_info)
         McuMessage fatal_error = {.which_message = McuMessage_m_message_tag,
                                   .message.m_message.which_payload =
                                       McuToJetson_fatal_error_tag};
-        can_message_t to_send;
-        pb_ostream_t stream =
-            pb_ostream_from_buffer(to_send.bytes, sizeof(to_send.bytes));
+
+        uint8_t buffer[CAN_FRAME_MAX_SIZE];
+        pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
         bool encoded = pb_encode_ex(&stream, McuMessage_fields, &fatal_error,
                                     PB_ENCODE_DELIMITED);
-        to_send.size = stream.bytes_written;
-        to_send.destination = CONFIG_CAN_ADDRESS_DEFAULT_REMOTE;
+
+        can_message_t to_send = {.destination =
+                                     CONFIG_CAN_ADDRESS_DEFAULT_REMOTE,
+                                 .bytes = buffer,
+                                 .size = stream.bytes_written};
 
         if (encoded) {
             // important: send in blocking mode
@@ -94,15 +98,22 @@ main(void)
 
     app_assert_init(app_assert_cb);
 
-    // CAN initialization first to allow logs over CAN
     err_code = can_messaging_init(runner_handle_new);
+    ASSERT_SOFT(err_code);
+
+    // check battery state early on
+    err_code = battery_init();
     ASSERT_SOFT(err_code);
 
     err_code = logs_init();
     ASSERT_SOFT(err_code);
 
+#ifndef CONFIG_NO_JETSON_BOOT
     err_code = power_turn_on_jetson();
     ASSERT_SOFT(err_code);
+#endif // CONFIG_NO_JETSON_BOOT
+
+    temperature_init();
 
     err_code = sound_init();
     ASSERT_SOFT(err_code);
@@ -113,7 +124,7 @@ main(void)
     err_code = operator_leds_init();
     ASSERT_SOFT(err_code);
 
-    // PVCC supplies IR LEDs
+#ifndef CONFIG_NO_SUPER_CAPS
     err_code = power_turn_on_super_cap_charger();
     if (err_code == RET_SUCCESS) {
         err_code = power_turn_on_pvcc();
@@ -126,6 +137,10 @@ main(void)
     } else {
         ASSERT_SOFT(err_code);
     }
+#else
+    err_code = ir_camera_system_init();
+    ASSERT_SOFT(err_code);
+#endif // CONFIG_NO_SUPER_CAPS
 
     err_code = motors_init();
     ASSERT_SOFT(err_code);
@@ -147,26 +162,11 @@ main(void)
     ASSERT_SOFT(err_code);
     LOG_INF("Hardware version: %u", hw);
 
-    temperature_init();
-
     err_code = button_init();
     ASSERT_SOFT(err_code);
 
-#ifdef CONFIG_BOARD_MCU_MAIN_V31
-    err_code = battery_init();
+    err_code = gnss_init();
     ASSERT_SOFT(err_code);
-#endif
-
-    // set up operator LED depending on image state
-    if (dfu_primary_is_confirmed()) {
-        operator_leds_set_pattern(
-            DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN,
-            OPERATOR_LEDS_ALL_MASK, NULL);
-    } else {
-        operator_leds_set_pattern(
-            DistributorLEDsPattern_DistributorRgbLedPattern_RGB,
-            OPERATOR_LEDS_ALL_MASK, &(RgbColor)RGB_ORANGE);
-    }
 
     // launch tests if any is defined
     run_tests();

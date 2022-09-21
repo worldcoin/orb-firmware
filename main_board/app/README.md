@@ -45,8 +45,8 @@ To Flash: `make mcu-flash`
 Make sure you are in `"$REPO_DIR"/orb/main_board/app/` directory. Compile the app:
 
 ```shell
-# 'west build' defaults to mcu_main_v31
-west build -b [stm32g484_eval | mcu_main_v30 | mcu_main_v31]
+# 'west build' defaults to mcu_main
+west build -b [stm32g484_eval | mcu_main]
 ```
 
 Flash the app:
@@ -71,6 +71,19 @@ su-exec root pyocd flash combined_mcu_main_<board_version>_<version>.hex --targe
 ```
 
 ## Misc Documentation
+
+### Cmake build options
+
+Use `west build -DCONFIG_<option>=y` to use any of these convenience build options:
+
+- `TEST_IR_CAMERA_SYSTEM`
+- `INSTA_BOOT`
+- `NO_JETSON_BOOT`
+- `NO_BOOT_LEDS`
+- `NO_SUPER_CAPS`
+- `MCU_DEVEL`
+
+Example: `west build -- -DCONFIG_MCU_DEVEL=y`.
 
 ### Memory map
 

@@ -11,13 +11,17 @@ This repo contains Firmware for the several microcontrollers present in the Orb:
 
 ## Setting Up Development Environment
 
-You can set up your development environment directly on your machine, or you may use the provided Docker image.
+You can set up your development environment directly on your machine, or you may
+use the provided Docker image.
 The [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting_started/index.html)
-only has instructions for Ubuntu, MacOS, and Windows. For this guide's description of setting up a native build
-environment
-(i.e., not using a Docker container), we assume your host machine is running Ubuntu 20.04. If you are not using Ubuntu
-20.04, your mileage may vary. Note that all of these steps assume that you have an SSH key set up properly with Github
-and that you have access to all of the MCU repos. These repositories are enumerated in the [west.yml](west.yml) file.
+only has instructions for Ubuntu, macOS, and Windows. For this guide's
+description of setting up a native build environment (i.e., not using a
+Docker container), we assume your host machine is running Ubuntu 20.04/22.04
+or macOS. If you are not using one of those, your mileage may vary. Note that
+we expect [`brew`](https://brew.sh/) to be available on macOS. Note also that
+all of these steps assume that you have an SSH key set up properly with Github
+and that you have access to all of the MCU repos. These repositories are
+enumerated in the [west.yml](west.yml) file.
 
 ### Generic Steps
 
@@ -106,19 +110,50 @@ adaptation of the instructions in the
 
 8. Install a toolchain.
 
-   Zephyr provides toolchains for the following host architectures:
-
-   - `aarch64`
-   - `x86_64`
+   You may change `INSTALL_LOC` to choose an installation location.
+   You may also change `SDK_VER` to choose a specific toolchain version.
 
    ```shell
-   ARCH=$(uname -m)
-   SDK_VER=0.13.1
-   INSTALL_LOC=$HOME/zephyr-sdk-${SDK_VER} # You can also use /opt instead of $HOME
-   wget -P /tmp -nv https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SDK_VER}/zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run
-   chmod +x /tmp/zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run
-   /tmp/zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run -- -d "$INSTALL_LOC"
-   rm /tmp/zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run
+   tmp=$(mktemp)
+   cat > "$tmp" <<EOF
+   #!/bin/bash
+   set -ue
+   set -o pipefail
+   install_zephyr_sdk() {
+    INSTALL_LOC=\$HOME
+    KERNEL=\$(uname -s | tr '[[:upper:]]' '[[:lower:]]')
+    [ "\$KERNEL" = darwin ] && KERNEL=macos
+    ARCH=\$(uname -m)
+    [ "\$ARCH" = arm64 ] && ARCH=aarch64
+    if [ -z "\${SDK_VER-}" ]; then
+        if ! SDK_VER=\$(curl -s https://api.github.com/repos/zephyrproject-rtos/sdk-ng/releases/latest \\
+            | grep tag_name \\
+            | awk '{print substr(\$2, 3, length(\$2)-4)}'); then
+            echo "Some error occured when trying to determine the latest SDK version" >&2
+            return 1
+        fi
+    fi
+    echo "SDK_VER is '\$SDK_VER'"
+    TAR_NAME=zephyr-sdk-\${SDK_VER}_\${KERNEL}-\${ARCH}_minimal.tar.gz
+    echo "TAR_NAME is \$TAR_NAME"
+    URL=https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v\${SDK_VER}/\${TAR_NAME}
+    if [ ! -e "\$INSTALL_LOC/zephyr-sdk-\${SDK_VER}/.__finished" ]; then
+        echo "Downloading \${TAR_NAME}..." &&
+        ( cd "\$INSTALL_LOC" && curl -JLO "\$URL" ) &&
+        echo 'Decompressing...' &&
+        (cd "\$INSTALL_LOC" && tar xf "\$TAR_NAME" ) &&
+        ( cd "\$INSTALL_LOC"/zephyr-sdk-\${SDK_VER} &&
+        ./setup.sh -t arm-zephyr-eabi -h -c ) &&
+        rm "\$INSTALL_LOC/\$TAR_NAME" &&
+        echo > "\$INSTALL_LOC"/zephyr-sdk-\${SDK_VER}/.__finished
+    else
+        echo "SDK already exists. Skipping."
+    fi
+   }
+   install_zephyr_sdk
+   EOF
+   chmod +x "$tmp"
+   "$tmp"
    ```
 
    For the Conda environment:
@@ -129,17 +164,22 @@ adaptation of the instructions in the
     conda env config vars set GNUARMEMB_TOOLCHAIN_PATH=/path/to/your/toolchain/
    ```
 
-9. Install udev rules to allow for flashing as a non-root user.
+9. Install udev rules to allow for flashing as a non-root user (For Linux only).
 
    ```shell
-   sudo cp "$INSTALL_LOC"/sysroots/x86_64-pokysdk-linux/usr/share/openocd/contrib/60-openocd.rules /etc/udev/rules.d
+   sudo cp zephyr-sdk-${SDK_VER}/sysroots/x86_64-pokysdk-linux/usr/share/openocd/contrib/60-openocd.rules /etc/udev/rules.d
    sudo udevadm control --reload
    ```
 
 10. Install the protobuf compiler.
 
     ```shell
-    sudo apt install protobuf-compiler
+    if [ "$(uname -s)" = Darwin ]; then
+        brew install protobuf-c
+    else
+        sudo apt install protobuf-compiler
+    fi
+    pip3 install protobuf grpcio-tools
     ```
 
 11. Install CMSIS Pack for PyOCD
@@ -191,26 +231,4 @@ pyocd rtt --target=stm32g474vetx
 
 ## Contributing
 
-### Pre-commit hooks
-
-These pre-commit hooks will be checked in CI, so it behooves you to install them now. This requires the `pre-commit`
-python package to be installed like so: `pip3 install pre-commit`.
-
-```shell
-cd "$REPO_DIR"/orb && pre-commit install -c utils/format/pre-commit-config.yaml
-```
-
-### Check Formatting
-
-Manually:
-
-```shell
-cd "$REPO_DIR" && pre-commit run --all-files --config orb/utils/format/pre-commit-config.yaml
-```
-
-Using Docker:
-
-```shell
-cd "$REPO_DIR"/orb/utils/docker
-make format
-```
+See [the contribution guide](CONTRIBUTING.md).

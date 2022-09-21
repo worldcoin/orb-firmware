@@ -13,7 +13,7 @@
 #include <stm32_ll_rcc.h>
 #include <sys_clock.h>
 #include <zephyr.h>
-LOG_MODULE_REGISTER(liquid_lens);
+LOG_MODULE_REGISTER(liquid_lens, CONFIG_LIQUID_LENS_LOG_LEVEL);
 
 #define HR_TIMER         (HRTIM_TypeDef *)HRTIM1_BASE
 #define ADC              (ADC_TypeDef *)ADC3_BASE
@@ -69,7 +69,7 @@ static volatile int8_t prev_pwm = 0;
 
 static K_THREAD_STACK_DEFINE(liquid_lens_stack_area,
                              THREAD_STACK_SIZE_LIQUID_LENS);
-static struct k_thread thread_data;
+static struct k_thread liquid_lens_thread_data;
 static k_tid_t thread_id;
 
 static const struct device *dev_dma = DEVICE_DT_GET(LIQUID_LENS_DMA_NODE);
@@ -439,10 +439,10 @@ liquid_lens_init(void)
     irq_connect_dynamic(DMA_CHANNEL_IRQn, 1, &dma_isr, NULL, 0);
     irq_enable(DMA_CHANNEL_IRQn);
 
-    thread_id = k_thread_create(&thread_data, liquid_lens_stack_area,
-                                K_THREAD_STACK_SIZEOF(liquid_lens_stack_area),
-                                liquid_lens_thread, NULL, NULL, NULL,
-                                THREAD_PRIORITY_LIQUID_LENS, 0, K_NO_WAIT);
+    thread_id = k_thread_create(
+        &liquid_lens_thread_data, liquid_lens_stack_area,
+        K_THREAD_STACK_SIZEOF(liquid_lens_stack_area), liquid_lens_thread, NULL,
+        NULL, NULL, THREAD_PRIORITY_LIQUID_LENS, 0, K_NO_WAIT);
     k_thread_name_set(thread_id, "liquid_lens");
 
     return RET_SUCCESS;

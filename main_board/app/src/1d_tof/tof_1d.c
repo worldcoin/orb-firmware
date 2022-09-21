@@ -31,7 +31,9 @@ tof_1d_thread()
         ret = sensor_channel_get(tof_1d_device, SENSOR_CHAN_DISTANCE,
                                  &distance_value);
         if (ret != 0) {
-            LOG_WRN("Error getting data %d", ret);
+            // print error with debug level because the range status
+            // can quickly throw an error when nothing in front of the sensor
+            LOG_DBG("Error getting data %d", ret);
             continue;
         }
 

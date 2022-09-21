@@ -1,5 +1,10 @@
 if (CONFIG_ORB_LIB_ERRORS)
+    if (CONFIG_ORB_LIB_ERRORS_TESTS)
+        set(OPTIONAL_SOURCE_FILES errors_tests.c)
+    endif ()
+
     orb_library(
         app_assert.c
+        ${OPTIONAL_SOURCE_FILES}
     )
 endif ()

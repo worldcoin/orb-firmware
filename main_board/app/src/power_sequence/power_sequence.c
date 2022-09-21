@@ -11,7 +11,8 @@
 #include <logging/log.h>
 #include <stdio.h>
 #include <zephyr.h>
-LOG_MODULE_REGISTER(power_sequence);
+#include <zephyr/logging/log_ctrl.h>
+LOG_MODULE_REGISTER(power_sequence, CONFIG_POWER_SEQUENCE_LOG_LEVEL);
 
 #include "button/button.h"
 #include "power_sequence.h"
@@ -37,6 +38,28 @@ static bool reboot_pending_shutdown_req_line = false;
 static uint32_t reboot_delay_s = 0;
 static struct gpio_callback shutdown_cb_data;
 
+#ifdef CONFIG_LOG
+// log immediately, i.e., log and wait for messages to flush
+#define LOG_INF_IMM(...)                                                       \
+    LOG_INF(__VA_ARGS__);                                                      \
+    do {                                                                       \
+        uint32_t log_buffered_count = log_buffered_cnt();                      \
+        while (LOG_PROCESS() && --log_buffered_count)                          \
+            ;                                                                  \
+    } while (0)
+
+#define LOG_ERR_IMM(...)                                                       \
+    LOG_ERR(__VA_ARGS__);                                                      \
+    do {                                                                       \
+        uint32_t log_buffered_count = log_buffered_cnt();                      \
+        while (LOG_PROCESS() && --log_buffered_count)                          \
+            ;                                                                  \
+    } while (0)
+#else
+#define LOG_INF_IMM(...)
+#define LOG_ERR_IMM(...)
+#endif
+
 #define FORMAT_STRING "Checking that %s is ready... "
 
 static int
@@ -56,139 +79,24 @@ check_is_ready(const struct device *dev, const char *name)
 #define I2C_CLOCK_PIN   DT_GPIO_PIN(I2C_CLOCK_NODE, i2c_clock_gpios)
 #define I2C_CLOCK_FLAGS DT_GPIO_FLAGS(I2C_CLOCK_NODE, i2c_clock_gpios)
 
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-
-#define SUPPLY_5V_PG_NODE  DT_PATH(supply_5v, power_good)
-#define SUPPLY_5V_PG_CTLR  DT_GPIO_CTLR(SUPPLY_5V_PG_NODE, gpios)
-#define SUPPLY_5V_PG_PIN   DT_GPIO_PIN(SUPPLY_5V_PG_NODE, gpios)
-#define SUPPLY_5V_PG_FLAGS DT_GPIO_FLAGS(SUPPLY_5V_PG_NODE, gpios)
-
-#define SUPPLY_3V3_PG_NODE  DT_PATH(supply_3v3, power_good)
-#define SUPPLY_3V3_PG_CTLR  DT_GPIO_CTLR(SUPPLY_3V3_PG_NODE, gpios)
-#define SUPPLY_3V3_PG_PIN   DT_GPIO_PIN(SUPPLY_3V3_PG_NODE, gpios)
-#define SUPPLY_3V3_PG_FLAGS DT_GPIO_FLAGS(SUPPLY_3V3_PG_NODE, gpios)
-
-#define SUPPLY_1V8_PG_NODE  DT_PATH(supply_1v8, power_good)
-#define SUPPLY_1V8_PG_CTLR  DT_GPIO_CTLR(SUPPLY_1V8_PG_NODE, gpios)
-#define SUPPLY_1V8_PG_PIN   DT_GPIO_PIN(SUPPLY_1V8_PG_NODE, gpios)
-#define SUPPLY_1V8_PG_FLAGS DT_GPIO_FLAGS(SUPPLY_1V8_PG_NODE, gpios)
-
-static const struct device *supply_3v3_pg = DEVICE_DT_GET(SUPPLY_3V3_PG_CTLR);
-
-#endif
-
 int
-power_turn_on_supplies_phase1(const struct device *dev)
+power_turn_on_power_supplies(const struct device *dev)
 {
     ARG_UNUSED(dev);
     const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
+    const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
     const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
-
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    const struct device *supply_5v_pg = DEVICE_DT_GET(SUPPLY_5V_PG_CTLR);
-#endif
+    const struct device *supply_3v8 = DEVICE_DT_GET(DT_PATH(supply_3v8));
+    const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
 
     if (check_is_ready(vbat_sw_regulator, "VBAT SW") ||
+        check_is_ready(supply_12v, "12V supply") ||
         check_is_ready(supply_5v, "5V supply") ||
-        check_is_ready(supply_3v3, "3.3V supply")
-#if CONFIG_BOARD_MCU_MAIN_V30
-        || check_is_ready(supply_3v3_pg, "3.3V supply power good pin") ||
-        check_is_ready(supply_5v_pg, "5V supply power good pin")
-#endif
-    ) {
-        return 1;
-    }
-
-    regulator_enable(vbat_sw_regulator, NULL);
-    LOG_INF("VBAT SW enabled");
-    k_msleep(100);
-
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    if (gpio_pin_configure(supply_5v_pg, SUPPLY_5V_PG_PIN,
-                           SUPPLY_5V_PG_FLAGS | GPIO_INPUT)) {
-        LOG_ERR("Error configuring 5v pg pin!");
-        return 1;
-    }
-#endif
-
-    regulator_enable(supply_5v, NULL);
-    LOG_INF("5V power supply enabled");
-
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    LOG_INF("Waiting on power good...");
-    // Wait forever, because if we can't enable this then we can't turn on
-    // anything else
-    while (!gpio_pin_get(supply_5v_pg, SUPPLY_5V_PG_PIN))
-        ;
-    LOG_INF("5V power supply good");
-#else
-    k_msleep(100);
-#endif
-
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    if (gpio_pin_configure(supply_3v3_pg, SUPPLY_3V3_PG_PIN,
-                           SUPPLY_3V3_PG_FLAGS | GPIO_INPUT)) {
-        LOG_ERR("Error configuring 3.3v pg pin!");
-        return 1;
-    }
-#endif
-
-    regulator_enable(supply_3v3, NULL);
-    LOG_INF("3.3V power supply enabled");
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    LOG_INF("Waiting on power good...");
-    // Wait forever, because if we can't enable this then we can't turn on the
-    // fan. If we can't turn on the fan, then we don't want to turn on
-    // anything else
-    while (!gpio_pin_get(supply_3v3_pg, SUPPLY_3V3_PG_PIN))
-        ;
-    LOG_INF("3.3V power supply good");
-#else
-    k_msleep(100);
-#endif
-
-    return 0;
-}
-
-SYS_INIT(power_turn_on_supplies_phase1, POST_KERNEL,
-         SYS_INIT_POWER_SUPPLY_PHASE1_PRIORITY);
-
-int
-power_turn_on_supplies_phase2(const struct device *dev)
-{
-    ARG_UNUSED(dev);
-
-    const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
-    const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
-    const struct device *supply_3v8 = DEVICE_DT_GET(DT_PATH(supply_3v8));
-
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    const struct device *supply_1v8_pg = DEVICE_DT_GET(SUPPLY_1V8_PG_CTLR);
-#endif
-
-    if (check_is_ready(supply_12v, "12V supply") ||
         check_is_ready(supply_3v8, "3.8V supply") ||
-        check_is_ready(supply_1v8, "1.8V supply")
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-        || check_is_ready(supply_1v8_pg, "1.8V supply power good pin")
-#endif
-    ) {
+        check_is_ready(supply_3v3, "3.3V supply") ||
+        check_is_ready(supply_1v8, "1.8V supply")) {
         return 1;
     }
-
-    regulator_enable(supply_3v3, NULL);
-    LOG_INF("3.3V power supply re-enabled");
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    LOG_INF("Waiting on power good...");
-    // Wait forever, because if we can't enable this then we can't turn on the
-    // fan. If we can't turn on the fan, then we don't want to turn on
-    // anything else
-    while (!gpio_pin_get(supply_3v3_pg, SUPPLY_3V3_PG_PIN))
-        ;
-    LOG_INF("3.3V power supply good");
-#else
-    k_msleep(100);
-#endif
 
     // We configure this pin here before we enable 3.3v supply
     // just so that we can disable the automatically-enabled pull-up.
@@ -199,9 +107,22 @@ power_turn_on_supplies_phase2(const struct device *dev)
     // re-configure this pin as SCL.
     if (gpio_pin_configure(i2c_clock, I2C_CLOCK_PIN,
                            GPIO_OUTPUT | I2C_CLOCK_FLAGS)) {
-        LOG_ERR("Error configuring I2C clock pin!");
+        LOG_ERR_IMM("Error configuring I2C clock pin!");
         return 1;
     }
+
+    regulator_enable(vbat_sw_regulator, NULL);
+    LOG_INF("VBAT SW enabled");
+    k_msleep(100);
+
+    regulator_enable(supply_5v, NULL);
+    LOG_INF("5V power supply enabled");
+
+    k_msleep(100);
+
+    regulator_enable(supply_3v3, NULL);
+    LOG_INF("3.3V power supply enabled");
+    k_msleep(100);
 
     regulator_enable(supply_12v, NULL);
     LOG_INF("12V power supply enabled");
@@ -209,33 +130,22 @@ power_turn_on_supplies_phase2(const struct device *dev)
     regulator_enable(supply_3v8, NULL);
     LOG_INF("3.8V power supply enabled");
 
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    if (gpio_pin_configure(supply_1v8_pg, SUPPLY_1V8_PG_PIN,
-                           SUPPLY_1V8_PG_FLAGS | GPIO_INPUT)) {
-        LOG_ERR("Error configuring 1.8 pg pin!");
-        return 1;
-    }
-#endif
-
     regulator_enable(supply_1v8, NULL);
     LOG_INF("1.8V power supply enabled");
 
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    LOG_INF("Waiting on power good...");
-    while (!gpio_pin_get(supply_1v8_pg, SUPPLY_1V8_PG_PIN))
-        ;
-    LOG_INF("1.8V power supply good");
-#else
     k_msleep(100);
-#endif
 
     return 0;
 }
 
-SYS_INIT(power_turn_on_supplies_phase2, POST_KERNEL,
-         SYS_INIT_POWER_SUPPLY_PHASE2_PRIORITY);
+static_assert(CONFIG_I2C_INIT_PRIORITY > SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
+              "I2C must be initialized _after_ the power supplies so that the "
+              "safety circuit does't get tripped");
 
-#define BUTTON_PRESS_TIME_MS    1500
+SYS_INIT(power_turn_on_power_supplies, POST_KERNEL,
+         SYS_INIT_POWER_SUPPLY_INIT_PRIORITY);
+
+#define BUTTON_PRESS_TIME_MS    500
 #define BUTTON_SAMPLE_PERIOD_MS 10
 
 #define POWER_BUTTON_NODE  DT_PATH(buttons, power_button)
@@ -243,6 +153,14 @@ SYS_INIT(power_turn_on_supplies_phase2, POST_KERNEL,
 #define POWER_BUTTON_PIN   DT_GPIO_PIN(POWER_BUTTON_NODE, gpios)
 #define POWER_BUTTON_FLAGS DT_GPIO_FLAGS(POWER_BUTTON_NODE, gpios)
 
+#ifdef CONFIG_INSTA_BOOT
+static int
+power_wait_for_power_button_press(void)
+{
+    LOG_INF("INSTA_BOOT enabled -- not waiting for a button press to boot!");
+    return 0;
+}
+#else
 static int
 power_wait_for_power_button_press(void)
 {
@@ -276,6 +194,7 @@ power_wait_for_power_button_press(void)
 
     return 0;
 }
+#endif // CONFIG_INSTA_BOOT
 
 /**
  * Decide whether to wait for user to press the button to start the Orb
@@ -289,10 +208,6 @@ app_init_state(const struct device *dev)
     ARG_UNUSED(dev);
 
     int ret = 0;
-
-    // disable now that we have initialized operator LED
-    // see SYS_INIT #52
-    regulator_disable(supply_3v3);
 
     LOG_INF("Hello from " CONFIG_BOARD " :)");
 
@@ -312,7 +227,7 @@ app_init_state(const struct device *dev)
     } else {
         LOG_INF("Firmware image not confirmed");
     }
-    LOG_INF("Booting system...");
+    LOG_INF_IMM("Booting system...");
 
     return ret;
 }
@@ -354,7 +269,7 @@ static const struct gpio_dt_spec shutdown_pin =
 static const struct device *power_enable = DEVICE_DT_GET(SLEEP_WAKE_CTLR);
 static const struct device *system_reset = DEVICE_DT_GET(SYSTEM_RESET_CTLR);
 
-#define SYSTEM_RESET_UI_DELAY 200
+#define SYSTEM_RESET_UI_DELAY_MS 200
 
 /// SHUTDOWN_REQ interrupt callback
 /// From the Jetson Datasheet DS-10184-001 § 2.6.2 Power Down
@@ -410,24 +325,22 @@ reboot_thread()
             secondary_slot.image_ok);
 
     if (reboot_delay_s > 0) {
-        k_msleep(reboot_delay_s * 1000 - SYSTEM_RESET_UI_DELAY);
+        k_msleep(reboot_delay_s * 1000 - SYSTEM_RESET_UI_DELAY_MS);
     }
 
-    // check if a new firmware image is about to be installed
-    // turn on center LEDs in white during update
-    // otherwise turn UI off so that re-enabling regulators during boot
-    // doesn't make the LEDs blink with previous configuration
-    if (secondary_slot.magic == BOOT_MAGIC_GOOD) {
-        front_leds_set_pattern(
-            UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_ONLY_CENTER, 0, 0,
-            NULL);
-    } else {
-        front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern_OFF, 0, 0,
-                               NULL);
-    }
     operator_leds_set_pattern(
         DistributorLEDsPattern_DistributorRgbLedPattern_OFF, 0, NULL);
-    k_msleep(SYSTEM_RESET_UI_DELAY);
+    front_leds_turn_off_final();
+
+    k_msleep(SYSTEM_RESET_UI_DELAY_MS);
+
+    LOG_INF("Going down!");
+
+#ifdef CONFIG_LOG
+    uint32_t log_buffered_count = log_buffered_cnt();
+    while (LOG_PROCESS() && --log_buffered_count)
+        ;
+#endif
 
     NVIC_SystemReset();
 }
@@ -512,7 +425,7 @@ power_turn_on_jetson(void)
         if (ret) {
             ASSERT_SOFT(ret);
         } else {
-            LOG_INF("Waiting for reset done signal from Jetson");
+            LOG_INF_IMM("Waiting for reset done signal from Jetson");
             while (gpio_pin_get(system_reset, SYSTEM_RESET_PIN) != OUT_OF_RESET)
                 ;
             LOG_INF("Reset done");
@@ -524,7 +437,7 @@ power_turn_on_jetson(void)
     if (ret) {
         ASSERT_SOFT(ret);
     } else {
-        LOG_INF("Setting Jetson to WAKE mode");
+        LOG_INF_IMM("Setting Jetson to WAKE mode");
         ret = gpio_pin_set(sleep_wake, SLEEP_WAKE_PIN, WAKE);
         ASSERT_SOFT(ret);
     }
@@ -540,12 +453,10 @@ power_turn_on_jetson(void)
         ASSERT_SOFT(ret);
     }
 
-#ifdef CONFIG_BOARD_MCU_MAIN_V31
     // mainboard 3.0 uses PC13 and PE13 for shutdown request line and power
     // button, so we enable interrupt on shutdown line only when necessary, see
     // power_reboot_set_pending()
     shutdown_req_init();
-#endif
 
     // Spawn reboot thread
     k_tid_t tid = k_thread_create(
@@ -617,12 +528,6 @@ power_reset(uint32_t delay_s)
 void
 power_reboot_set_pending(void)
 {
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    // uninit button on GPIOC13 to allow enabling GPIOE13 interrupt
-    button_uninit();
-    shutdown_req_init();
-#endif
-
     reboot_pending_shutdown_req_line = true;
 }
 
@@ -630,9 +535,4 @@ void
 power_reboot_clear_pending(void)
 {
     reboot_pending_shutdown_req_line = false;
-
-#ifdef CONFIG_BOARD_MCU_MAIN_V30
-    shutdown_req_uninit();
-    button_init();
-#endif
 }
