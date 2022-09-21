@@ -1,0 +1,5 @@
+# Platform files
+
+From https://www.st.com/en/embedded-software/stsw-img007.html
+
+> The user has to implement the I2C functions prototyped in the vl53l1_platform.c file accordingly.
