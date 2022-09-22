@@ -16,10 +16,10 @@ properties:
     type: phandle-array
     required: false
     description: Battery is fully charged
-  power-input-enabled-gpios:
+  main-power-input-detected-gpios:
     type: phandle-array
     required: false
-    description: Power input is available to charge the battery
+    description: Main power input is detected and available to charge the battery
   bat-meas-enable-gpios:
     type: phandle-array
     required: false
