@@ -153,7 +153,7 @@ main(void)
     err_code = dfu_init();
     ASSERT_SOFT(err_code);
 
-    uint16_t hw = 0;
+    enum hw_version_e hw = 0;
     err_code = version_get_hardware_rev(&hw);
     ASSERT_SOFT(err_code);
     LOG_INF("Hardware version: %u", hw);
