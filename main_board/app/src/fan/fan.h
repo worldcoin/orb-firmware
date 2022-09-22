@@ -4,6 +4,8 @@
 #include <errors.h>
 #include <stdint.h>
 
+#define FAN_INITIAL_SPEED_PERCENT 1
+
 void
 fan_set_max_speed(void);
 

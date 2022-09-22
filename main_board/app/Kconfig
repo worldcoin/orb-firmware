@@ -44,4 +44,8 @@ config TEST_IR_CAMERA_SYSTEM
     default n
     bool "Test the IR camera system"
 
+config TEST_FAN
+	default n
+	bool "Test fan"
+
 source "Kconfig.zephyr"
