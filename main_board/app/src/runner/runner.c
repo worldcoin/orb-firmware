@@ -694,6 +694,22 @@ handle_fw_img_sec_activate(job_t *job)
 }
 
 static void
+handle_fw_img_primary_confirm(job_t *job)
+{
+    McuMessage *msg = &job->mcu_message;
+    MAKE_ASSERTS(JetsonToMcu_fw_image_primary_confirm_tag);
+
+    LOG_DBG("Got primary slot confirmation");
+
+    int ret = dfu_primary_confirm();
+    if (ret) {
+        job_ack(Ack_ErrorCode_FAIL, job);
+    } else {
+        job_ack(Ack_ErrorCode_SUCCESS, job);
+    }
+}
+
+static void
 handle_fps(job_t *job)
 {
     McuMessage *msg = &job->mcu_message;
@@ -934,10 +950,11 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_distributor_leds_sequence_tag] =
         handle_distributor_leds_sequence,
     [JetsonToMcu_ring_leds_sequence_tag] = handle_user_ring_leds_sequence,
+    [JetsonToMcu_fw_image_primary_confirm_tag] = handle_fw_img_primary_confirm,
 };
 
 static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 37,
+    ARRAY_SIZE(handle_message_callbacks) <= 38,
     "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
