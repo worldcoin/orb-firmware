@@ -167,8 +167,6 @@ main(void)
     // launch tests if any is defined
     run_tests();
 
-    // we consider the image working if no errors were reported before
-    // Jetson sent first messages, and we didn't report any error
     while (1) {
         k_msleep(10000);
 
@@ -178,14 +176,6 @@ main(void)
         if (!jetson_up_and_running && runner_successful_jobs_count() > 0) {
             version_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 
-            uint32_t error_count = app_assert_soft_count();
-            if (error_count) {
-                LOG_ERR("Error count during boot: %u", error_count);
-
-                // do not confirm image
-                return;
-            }
-
             jetson_up_and_running = true;
             continue;
         }
@@ -193,7 +183,7 @@ main(void)
         if (jetson_up_and_running && runner_successful_jobs_count() > 1) {
             // the orb is now up and running
             LOG_INF("Confirming image");
-            int err_code = dfu_primary_confirm();
+            err_code = dfu_primary_confirm();
             if (err_code == 0) {
                 operator_leds_set_pattern(
                     DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN,
