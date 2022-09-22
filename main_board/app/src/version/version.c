@@ -67,19 +67,21 @@ version_get_hardware_rev(enum hw_version_e *hw_version)
 
             if (hardware_version_mv > 3200) {
                 // should be 3.3V
-                *hw_version = HW_VERSION_MAINBOARD_EV2;
+                version = HW_VERSION_MAINBOARD_EV2;
             } else if (hardware_version_mv > 2900) {
                 // should be 3.0V
-                *hw_version = HW_VERSION_MAINBOARD_EV3;
+                version = HW_VERSION_MAINBOARD_EV3;
             } else if (hardware_version_mv < 100) {
                 // should be 0.0V
-                *hw_version = HW_VERSION_MAINBOARD_EV1;
+                version = HW_VERSION_MAINBOARD_EV1;
             } else {
                 LOG_ERR("Unknown main board from voltage: %umV",
                         hardware_version_mv);
             }
         }
     }
+
+    *hw_version = version;
 
     return RET_SUCCESS;
 }
