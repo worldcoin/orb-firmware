@@ -184,11 +184,7 @@ main(void)
             // the orb is now up and running
             LOG_INF("Confirming image");
             err_code = dfu_primary_confirm();
-            if (err_code == 0) {
-                operator_leds_set_pattern(
-                    DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN,
-                    OPERATOR_LEDS_ALL_MASK, NULL);
-            }
+            ASSERT_SOFT(err_code);
 
             return;
         }
