@@ -46,7 +46,7 @@ version_get_hardware_rev(enum hw_version_e *hw_version)
         };
         adc_channel_setup(adc_dt_spec.dev, &channel_cfg);
 
-        int32_t sample_buffer;
+        int16_t sample_buffer = 0;
         struct adc_sequence sequence = {
             .buffer = &sample_buffer,
             .buffer_size = sizeof(sample_buffer),
@@ -59,11 +59,11 @@ version_get_hardware_rev(enum hw_version_e *hw_version)
         if (err_code < 0) {
             return RET_ERROR_INTERNAL;
         } else {
-            adc_raw_to_millivolts(vref_mv, ADC_GAIN_1, ADC_RESOLUTION,
-                                  &sample_buffer);
-
             int32_t hardware_version_mv = sample_buffer;
-            LOG_DBG("Hardware rev voltage: %dmV", sample_buffer);
+            adc_raw_to_millivolts(vref_mv, ADC_GAIN_1, ADC_RESOLUTION,
+                                  &hardware_version_mv);
+
+            LOG_DBG("Hardware rev voltage: %dmV", hardware_version_mv);
 
             if (hardware_version_mv > 3200) {
                 // should be 3.3V
