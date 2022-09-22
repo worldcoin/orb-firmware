@@ -19,7 +19,7 @@ static struct k_thread test_thread_data_upload;
 K_THREAD_STACK_DEFINE(dfu_test_thread_stack_crc, 1024);
 static struct k_thread test_thread_data_crc;
 
-void
+static void
 test_dfu_upload()
 {
     // with block size of 39,
@@ -130,12 +130,9 @@ dfu_tests_init(void)
         K_THREAD_STACK_SIZEOF(dfu_test_thread_stack_upload), test_dfu_upload,
         NULL, NULL, NULL, THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
     k_thread_name_set(tid, "dfu_test");
-    if (!tid) {
-        LOG_ERR("ERROR spawning test_dfu_upload thread");
-    }
 }
 
-void
+static void
 test_crc()
 {
     while (1) {
