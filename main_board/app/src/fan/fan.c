@@ -61,9 +61,10 @@ compute_pulse_width_ns(uint16_t value)
                             fan_specs.min_duty_cycle_percent) /
                     100.f)) /
         UINT16_MAX;
-    const uint32_t min_period =
-        (uint32_t)((float)fan_specs.min_duty_cycle_percent / 100.f) *
-        main_fan_spec.period;
+
+    // /!\ multiply first as we don't use floats
+    const uint32_t min_period = (uint32_t)(fan_specs.min_duty_cycle_percent *
+                                           main_fan_spec.period / 100);
     uint32_t pulse_width_ns = scaled_fan_speed + min_period;
 
     return pulse_width_ns;
