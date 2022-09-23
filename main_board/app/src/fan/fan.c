@@ -32,7 +32,7 @@ struct fan_duty_cycle_specs {
     uint8_t max_duty_cycle_percent; // maximum duty cycle with active fan
 };
 
-const struct fan_duty_cycle_specs fan_ev2_specs = {
+const struct fan_duty_cycle_specs fan_ev1_2_specs = {
     .min_duty_cycle_percent = 0, .max_duty_cycle_percent = 80};
 const struct fan_duty_cycle_specs fan_ev3_specs = {
     .min_duty_cycle_percent = 40, .max_duty_cycle_percent = 100};
@@ -145,8 +145,9 @@ fan_init(const struct device *dev)
     // set specs depending on current main board
     enum hw_version_e version = 0;
     if (version_get_hardware_rev(&version) == RET_SUCCESS) {
-        if (version == HW_VERSION_MAINBOARD_EV2) {
-            fan_specs = fan_ev2_specs;
+        if (version == HW_VERSION_MAINBOARD_EV1 ||
+            version == HW_VERSION_MAINBOARD_EV2) {
+            fan_specs = fan_ev1_2_specs;
         } else if (version == HW_VERSION_MAINBOARD_EV3) {
             fan_specs = fan_ev3_specs;
         } else {
