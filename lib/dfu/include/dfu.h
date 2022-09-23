@@ -77,6 +77,9 @@ int
 dfu_version_primary_get(struct image_version *ih_ver);
 
 /// Get image version in secondary slot
+/// \param ih_ver
+/// \return
+/// - RET_ERROR_NOT_FOUND if no image present in secondary slot
 int
 dfu_version_secondary_get(struct image_version *ih_ver);
 

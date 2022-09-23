@@ -328,6 +328,8 @@ dfu_secondary_check(uint32_t crc32)
 int
 dfu_primary_confirm()
 {
+    LOG_INF("Confirming image");
+
     // confirm current image as primary image to be booted by default
     int ret = boot_set_confirmed();
     return ret;
@@ -363,7 +365,12 @@ dfu_version_primary_get(struct image_version *ih_ver)
 int
 dfu_version_secondary_get(struct image_version *ih_ver)
 {
-    // TODO check that image in secondary slot is valid
+    // if flash is erased, no image present
+    if (secondary_slot->ih_ver.iv_build_num == 0xFFFFFFFFLU &&
+        secondary_slot->ih_ver.iv_revision == 0xFFFFLU) {
+        return RET_ERROR_NOT_FOUND;
+    }
+
     memcpy(ih_ver, &secondary_slot->ih_ver, sizeof(struct image_version));
 
     return RET_SUCCESS;

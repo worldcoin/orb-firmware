@@ -182,7 +182,6 @@ main(void)
 
         if (jetson_up_and_running && runner_successful_jobs_count() > 1) {
             // the orb is now up and running
-            LOG_INF("Confirming image");
             err_code = dfu_primary_confirm();
             ASSERT_SOFT(err_code);
 
