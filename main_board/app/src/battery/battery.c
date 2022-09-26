@@ -78,6 +78,8 @@ static struct battery_499_s state_499 = {0};
 static struct battery_414_s state_414 = {0};
 static struct battery_415_s state_415 = {0};
 
+static bool got_battery_voltage_can_message = false;
+
 static void
 publish_battery_voltages(void)
 {
@@ -173,6 +175,7 @@ static void
 handle_414(struct zcan_frame *frame)
 {
     CRITICAL_SECTION_ENTER(k);
+    got_battery_voltage_can_message = true;
     state_414 = *(struct battery_414_s *)frame->data;
     CRITICAL_SECTION_EXIT(k);
 }
@@ -286,7 +289,26 @@ battery_init(void)
             operator_leds_blocking_set(&color, 0b00000);
             k_msleep(500);
         }
-        NVIC_SystemReset();
+
+        bool got_battery_voltage_can_message_local;
+        CRITICAL_SECTION_ENTER(k);
+        got_battery_voltage_can_message_local = got_battery_voltage_can_message;
+        CRITICAL_SECTION_EXIT(k);
+
+        if (got_battery_voltage_can_message_local) {
+            LOG_ERR_IMM("Low battery voltage, rebooting!");
+            NVIC_SystemReset();
+        } else {
+            CRITICAL_SECTION_ENTER(k);
+            // insert some fake values to keep orb-core happy
+            state_414.voltage_group_1 = 4000;
+            state_414.voltage_group_2 = 4000;
+            state_414.voltage_group_3 = 4000;
+            state_414.voltage_group_4 = 4000;
+            state_499.state_of_charge = 100;
+            CRITICAL_SECTION_EXIT(k);
+            LOG_INF("We have power but no battery info. Booting anyway.");
+        }
     } else {
         LOG_INF("Battery voltage is ok");
     }
