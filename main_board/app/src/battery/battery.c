@@ -73,8 +73,18 @@ __PACKED_STRUCT __may_alias battery_414_s
     int16_t voltage_group_4; // unit milli-volts
 };
 
-static struct battery_499_s state_499 = {0};
-static struct battery_414_s state_414 = {0};
+// In case we are powered by a power supply and not a battery, we will never
+// receive CAN message that overrides this fake data
+static struct battery_499_s state_499 = {.state_of_charge = 100};
+
+// In case we are powered by a power supply and not a battery, we will never
+// receive CAN message that overrides this fake data
+static struct battery_414_s state_414 = {
+    .voltage_group_1 = 4000,
+    .voltage_group_2 = 4000,
+    .voltage_group_3 = 4000,
+    .voltage_group_4 = 4000,
+};
 static struct battery_415_s state_415 = {0};
 
 static void
