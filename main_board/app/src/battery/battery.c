@@ -4,6 +4,7 @@
 #include "pubsub/pubsub.h"
 #include "temperature/temperature.h"
 #include "ui/operator_leds/operator_leds.h"
+#include "utils.h"
 #include <app_assert.h>
 #include <device.h>
 #include <drivers/can.h>
@@ -73,33 +74,25 @@ __PACKED_STRUCT __may_alias battery_414_s
     int16_t voltage_group_4; // unit milli-volts
 };
 
-// In case we are powered by a power supply and not a battery, we will never
-// receive CAN message that overrides this fake data
-static struct battery_499_s state_499 = {.state_of_charge = 100};
-
-// In case we are powered by a power supply and not a battery, we will never
-// receive CAN message that overrides this fake data
-static struct battery_414_s state_414 = {
-    .voltage_group_1 = 4000,
-    .voltage_group_2 = 4000,
-    .voltage_group_3 = 4000,
-    .voltage_group_4 = 4000,
-};
+static struct battery_499_s state_499 = {0};
+static struct battery_414_s state_414 = {0};
 static struct battery_415_s state_415 = {0};
 
 static void
 publish_battery_voltages(void)
 {
     static BatteryVoltage voltages;
+    CRITICAL_SECTION_ENTER(k);
     voltages = (BatteryVoltage){
         .battery_cell1_mv = state_414.voltage_group_1,
         .battery_cell2_mv = state_414.voltage_group_2,
         .battery_cell3_mv = state_414.voltage_group_3,
         .battery_cell4_mv = state_414.voltage_group_4,
     };
-    LOG_DBG("Battery voltage: (%d, %d, %d, %d) mV", state_414.voltage_group_1,
-            state_414.voltage_group_2, state_414.voltage_group_3,
-            state_414.voltage_group_4);
+    CRITICAL_SECTION_EXIT(k);
+    LOG_DBG("Battery voltage: (%d, %d, %d, %d) mV", voltages.battery_cell1_mv,
+            voltages.battery_cell2_mv, voltages.battery_cell3_mv,
+            voltages.battery_cell4_mv);
     publish_new(&voltages, sizeof voltages, McuToJetson_battery_voltage_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
@@ -108,8 +101,10 @@ static void
 publish_battery_capacity(void)
 {
     static BatteryCapacity battery_cap;
+    CRITICAL_SECTION_ENTER(k);
     battery_cap.percentage = state_499.state_of_charge;
-    LOG_DBG("State of charge: %u%%", state_499.state_of_charge);
+    CRITICAL_SECTION_EXIT(k);
+    LOG_DBG("State of charge: %u%%", battery_cap.percentage);
     publish_new(&battery_cap, sizeof(battery_cap),
                 McuToJetson_battery_capacity_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
@@ -119,7 +114,9 @@ static void
 publish_battery_is_charging(void)
 {
     static BatteryIsCharging is_charging;
+    CRITICAL_SECTION_ENTER(k);
     is_charging.battery_is_charging = state_499.flags & BIT(IS_CHARGING_BIT);
+    CRITICAL_SECTION_EXIT(k);
     LOG_DBG("Is charging? %s", is_charging.battery_is_charging ? "yes" : "no");
     publish_new(&is_charging, sizeof(is_charging),
                 McuToJetson_battery_is_charging_tag,
@@ -129,17 +126,23 @@ publish_battery_is_charging(void)
 static void
 publish_battery_cell_temperature(void)
 {
-    LOG_DBG("Battery cell temperature: %u.%u°C",
-            state_415.cell_temperature / 10, state_415.cell_temperature % 10);
+    int16_t cell_temperature;
+    CRITICAL_SECTION_ENTER(k);
+    cell_temperature = state_415.cell_temperature;
+    CRITICAL_SECTION_EXIT(k);
+    LOG_DBG("Battery cell temperature: %u.%u°C", cell_temperature / 10,
+            cell_temperature % 10);
     temperature_report(Temperature_TemperatureSource_BATTERY_CELL,
-                       state_415.cell_temperature / 10);
+                       cell_temperature / 10);
 }
 
 static void
 publish_battery_diagnostic_flags(void)
 {
     static BatteryDiagnostic diag;
+    CRITICAL_SECTION_ENTER(k);
     diag.flags = state_499.flags;
+    CRITICAL_SECTION_EXIT(k);
     LOG_DBG("Battery diag flags: 0x%02x", diag.flags);
     publish_new(&diag, sizeof(diag), McuToJetson_battery_diag_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
@@ -148,28 +151,38 @@ publish_battery_diagnostic_flags(void)
 static void
 publish_battery_pcb_temperature(void)
 {
-    LOG_DBG("Battery PCB temperature: %u.%u°C", state_499.pcb_temperature / 10,
-            state_499.pcb_temperature % 10);
+    int16_t pcb_temperature;
+    CRITICAL_SECTION_ENTER(k);
+    pcb_temperature = state_499.pcb_temperature;
+    CRITICAL_SECTION_EXIT(k);
+    LOG_DBG("Battery PCB temperature: %u.%u°C", pcb_temperature / 10,
+            pcb_temperature % 10);
     temperature_report(Temperature_TemperatureSource_BATTERY_PCB,
-                       state_499.pcb_temperature / 10);
+                       pcb_temperature / 10);
 }
 
 static void
 handle_499(struct zcan_frame *frame)
 {
+    CRITICAL_SECTION_ENTER(k);
     state_499 = *(struct battery_499_s *)frame->data;
+    CRITICAL_SECTION_EXIT(k);
 }
 
 static void
 handle_414(struct zcan_frame *frame)
 {
+    CRITICAL_SECTION_ENTER(k);
     state_414 = *(struct battery_414_s *)frame->data;
+    CRITICAL_SECTION_EXIT(k);
 }
 
 static void
 handle_415(struct zcan_frame *frame)
 {
+    CRITICAL_SECTION_ENTER(k);
     state_415 = *(struct battery_415_s *)frame->data;
+    CRITICAL_SECTION_EXIT(k);
 }
 
 const static struct battery_can_msg messages[] = {
@@ -273,7 +286,6 @@ battery_init(void)
             operator_leds_blocking_set(&color, 0b00000);
             k_msleep(500);
         }
-
         NVIC_SystemReset();
     } else {
         LOG_INF("Battery voltage is ok");
