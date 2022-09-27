@@ -21,7 +21,7 @@ test_fan()
     enum hw_version_e rev;
     version_get_hardware_rev(&rev);
 
-    if (rev == HW_VERSION_MAINBOARD_EV2) {
+    if (rev == HW_VERSION_MAINBOARD_EV1 || rev == HW_VERSION_MAINBOARD_EV2) {
         max_speed_pulse_width_ns = 32000;
 
         // 655 (1% of 65535) *40000 (period) *0.8 (range) / 65535 = 319
