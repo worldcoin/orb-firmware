@@ -1106,7 +1106,8 @@ motors_init(void)
 
     if (rev == HW_VERSION_MAINBOARD_EV1) {
         hw_rev_idx = 0;
-    } else if (rev == HW_VERSION_MAINBOARD_EV2) {
+    } else if (rev == HW_VERSION_MAINBOARD_EV2 ||
+               rev == HW_VERSION_MAINBOARD_EV3) {
         hw_rev_idx = 1;
     } else {
         ASSERT_SOFT(RET_ERROR_INVALID_STATE);
