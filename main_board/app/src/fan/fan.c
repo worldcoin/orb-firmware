@@ -1,3 +1,5 @@
+#include "fan.h"
+#include "version/version.h"
 #include <app_config.h>
 #include <assert.h>
 #include <device.h>
@@ -7,10 +9,6 @@
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(fan, CONFIG_FAN_LOG_LEVEL);
-
-#include "fan.h"
-
-#define FAN_MAX_SPEED_PERCENTAGE (80)
 
 #define FAN_MAIN_NODE DT_PATH(fan_main)
 #define FAN_AUX_NODE  DT_PATH(fan_aux)
@@ -29,7 +27,18 @@ static_assert(DEVICE_DT_GET(DT_PWMS_CTLR(FAN_MAIN_NODE)) ==
 
 #define MSG "Checking that fan PWM controller is ready... "
 
+struct fan_duty_cycle_specs {
+    uint8_t min_duty_cycle_percent; // minimum duty cycle with active fan
+    uint8_t max_duty_cycle_percent; // maximum duty cycle with active fan
+};
+
+const struct fan_duty_cycle_specs fan_ev1_2_specs = {
+    .min_duty_cycle_percent = 0, .max_duty_cycle_percent = 80};
+const struct fan_duty_cycle_specs fan_ev3_specs = {
+    .min_duty_cycle_percent = 40, .max_duty_cycle_percent = 100};
+
 static uint32_t fan_speed = 0;
+static struct fan_duty_cycle_specs fan_specs;
 
 uint32_t
 fan_get_speed_setting(void)
@@ -40,7 +49,25 @@ fan_get_speed_setting(void)
 void
 fan_set_max_speed(void)
 {
-    fan_set_speed_by_percentage(FAN_MAX_SPEED_PERCENTAGE);
+    fan_set_speed_by_percentage(100);
+}
+
+static uint32_t
+compute_pulse_width_ns(uint16_t value)
+{
+    uint32_t scaled_fan_speed =
+        (uint32_t)(value * main_fan_spec.period *
+                   ((float)(fan_specs.max_duty_cycle_percent -
+                            fan_specs.min_duty_cycle_percent) /
+                    100.f)) /
+        UINT16_MAX;
+
+    // /!\ multiply first as we don't use floats
+    const uint32_t min_period = (uint32_t)(fan_specs.min_duty_cycle_percent *
+                                           main_fan_spec.period / 100);
+    uint32_t pulse_width_ns = scaled_fan_speed + min_period;
+
+    return pulse_width_ns;
 }
 
 // For PWM control, ultimately the timer peripheral uses three (main) registers:
@@ -68,12 +95,14 @@ fan_set_speed_by_value(uint16_t value)
     LOG_INF("Switching fan to approximately %.2f%% speed",
             ((float)value / UINT16_MAX) * 100);
 
-    fan_speed = main_fan_spec.period -
-                (((float)main_fan_spec.period / UINT16_MAX) * value);
+    if (value != 0) {
+        fan_speed = compute_pulse_width_ns(value);
 
-    pwm_set_dt(&main_fan_spec, main_fan_spec.period, fan_speed);
-
-    pwm_set_dt(&aux_fan_spec, aux_fan_spec.period, fan_speed);
+        pwm_set_dt(&main_fan_spec, main_fan_spec.period,
+                   (main_fan_spec.period - fan_speed));
+        pwm_set_dt(&aux_fan_spec, aux_fan_spec.period,
+                   (aux_fan_spec.period - fan_speed));
+    }
 
     // Even at 0%, the fan spins. This will kill power to the fans in the case
     // of 0%.
@@ -113,7 +142,20 @@ fan_init(const struct device *dev)
         return RET_ERROR_INTERNAL;
     }
 
-    fan_set_speed_by_percentage(1);
+    // set specs depending on current main board
+    enum hw_version_e version = 0;
+    if (version_get_hardware_rev(&version) == RET_SUCCESS) {
+        if (version == HW_VERSION_MAINBOARD_EV1 ||
+            version == HW_VERSION_MAINBOARD_EV2) {
+            fan_specs = fan_ev1_2_specs;
+        } else if (version == HW_VERSION_MAINBOARD_EV3) {
+            fan_specs = fan_ev3_specs;
+        } else {
+            LOG_ERR("Not supported mainboard: %u", version);
+        }
+    }
+
+    fan_set_speed_by_percentage(FAN_INITIAL_SPEED_PERCENT);
 
     return RET_SUCCESS;
 }

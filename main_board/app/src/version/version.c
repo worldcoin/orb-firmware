@@ -4,6 +4,7 @@
 #include <app_assert.h>
 #include <can_messaging.h>
 #include <dfu.h>
+#include <drivers/adc.h>
 #include <drivers/gpio.h>
 #include <logging/log.h>
 
@@ -15,31 +16,68 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
 // - v3.2 pull up
 // GPIO logic level can then be used to get the hardware version
 
+const struct adc_dt_spec adc_dt_spec = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
+
+#define ADC_RESOLUTION       12
+#define ADC_GAIN             ADC_GAIN_1
+#define ADC_REFERENCE        ADC_REF_INTERNAL
+#define ADC_ACQUISITION_TIME ADC_ACQ_TIME_DEFAULT
+
 ret_code_t
-version_get_hardware_rev(uint16_t *hw_version)
+version_get_hardware_rev(enum hw_version_e *hw_version)
 {
     static uint16_t version = 0;
 
     // read only once and keep hardware version into `version`
     if (version == 0) {
-        const struct gpio_dt_spec hardware_version_gpio =
-            GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), hw_version_gpios);
-        if (!device_is_ready(hardware_version_gpio.port)) {
-            return RET_ERROR_NOT_INITIALIZED;
+        if (!device_is_ready(adc_dt_spec.dev)) {
+            ASSERT_SOFT(RET_ERROR_INVALID_STATE);
+            return RET_ERROR_INVALID_STATE;
         }
 
-        int err_code =
-            gpio_pin_configure_dt(&hardware_version_gpio, GPIO_INPUT);
-        if (err_code != 0) {
-            ASSERT_SOFT(err_code);
+        int vref_mv = adc_ref_internal(adc_dt_spec.dev);
+
+        // ADC config
+        struct adc_channel_cfg channel_cfg = {
+            .channel_id = adc_dt_spec.channel_id,
+            .gain = ADC_GAIN,
+            .reference = ADC_REFERENCE,
+            .acquisition_time = ADC_ACQUISITION_TIME,
+        };
+        adc_channel_setup(adc_dt_spec.dev, &channel_cfg);
+
+        int16_t sample_buffer = 0;
+        struct adc_sequence sequence = {
+            .buffer = &sample_buffer,
+            .buffer_size = sizeof(sample_buffer),
+            .channels = BIT(adc_dt_spec.channel_id),
+            .resolution = ADC_RESOLUTION,
+            .oversampling = 0,
+        };
+
+        int err_code = adc_read(adc_dt_spec.dev, &sequence);
+        if (err_code < 0) {
             return RET_ERROR_INTERNAL;
-        }
-
-        bool is_3_2 = gpio_pin_get_dt(&hardware_version_gpio);
-        if (is_3_2) {
-            version = 32;
         } else {
-            version = 31;
+            int32_t hardware_version_mv = sample_buffer;
+            adc_raw_to_millivolts(vref_mv, ADC_GAIN_1, ADC_RESOLUTION,
+                                  &hardware_version_mv);
+
+            LOG_DBG("Hardware rev voltage: %dmV", hardware_version_mv);
+
+            if (hardware_version_mv > 3200) {
+                // should be 3.3V
+                version = HW_VERSION_MAINBOARD_EV2;
+            } else if (hardware_version_mv > 2900) {
+                // should be 3.0V
+                version = HW_VERSION_MAINBOARD_EV3;
+            } else if (hardware_version_mv < 100) {
+                // should be 0.0V
+                version = HW_VERSION_MAINBOARD_EV1;
+            } else {
+                LOG_ERR("Unknown main board from voltage: %umV",
+                        hardware_version_mv);
+            }
         }
     }
 

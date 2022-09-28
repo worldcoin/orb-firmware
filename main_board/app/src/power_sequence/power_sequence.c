@@ -18,6 +18,7 @@ LOG_MODULE_REGISTER(power_sequence, CONFIG_POWER_SEQUENCE_LOG_LEVEL);
 #include "power_sequence.h"
 #include "ui/front_leds/front_leds.h"
 #include "ui/operator_leds/operator_leds.h"
+#include "utils.h"
 
 // Power supplies turned on in two phases:
 // - Phase 1 initializes just enough power supplies for us to use the Operator
@@ -37,28 +38,6 @@ K_SEM_DEFINE(sem_reboot, 0, 1);
 static bool reboot_pending_shutdown_req_line = false;
 static uint32_t reboot_delay_s = 0;
 static struct gpio_callback shutdown_cb_data;
-
-#ifdef CONFIG_LOG
-// log immediately, i.e., log and wait for messages to flush
-#define LOG_INF_IMM(...)                                                       \
-    LOG_INF(__VA_ARGS__);                                                      \
-    do {                                                                       \
-        uint32_t log_buffered_count = log_buffered_cnt();                      \
-        while (LOG_PROCESS() && --log_buffered_count)                          \
-            ;                                                                  \
-    } while (0)
-
-#define LOG_ERR_IMM(...)                                                       \
-    LOG_ERR(__VA_ARGS__);                                                      \
-    do {                                                                       \
-        uint32_t log_buffered_count = log_buffered_cnt();                      \
-        while (LOG_PROCESS() && --log_buffered_count)                          \
-            ;                                                                  \
-    } while (0)
-#else
-#define LOG_INF_IMM(...)
-#define LOG_ERR_IMM(...)
-#endif
 
 #define FORMAT_STRING "Checking that %s is ready... "
 

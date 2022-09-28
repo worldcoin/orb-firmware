@@ -704,7 +704,7 @@ handle_fw_img_primary_confirm(job_t *job)
     // - Ack_ErrorCode_FAIL: image self-test didn't end up successfully meaning
     // the image shouldn't be confirmed but reverted by using
     // `FirmwareActivateSecondary`
-    // - Ack_ErrorCode_OPERATION_NOT_SUPPORTED: running image already confirmed
+    // - Ack_ErrorCode_INVALID_STATE: running image already confirmed
     // - Ack_ErrorCode_VERSION: version in secondary slot higher than version in
     // primary slot meaning the image has not been installed successfully
     struct image_version secondary_version;
@@ -725,7 +725,7 @@ handle_fw_img_primary_confirm(job_t *job)
     }
 
     if (dfu_primary_is_confirmed()) {
-        job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+        job_ack(Ack_ErrorCode_INVALID_STATE, job);
     } else {
         int ret = dfu_primary_confirm();
         if (ret) {

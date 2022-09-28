@@ -81,7 +81,10 @@ set(SOURCES_FILES
     src/runner/runner.c
 
     src/power_sequence/power_sequence.c
+
     src/fan/fan.c
+    src/fan/fan_tests.c
+
     src/sound/sound.c
 
     src/button/button.c

@@ -2,6 +2,7 @@
 #include "battery/battery.h"
 #include "button/button.h"
 #include "fan/fan.h"
+#include "fan/fan_tests.h"
 #include "gnss/gnss.h"
 #include "ir_camera_system/ir_camera_system.h"
 #include "liquid_lens/liquid_lens.h"
@@ -54,6 +55,9 @@ run_tests()
 #endif
 #if defined(CONFIG_TEST_IR_CAMERA_SYSTEM) || defined(RUN_ALL_TESTS)
     ir_camera_system_tests_init();
+#endif
+#if defined(CONFIG_TEST_FAN) || defined(RUN_ALL_TESTS)
+    fan_tests_init();
 #endif
 }
 
@@ -153,7 +157,7 @@ main(void)
     err_code = dfu_init();
     ASSERT_SOFT(err_code);
 
-    uint16_t hw = 0;
+    enum hw_version_e hw = 0;
     err_code = version_get_hardware_rev(&hw);
     ASSERT_SOFT(err_code);
     LOG_INF("Hardware version: %u", hw);
