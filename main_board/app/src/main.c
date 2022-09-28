@@ -171,25 +171,22 @@ main(void)
     // launch tests if any is defined
     run_tests();
 
-    while (1) {
-        k_msleep(10000);
+    dfu_primary_confirm();
+
+    // wait for Jetson to show activity before sending our version
+    while (!jetson_up_and_running) {
+        k_msleep(5000);
 
         // as soon as the Jetson sends the first message, send firmware version
-        // come back after the delay above and another message from the Jetson
-        // to confirm the image
-        if (!jetson_up_and_running && runner_successful_jobs_count() > 0) {
+        if (runner_successful_jobs_count() > 0) {
             fw_version_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 
+            uint32_t error_count = app_assert_soft_count();
+            if (error_count) {
+                LOG_ERR("Error count during boot: %u", error_count);
+            }
+
             jetson_up_and_running = true;
-            continue;
-        }
-
-        if (jetson_up_and_running && runner_successful_jobs_count() > 1) {
-            // the orb is now up and running
-            err_code = dfu_primary_confirm();
-            ASSERT_SOFT(err_code);
-
-            return;
         }
     }
 }
