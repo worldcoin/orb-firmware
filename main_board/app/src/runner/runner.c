@@ -701,7 +701,7 @@ handle_fw_img_primary_confirm(job_t *job)
 
     LOG_DBG("Got primary slot confirmation");
 
-    // - Ack_ErrorCode_FAIL: image self-test didn't end up successfully meaning
+    // - Ack_ErrorCode_FAIL: image self-test didn't end up successful, meaning
     // the image shouldn't be confirmed but reverted by using
     // `FirmwareActivateSecondary`
     // - Ack_ErrorCode_INVALID_STATE: running image already confirmed
