@@ -80,10 +80,8 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
                 to_send.destination, which_payload);
             if (remote_addr & CAN_ADDR_IS_ISOTP) {
                 err_code = can_isotp_messaging_async_tx(&to_send);
-                ASSERT_SOFT(err_code);
             } else {
                 err_code = can_messaging_async_tx(&to_send);
-                ASSERT_SOFT(err_code);
             }
         } else {
             LOG_ERR("PB encoding failed");

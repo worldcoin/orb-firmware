@@ -71,9 +71,7 @@ job_ack(Ack_ErrorCode error, job_t *job)
 
     Ack ack = {.ack_number = ack_number, .error = error};
 
-    int err_code =
-        publish_new(&ack, sizeof(ack), McuToJetson_ack_tag, job->remote_addr);
-    ASSERT_SOFT(err_code);
+    publish_new(&ack, sizeof(ack), McuToJetson_ack_tag, job->remote_addr);
 
     if (error == Ack_ErrorCode_SUCCESS) {
         ++job_counter;
@@ -112,9 +110,7 @@ handle_err_code(void *ctx, int err)
         break;
     }
 
-    int err_code = publish_new(&ack, sizeof(ack), McuToJetson_ack_tag,
-                               context->remote_addr);
-    ASSERT_SOFT(err_code);
+    publish_new(&ack, sizeof(ack), McuToJetson_ack_tag, context->remote_addr);
 
     ++job_counter;
 }
