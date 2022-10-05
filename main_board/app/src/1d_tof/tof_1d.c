@@ -13,6 +13,23 @@ LOG_MODULE_REGISTER(1d_tof);
 
 const struct device *tof_1d_device = DEVICE_DT_GET(DT_NODELABEL(tof_sensor));
 
+struct distance_history {
+    uint32_t buffer[4];
+    size_t wr_idx;
+    size_t rd_idx;
+};
+
+static struct distance_history history = {0};
+static bool is_safe = false;
+#define DISTANCE_MIN_EYE_SAFETY_LOWER_LIMIT_MM 100
+#define DISTANCE_MIN_EYE_SAFETY_UPPER_LIMIT_MM 120
+
+bool
+distance_is_safe(void)
+{
+    return is_safe;
+}
+
 void
 tof_1d_thread()
 {
@@ -34,6 +51,10 @@ tof_1d_thread()
             // print error with debug level because the range status
             // can quickly throw an error when nothing in front of the sensor
             LOG_DBG("Error getting data %d", ret);
+
+            // invalid value, reset history
+            history.rd_idx = 0;
+            history.wr_idx = 0;
             continue;
         }
 
@@ -44,6 +65,30 @@ tof_1d_thread()
 
         publish_new(&tof, sizeof(tof), McuToJetson_tof_1d_tag,
                     CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+
+        history.buffer[history.wr_idx] = tof.distance_mm;
+        history.wr_idx = (history.wr_idx + 1) % ARRAY_SIZE(history.buffer);
+        // check if history is full meaning we have a row of valid values
+        // we can use
+        if (history.wr_idx == history.rd_idx) {
+            // compute average
+            uint32_t average = 0;
+            for (size_t i = 0; i < ARRAY_SIZE(history.buffer); ++i) {
+                average += history.buffer[i] / ARRAY_SIZE(history.buffer);
+            }
+
+            if (average < DISTANCE_MIN_EYE_SAFETY_LOWER_LIMIT_MM && is_safe) {
+                is_safe = false;
+                LOG_INF("😵‍💫 IR LEDs are unsafe to use: %umm", average);
+            }
+
+            if (average > DISTANCE_MIN_EYE_SAFETY_UPPER_LIMIT_MM && !is_safe) {
+                is_safe = true;
+                LOG_INF("🤩 IR LEDs safe to use: %umm", average);
+            }
+
+            history.rd_idx = (history.rd_idx + 1) % ARRAY_SIZE(history.buffer);
+        }
     }
 }
 
