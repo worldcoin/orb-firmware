@@ -18,12 +18,10 @@ dependencies:
   - pre-commit
   - libusb
   - openocd
-  - multi-arch-gdb
   - pip
   - pip:
       - west
       - pyserial
       - pyocd
 variables:
-  ZEPHYR_TOOLCHAIN_VARIANT: gnuarmemb
-  GNUARMEMB_TOOLCHAIN_PATH: $(CONDA_PREFIX)
+  ZEPHYR_TOOLCHAIN_VARIANT: zephyr
