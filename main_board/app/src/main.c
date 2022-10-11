@@ -26,6 +26,8 @@
 #include <dfu/dfu_tests.h>
 #include <ir_camera_system/ir_camera_system_tests.h>
 #include <pb_encode.h>
+#include <storage.h>
+#include <storage_tests.h>
 #include <temperature/temperature.h>
 #include <zephyr.h>
 
@@ -58,6 +60,9 @@ run_tests()
 #endif
 #if defined(CONFIG_TEST_FAN) || defined(RUN_ALL_TESTS)
     fan_tests_init();
+#endif
+#if defined(CONFIG_ORB_LIB_STORAGE_TESTS) || defined(RUN_ALL_TESTS)
+    storage_tests();
 #endif
 }
 
@@ -98,6 +103,11 @@ void
 main(void)
 {
     int err_code;
+
+    LOG_INF("🚀");
+
+    err_code = storage_init();
+    ASSERT_SOFT(err_code);
 
     app_assert_init(app_assert_cb);
 

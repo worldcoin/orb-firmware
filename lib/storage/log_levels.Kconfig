@@ -1,0 +1,3 @@
+module = STORAGE
+module-str = STORAGE
+source "subsys/logging/Kconfig.template.log_config"
