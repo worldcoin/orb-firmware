@@ -50,33 +50,54 @@ storage_tests(void)
              "write must be pushed after the last written record");
 
     void *wr_idx_ptr_copy = area.wr_idx;
-    char dummy_record_incorrect_size[FLASH_WRITE_BLOCK_SIZE * 2 + 2] = {0x55};
-    ret = storage_push(dummy_record_incorrect_size,
-                       sizeof(dummy_record_incorrect_size));
-    __ASSERT(ret == RET_ERROR_INVALID_PARAM,
-             "storage_push on unaligned content must have failed "
-             "(RET_ERROR_INVALID_PARAM) but was %d",
-             ret);
+    char dummy_record_padded[FLASH_WRITE_BLOCK_SIZE * 2 + 2] = {0x55};
+    ret = storage_push(dummy_record_padded, sizeof(dummy_record_padded));
+    __ASSERT(ret == RET_SUCCESS, "storage_push failed %d (padded)", ret);
 
     get_storage_area(&area);
-    __ASSERT(wr_idx_ptr_copy == area.wr_idx, "write index must not be moved");
+    __ASSERT((size_t)wr_idx_ptr_copy + sizeof(storage_header_t) +
+                     (FLASH_WRITE_BLOCK_SIZE * 3) ==
+                 (size_t)area.wr_idx,
+             "write index must have moved with padding included");
 
-    // read back
-    char read_record_aligned[sizeof(dummy_record)] = {0x00};
+    // read back aligned record
+    char read_record[FLASH_WRITE_BLOCK_SIZE * 3] = {0x00};
     size_t size = 0;
-    ret = storage_peek(read_record_aligned, &size);
+    ret = storage_peek(read_record, &size);
+    __ASSERT(
+        ret == RET_ERROR_NO_MEM,
+        "storage_peek must fail because size isn't set to the read_record size",
+        ret);
+
+    size = sizeof(read_record);
+    ret = storage_peek(read_record, &size);
     __ASSERT(ret == RET_SUCCESS, "storage_peek failed %d (aligned record)",
              ret);
     __ASSERT(size == sizeof(dummy_record),
-             "size must be FLASH_WRITE_BLOCK_SIZE*2");
+             "size must be set to sizeof(dummy_record)");
     for (size_t i = 0; i < sizeof(dummy_record); ++i) {
-        __ASSERT(read_record_aligned[i] == dummy_record[i],
+        __ASSERT(read_record[i] == dummy_record[i], "Contents must match");
+    }
+
+    // free aligned record
+    ret = storage_free();
+    __ASSERT_NO_MSG(ret == RET_SUCCESS);
+
+    // read back padded record
+    size = sizeof(read_record);
+    ret = storage_peek(read_record, &size);
+    __ASSERT(ret == RET_SUCCESS, "storage_peek failed %d (padded record)", ret);
+    __ASSERT(size == sizeof(dummy_record_padded),
+             "size must be sizeof(dummy_record_padded)");
+    for (size_t i = 0; i < sizeof(dummy_record_padded); ++i) {
+        __ASSERT(read_record[i] == dummy_record_padded[i],
                  "Contents must match");
     }
 
-    // free
+    // free padded record
     ret = storage_free();
     __ASSERT_NO_MSG(ret == RET_SUCCESS);
+
     get_storage_area(&area);
     __ASSERT(area.rd_idx == area.wr_idx,
              "write and read index must be identical after freeing the only "

@@ -38,14 +38,13 @@ struct storage_area_s {
 
 /// Write new record to storage
 ///
-/// \note Size must be a multiple of \c FLASH_WRITE_BLOCK_SIZE
-///       Fill remaining bytes with \c 0xff
+/// \note Writing into Flash is done per-block meaning the returned record
+///       might be larger than the stored record.
 ///
-/// \param record Pointer to record to be stored in Flash, padded with 0xff
+/// \param record Pointer to record to be stored in Flash
 /// \param size Size of the record
 /// \return Error codes
 ///    * RET_SUCCESS record stored
-///    * RET_ERROR_INVALID_PARAM if size not multiple of FLASH_WRITE_BLOCK_SIZE
 ///    * RET_ERROR_NO_MEM flash area doesn't have enough empty space to store
 ///      the new record
 ///    * RET_ERROR_INTERNAL error writing flash
@@ -54,12 +53,14 @@ struct storage_area_s {
 int
 storage_push(char *record, size_t size);
 
-/// Peek oldest record without invalidating it
-/// \param record
-/// \param size
+/// Peek oldest record without invalidating it.
+/// Record is copied into buffer given its maximum size passed as a parameter.
+/// \param buffer Buffer to hold the oldest stored record
+/// \param size To be set to \c buffer size and is modified to the read record
+///             size
 /// \return
 int
-storage_peek(char *record, size_t *size);
+storage_peek(char *buffer, size_t *size);
 
 /// Invalidate oldest record
 /// Data header is zeroed but the record isn't modified to reduce flash wear
