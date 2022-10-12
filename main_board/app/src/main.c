@@ -109,6 +109,9 @@ main(void)
     err_code = storage_init();
     ASSERT_SOFT(err_code);
 
+    err_code = logs_init();
+    ASSERT_SOFT(err_code);
+
     app_assert_init(app_assert_cb);
 
     err_code = can_messaging_init(runner_handle_new);
@@ -116,9 +119,6 @@ main(void)
 
     // check battery state early on
     err_code = battery_init();
-    ASSERT_SOFT(err_code);
-
-    err_code = logs_init();
     ASSERT_SOFT(err_code);
 
 #ifndef CONFIG_NO_JETSON_BOOT

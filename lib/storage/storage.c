@@ -184,7 +184,7 @@ storage_free(void)
         (storage_header_t *)((size_t)storage_area.rd_idx +
                              sizeof(storage_header_t) + record_size + padding);
 
-    LOG_INF("New record freed, size: %u, rd: 0x%x, wr: 0x%x", record_size,
+    LOG_DBG("New record freed, size: %u, rd: 0x%x, wr: 0x%x", record_size,
             (uint32_t)storage_area.rd_idx, (uint32_t)storage_area.wr_idx);
 
     if (storage_area.rd_idx >= storage_area.wr_idx) {
@@ -297,12 +297,18 @@ storage_push(char *record, size_t size)
         (storage_header_t *)((size_t)storage_area.wr_idx +
                              (sizeof(header) + size_in_flash));
 
-    LOG_INF("New record written, size: %u, rd: 0x%x, wr: 0x%x", size,
+    LOG_DBG("New record written, size: %u, rd: 0x%x, wr: 0x%x", size,
             (uint32_t)storage_area.rd_idx, (uint32_t)storage_area.wr_idx);
 exit:
     k_sem_give(&sem_storage);
 
     return ret;
+}
+
+bool
+storage_has_data(void)
+{
+    return storage_area.rd_idx != storage_area.wr_idx;
 }
 
 int

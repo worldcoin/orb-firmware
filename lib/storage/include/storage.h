@@ -1,6 +1,7 @@
 #ifndef ORB_LIB_STORAGE_H
 #define ORB_LIB_STORAGE_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -57,21 +58,40 @@ storage_push(char *record, size_t size);
 /// Record is copied into buffer given its maximum size passed as a parameter.
 /// \param buffer Buffer to hold the oldest stored record
 /// \param size To be set to \c buffer size and is modified to the read record
-///             size
-/// \return
+///             size for the caller to correctly use the buffer
+/// \return Error codes:
+///    * RET_SUCCESS buffers contains the oldest stored record with the given
+///    size
+///    * RET_ERROR_NOT_FOUND storage is empty
+///    * RET_ERROR_NO_MEM \c buffer cannot hold the record with given \c
+///    size
+///    * RET_ERROR_INVALID_STATE CRC failure, use \c storage_free to discard the
+///    data
 int
 storage_peek(char *buffer, size_t *size);
 
-/// Invalidate oldest record
-/// Data header is zeroed but the record isn't modified to reduce flash wear
-/// \return
+/// Invalidate oldest record. The record will then be considered stale.
+///
+/// \note Data header is zeroed but the record isn't modified to reduce flash
+///       wear
+///
+/// \return Error codes:
+///     * RET_SUCCESS record invalidated and read index pushed to next record
 ///     * RET_ERROR_NOT_FOUND record pointed by read index isn't valid
 ///     * RET_ERROR_INTERNAL error invalidating record in Flash
 int
 storage_free(void);
 
-/// Initialize storage area by looking for valid records in the Flash area
-/// \return
+/// Check if storage has content to be used
+/// \return \c true if storage contains data, \c false otherwise
+bool
+storage_has_data(void);
+
+/// Initialize storage area by looking for contiguous valid records in the Flash
+/// area
+/// \return Error codes:
+///     * RET_SUCCESS Storage correctly initialized and ready to use
+///     * RET_ERROR_NOT_INITIALIZED Unable to open flash area
 int
 storage_init(void);
 
