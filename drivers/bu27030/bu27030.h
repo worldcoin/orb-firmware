@@ -1,6 +1,7 @@
 #ifndef BU27030_H
 #define BU27030_H
 
+#include <zephyr/drivers/i2c.h>
 #include <zephyr/sys/util.h>
 
 #define BU27030_SYSTEM_CONTROL (0x40)

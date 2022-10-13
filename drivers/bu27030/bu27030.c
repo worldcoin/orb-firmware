@@ -1,12 +1,11 @@
 #define DT_DRV_COMPAT rohm_bu27030
 
+#include "bu27030.h"
+
 #include <zephyr/device.h>
-#include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/__assert.h>
-
-#include "bu27030.h"
 
 LOG_MODULE_REGISTER(BU27030, CONFIG_SENSOR_LOG_LEVEL);
 
@@ -20,14 +19,16 @@ LOG_MODULE_REGISTER(BU27030, CONFIG_SENSOR_LOG_LEVEL);
 #if SENSOR_GAIN == 32
 #define GAIN_REG_VALUE 0xAA
 #else
-// default gain
-#define GAIN_REG_VALUE 0x22
+#define GAIN_REG_VALUE 0x22 // default gain
 #endif
 
+/* clang-format off */
 const float data_coefficient[] = {
-    0.29f,      0.001646f, -0.000253f, -0.29f,  0.0f,      0.35f,     0.001646f,
-    -0.000253f, -0.29f,    5.833f,     0.40f,   0.001646f, -0.00253f, -0.285f,
-    -10.0f,     0.001646f, -0.00253f,  -0.294f, -1.417f};
+    0.29f,      0.001646f, -0.000253f, -0.29f,  0.0f,
+    0.35f,     0.001646f,-0.000253f, -0.29f,    5.833f,
+    0.40f,   0.001646f, -0.00253f, -0.285f,-10.0f,
+    0.001646f, -0.00253f,  -0.294f, -1.417f };
+/* clang-format on */
 
 static int
 bu27030_reg_read(const struct device *dev, uint8_t reg, uint8_t *val)
@@ -83,6 +84,7 @@ bu27030_sample_fetch(const struct device *dev, enum sensor_channel chan)
         if (bu27030_reg_read(dev, BU27030_DATA0_LOW_BYTE, &val_l) != 0) {
             return -EIO;
         }
+
         drv_data->data0 = (((uint16_t)val_h) << 8) + val_l;
 
         if (bu27030_reg_read(dev, BU27030_DATA1_HIGH_BYTE, &val_h) != 0) {
@@ -102,10 +104,13 @@ bu27030_sample_fetch(const struct device *dev, enum sensor_channel chan)
 
 /// Conversion to lux based on
 /// https://github.com/MAVProxyUser/athena_drivers_st/blob/devel/k91_main_source.0x08040000/Core/Src/bu27030_driver.c
-/// \param dev
-/// \param chan
-/// \param val
+/// \param dev BU27030 device
+/// \param chan supported channel is SENSOR_CHAN_LIGHT
+/// \param val pointer to use to set the sensor value into
 /// \return
+///     * 0 success
+///     * -ENOTSUP channel not supported
+///     * -ERANGE value out of range, consider modifying the gain
 static int
 bu27030_channel_get(const struct device *dev, enum sensor_channel chan,
                     struct sensor_value *val)
@@ -127,27 +132,27 @@ bu27030_channel_get(const struct device *dev, enum sensor_channel chan,
 
     // scale value as if it were measured using x256 gain and 100ms period
     uint32_t data0 =
-        drv_data->data0 * DATA_TRANSFER_COEF / SENSOR_MEAS_MODE / SENSOR_GAIN;
+        drv_data->data0 * (DATA_TRANSFER_COEF / SENSOR_MEAS_MODE / SENSOR_GAIN);
     uint32_t data1 =
-        drv_data->data1 * DATA_TRANSFER_COEF / SENSOR_MEAS_MODE / SENSOR_GAIN;
+        drv_data->data1 * (DATA_TRANSFER_COEF / SENSOR_MEAS_MODE / SENSOR_GAIN);
 
     float tmp1, tmp2;
     if (data1 < data0 * data_coefficient[0]) {
         tmp1 = data_coefficient[1] * data0 + data_coefficient[2] * data1;
-        tmp2 =
-            ((data1 / data0 - data_coefficient[3]) * data_coefficient[4] + 1.0);
+        tmp2 = ((data1 / data0 - data_coefficient[3]) * data_coefficient[4] +
+                1.0f);
     } else if (data1 < data0 * data_coefficient[5]) {
         tmp1 = data_coefficient[6] * data0 + data_coefficient[7] * data1;
-        tmp2 =
-            ((data1 / data0 - data_coefficient[8]) * data_coefficient[9] + 1.0);
+        tmp2 = ((data1 / data0 - data_coefficient[8]) * data_coefficient[9] +
+                1.0f);
     } else if (data1 < data0 * data_coefficient[10]) {
         tmp1 = data_coefficient[11] * data0 + data_coefficient[12] * data1;
         tmp2 = ((data1 / data0 - data_coefficient[13]) * data_coefficient[14] +
-                1.0);
+                1.0f);
     } else {
         tmp1 = data_coefficient[15] * data0 + data_coefficient[16] * data1;
         tmp2 = ((data1 / data0 - data_coefficient[17]) * data_coefficient[18] +
-                1.0);
+                1.0f);
     }
 
     float lx = tmp1 * tmp2;
