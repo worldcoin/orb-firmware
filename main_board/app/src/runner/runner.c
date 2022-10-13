@@ -71,9 +71,7 @@ job_ack(Ack_ErrorCode error, job_t *job)
 
     Ack ack = {.ack_number = ack_number, .error = error};
 
-    int err_code =
-        publish_new(&ack, sizeof(ack), McuToJetson_ack_tag, job->remote_addr);
-    ASSERT_SOFT(err_code);
+    publish_new(&ack, sizeof(ack), McuToJetson_ack_tag, job->remote_addr);
 
     if (error == Ack_ErrorCode_SUCCESS) {
         ++job_counter;
@@ -112,9 +110,7 @@ handle_err_code(void *ctx, int err)
         break;
     }
 
-    int err_code = publish_new(&ack, sizeof(ack), McuToJetson_ack_tag,
-                               context->remote_addr);
-    ASSERT_SOFT(err_code);
+    publish_new(&ack, sizeof(ack), McuToJetson_ack_tag, context->remote_addr);
 
     ++job_counter;
 }
@@ -694,6 +690,51 @@ handle_fw_img_sec_activate(job_t *job)
 }
 
 static void
+handle_fw_img_primary_confirm(job_t *job)
+{
+    McuMessage *msg = &job->mcu_message;
+    MAKE_ASSERTS(JetsonToMcu_fw_image_primary_confirm_tag);
+
+    LOG_DBG("Got primary slot confirmation");
+
+    // - Ack_ErrorCode_FAIL: image self-test didn't end up successful, meaning
+    // the image shouldn't be confirmed but reverted by using
+    // `FirmwareActivateSecondary`
+    // - Ack_ErrorCode_INVALID_STATE: running image already confirmed
+    // - Ack_ErrorCode_VERSION: version in secondary slot higher than version in
+    // primary slot meaning the image has not been installed successfully
+    struct image_version secondary_version;
+    struct image_version primary_version;
+    if (dfu_version_secondary_get(&secondary_version) == 0) {
+        // check that image to be confirmed has higher version than previous
+        // image
+        dfu_version_primary_get(&primary_version);
+        if (primary_version.iv_major < secondary_version.iv_major ||
+            (primary_version.iv_major == secondary_version.iv_major &&
+             primary_version.iv_minor < secondary_version.iv_minor) ||
+            (primary_version.iv_major == secondary_version.iv_major &&
+             primary_version.iv_minor == secondary_version.iv_minor &&
+             primary_version.iv_revision < secondary_version.iv_revision)) {
+            job_ack(Ack_ErrorCode_VERSION, job);
+            return;
+        }
+    }
+
+    if (dfu_primary_is_confirmed()) {
+        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+    } else {
+        int ret = dfu_primary_confirm();
+        if (ret) {
+            // consider as self-test not successful: in any case image is not
+            // able to run
+            job_ack(Ack_ErrorCode_FAIL, job);
+        } else {
+            job_ack(Ack_ErrorCode_SUCCESS, job);
+        }
+    }
+}
+
+static void
 handle_fps(job_t *job)
 {
     McuMessage *msg = &job->mcu_message;
@@ -934,10 +975,11 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_distributor_leds_sequence_tag] =
         handle_distributor_leds_sequence,
     [JetsonToMcu_ring_leds_sequence_tag] = handle_user_ring_leds_sequence,
+    [JetsonToMcu_fw_image_primary_confirm_tag] = handle_fw_img_primary_confirm,
 };
 
 static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 37,
+    ARRAY_SIZE(handle_message_callbacks) <= 38,
     "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void

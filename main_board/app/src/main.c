@@ -3,6 +3,7 @@
 #include "battery/battery.h"
 #include "button/button.h"
 #include "fan/fan.h"
+#include "fan/fan_tests.h"
 #include "gnss/gnss.h"
 #include "ir_camera_system/ir_camera_system.h"
 #include "liquid_lens/liquid_lens.h"
@@ -55,6 +56,9 @@ run_tests()
 #endif
 #if defined(CONFIG_TEST_IR_CAMERA_SYSTEM) || defined(RUN_ALL_TESTS)
     ir_camera_system_tests_init();
+#endif
+#if defined(CONFIG_TEST_FAN) || defined(RUN_ALL_TESTS)
+    fan_tests_init();
 #endif
 }
 
@@ -157,7 +161,7 @@ main(void)
     err_code = dfu_init();
     ASSERT_SOFT(err_code);
 
-    uint16_t hw = 0;
+    enum hw_version_e hw = 0;
     err_code = version_get_hardware_rev(&hw);
     ASSERT_SOFT(err_code);
     LOG_INF("Hardware version: %u", hw);
@@ -171,8 +175,6 @@ main(void)
     // launch tests if any is defined
     run_tests();
 
-    // we consider the image working if no errors were reported before
-    // Jetson sent first messages, and we didn't report any error
     while (1) {
         k_msleep(10000);
 
@@ -182,27 +184,14 @@ main(void)
         if (!jetson_up_and_running && runner_successful_jobs_count() > 0) {
             version_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 
-            uint32_t error_count = app_assert_soft_count();
-            if (error_count) {
-                LOG_ERR("Error count during boot: %u", error_count);
-
-                // do not confirm image
-                return;
-            }
-
             jetson_up_and_running = true;
             continue;
         }
 
         if (jetson_up_and_running && runner_successful_jobs_count() > 1) {
             // the orb is now up and running
-            LOG_INF("Confirming image");
-            int err_code = dfu_primary_confirm();
-            if (err_code == 0) {
-                operator_leds_set_pattern(
-                    DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN,
-                    OPERATOR_LEDS_ALL_MASK, NULL);
-            }
+            err_code = dfu_primary_confirm();
+            ASSERT_SOFT(err_code);
 
             return;
         }

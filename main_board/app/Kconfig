@@ -40,8 +40,28 @@ config MCU_DEVEL
     select NO_BOOT_LEDS
     select NO_SUPER_CAPS
 
+config TEST_MOTORS
+    default n
+    bool "Test the stepper motors"
+
+config TEST_DFU
+	default n
+	bool "Test device firmware upgrade"
+
+config TEST_OPERATOR_LEDS
+	default n
+	bool "Test operator LEDs"
+
+config TEST_USER_LEDS
+	default n
+	bool "Test user/front LEDs"
+
 config TEST_IR_CAMERA_SYSTEM
     default n
     bool "Test the IR camera system"
+
+config TEST_FAN
+	default n
+	bool "Test fan"
 
 source "Kconfig.zephyr"

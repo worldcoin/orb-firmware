@@ -3,6 +3,10 @@
 
 #include "zephyr/sys/util.h"
 
+#ifdef CONFIG_LOG
+#include <zephyr/logging/log_ctrl.h>
+#endif
+
 // Number of elements in member 'field' of structure 'type'
 #define STRUCT_MEMBER_ARRAY_SIZE(type, field) ARRAY_SIZE(((type *)0)->field)
 
@@ -18,5 +22,27 @@
 #define CRITICAL_SECTION_EXIT(k)                                               \
     irq_unlock(k);                                                             \
     }
+
+#ifdef CONFIG_LOG
+// log immediately, i.e., log and wait for messages to flush
+#define LOG_INF_IMM(...)                                                       \
+    LOG_INF(__VA_ARGS__);                                                      \
+    do {                                                                       \
+        uint32_t log_buffered_count = log_buffered_cnt();                      \
+        while (LOG_PROCESS() && --log_buffered_count)                          \
+            ;                                                                  \
+    } while (0)
+
+#define LOG_ERR_IMM(...)                                                       \
+    LOG_ERR(__VA_ARGS__);                                                      \
+    do {                                                                       \
+        uint32_t log_buffered_count = log_buffered_cnt();                      \
+        while (LOG_PROCESS() && --log_buffered_count)                          \
+            ;                                                                  \
+    } while (0)
+#else
+#define LOG_INF_IMM(...)
+#define LOG_ERR_IMM(...)
+#endif
 
 #endif // FIRMWARE_UTILS_H

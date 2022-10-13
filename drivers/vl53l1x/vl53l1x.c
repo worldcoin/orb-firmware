@@ -108,6 +108,14 @@ vl53l1x_start(const struct device *dev)
         return ret;
     }
 
+    ret = VL53L1_SetInterMeasurementPeriodMilliSeconds(
+        &drv_data->vl53l1x, CONFIG_VL53L1X_INTER_MEASUREMENT_PERIOD);
+    if (ret) {
+        LOG_ERR("[%s] VL53L1_SetInterMeasurementPeriodMilliSeconds failed: %d",
+                dev->name, ret);
+        return ret;
+    }
+
     ret = VL53L1_StartMeasurement(&drv_data->vl53l1x);
     if (ret) {
         LOG_ERR("[%s] VL53L1_StartMeasurement failed: %d", dev->name, ret);
