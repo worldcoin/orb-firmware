@@ -88,12 +88,12 @@ tof_1d_thread()
 
             if (average < DISTANCE_MIN_EYE_SAFETY_LOWER_LIMIT_MM && is_safe) {
                 is_safe = false;
-                LOG_INF("😵‍💫 IR LEDs are unsafe to use: %umm", average);
+                LOG_WRN("IR LEDs are unsafe to use: %umm", average);
             }
 
             if (average > DISTANCE_MIN_EYE_SAFETY_UPPER_LIMIT_MM && !is_safe) {
                 is_safe = true;
-                LOG_INF("🤩 IR LEDs safe to use: %umm", average);
+                LOG_WRN("IR LEDs are safe to use: %umm", average);
             }
 
             history.rd_idx = (history.rd_idx + 1) % ARRAY_SIZE(history.buffer);
