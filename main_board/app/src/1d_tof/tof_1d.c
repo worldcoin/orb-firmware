@@ -24,6 +24,8 @@ static bool is_safe = false;
 #define DISTANCE_MIN_EYE_SAFETY_LOWER_LIMIT_MM 100
 #define DISTANCE_MIN_EYE_SAFETY_UPPER_LIMIT_MM 120
 
+#define DISTANCE_PUBLISH_PERIOD_MS (1000)
+
 bool
 distance_is_safe(void)
 {
@@ -36,9 +38,10 @@ tof_1d_thread()
     int ret;
     struct sensor_value distance_value;
     ToF_1D tof;
+    uint32_t count = 0;
 
     while (1) {
-        k_msleep(1000);
+        k_msleep(CONFIG_VL53L1X_INTER_MEASUREMENT_PERIOD);
 
         ret = sensor_sample_fetch_chan(tof_1d_device, SENSOR_CHAN_DISTANCE);
         if (ret != 0) {
@@ -61,10 +64,16 @@ tof_1d_thread()
         tof.distance_mm =
             distance_value.val1 * 1000 + distance_value.val2 / 1000;
 
-        LOG_INF("Distance in front: %umm", tof.distance_mm);
+        // limit number of samples sent
+        ++count;
+        if (count % (DISTANCE_PUBLISH_PERIOD_MS /
+                     CONFIG_VL53L1X_INTER_MEASUREMENT_PERIOD) ==
+            0) {
+            LOG_INF("Distance in front: %umm", tof.distance_mm);
 
-        publish_new(&tof, sizeof(tof), McuToJetson_tof_1d_tag,
-                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+            publish_new(&tof, sizeof(tof), McuToJetson_tof_1d_tag,
+                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+        }
 
         history.buffer[history.wr_idx] = tof.distance_mm;
         history.wr_idx = (history.wr_idx + 1) % ARRAY_SIZE(history.buffer);
