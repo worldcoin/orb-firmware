@@ -157,10 +157,10 @@ main(void)
     err_code = dfu_init();
     ASSERT_SOFT(err_code);
 
-    enum hw_version_e hw = 0;
+    Hardware hw;
     err_code = version_get_hardware_rev(&hw);
     ASSERT_SOFT(err_code);
-    LOG_INF("Hardware version: %u", hw);
+    LOG_INF("Hardware version: %u", hw.version);
 
     err_code = button_init();
     ASSERT_SOFT(err_code);
@@ -178,7 +178,7 @@ main(void)
         // come back after the delay above and another message from the Jetson
         // to confirm the image
         if (!jetson_up_and_running && runner_successful_jobs_count() > 0) {
-            version_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+            fw_version_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 
             jetson_up_and_running = true;
             continue;

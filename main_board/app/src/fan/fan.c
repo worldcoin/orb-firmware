@@ -142,16 +142,16 @@ fan_init(const struct device *dev)
         return RET_ERROR_INTERNAL;
     }
 
-    // set specs depending on current main board
-    enum hw_version_e version = 0;
-    if (version_get_hardware_rev(&version) == RET_SUCCESS) {
-        if (version == HW_VERSION_MAINBOARD_EV1 ||
-            version == HW_VERSION_MAINBOARD_EV2) {
+    // set specs depending on current hardware
+    Hardware hw_rev;
+    if (version_get_hardware_rev(&hw_rev) == RET_SUCCESS) {
+        if (hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1 ||
+            hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
             fan_specs = fan_ev1_2_specs;
-        } else if (version == HW_VERSION_MAINBOARD_EV3) {
+        } else if (hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3) {
             fan_specs = fan_ev3_specs;
         } else {
-            LOG_ERR("Not supported mainboard: %u", version);
+            LOG_ERR("Not supported main board: %u", hw_rev.version);
         }
     }
 

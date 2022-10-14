@@ -18,15 +18,16 @@ test_fan()
     uint32_t max_speed_pulse_width_ns = 0;
     uint32_t min_speed_pulse_width_ns = 0;
 
-    enum hw_version_e rev;
-    version_get_hardware_rev(&rev);
+    Hardware hw;
+    version_get_hardware_rev(&hw);
 
-    if (rev == HW_VERSION_MAINBOARD_EV1 || rev == HW_VERSION_MAINBOARD_EV2) {
+    if (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1 ||
+        hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
         max_speed_pulse_width_ns = 32000;
 
         // 655 (1% of 65535) *40000 (period) *0.8 (range) / 65535 = 319
         min_speed_pulse_width_ns = 319;
-    } else if (rev == HW_VERSION_MAINBOARD_EV3) {
+    } else if (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3) {
         max_speed_pulse_width_ns = 40000;
 
         // min is 40% duty cycle = 0.4*40000
