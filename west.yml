@@ -6,7 +6,7 @@ manifest:
     remote: worldcoin
   projects:
     - name: zephyr
-      revision: 887e0438a80e153ff7795e9f3552a5f1ac8824aa
+      revision: 4e3657b264fd839e7b80baeb537f69966671bb84
       import:
         name-allowlist:
           - cmsis
