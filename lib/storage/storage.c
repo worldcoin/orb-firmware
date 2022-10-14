@@ -1,6 +1,7 @@
 #include "storage.h"
 #include <device.h>
 #include <errors.h>
+#include <kernel.h>
 #include <logging/log.h>
 #include <storage/flash_map.h>
 #include <sys/crc.h>
@@ -17,7 +18,7 @@ static struct storage_area_s storage_area = {0};
 #define UNUSED_UINT16       0xFFFF
 #define MINIMUM_EMPTY_SPACE 512 //!< empty space to keep before erasing flash
 
-K_SEM_DEFINE(sem_storage, 1, 1);
+static K_SEM_DEFINE(sem_storage, 1, 1);
 
 static int
 init_area(const struct flash_area *fa)
