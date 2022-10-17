@@ -148,7 +148,8 @@ fan_init(const struct device *dev)
         if (hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1 ||
             hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
             fan_specs = fan_ev1_2_specs;
-        } else if (hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3) {
+        } else if (hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
+                   hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4) {
             fan_specs = fan_ev3_specs;
         } else {
             LOG_ERR("Not supported main board: %u", hw_rev.version);

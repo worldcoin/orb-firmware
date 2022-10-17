@@ -65,14 +65,17 @@ version_get_hardware_rev(Hardware *hw_version)
             LOG_DBG("Hardware rev voltage: %dmV", hardware_version_mv);
 
             if (hardware_version_mv > 3200) {
-                // should be 3.3V
+                // should be 3.3V = 3300mV
                 version = Hardware_OrbVersion_HW_VERSION_PEARL_EV2;
             } else if (hardware_version_mv > 2900) {
-                // should be 3.0V
+                // should be 3.0V = 3000mV
                 version = Hardware_OrbVersion_HW_VERSION_PEARL_EV3;
             } else if (hardware_version_mv < 100) {
                 // should be 0.0V
                 version = Hardware_OrbVersion_HW_VERSION_PEARL_EV1;
+            } else if (hardware_version_mv < 400) {
+                // should be 0.30V = 300mV
+                version = Hardware_OrbVersion_HW_VERSION_PEARL_EV4;
             } else {
                 LOG_ERR("Unknown main board from voltage: %umV",
                         hardware_version_mv);

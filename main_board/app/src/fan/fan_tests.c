@@ -27,7 +27,8 @@ test_fan()
 
         // 655 (1% of 65535) *40000 (period) *0.8 (range) / 65535 = 319
         min_speed_pulse_width_ns = 319;
-    } else if (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3) {
+    } else if (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
+               hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4) {
         max_speed_pulse_width_ns = 40000;
 
         // min is 40% duty cycle = 0.4*40000
