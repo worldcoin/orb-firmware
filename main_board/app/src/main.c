@@ -101,8 +101,15 @@ main(void)
 
     app_assert_init(app_assert_cb);
 
-    err_code = can_messaging_init(runner_handle_new);
+#if CONFIG_ORB_LIB_CAN_MESSAGING
+    err_code = can_messaging_init(runner_handle_new_can);
     ASSERT_SOFT(err_code);
+#endif
+
+#if CONFIG_ORB_LIB_UART_MESSAGING
+    err_code = uart_messaging_init(runner_handle_new_uart);
+    ASSERT_SOFT(err_code);
+#endif
 
     // check battery state early on
     err_code = battery_init();

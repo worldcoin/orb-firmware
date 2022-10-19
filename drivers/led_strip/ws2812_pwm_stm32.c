@@ -19,9 +19,8 @@
 #include <drivers/clock_control/stm32_clock_control.h>
 #include <drivers/pinctrl.h>
 
-#define LOG_LEVEL_CONFIG CONFIG_LED_STRIP_LOG_LEVEL
 #include <logging/log.h>
-LOG_MODULE_REGISTER(worldsemi_ws2812_pwm_stm32);
+LOG_MODULE_REGISTER(worldsemi_ws2812_pwm_stm32, CONFIG_LED_STRIP_LOG_LEVEL);
 
 #define WS2812_PERIOD_NS       1250
 #define WS2812_PERIOD_1_BIT_NS 600

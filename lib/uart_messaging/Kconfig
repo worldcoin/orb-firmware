@@ -1,0 +1,8 @@
+config ORB_LIB_UART_MESSAGING
+	bool "Enable the UART messaging library"
+	select ORB_LIB_ERRORS
+
+config ORB_LIB_UART_MAX_SIZE_BYTES
+	int "Rx buffer max size"
+	default 700
+	depends on ORB_LIB_UART_MESSAGING

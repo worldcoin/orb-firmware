@@ -2,8 +2,12 @@
 #include <st/g4/stm32g474Xe.dtsi>
 #include <st/g4/stm32g474v(b-c-e)tx-pinctrl.dtsi>
 
+// see stm32g4xx_ll_dmamux.h
+#define DMAMUX_REQ_USART1_RX 0x18
+#define DMAMUX_REQ_USART1_TX 0x19
 #define DMAMUX_REQ_USART3_RX 0x1C
 #define DMAMUX_REQ_USART3_TX 0x1D
+
 #define DMA_CONFIG_DIR_SHIFT 6
 #define DMA_DIR_MEM_TO_PERIPH 1
 #define DMA_DIR_PERIPH_TO_MEM 2
@@ -33,6 +37,7 @@
         i2c_clock_gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
         // GPIO used to get hardware version dynamically
         hw-version-gpios = <&gpiob 12 GPIO_ACTIVE_HIGH>;
+        jetson_serial = <&usart1>;
         gnss = <&usart3>;
         level-shifter-enable-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
         // To be clear, the enable/disable signal only does something
@@ -305,7 +310,7 @@
     };
 };
 
-// needed for ws2812 user & operator LEDs
+// needed for ws2812, user & operator LEDs, USART
 &dma1 {
     status = "okay";
 };
@@ -342,6 +347,20 @@
     apb2-prescaler = <1>;
 };
 
+// Jetson
+&usart1 {
+    pinctrl-0 = <&usart1_tx_pc4 &usart1_rx_pc5>;
+    pinctrl-names = "default";
+    current-speed = <1000000>;
+    status = "okay";
+
+    // DMA1 channels 3 and 4 (1 and 2 used by front and operator LEDs (PWM), 5 and 6 used by GNSS (usart3)).
+    dmas = <&dma1 3 DMAMUX_REQ_USART1_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>,
+           <&dma1 4 DMAMUX_REQ_USART1_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>;
+    dma-names = "rx", "tx";
+};
+
+// debug
 &usart2 {
     pinctrl-0 = <&usart2_tx_pd5 &usart2_rx_pd6>;
     pinctrl-names = "default";
@@ -349,15 +368,16 @@
     status = "okay";
 };
 
+// GNSS module
 &usart3 {
     pinctrl-0 = <&usart3_tx_pb10 &usart3_rx_pb11>;
     pinctrl-names = "default";
     current-speed = <9600>;
     status = "okay";
 
-    // DMA1 channels 3 and 4 (1 and 2 used by front and operator LEDs).
-    dmas = <&dma1 3 DMAMUX_REQ_USART3_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>,
-           <&dma1 4 DMAMUX_REQ_USART3_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>;
+    // DMA1 channels 5 and 6 (1 and 2 used by front and operator LEDs (PWM), 3 and 4 by usart1).
+    dmas = <&dma1 5 DMAMUX_REQ_USART3_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>,
+           <&dma1 6 DMAMUX_REQ_USART3_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>;
     dma-names = "rx", "tx";
 };
 

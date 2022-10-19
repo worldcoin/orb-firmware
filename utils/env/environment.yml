@@ -23,5 +23,6 @@ dependencies:
       - west
       - pyserial
       - pyocd
+      - crc16
 variables:
   ZEPHYR_TOOLCHAIN_VARIANT: zephyr

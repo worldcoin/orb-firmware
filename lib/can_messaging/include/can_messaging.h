@@ -67,6 +67,6 @@ can_messaging_reset_async(void);
 /// \param in_handler Function that will handle incoming messages
 /// \return
 ret_code_t
-can_messaging_init(void (*in_handler)(can_message_t *msg));
+can_messaging_init(void (*in_handler)(void *msg));
 
 #endif // ORB_LIB_CAN_MESSAGING_H

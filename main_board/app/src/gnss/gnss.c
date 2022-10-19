@@ -22,8 +22,6 @@ LOG_MODULE_REGISTER(gnss, CONFIG_GNSS_LOG_LEVEL);
 
 static const struct device *uart_dev = DEVICE_DT_GET(GNSS_CTRL);
 
-K_SEM_DEFINE(tx_done_sem, 0, 1);
-
 static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_GNSS);
 static struct k_thread gnss_thread_data;
 
@@ -62,7 +60,6 @@ uart_receive_callback(const struct device *dev, struct uart_event *evt,
         break;
     case UART_TX_DONE:
     case UART_TX_ABORTED:
-        k_sem_give(&tx_done_sem);
         break;
     default:
         LOG_ERR("Unhandled event %d", evt->type);

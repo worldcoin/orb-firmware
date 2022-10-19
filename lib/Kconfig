@@ -2,6 +2,7 @@ if ORB_MCU_LIBRARIES_LIB
 
 menu "Log Levels"
 source "../orb/lib/can_messaging/log_levels.Kconfig"
+source "../orb/lib/uart_messaging/log_levels.Kconfig"
 source "../orb/lib/dfu/log_levels.Kconfig"
 source "../orb/lib/health_monitoring/log_levels.Kconfig"
 source "../orb/lib/i2c_scan/log_levels.Kconfig"
@@ -11,6 +12,10 @@ endmenu
 
 menu "CAN messaging"
 source "../orb/lib/can_messaging/Kconfig"
+endmenu
+
+menu "UART messaging"
+source "../orb/lib/uart_messaging/Kconfig"
 endmenu
 
 menu "Logs over CAN"

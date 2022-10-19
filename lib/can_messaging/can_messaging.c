@@ -80,7 +80,7 @@ can_messaging_reset_async(void)
 }
 
 ret_code_t
-can_messaging_init(void (*in_handler)(can_message_t *msg))
+can_messaging_init(void (*in_handler)(void *msg))
 {
     int err_code;
 

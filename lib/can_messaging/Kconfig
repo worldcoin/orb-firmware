@@ -1,67 +1,67 @@
-config ORB_LIB_CAN_MESSAGE
+config ORB_LIB_CAN_MESSAGING
 	bool "Enable the CAN messaging library"
-	depends on ORB_PROTOBUF_DEFINITIONS_LIB
+	select ORB_LIB_ERRORS
 
 config CAN_ADDRESS_MCU
 	hex "CAN address to receive data"
 	default 1
-	depends on ORB_LIB_CAN_MESSAGE
+	depends on ORB_LIB_CAN_MESSAGING
 
 config CAN_ADDRESS_DEFAULT_REMOTE
 	hex "Default CAN address to send data to"
 	default 0x80
-	depends on ORB_LIB_CAN_MESSAGE
+	depends on ORB_LIB_CAN_MESSAGING
 
 config ORB_LIB_THREAD_PRIORITY_CANBUS_RX
 	int "CAN bus RX thread priority"
 	default 5
-	depends on ORB_LIB_CAN_MESSAGE
+	depends on ORB_LIB_CAN_MESSAGING
 
 config ORB_LIB_THREAD_STACK_SIZE_CANBUS_RX
 	int "Stack size for CAN RX thread"
-	default 1536
-	depends on ORB_LIB_CAN_MESSAGE
+	default 3000
+	depends on ORB_LIB_CAN_MESSAGING
 
 config ORB_LIB_THREAD_PRIORITY_CANBUS_TX
 	int "CAN bus TX thread priority"
 	default 5
-	depends on ORB_LIB_CAN_MESSAGE
+	depends on ORB_LIB_CAN_MESSAGING
 
 config ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX
 	int "Stack size for CAN TX thread"
 	default 1536
-	depends on ORB_LIB_CAN_MESSAGE
+	depends on ORB_LIB_CAN_MESSAGING
 
 config ORB_LIB_CANBUS_TX_QUEUE_SIZE
 	int "CAN TX queue size"
 	default 32
-	depends on ORB_LIB_CAN_MESSAGE
+	depends on ORB_LIB_CAN_MESSAGING
 
 config ORB_LIB_THREAD_STACK_SIZE_CANBUS_ISOTP_RX
 	int "Stack size for CAN ISO-TP RX thread"
 	default 2048
-	depends on ORB_LIB_CAN_MESSAGE && ISOTP
+	depends on ORB_LIB_CAN_MESSAGING && ISOTP
 
 config CAN_ISOTP_REMOTE_ID
 	hex "4-bit ID used to build ISO-TP communication channel"
 	default 0x8
-	depends on ORB_LIB_CAN_MESSAGE && ISOTP
+	depends on ORB_LIB_CAN_MESSAGING && ISOTP
 
 config CAN_ISOTP_LOCAL_ID
 	hex "4-bit ID used to build ISO-TP communication channel"
 	default 0x1
-	depends on ORB_LIB_CAN_MESSAGE && ISOTP
+	depends on ORB_LIB_CAN_MESSAGING && ISOTP
 
 config CAN_ISOTP_REMOTE_APP_COUNT
 	int "Number of remote apps to bind to. Max is 7"
 	range 0 7
 	default 7
-	depends on ORB_LIB_CAN_MESSAGE && ISOTP
+	depends on ORB_LIB_CAN_MESSAGING && ISOTP
 
 config CAN_ISOTP_MAX_SIZE_BYTES
 	int "CAN ISO-TP message maximum size."
 	default 1024
 	range 1 4096
-	depends on ORB_LIB_CAN_MESSAGE && ISOTP
+	depends on ORB_LIB_CAN_MESSAGING && ISOTP
 	help
 		"An ISO-TP message can contain up to 4096 bytes but we might want to cap the value depending on application's constraints"

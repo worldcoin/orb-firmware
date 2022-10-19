@@ -21,7 +21,7 @@ static const struct zcan_filter recv_queue_filter = {
     .id_mask = CAN_EXT_ID_MASK};
 CAN_MSGQ_DEFINE(can_recv_queue, 5);
 
-static void (*incoming_message_handler)(can_message_t *msg);
+static void (*incoming_message_handler)(void *msg);
 
 static void
 rx_thread()
@@ -42,7 +42,7 @@ rx_thread()
         rx_message.bytes = rx_frame.data;
 
         if (incoming_message_handler != NULL) {
-            incoming_message_handler(&rx_message);
+            incoming_message_handler((void *)&rx_message);
         } else {
             LOG_ERR("No message handler installed!");
         }
@@ -50,7 +50,7 @@ rx_thread()
 }
 
 ret_code_t
-canbus_rx_init(void (*in_handler)(can_message_t *msg))
+canbus_rx_init(void (*in_handler)(void *msg))
 {
     if (in_handler == NULL) {
         return RET_ERROR_INVALID_PARAM;
