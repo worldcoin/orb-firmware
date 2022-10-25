@@ -19,7 +19,7 @@ LOG_MODULE_REGISTER(gnss, CONFIG_GNSS_LOG_LEVEL);
 #define GNSS_NODE DT_PATH(zephyr_user)
 #define GNSS_CTRL DT_PROP(GNSS_NODE, gnss)
 
-static const struct device *uart_dev = DEVICE_DT_GET(GNSS_CTRL);
+static const struct device *uart_dev = DEVICE_DT_GET_ANY(GNSS_CTRL);
 
 static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_GNSS);
 static struct k_thread gnss_thread_data;
