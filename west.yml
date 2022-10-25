@@ -19,7 +19,7 @@ manifest:
       revision: 5d0c7aa0384381ba4abe6ee96e7004de272d1c47
       path: modules/orb-protobuf-definitions
     - name: plug-and-trust
-      revision: cyril/uart_jetson
+      revision: fix/latest_zephyr
       path: modules/plug-and-trust
   self:
     path: orb

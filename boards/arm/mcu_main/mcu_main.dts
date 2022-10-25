@@ -13,6 +13,10 @@
 #define DMA_DIR_PERIPH_TO_MEM 2
 #define DMA_MEM_INC_ADDR_SHIFT 10
 
+#define DMA_CONFIG_CYCLIC_SHIFT  5
+#define DMA_CONFIG_CIRCULAR_MODE  1
+
+
 / {
     model = "Worldcoin Orb Main MCU";
     compatible = "worldcoin,mcu_main";
@@ -359,8 +363,8 @@
     status = "okay";
 
     // DMA1 channels 3 and 4 (1 and 2 used by front and operator LEDs (PWM), 5 and 6 used by GNSS (usart3)).
-    dmas = <&dma1 3 DMAMUX_REQ_USART1_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>,
-           <&dma1 4 DMAMUX_REQ_USART1_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>;
+    dmas = <&dma1 3 DMAMUX_REQ_USART1_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT) | (DMA_CONFIG_CIRCULAR_MODE << DMA_CONFIG_CYCLIC_SHIFT))>,
+           <&dma1 4 DMAMUX_REQ_USART1_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT) | (DMA_CONFIG_CIRCULAR_MODE << DMA_CONFIG_CYCLIC_SHIFT))>;
     dma-names = "rx", "tx";
 };
 
@@ -377,7 +381,7 @@
     pinctrl-0 = <&usart3_tx_pb10 &usart3_rx_pb11>;
     pinctrl-names = "default";
     current-speed = <9600>;
-    status = "okay";
+    status = "disabled";
 
     // DMA1 channels 5 and 6 (1 and 2 used by front and operator LEDs (PWM), 3 and 4 by usart1).
     dmas = <&dma1 5 DMAMUX_REQ_USART3_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>,
