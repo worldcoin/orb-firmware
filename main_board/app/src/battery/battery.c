@@ -6,12 +6,12 @@
 #include "ui/operator_leds/operator_leds.h"
 #include "utils.h"
 #include <app_assert.h>
-#include <device.h>
-#include <drivers/can.h>
-#include <sys/byteorder.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/can.h>
+#include <zephyr/kernel.h>
+#include <zephyr/sys/byteorder.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
 
 static const struct device *can_dev;
@@ -30,15 +30,15 @@ static struct k_thread rx_thread_data = {0};
 struct battery_can_msg {
     uint32_t can_id;
     uint8_t msg_len;
-    void (*handler)(struct zcan_frame *frame);
+    void (*handler)(struct can_frame *frame);
 };
 
-static struct zcan_filter battery_can_filter = {.id_type =
-                                                    CAN_STANDARD_IDENTIFIER,
-                                                .rtr = CAN_DATAFRAME,
-                                                .id = 0,
-                                                .rtr_mask = 1,
-                                                .id_mask = CAN_STD_ID_MASK};
+static struct can_filter battery_can_filter = {.id_type =
+                                                   CAN_STANDARD_IDENTIFIER,
+                                               .rtr = CAN_DATAFRAME,
+                                               .id = 0,
+                                               .rtr_mask = 1,
+                                               .id_mask = CAN_STD_ID_MASK};
 
 __PACKED_STRUCT battery_415_s
 {
@@ -164,7 +164,7 @@ publish_battery_pcb_temperature(void)
 }
 
 static void
-handle_499(struct zcan_frame *frame)
+handle_499(struct can_frame *frame)
 {
     CRITICAL_SECTION_ENTER(k);
     state_499 = *(struct battery_499_s *)frame->data;
@@ -172,7 +172,7 @@ handle_499(struct zcan_frame *frame)
 }
 
 static void
-handle_414(struct zcan_frame *frame)
+handle_414(struct can_frame *frame)
 {
     CRITICAL_SECTION_ENTER(k);
     got_battery_voltage_can_message = true;
@@ -181,7 +181,7 @@ handle_414(struct zcan_frame *frame)
 }
 
 static void
-handle_415(struct zcan_frame *frame)
+handle_415(struct can_frame *frame)
 {
     CRITICAL_SECTION_ENTER(k);
     state_415 = *(struct battery_415_s *)frame->data;
@@ -194,7 +194,7 @@ const static struct battery_can_msg messages[] = {
     {.can_id = 0x499, .msg_len = 6, .handler = handle_499}};
 
 static void
-message_checker(const struct device *dev, struct zcan_frame *frame,
+message_checker(const struct device *dev, struct can_frame *frame,
                 void *user_data)
 {
     ARG_UNUSED(dev);

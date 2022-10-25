@@ -1,8 +1,8 @@
 #include "heartbeat.h"
 #include "errors.h"
-#include "zephyr.h"
+#include "zephyr/kernel.h"
 #include <app_assert.h>
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(heartbeat, CONFIG_HEARTBEAT_LOG_LEVEL);
 
 #define THREAD_PRIORITY_HEARTBEAT   8

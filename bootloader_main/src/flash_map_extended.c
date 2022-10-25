@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <drivers/flash.h>
-#include <zephyr.h>
+#include <zephyr/drivers/flash.h>
+#include <zephyr/kernel.h>
 
 #include "target.h"
 

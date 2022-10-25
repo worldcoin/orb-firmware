@@ -1,11 +1,11 @@
 #include "can_messaging.h"
 #include <app_assert.h>
 #include <assert.h>
-#include <canbus/isotp.h>
-#include <device.h>
-#include <zephyr.h>
+#include <zephyr/canbus/isotp.h>
+#include <zephyr/device.h>
+#include <zephyr/kernel.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(isotp_rx, CONFIG_ISOTP_RX_LOG_LEVEL);
 
 #define ISOTP_FLOWCTRL_BS 8

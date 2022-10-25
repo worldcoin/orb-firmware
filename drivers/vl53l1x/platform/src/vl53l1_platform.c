@@ -34,8 +34,8 @@
  */
 
 #include "vl53l1_platform.h"
-#include <drivers/i2c.h>
-#include <logging/log.h>
+#include <zephyr/drivers/i2c.h>
+#include <zephyr/logging/log.h>
 
 LOG_MODULE_DECLARE(VL53L1X, CONFIG_SENSOR_LOG_LEVEL);
 

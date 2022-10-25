@@ -3,14 +3,14 @@
 #include <app_assert.h>
 #include <app_config.h>
 #include <assert.h>
-#include <device.h>
-#include <drivers/led_strip.h>
-#include <logging/log.h>
 #include <math.h>
-#include <random/rand32.h>
 #include <stdlib.h>
 #include <utils.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/led_strip.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/random/rand32.h>
 
 LOG_MODULE_REGISTER(front_unit_rgb_leds, CONFIG_FRONT_UNIT_RGB_LEDS_LOG_LEVEL);
 

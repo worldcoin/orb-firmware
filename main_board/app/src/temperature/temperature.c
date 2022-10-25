@@ -3,13 +3,13 @@
 #include "pubsub/pubsub.h"
 #include <app_config.h>
 #include <assert.h>
-#include <device.h>
-#include <drivers/sensor.h>
 #include <math.h>
-#include <sys_clock.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/sensor.h>
+#include <zephyr/kernel.h>
+#include <zephyr/sys_clock.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(temperature, CONFIG_TEMPERATURE_LOG_LEVEL);
 
 // These values are informed by

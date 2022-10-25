@@ -4,15 +4,14 @@
 #include <app_assert.h>
 #include <app_config.h>
 #include <assert.h>
-#include <device.h>
-#include <drivers/uart.h>
 #include <pubsub/pubsub.h>
 #include <stdlib.h>
-#include <sys/byteorder.h>
-#include <sys/ring_buffer.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/uart.h>
+#include <zephyr/kernel.h>
+#include <zephyr/sys/byteorder.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(gnss, CONFIG_GNSS_LOG_LEVEL);
 
 #define NMEA_MAX_SIZE 82 // Includes starting '$' and '\r' '\n'

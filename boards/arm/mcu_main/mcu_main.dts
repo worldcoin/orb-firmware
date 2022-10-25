@@ -190,6 +190,10 @@
     };
 };
 
+&rng {
+    status = "okay";
+};
+
 &adc1 {
     status = "okay";
     pinctrl-0 = <&adc1_in11_pb12>;

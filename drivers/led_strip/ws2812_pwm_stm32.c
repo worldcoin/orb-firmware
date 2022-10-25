@@ -6,20 +6,20 @@
 
 #define DT_DRV_COMPAT worldsemi_ws2812_pwm_stm32
 
-#include <device.h>
-#include <drivers/led_strip.h>
-#include <init.h>
 #include <soc.h>
 #include <stm32_ll_dma.h>
 #include <stm32_ll_rcc.h>
 #include <stm32_ll_tim.h>
-#include <sys/util_macro.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/led_strip.h>
+#include <zephyr/init.h>
+#include <zephyr/kernel.h>
+#include <zephyr/sys/util_macro.h>
 
-#include <drivers/clock_control/stm32_clock_control.h>
-#include <drivers/pinctrl.h>
+#include <zephyr/drivers/clock_control/stm32_clock_control.h>
+#include <zephyr/drivers/pinctrl.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(worldsemi_ws2812_pwm_stm32, CONFIG_LED_STRIP_LOG_LEVEL);
 
 #define WS2812_PERIOD_NS       1250

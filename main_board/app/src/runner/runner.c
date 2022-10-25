@@ -20,9 +20,9 @@
 #include <temperature/temperature.h>
 #include <uart_messaging.h>
 #include <ui/front_leds/front_leds.h>
-#include <zephyr.h>
+#include <zephyr/kernel.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(runner, CONFIG_RUNNER_LOG_LEVEL);
 
 static K_THREAD_STACK_DEFINE(auto_homing_stack, 600);

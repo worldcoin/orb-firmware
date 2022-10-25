@@ -3,17 +3,16 @@
 #include "mcu_messaging.pb.h"
 #include "pubsub/pubsub.h"
 #include "version/version.h"
-#include <device.h>
-#include <drivers/spi.h>
-#include <sys/byteorder.h>
-#include <zephyr.h>
-
 #include <app_assert.h>
 #include <app_config.h>
 #include <compilers.h>
-#include <logging/log.h>
 #include <math.h>
 #include <stdlib.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/spi.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/sys/byteorder.h>
 
 LOG_MODULE_REGISTER(stepper_motors, CONFIG_STEPPER_MOTORS_LOG_LEVEL);
 

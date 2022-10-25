@@ -4,10 +4,10 @@
 #include <app_config.h>
 #include <can_messaging.h>
 #include <flash_map_backend/flash_map_backend.h>
-#include <logging/log.h>
 #include <pb_encode.h>
-#include <sys/crc.h>
-#include <zephyr.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/sys/crc.h>
 
 #define LOG_LEVEL LOG_LEVEL_DBG
 LOG_MODULE_REGISTER(dfutest);

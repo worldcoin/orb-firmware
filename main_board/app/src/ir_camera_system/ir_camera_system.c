@@ -3,16 +3,16 @@
 #include "ir_camera_timer_settings.h"
 #include <app_assert.h>
 #include <assert.h>
-#include <device.h>
-#include <drivers/clock_control/stm32_clock_control.h>
-#include <drivers/pinctrl.h>
-#include <logging/log.h>
 #include <soc.h>
 #include <stm32_ll_hrtim.h>
 #include <stm32_ll_rcc.h>
 #include <stm32_ll_tim.h>
 #include <utils.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/clock_control/stm32_clock_control.h>
+#include <zephyr/drivers/pinctrl.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
 
 #define DT_INST_CLK(inst)                                                      \

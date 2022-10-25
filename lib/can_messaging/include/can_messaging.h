@@ -2,9 +2,9 @@
 #define ORB_LIB_CAN_MESSAGING_H
 
 #include "errors.h"
-#include <drivers/can.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <zephyr/drivers/can.h>
 
 /// Maximum CAN frame size depends on CAN driver configuration
 #define CAN_FRAME_MAX_SIZE (CAN_MAX_DLEN)

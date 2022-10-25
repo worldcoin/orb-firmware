@@ -1,10 +1,10 @@
 #include "motors_tests.h"
 #include "stepper_motors.h"
-#include <zephyr.h>
+#include <zephyr/kernel.h>
 
 #include <app_config.h>
-#include <logging/log.h>
-#include <random/rand32.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/random/rand32.h>
 LOG_MODULE_REGISTER(motors_test);
 
 static K_THREAD_STACK_DEFINE(motors_test_thread_stack, 1024);

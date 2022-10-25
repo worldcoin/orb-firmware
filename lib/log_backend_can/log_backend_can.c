@@ -1,8 +1,8 @@
 #include "log_backend_can.h"
 #include "can_messaging.h"
 #include "mcu_messaging.pb.h"
-#include <logging/log.h>
-#include <logging/log_backend.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/logging/log_backend.h>
 LOG_MODULE_REGISTER(log_can, CONFIG_LOG_CAN_LOG_LEVEL);
 
 static bool panic_mode = false;
@@ -52,7 +52,7 @@ is_panic_mode(void)
 /// \param backend
 /// \param msg
 static void
-process(const struct log_backend *const backend, union log_msg2_generic *msg)
+process(const struct log_backend *const backend, union log_msg_generic *msg)
 {
     (void)backend;
 
@@ -61,15 +61,15 @@ process(const struct log_backend *const backend, union log_msg2_generic *msg)
         return;
     }
 
-    if (log_msg2_get_level(&msg->log) > CONFIG_ORB_LIB_LOG_BACKEND_LEVEL ||
-        log_msg2_get_level(&msg->log) == LOG_LEVEL_NONE) {
+    if (log_msg_get_level(&msg->log) > CONFIG_ORB_LIB_LOG_BACKEND_LEVEL ||
+        log_msg_get_level(&msg->log) == LOG_LEVEL_NONE) {
         return;
     }
 
     // override flags :
     // - no color
     // - print level <wrn> or <err>
-    log_output_msg2_process(&log_output_can, &msg->log, LOG_OUTPUT_FLAG_LEVEL);
+    log_output_msg_process(&log_output_can, &msg->log, LOG_OUTPUT_FLAG_LEVEL);
 }
 
 static void
@@ -103,9 +103,6 @@ dropped(const struct log_backend *const backend, uint32_t cnt)
 
 const struct log_backend_api log_backend_can_api = {
     .process = process,
-    .put = NULL,
-    .put_sync_string = NULL,
-    .put_sync_hexdump = NULL,
     .panic = panic,
     .init = log_backend_can_init,
     .dropped = dropped,

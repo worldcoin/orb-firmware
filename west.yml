@@ -6,7 +6,7 @@ manifest:
     remote: worldcoin
   projects:
     - name: zephyr
-      revision: zephyr-v3.1.0
+      revision: worldcoin/stm32_dma_circular_mode
       import:
         name-allowlist:
           - cmsis
@@ -19,7 +19,7 @@ manifest:
       revision: 5d0c7aa0384381ba4abe6ee96e7004de272d1c47
       path: modules/orb-protobuf-definitions
     - name: plug-and-trust
-      revision: dc8923582abfb50840af9ce346a3cf4dd8ecf395
+      revision: cyril/uart_jetson
       path: modules/plug-and-trust
   self:
     path: orb

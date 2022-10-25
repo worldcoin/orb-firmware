@@ -2,10 +2,9 @@
 #include "canbus_rx.h"
 #include "canbus_tx.h"
 #include <app_assert.h>
-#include <drivers/can.h>
-#include <kernel.h>
-#include <logging/log.h>
-#include <sys/__assert.h>
+#include <zephyr/drivers/can.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(can_messaging, CONFIG_CAN_MESSAGING_LOG_LEVEL);
 
 static const struct device *can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
@@ -43,7 +42,7 @@ state_change_work_handler(struct k_work *work)
             current_state, current_err_cnt.rx_err_cnt,
             current_err_cnt.tx_err_cnt);
 
-    if (current_state == CAN_BUS_OFF) {
+    if (current_state == CAN_STATE_BUS_OFF) {
         LOG_WRN("CAN recovery from bus-off");
 
         if (can_recover(can_dev, K_MSEC(2000)) != 0) {

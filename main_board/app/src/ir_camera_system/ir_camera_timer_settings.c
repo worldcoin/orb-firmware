@@ -1,8 +1,8 @@
 #include "ir_camera_timer_settings.h"
-#include "kernel.h"
-#include <logging/log.h>
-#include <sys/util.h>
+#include "zephyr/kernel.h"
 #include <utils.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/sys/util.h>
 
 #ifdef CONFIG_ZTEST
 LOG_MODULE_REGISTER(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);

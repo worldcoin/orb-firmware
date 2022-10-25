@@ -4,10 +4,10 @@
 #include "pubsub/pubsub.h"
 #include "ui/front_leds/front_leds.h"
 #include <app_assert.h>
-#include <device.h>
-#include <drivers/gpio.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(button, CONFIG_BUTTON_LOG_LEVEL);
 
 #define POWER_BUTTON_NODE DT_PATH(buttons, power_button)

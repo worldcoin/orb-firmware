@@ -5,17 +5,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <drivers/flash.h>
-#include <zephyr.h>
+#include <zephyr/drivers/flash.h>
+#include <zephyr/kernel.h>
 
 #include <flash_map_backend/flash_map_backend.h>
 #include <sysflash/sysflash.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(dfu_flash, CONFIG_DFU_FLASH_LOG_LEVEL);
 
-#if (!defined(CONFIG_XTENSA) &&                                                \
-     defined(DT_CHOSEN_ZEPHYR_FLASH_CONTROLLER_LABEL))
+#if (!defined(CONFIG_XTENSA) && DT_HAS_CHOSEN(zephyr_flash_controller))
 #define FLASH_DEVICE_ID   SOC_FLASH_0_ID
 #define FLASH_DEVICE_BASE CONFIG_FLASH_BASE_ADDRESS
 #elif (defined(CONFIG_XTENSA) && defined(DT_JEDEC_SPI_NOR_0_LABEL))

@@ -32,7 +32,7 @@ extern "C" {
  * and match the target offset specified in download script.
  */
 #include <inttypes.h>
-#include <sys/types.h>
+#include <zephyr/sys/types.h>
 
 /* Retrieve the flash device with the given name.
  *

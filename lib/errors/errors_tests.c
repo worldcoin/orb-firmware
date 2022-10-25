@@ -1,6 +1,6 @@
 #include "app_assert.h"
-#include <logging/log.h>
 #include <random/rand32.h>
+#include <zephyr/logging/log.h>
 
 /// Based on fatal and assert tests, see
 /// zephyr/tests/ztest/error_hook/README.txt

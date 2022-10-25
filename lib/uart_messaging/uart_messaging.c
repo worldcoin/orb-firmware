@@ -1,10 +1,10 @@
 #include "uart_messaging.h"
 #include <app_assert.h>
-#include <device.h>
-#include <drivers/uart.h>
-#include <logging/log.h>
 #include <utils.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/uart.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(uart_messaging, CONFIG_UART_MESSAGING_LOG_LEVEL);
 

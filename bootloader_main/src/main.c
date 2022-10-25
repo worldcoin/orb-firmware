@@ -17,14 +17,14 @@
  */
 
 #include <assert.h>
-#include <drivers/flash.h>
-#include <drivers/gpio.h>
-#include <drivers/timer/system_timer.h>
 #include <linker/linker-defs.h>
 #include <soc.h>
-#include <sys/__assert.h>
 #include <usb/usb_device.h>
-#include <zephyr.h>
+#include <zephyr/drivers/flash.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/timer/system_timer.h>
+#include <zephyr/kernel.h>
+#include <zephyr/sys/__assert.h>
 
 #include "target.h"
 
@@ -70,7 +70,7 @@ const struct boot_uart_funcs boot_funcs = {.read = console_read,
 #warning "The log internal thread for log processing can't transfer the log"\
          "well for MCUBoot."
 #else
-#include <logging/log_ctrl.h>
+#include <zephyr/logging/log_ctrl.h>
 
 #define BOOT_LOG_PROCESSING_INTERVAL K_MSEC(30) /* [ms] */
 

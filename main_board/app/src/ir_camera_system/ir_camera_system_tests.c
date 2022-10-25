@@ -1,8 +1,8 @@
 #include "ir_camera_system.h"
 #include <app_config.h>
-#include <zephyr.h>
+#include <zephyr/kernel.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(ir_camera_system_tests_init);
 
 // These tests are intended to be observed with a logic analyzer

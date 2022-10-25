@@ -1,18 +1,18 @@
 #include "liquid_lens.h"
 #include <app_assert.h>
 #include <app_config.h>
-#include <device.h>
-#include <drivers/clock_control/stm32_clock_control.h>
-#include <drivers/gpio.h>
-#include <drivers/pinctrl.h>
-#include <logging/log.h>
 #include <stdlib.h>
 #include <stm32_ll_adc.h>
 #include <stm32_ll_dma.h>
 #include <stm32_ll_hrtim.h>
 #include <stm32_ll_rcc.h>
-#include <sys_clock.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/clock_control/stm32_clock_control.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/pinctrl.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/sys_clock.h>
 LOG_MODULE_REGISTER(liquid_lens, CONFIG_LIQUID_LENS_LOG_LEVEL);
 
 #define HR_TIMER         (HRTIM_TypeDef *)HRTIM1_BASE

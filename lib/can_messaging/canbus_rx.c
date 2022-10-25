@@ -1,9 +1,9 @@
 #include "can_messaging.h"
-#include <device.h>
-#include <drivers/can.h>
-#include <logging/log.h>
 #include <pb_decode.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/can.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(can_rx, CONFIG_CAN_RX_LOG_LEVEL);
 
@@ -12,8 +12,8 @@ K_THREAD_STACK_DEFINE(can_rx_thread_stack,
 static struct k_thread rx_thread_data = {0};
 
 static const struct device *can_dev;
-static struct zcan_frame rx_frame;
-static const struct zcan_filter recv_queue_filter = {
+static struct can_frame rx_frame;
+static const struct can_filter recv_queue_filter = {
     .id_type = CAN_EXTENDED_IDENTIFIER,
     .rtr = CAN_DATAFRAME,
     .id = CONFIG_CAN_ADDRESS_MCU,

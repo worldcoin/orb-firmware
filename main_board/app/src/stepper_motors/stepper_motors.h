@@ -2,7 +2,7 @@
 #define STEPPER_MOTORS_H
 
 #include <errors.h>
-#include <zephyr.h>
+#include <zephyr/kernel.h>
 
 typedef enum { MOTOR_VERTICAL = 0, MOTOR_HORIZONTAL, MOTOR_COUNT } motor_t;
 

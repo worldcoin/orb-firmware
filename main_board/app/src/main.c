@@ -21,19 +21,19 @@
 #include "version/version.h"
 #include <app_assert.h>
 #include <can_messaging.h>
-#include <device.h>
 #include <dfu.h>
 #include <dfu/dfu_tests.h>
 #include <ir_camera_system/ir_camera_system_tests.h>
 #include <pb_encode.h>
 #include <temperature/temperature.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/kernel.h>
 
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
 #include "heartbeat.h"
 #endif
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(main);
 
 static bool jetson_up_and_running = false;
