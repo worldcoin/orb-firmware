@@ -381,7 +381,7 @@
     pinctrl-0 = <&usart3_tx_pb10 &usart3_rx_pb11>;
     pinctrl-names = "default";
     current-speed = <9600>;
-    status = "disabled";
+    status = "okay";
 
     // DMA1 channels 5 and 6 (1 and 2 used by front and operator LEDs (PWM), 3 and 4 by usart1).
     dmas = <&dma1 5 DMAMUX_REQ_USART3_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>,
