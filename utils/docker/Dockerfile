@@ -1,4 +1,11 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
+
+# Set default shell during Docker image build to bash
+SHELL ["/bin/bash", "-c"]
+
+ARG WGET_ARGS="-q --show-progress --progress=bar:force:noscroll --no-check-certificate"
+ARG PROTOC_VERSION=21.7
+ARG SDK_VERSION=0.15.0
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
@@ -22,12 +29,14 @@ RUN apt-get update && \
         python3-wheel \
         udev \
         wget \
+    	unzip \
         xz-utils
 
 RUN cd /tmp && \
-    wget https://apt.kitware.com/kitware-archive.sh && \
-    bash kitware-archive.sh && \
-    rm kitware-archive.sh
+    ARCH="$(uname -m)" && \
+    wget https://github.com/Kitware/CMake/releases/download/v3.24.2/cmake-3.24.2-linux-${ARCH}.sh && \
+    bash cmake-3.24.2-linux-${ARCH}.sh --skip-license --prefix=/usr/ && \
+    rm cmake-3.24.2-linux-${ARCH}.sh
 
 RUN apt-get update && apt-get install -y cmake
 
@@ -58,14 +67,28 @@ RUN cd /tmp && \
 RUN pyocd pack install stm32g474vetx
 
 # Download and install Zephyr SDK
-ARG SDK_VER=0.13.1
-RUN cd /tmp && \
-    ARCH="$(uname -m)" && \
-    wget -nv https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SDK_VER}/zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run && \
-    chmod +x zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run && \
-    ./zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run -- -d /opt/zephyr-sdk-${SDK_VER} && \
-    rm ./zephyr-toolchain-arm-${SDK_VER}-linux-${ARCH}-setup.run
+RUN ARCH="$(uname -m)" && \
+    wget ${WGET_ARGS} -O /tmp/sdk.tar.gz https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SDK_VERSION}/zephyr-sdk-${SDK_VERSION}_linux-${ARCH}_minimal.tar.gz && \
+    tar -xf /tmp/sdk.tar.gz -C /opt/ && cd /opt/zephyr-sdk-${SDK_VERSION} && \
+    ./setup.sh -t arm-zephyr-eabi -h -c && \
+    rm -rf /tmp/sdk.tar.gz && . /opt/zephyr-sdk-0.15.0/environment-setup-${ARCH}-pokysdk-linux
 
+# Clean up stale packages
+RUN apt-get clean -y && \
+	apt-get autoremove --purge -y && \
+	rm -rf /var/lib/apt/lists/*
+
+# Install protobuf-compiler
+RUN mkdir -p /opt/protoc && \
+	cd /opt/protoc && \
+    ARCH="$(uname -m)" && \
+	PROTOC_HOSTTYPE=$(case ${ARCH} in x86_64) echo "x86_64";; aarch64) echo "aarch_64";; esac) && \
+	wget ${WGET_ARGS} https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_HOSTTYPE}.zip && \
+	unzip protoc-${PROTOC_VERSION}-linux-${PROTOC_HOSTTYPE}.zip && \
+	ln -s /opt/protoc/bin/protoc /usr/local/bin && \
+	rm -f protoc-${PROTOC_VERSION}-linux-${PROTOC_HOSTTYPE}.zip
+
+# install su-exec
 RUN cd /tmp && \
     git clone https://github.com/ncopa/su-exec.git && \
     cd su-exec && \

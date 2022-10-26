@@ -39,6 +39,9 @@ static void __attribute__((optimize("Ofast")))
 uart_receive_callback(const struct device *dev, struct uart_event *evt,
                       void *user_data)
 {
+    UNUSED_PARAMETER(dev);
+    UNUSED_PARAMETER(user_data);
+
     uint8_t *msg_ptr;
 
     switch (evt->type) {
@@ -89,15 +92,12 @@ uart_receive_callback(const struct device *dev, struct uart_event *evt,
         }
         break;
     case UART_RX_BUF_RELEASED:
-        break;
     case UART_RX_BUF_REQUEST:
         break;
     default:
         LOG_ERR("Unhandled event %d", evt->type);
         break;
     }
-
-    UNUSED_PARAMETER(user_data);
 }
 
 int

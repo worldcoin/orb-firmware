@@ -55,7 +55,6 @@
 
     vbat_sw {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "12V VBAT SW";
         regulator-name = "12v_vbat_sw";
         enable-gpios = <&gpiof 10 GPIO_ACTIVE_HIGH>;
 
@@ -68,49 +67,42 @@
 
     supply_12v {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "12V Supply";
         regulator-name = "supply_12v";
         enable-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;
     };
 
     supply_5v {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "5V Supply";
         regulator-name = "supply_5v";
         enable-gpios = <&gpiob 1 GPIO_ACTIVE_LOW>;
     };
 
     supply_3v8 {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "3.8V Supply";
         regulator-name = "supply_3v8";
         enable-gpios = <&gpioe 15 GPIO_ACTIVE_HIGH>;
     };
 
     supply_3v3 {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "3.3V Supply";
         regulator-name = "supply_3v3";
         enable-gpios = <&gpiod 15 GPIO_ACTIVE_HIGH>;
     };
 
     supply_1v8 {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "1.8V Supply";
         regulator-name = "supply_1v8";
         enable-gpios = <&gpioe 8 GPIO_ACTIVE_HIGH>;
     };
 
     supply_pvcc {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "PVCC Supply";
         regulator-name = "supply_pvcc";
         enable-gpios = <&gpioe 6 GPIO_ACTIVE_HIGH>;
     };
 
     supply_super_cap {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "Super cap supply";
         regulator-name = "supply_super_cap";
         enable-gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>;
     };
@@ -176,8 +168,7 @@
         clocks = <&rcc STM32_CLOCK_BUS_APB2 0x04000000>;
     };
 
-    stm-tmp {
-        label = "DIE_TEMP";
+    stm32_temp {
         compatible = "st,stm32-temp";
         io-channels = <&adc1 16>;
         status = "okay";
@@ -226,7 +217,6 @@
 
     operator_rgb_leds: operator_rgb_leds {
         compatible = "worldsemi,ws2812-pwm-stm32";
-        label = "operator_rbg_leds";
         pinctrl-0 = <&tim1_ch1_pc0>;
         pinctrl-names = "default";
         timer-channel = <1>;
@@ -308,7 +298,6 @@
 
     front_unit_rgb_leds: front_unit_rgb_leds {
         compatible = "worldsemi,ws2812-pwm-stm32";
-        label = "front_unit_rgb_leds";
         pinctrl-0 = <&tim20_ch2_pe3>;
         pinctrl-names = "default";
         timer-channel = <2>;
@@ -401,13 +390,11 @@
     front_unit_tmp_sensor: tmp112@48 {
         compatible = "ti,tmp112";
         reg = <0x48>;
-        label = "FRONT_UNIT_TEMP_SENSOR";
     };
 
     liquid_lens_tmp_sensor: maxim31875@4a {
         compatible = "maxim,max31875";
         reg = <0x4a>;
-        label = "LIQUID_LENS_TEMP_SENSOR";
         conversions-per-second = "1";
         resolution = <8>;
     };
@@ -415,7 +402,6 @@
     main_board_tmp_sensor: tmp112@49 {
         compatible = "ti,tmp112";
         reg = <0x49>;
-        label = "MAIN_BOARD_TEMP_SENSOR";
     };
 
     tof_sensor: vl53l1x@29 {
@@ -466,7 +452,6 @@
 
     motion_controller: motion_controller@0 {
         compatible = "tmc,5041-spi";
-        label = "tmc_5041_motion_controller";
         reg = <0>;
         spi-max-frequency = <4000000>;
         status = "okay";

@@ -17,14 +17,15 @@
  */
 
 #include <assert.h>
-#include <linker/linker-defs.h>
 #include <soc.h>
-#include <usb/usb_device.h>
+#include <zephyr/devicetree.h>
 #include <zephyr/drivers/flash.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/timer/system_timer.h>
 #include <zephyr/kernel.h>
+#include <zephyr/linker/linker-defs.h>
 #include <zephyr/sys/__assert.h>
+#include <zephyr/usb/usb_device.h>
 
 #include "target.h"
 
@@ -32,6 +33,7 @@
 #include "bootutil/bootutil_log.h"
 #include "bootutil/fault_injection_hardening.h"
 #include "bootutil/image.h"
+#include "bootutil/mcuboot_status.h"
 #include "flash_map_backend/flash_map_backend.h"
 
 #ifdef CONFIG_MCUBOOT_SERIAL
@@ -504,22 +506,6 @@ main(void)
     ZEPHYR_BOOT_LOG_START();
 
     (void)rc;
-
-#if (!defined(CONFIG_XTENSA) && DT_HAS_CHOSEN(zephyr_flash_controller))
-    if (!flash_device_get_binding(
-            DT_LABEL(DT_CHOSEN(zephyr_flash_controller)))) {
-        BOOT_LOG_ERR("Flash device %s not found",
-                     DT_LABEL(DT_CHOSEN(zephyr_flash_controller)));
-        while (1)
-            ;
-    }
-#elif (defined(CONFIG_XTENSA) && defined(JEDEC_SPI_NOR_0_LABEL))
-    if (!flash_device_get_binding(JEDEC_SPI_NOR_0_LABEL)) {
-        BOOT_LOG_ERR("Flash device %s not found", JEDEC_SPI_NOR_0_LABEL);
-        while (1)
-            ;
-    }
-#endif
 
 #ifdef CONFIG_MCUBOOT_SERIAL
     if (detect_pin(CONFIG_BOOT_SERIAL_DETECT_PORT,
