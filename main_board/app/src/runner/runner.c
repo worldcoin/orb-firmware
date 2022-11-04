@@ -683,9 +683,6 @@ handle_fw_img_sec_activate(job_t *job)
         operator_leds_set_pattern(
             DistributorLEDsPattern_DistributorRgbLedPattern_RGB,
             OPERATOR_LEDS_ALL_MASK, &(RgbColor)RGB_ORANGE);
-
-        // wait for Jetson to shut down before we can reboot
-        power_reboot_set_pending();
     }
 }
 
