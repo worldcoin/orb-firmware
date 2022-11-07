@@ -2,10 +2,10 @@
 #include "mcu_messaging.pb.h"
 #include "power_sequence/power_sequence.h"
 #include "pubsub/pubsub.h"
-#include "ui/front_leds/front_leds.h"
 #include <app_assert.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/kernel.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(button, CONFIG_BUTTON_LOG_LEVEL);
@@ -17,8 +17,14 @@ static const struct gpio_dt_spec button_spec =
 static struct gpio_callback button_cb_data;
 static bool is_init = false;
 
-struct k_work button_pressed_work;
-struct k_work button_released_work;
+static void
+button_released(struct k_work *item);
+
+static void
+button_pressed(struct k_work *item);
+
+static K_WORK_DEFINE(button_pressed_work, button_pressed);
+static K_WORK_DEFINE(button_released_work, button_released);
 
 static void
 button_released(struct k_work *item)

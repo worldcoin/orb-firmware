@@ -1,7 +1,7 @@
 /*
  *  Minimal configuration for using TLS in the bootloader
  *
- *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  Copyright (C) 2006-2021, ARM Limited, All Rights Reserved
  *  Copyright (C) 2016, Linaro Ltd
  *  SPDX-License-Identifier: Apache-2.0
  *
@@ -64,11 +64,11 @@
 #define MBEDTLS_MD_C
 #define MBEDTLS_OID_C
 #define MBEDTLS_SHA256_C
+#define MBEDTLS_SHA256_SMALLER
+#define MBEDTLS_SHA224_C
 #define MBEDTLS_AES_C
 
 /* Save RAM by adjusting to our exact needs */
-#define MBEDTLS_ECP_MAX_BITS 2048
-
 #if (CONFIG_BOOT_SIGNATURE_TYPE_RSA_LEN == 3072)
 #define MBEDTLS_MPI_MAX_SIZE 384
 #else

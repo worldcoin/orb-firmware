@@ -14,7 +14,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
 
-static const struct device *can_dev;
+static const struct device *can_dev = DEVICE_DT_GET(DT_ALIAS(battery_can_bus));
 K_THREAD_STACK_DEFINE(can_battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
 static struct k_thread rx_thread_data = {0};
 
@@ -243,11 +243,6 @@ ret_code_t
 battery_init(void)
 {
     int ret;
-    can_dev = DEVICE_DT_GET(DT_ALIAS(battery_can_bus));
-    if (!can_dev) {
-        LOG_ERR("CAN: Device driver not found.");
-        return RET_ERROR_NOT_FOUND;
-    }
 
     if (!device_is_ready(can_dev)) {
         LOG_ERR("CAN not ready");
@@ -311,6 +306,12 @@ battery_init(void)
         }
     } else {
         LOG_INF("Battery voltage is ok");
+    }
+
+    ret = can_start(can_dev);
+    if (ret != RET_SUCCESS) {
+        ASSERT_SOFT(ret);
+        return ret;
     }
 
     k_tid_t tid = k_thread_create(

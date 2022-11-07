@@ -81,23 +81,26 @@ can_messaging_reset_async(void)
 ret_code_t
 can_messaging_init(void (*in_handler)(void *msg))
 {
-    int err_code;
+    uint32_t err_code;
 
     // enable CAN-FD
     int ret = can_set_mode(can_dev, CAN_MODE_FD);
-    ASSERT_SOFT(ret);
+    if (ret) {
+        ASSERT_SOFT(ret);
+        return ret;
+    }
 
     // init underlying layers: CAN bus
     err_code = canbus_rx_init(in_handler);
     ASSERT_SOFT(err_code);
 
-    err_code = canbus_isotp_rx_init(in_handler);
+    err_code |= canbus_isotp_rx_init(in_handler);
     ASSERT_SOFT(err_code);
 
-    err_code = canbus_tx_init();
+    err_code |= canbus_tx_init();
     ASSERT_SOFT(err_code);
 
-    err_code = canbus_isotp_tx_init();
+    err_code |= canbus_isotp_tx_init();
     ASSERT_SOFT(err_code);
 
     // set up handler for CAN bus state change
@@ -107,6 +110,11 @@ can_messaging_init(void (*in_handler)(void *msg))
 
     // set up work handler for CAN reset
     k_work_init(&can_reset_work, can_reset_work_handler);
+
+    if (err_code == 0) {
+        err_code = can_start(can_dev);
+        ASSERT_SOFT(err_code);
+    }
 
     return RET_SUCCESS;
 }
