@@ -59,6 +59,9 @@ run_tests()
 #if defined(CONFIG_TEST_FAN) || defined(RUN_ALL_TESTS)
     fan_tests_init();
 #endif
+#ifdef CONFIG_ORB_LIB_ERRORS_TESTS
+    fatal_errors_test();
+#endif
 }
 
 /**
@@ -75,7 +78,7 @@ app_assert_cb(fatal_error_info_t *err_info)
             .which_message = McuMessage_m_message_tag,
             .message.m_message.which_payload = McuToJetson_fatal_error_tag};
 
-        uint8_t buffer[CAN_FRAME_MAX_SIZE];
+        static uint8_t buffer[CAN_FRAME_MAX_SIZE];
         pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
         bool encoded = pb_encode_ex(&stream, McuMessage_fields, &fatal_error,
                                     PB_ENCODE_DELIMITED);
