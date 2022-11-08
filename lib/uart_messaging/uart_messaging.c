@@ -10,6 +10,10 @@ LOG_MODULE_REGISTER(uart_messaging, CONFIG_UART_MESSAGING_LOG_LEVEL);
 static const struct device *uart_dev =
     DEVICE_DT_GET(DT_PROP(DT_PATH(zephyr_user), jetson_serial));
 
+#if !DT_NODE_HAS_STATUS(DT_PROP(DT_PATH(zephyr_user), jetson_serial), okay)
+#warning UART device not enabled, you can deselect CONFIG_ORB_LIB_UART_MESSAGING
+#endif
+
 /// Header is comprised of "magic" characters to mark the beginning of the
 /// message and the message length on 2 bytes (uint16_t, Little Endian)
 /// | 0x8E | 0xAD | len[0] | len[1] |

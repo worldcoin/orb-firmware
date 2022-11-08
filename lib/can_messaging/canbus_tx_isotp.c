@@ -9,7 +9,8 @@
 
 LOG_MODULE_REGISTER(isotp_tx, CONFIG_ISOTP_TX_LOG_LEVEL);
 
-static const struct device *can_dev;
+static const struct device *can_dev =
+    DEVICE_DT_GET_OR_NULL(DT_CHOSEN(zephyr_canbus));
 
 static void
 process_tx_messages_thread();
@@ -52,6 +53,8 @@ tx_complete_cb(int error_nr, void *buffer_to_free)
 _Noreturn static void
 process_tx_messages_thread()
 {
+    ASSERT_SOFT_BOOL(can_dev != NULL);
+
     can_message_t new;
     struct isotp_send_ctx send_ctx = {0};
 
@@ -133,7 +136,6 @@ can_isotp_messaging_async_tx(const can_message_t *message)
 ret_code_t
 canbus_isotp_tx_init(void)
 {
-    can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
     if (!can_dev) {
         LOG_ERR("CAN: Device driver not found.");
         return RET_ERROR_NOT_FOUND;

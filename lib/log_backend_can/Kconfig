@@ -1,6 +1,7 @@
 config ORB_LIB_LOG_BACKEND_CAN
     default y
     bool "Send logs over the CAN bus"
+    select LOG_OUTPUT
 	depends on LOG
 
 config ORB_LIB_LOG_BACKEND_LEVEL

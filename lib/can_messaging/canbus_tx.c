@@ -8,7 +8,8 @@
 
 LOG_MODULE_REGISTER(can_tx, CONFIG_CAN_TX_LOG_LEVEL);
 
-static const struct device *can_dev;
+static const struct device *can_dev =
+    DEVICE_DT_GET_OR_NULL(DT_CHOSEN(zephyr_canbus));
 
 static void
 process_tx_messages_thread();
@@ -68,7 +69,7 @@ send(const char *data, size_t len,
     int ret = can_send(can_dev, &frame, K_MSEC(1000), tx_complete_cb, NULL);
     if (ret == -ENETDOWN) {
         // CAN bus in off state
-        if (can_recover(can_dev, K_MSEC(2000)) != 0) {
+        if (can_dev != NULL && can_recover(can_dev, K_MSEC(2000)) != 0) {
             ASSERT_HARD(RET_ERROR_OFFLINE);
         }
     }
@@ -123,6 +124,8 @@ process_tx_messages_thread()
 ret_code_t
 can_messaging_async_tx(const can_message_t *message)
 {
+    ASSERT_HARD_BOOL(can_dev != NULL);
+
     if (!is_init) {
         return RET_ERROR_INVALID_STATE;
     }
@@ -175,7 +178,6 @@ canbus_tx_init(void)
 {
     int ret;
 
-    can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
     if (!can_dev) {
         LOG_ERR("CAN: Device driver not found.");
         return RET_ERROR_NOT_FOUND;

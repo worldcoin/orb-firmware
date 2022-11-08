@@ -10,7 +10,7 @@ LOG_MODULE_REGISTER(isotp_rx, CONFIG_ISOTP_RX_LOG_LEVEL);
 
 #define ISOTP_FLOWCTRL_BS 8
 
-const struct device *can_dev;
+const struct device *can_dev = DEVICE_DT_GET_OR_NULL(DT_CHOSEN(zephyr_canbus));
 const struct isotp_fc_opts flow_control_opts = {.bs = ISOTP_FLOWCTRL_BS,
                                                 .stmin = 0};
 
@@ -38,6 +38,8 @@ static_assert(CONFIG_ISOTP_RX_BUF_COUNT * ISOTP_FLOWCTRL_BS * 7 >= 541,
 static void
 bind_to_remotes(void)
 {
+    ASSERT_HARD_BOOL(can_dev != NULL);
+
     int ret;
 
     // bind to Jetson->MCU messages
@@ -166,7 +168,6 @@ canbus_isotp_rx_init(void (*in_handler)(void *msg))
         incoming_message_handler = in_handler;
     }
 
-    can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
     if (!can_dev) {
         LOG_ERR("CAN: Device driver not found.");
         return RET_ERROR_NOT_FOUND;

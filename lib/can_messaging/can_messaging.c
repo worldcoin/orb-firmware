@@ -7,7 +7,12 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(can_messaging, CONFIG_CAN_MESSAGING_LOG_LEVEL);
 
-static const struct device *can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
+static const struct device *can_dev =
+    DEVICE_DT_GET_OR_NULL(DT_CHOSEN(zephyr_canbus));
+
+#if !DT_NODE_HAS_STATUS(DT_CHOSEN(zephyr_canbus), okay)
+#warning CAN device not enabled, you can deselect CONFIG_ORB_LIB_CAN_MESSAGING
+#endif
 
 static enum can_state current_state;
 static struct can_bus_err_cnt current_err_cnt;
@@ -45,7 +50,7 @@ state_change_work_handler(struct k_work *work)
     if (current_state == CAN_STATE_BUS_OFF) {
         LOG_WRN("CAN recovery from bus-off");
 
-        if (can_recover(can_dev, K_MSEC(2000)) != 0) {
+        if (can_dev != NULL && can_recover(can_dev, K_MSEC(2000)) != 0) {
             ASSERT_HARD(RET_ERROR_OFFLINE);
         } else {
             // reset TX queues and buffers
@@ -82,6 +87,10 @@ ret_code_t
 can_messaging_init(void (*in_handler)(void *msg))
 {
     uint32_t err_code;
+
+    if (can_dev == NULL) {
+        return RET_ERROR_NOT_INITIALIZED;
+    }
 
     // enable CAN-FD
     int ret = can_set_mode(can_dev, CAN_MODE_FD);

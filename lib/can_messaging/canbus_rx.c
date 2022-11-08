@@ -1,4 +1,5 @@
 #include "can_messaging.h"
+#include <app_assert.h>
 #include <pb_decode.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/can.h>
@@ -11,7 +12,8 @@ K_THREAD_STACK_DEFINE(can_rx_thread_stack,
                       CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_RX);
 static struct k_thread rx_thread_data = {0};
 
-static const struct device *can_dev;
+static const struct device *can_dev =
+    DEVICE_DT_GET_OR_NULL(DT_CHOSEN(zephyr_canbus));
 static struct can_frame rx_frame;
 static const struct can_filter recv_queue_filter = {
     .id_type = CAN_EXTENDED_IDENTIFIER,
@@ -28,6 +30,8 @@ rx_thread()
 {
     int ret;
     static can_message_t rx_message = {0};
+
+    ASSERT_HARD_BOOL(can_dev != NULL);
 
     ret = can_add_rx_filter_msgq(can_dev, &can_recv_queue, &recv_queue_filter);
     if (ret < 0) {
@@ -58,7 +62,6 @@ canbus_rx_init(void (*in_handler)(void *msg))
         incoming_message_handler = in_handler;
     }
 
-    can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
     if (!can_dev) {
         LOG_ERR("CAN: Device driver not found.");
         return RET_ERROR_NOT_FOUND;
