@@ -7,6 +7,7 @@
 #include <drivers/pwm.h>
 #include <zephyr.h>
 
+#include <app_assert.h>
 #include <logging/log.h>
 LOG_MODULE_REGISTER(fan, CONFIG_FAN_LOG_LEVEL);
 
@@ -37,13 +38,13 @@ const struct fan_duty_cycle_specs fan_ev1_2_specs = {
 const struct fan_duty_cycle_specs fan_ev3_specs = {
     .min_duty_cycle_percent = 40, .max_duty_cycle_percent = 100};
 
-static uint32_t fan_speed = 0;
+static uint32_t fan_speed_by_value = 0; // value over UINT16_MAX range
 static struct fan_duty_cycle_specs fan_specs;
 
 uint32_t
 fan_get_speed_setting(void)
 {
-    return fan_speed;
+    return fan_speed_by_value;
 }
 
 void
@@ -96,13 +97,15 @@ fan_set_speed_by_value(uint16_t value)
             ((float)value / UINT16_MAX) * 100);
 
     if (value != 0) {
-        fan_speed = compute_pulse_width_ns(value);
+        uint32_t pulse_width_ns = compute_pulse_width_ns(value);
 
         pwm_set_dt(&main_fan_spec, main_fan_spec.period,
-                   (main_fan_spec.period - fan_speed));
+                   (main_fan_spec.period - pulse_width_ns));
         pwm_set_dt(&aux_fan_spec, aux_fan_spec.period,
-                   (aux_fan_spec.period - fan_speed));
+                   (aux_fan_spec.period - pulse_width_ns));
     }
+
+    fan_speed_by_value = value;
 
     // Even at 0%, the fan spins. This will kill power to the fans in the case
     // of 0%.
@@ -155,6 +158,40 @@ fan_init(const struct device *dev)
             LOG_ERR("Not supported main board: %u", hw_rev.version);
         }
     }
+
+#ifdef CONFIG_TEST_FAN
+    uint32_t max_speed_pulse_width_ns = 0;
+    uint32_t min_speed_pulse_width_ns = 0;
+    uint32_t value;
+    uint32_t pulse_width_ns;
+
+    if (hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1 ||
+        hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
+        max_speed_pulse_width_ns = 32000;
+
+        // 655 (1% of 65535) *40000 (period) *0.8 (range) / 65535 = 319
+        min_speed_pulse_width_ns = 319;
+    } else if (hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
+               hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4) {
+        max_speed_pulse_width_ns = 40000;
+
+        // min is 40% duty cycle = 0.4*40000
+        // + 239 (1% of available range of 60%)
+        min_speed_pulse_width_ns = 16239;
+    }
+
+    fan_set_speed_by_percentage(100);
+    value = fan_get_speed_setting();
+    pulse_width_ns = compute_pulse_width_ns(value);
+    ASSERT_SOFT_BOOL(pulse_width_ns == max_speed_pulse_width_ns);
+
+    k_msleep(1000);
+
+    fan_set_speed_by_percentage(1);
+    value = fan_get_speed_setting();
+    pulse_width_ns = compute_pulse_width_ns(value);
+    ASSERT_SOFT_BOOL(pulse_width_ns == min_speed_pulse_width_ns);
+#endif
 
     fan_set_speed_by_percentage(FAN_INITIAL_SPEED_PERCENT);
 
