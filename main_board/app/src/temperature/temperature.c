@@ -29,14 +29,14 @@ static_assert((int)(MAIN_BOARD_OVERTEMP_C - OVERTEMP_DROP_C) > 0 &&
 struct sensor_and_channel; // forward declaration
 
 typedef void (*temperature_callback)(
-    struct sensor_and_channel *sensor_and_channel, uint32_t temperature);
+    struct sensor_and_channel *sensor_and_channel, int32_t temperature);
 static void
 overtemp_callback(struct sensor_and_channel *sensor_and_channel,
-                  uint32_t temperature);
+                  int32_t temperature);
 
 struct overtemp_info {
-    uint32_t overtemp_c;
-    uint32_t overtemp_drop_c;
+    int32_t overtemp_c;
+    int32_t overtemp_drop_c;
     bool in_overtemp;
 };
 
@@ -297,7 +297,7 @@ dec_overtemp_condition(void)
 
 static void
 overtemp_callback(struct sensor_and_channel *sensor_and_channel,
-                  uint32_t temperature)
+                  int32_t temperature)
 {
     struct overtemp_info *overtemp_info =
         (struct overtemp_info *)sensor_and_channel->cb_data;
