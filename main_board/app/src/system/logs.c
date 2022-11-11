@@ -14,7 +14,7 @@
 void
 print_log_can(const char *data, size_t size, bool blocking)
 {
-    if (size > STRUCT_MEMBER_ARRAY_SIZE(Log, log) && !blocking) {
+    if (size > STRUCT_MEMBER_ARRAY_SIZE(Log, log)) {
         ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
         return;
     }
