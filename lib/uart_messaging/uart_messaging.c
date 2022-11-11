@@ -8,7 +8,7 @@
 LOG_MODULE_REGISTER(uart_messaging, CONFIG_UART_MESSAGING_LOG_LEVEL);
 
 static const struct device *uart_dev =
-    DEVICE_DT_GET(DT_PROP(DT_PATH(zephyr_user), jetson_serial));
+    DEVICE_DT_GET_OR_NULL(DT_PROP(DT_PATH(zephyr_user), jetson_serial));
 
 #if !DT_NODE_HAS_STATUS(DT_PROP(DT_PATH(zephyr_user), jetson_serial), okay)
 #warning UART device not enabled, you can deselect CONFIG_ORB_LIB_UART_MESSAGING
@@ -118,6 +118,10 @@ uart_messaging_init(void (*in_handler)(void *msg))
         return RET_ERROR_INVALID_PARAM;
     } else {
         incoming_message_handler = in_handler;
+    }
+
+    if (uart_dev == NULL) {
+        return RET_ERROR_NOT_INITIALIZED;
     }
 
     if (!device_is_ready(uart_dev)) {
