@@ -45,7 +45,7 @@ bu27030_reg_read(const struct device *dev, uint8_t reg, uint8_t *val)
     };
 
     struct bu27030_config *config = (struct bu27030_config *)dev->config;
-    if (i2c_transfer(config->i2c.bus, msgs, 2, config->i2c.addr) != 0) {
+    if (i2c_transfer(config->i2c.bus, msgs, ARRAY_SIZE(msgs), config->i2c.addr) != 0) {
         return -EIO;
     }
 
