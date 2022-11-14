@@ -16,8 +16,6 @@
 #define BU27030_DATA1_LOW_BYTE  (0x52)
 #define BU27030_DATA1_HIGH_BYTE (0x53)
 
-#define DATA_TRANSFER_COEF (100 * 256) // 100ms, 256x
-
 struct bu27030_config {
     struct i2c_dt_spec i2c;
 };
