@@ -23,13 +23,10 @@ LOG_MODULE_REGISTER(BU27030, CONFIG_SENSOR_LOG_LEVEL);
 #define GAIN_REG_VALUE 0x22 // default gain
 #endif
 
-/* clang-format off */
 const float data_coefficient[] = {
-    0.29f,      0.001646f, -0.000253f, -0.29f,  0.0f,
-    0.35f,     0.001646f,-0.000253f, -0.29f,    5.833f,
-    0.40f,   0.001646f, -0.00253f, -0.285f,-10.0f,
-    0.001646f, -0.00253f,  -0.294f, -1.417f };
-/* clang-format on */
+    0.29f,      0.001646f, -0.000253f, -0.29f,  0.0f,      0.35f,     0.001646f,
+    -0.000253f, -0.29f,    5.833f,     0.40f,   0.001646f, -0.00253f, -0.285f,
+    -10.0f,     0.001646f, -0.00253f,  -0.294f, -1.417f};
 
 static int
 bu27030_reg_read(const struct device *dev, uint8_t reg, uint8_t *val)
