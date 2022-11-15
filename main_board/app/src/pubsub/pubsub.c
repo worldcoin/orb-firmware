@@ -38,7 +38,8 @@ static struct k_thread pub_stored_thread_data;
 /// `data` contains an `McuToJetson` into an `McuMessage`.
 /// The McuMessage is encoded (serialized).
 ///
-/// \note Up to 5 bytes are used for the McuMessage header.
+/// \note Up to 5 bytes are used for wrapping the `McuToJetson` into an
+/// `McuMessage`
 struct pub_entry_s {
     uint32_t destination;
     uint8_t data[McuToJetson_size + 5];
