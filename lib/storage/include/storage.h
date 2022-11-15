@@ -23,7 +23,9 @@ enum magic_state_e {
 
 /// Header that allows for verifications over the records
 /// such as state (valid or invalid) & CRC check
-typedef struct {
+/// Even though the structure is simple, we prefer to pack the data
+/// to make sure it takes the expected number of bytes
+typedef struct __PACKED {
     uint16_t magic_state;
     uint16_t record_size;
     uint16_t crc16;  //!< CRC over the data, including padding which can be used
