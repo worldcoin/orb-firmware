@@ -308,7 +308,13 @@ exit:
 bool
 storage_has_data(void)
 {
-    return storage_area.rd_idx != storage_area.wr_idx;
+    bool has_data;
+
+    k_sem_take(&sem_storage, K_FOREVER);
+    has_data = (storage_area.rd_idx != storage_area.wr_idx);
+    k_sem_give(&sem_storage);
+
+    return has_data;
 }
 
 int
