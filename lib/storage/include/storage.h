@@ -26,8 +26,9 @@ enum magic_state_e {
 typedef struct {
     uint16_t magic_state;
     uint16_t record_size;
-    uint16_t crc16;
-    uint16_t unused; // 0xffff
+    uint16_t crc16;  //!< CRC over the data, including padding which can be used
+                     //!< to align the record on Flash write size
+    uint16_t unused; //!< 0xffff
 } storage_header_t;
 
 /// Pointers to read/write through the flash area
