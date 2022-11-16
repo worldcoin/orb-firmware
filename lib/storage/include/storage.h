@@ -1,6 +1,7 @@
 #ifndef ORB_LIB_STORAGE_H
 #define ORB_LIB_STORAGE_H
 
+#include "compilers.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -25,7 +26,7 @@ enum magic_state_e {
 /// such as state (valid or invalid) & CRC check
 /// Even though the structure is simple, we prefer to pack the data
 /// to make sure it takes the expected number of bytes
-typedef struct __PACKED {
+typedef struct __PACKED __may_alias {
     uint16_t magic_state;
     uint16_t record_size;
     uint16_t crc16;  //!< CRC over the data, including padding which can be used
