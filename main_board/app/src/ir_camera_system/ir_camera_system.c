@@ -460,12 +460,6 @@ set_ccr_ir_leds(void)
 {
     zero_led_ccrs();
 
-    // allow usage of IR LEDs if safety conditions are met
-    // this overrides Jetson commands
-    if (!distance_is_safe()) {
-        return;
-    }
-
     switch (enabled_led_wavelength) {
     case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
         set_timer_compare[LED_850NM_TIMER_LEFT_CHANNEL - 1](

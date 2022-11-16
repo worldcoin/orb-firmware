@@ -121,6 +121,7 @@ liquid_lens_thread(void *a, void *b, void *c)
         }
 
         if (LL_ADC_REG_IsConversionOngoing(ADC)) {
+            LL_ADC_REG_StopConversion(ADC);
             LOG_WRN("liquid lens ADC overrun");
             continue;
         }

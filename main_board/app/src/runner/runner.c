@@ -683,9 +683,6 @@ handle_fw_img_sec_activate(job_t *job)
         operator_leds_set_pattern(
             DistributorLEDsPattern_DistributorRgbLedPattern_RGB,
             OPERATOR_LEDS_ALL_MASK, &(RgbColor)RGB_ORANGE);
-
-        // wait for Jetson to shut down before we can reboot
-        power_reboot_set_pending();
     }
 }
 
@@ -913,12 +910,15 @@ handle_value_get_message(job_t *job)
     McuMessage *msg = &job->mcu_message;
     MAKE_ASSERTS(JetsonToMcu_value_get_tag);
 
-    LOG_DBG("Got Value Get request");
-
     ValueGet_Value value = msg->message.j_message.payload.value_get.value;
+    LOG_DBG("Got ValueGet request: %u", value);
+
     switch (value) {
     case ValueGet_Value_FIRMWARE_VERSIONS:
-        version_send(job->remote_addr);
+        fw_version_send(job->remote_addr);
+        break;
+    case ValueGet_Value_HARDWARE_VERSIONS:
+        hw_version_send(job->remote_addr);
         break;
     default: {
         // unknown value, respond with error
