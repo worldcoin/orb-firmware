@@ -49,7 +49,7 @@ static volatile UserLEDsPattern_UserRgbLedPattern global_pattern =
 #ifdef CONFIG_NO_BOOT_LEDS
     UserLEDsPattern_UserRgbLedPattern_OFF;
 #else
-    UserLEDsPattern_UserRgbLedPattern_PULSING_RGB;
+    UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE;
 #endif // CONFIG_NO_BOOT_LEDS
 
 #define INITIAL_PULSING_PERIOD_MS 4000
@@ -57,8 +57,8 @@ static volatile UserLEDsPattern_UserRgbLedPattern global_pattern =
 static volatile bool use_sequence;
 static volatile uint32_t global_start_angle_degrees = 0;
 static volatile int32_t global_angle_length_degrees = FULL_RING_DEGREES;
-static volatile uint8_t global_intensity = 30;
-static volatile struct led_rgb global_color = {.r = 0, .g = 0, .b = 48};
+static volatile uint8_t global_intensity = 25;
+static volatile struct led_rgb global_color = {.r = 0, .g = 0, .b = 0};
 static volatile float global_pulsing_scale = 2;
 static volatile uint32_t global_pulsing_period_ms = INITIAL_PULSING_PERIOD_MS;
 static volatile uint32_t global_pulsing_delay_time_ms =
