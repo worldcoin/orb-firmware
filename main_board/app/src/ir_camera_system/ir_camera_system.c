@@ -1,4 +1,5 @@
 #include "ir_camera_system.h"
+#include "1d_tof/tof_1d.h"
 #include "ir_camera_timer_settings.h"
 #include <app_assert.h>
 #include <assert.h>
@@ -253,7 +254,7 @@ disable_ir_leds()
     ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_NONE);
 }
 
-void
+static void
 configure_timeout(void)
 {
     static K_TIMER_DEFINE(ir_leds_auto_off_timer, disable_ir_leds, NULL);
@@ -263,7 +264,7 @@ configure_timeout(void)
         // starting an already started timer will simply reset it
         k_timer_start(&ir_leds_auto_off_timer,
                       K_SECONDS(IR_LED_AUTO_OFF_TIMEOUT_S), K_NO_WAIT);
-        LOG_DBG("Resetting timout (%" PRIu32 "s).", IR_LED_AUTO_OFF_TIMEOUT_S);
+        LOG_DBG("Resetting timeout (%" PRIu32 "s).", IR_LED_AUTO_OFF_TIMEOUT_S);
     } else {
         // stopping an already stopped timer is ok and has no effect.
         k_timer_stop(&ir_leds_auto_off_timer);

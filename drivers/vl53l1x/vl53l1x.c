@@ -108,6 +108,14 @@ vl53l1x_start(const struct device *dev)
         return ret;
     }
 
+    ret = VL53L1_SetInterMeasurementPeriodMilliSeconds(
+        &drv_data->vl53l1x, CONFIG_VL53L1X_INTER_MEASUREMENT_PERIOD);
+    if (ret) {
+        LOG_ERR("[%s] VL53L1_SetInterMeasurementPeriodMilliSeconds failed: %d",
+                dev->name, ret);
+        return ret;
+    }
+
     ret = VL53L1_StartMeasurement(&drv_data->vl53l1x);
     if (ret) {
         LOG_ERR("[%s] VL53L1_StartMeasurement failed: %d", dev->name, ret);
@@ -192,6 +200,8 @@ vl53l1x_channel_get(const struct device *dev, enum sensor_channel chan,
         if (drv_data->RangingMeasurementData.RangeStatus != 0) {
             return -ENOMSG;
         }
+
+        // value in meters
         val->val1 = drv_data->RangingMeasurementData.RangeMilliMeter / 1000;
         val->val2 =
             (drv_data->RangingMeasurementData.RangeMilliMeter % 1000) * 1000;

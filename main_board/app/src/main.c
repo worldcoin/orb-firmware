@@ -1,4 +1,5 @@
 #include "1d_tof/tof_1d.h"
+#include "ambient_light/als.h"
 #include "battery/battery.h"
 #include "button/button.h"
 #include "fan/fan.h"
@@ -64,6 +65,9 @@ run_tests()
 #if defined(CONFIG_ORB_LIB_STORAGE_TESTS) || defined(RUN_ALL_TESTS)
     storage_tests();
 #endif
+#ifdef CONFIG_ORB_LIB_ERRORS_TESTS
+    fatal_errors_test();
+#endif
 }
 
 /**
@@ -76,11 +80,11 @@ app_assert_cb(fatal_error_info_t *err_info)
 {
     if (jetson_up_and_running) {
         // fatal error, try to warn Jetson
-        McuMessage fatal_error = {.which_message = McuMessage_m_message_tag,
-                                  .message.m_message.which_payload =
-                                      McuToJetson_fatal_error_tag};
+        static McuMessage fatal_error = {
+            .which_message = McuMessage_m_message_tag,
+            .message.m_message.which_payload = McuToJetson_fatal_error_tag};
 
-        uint8_t buffer[CAN_FRAME_MAX_SIZE];
+        static uint8_t buffer[CAN_FRAME_MAX_SIZE];
         pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
         bool encoded = pb_encode_ex(&stream, McuMessage_fields, &fatal_error,
                                     PB_ENCODE_DELIMITED);
@@ -164,13 +168,16 @@ main(void)
     err_code = tof_1d_init();
     ASSERT_SOFT(err_code);
 
+    err_code = als_init();
+    ASSERT_SOFT(err_code);
+
     err_code = dfu_init();
     ASSERT_SOFT(err_code);
 
-    enum hw_version_e hw = 0;
+    Hardware hw;
     err_code = version_get_hardware_rev(&hw);
     ASSERT_SOFT(err_code);
-    LOG_INF("Hardware version: %u", hw);
+    LOG_INF("Hardware version: %u", hw.version);
 
     err_code = button_init();
     ASSERT_SOFT(err_code);
@@ -181,25 +188,26 @@ main(void)
     // launch tests if any is defined
     run_tests();
 
-    while (1) {
-        k_msleep(10000);
+    dfu_primary_confirm();
+
+    // wait for Jetson to show activity before sending our version
+    while (!jetson_up_and_running) {
+        k_msleep(5000);
 
         // as soon as the Jetson sends the first message, send firmware version
-        // come back after the delay above and another message from the Jetson
-        // to confirm the image
-        if (!jetson_up_and_running && runner_successful_jobs_count() > 0) {
-            version_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+        if (runner_successful_jobs_count() > 0) {
+            fw_version_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+
+            uint32_t error_count = app_assert_soft_count();
+            if (error_count) {
+                LOG_ERR("Error count during boot: %u", error_count);
+            }
 
             jetson_up_and_running = true;
-            continue;
-        }
-
-        if (jetson_up_and_running && runner_successful_jobs_count() > 1) {
-            // the orb is now up and running
-            err_code = dfu_primary_confirm();
-            ASSERT_SOFT(err_code);
-
-            return;
         }
     }
+
+    // enable reboot of the Orb <=> turning off the Orb
+    // if Jetson is turned off
+    power_reboot_set_pending();
 }
