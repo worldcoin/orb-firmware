@@ -1,2 +1,3 @@
 add_subdirectory_ifdef(CONFIG_LED_STRIP led_strip)
 add_subdirectory_ifdef(CONFIG_VL53L1X vl53l1x)
+add_subdirectory_ifdef(CONFIG_BU27030 bu27030)

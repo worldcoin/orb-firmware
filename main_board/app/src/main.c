@@ -1,4 +1,5 @@
 #include "1d_tof/tof_1d.h"
+#include "ambient_light/als.h"
 #include "battery/battery.h"
 #include "button/button.h"
 #include "fan/fan.h"
@@ -155,6 +156,9 @@ main(void)
     ASSERT_SOFT(err_code);
 
     err_code = tof_1d_init();
+    ASSERT_SOFT(err_code);
+
+    err_code = als_init();
     ASSERT_SOFT(err_code);
 
     err_code = dfu_init();

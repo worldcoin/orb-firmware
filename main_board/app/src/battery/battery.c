@@ -103,9 +103,16 @@ static void
 publish_battery_capacity(void)
 {
     static BatteryCapacity battery_cap;
+
+    // LOG_INF when battery capacity changes
+    if (battery_cap.percentage != state_499.state_of_charge) {
+        LOG_INF("Main battery: %u%%", state_499.state_of_charge);
+    }
+
     CRITICAL_SECTION_ENTER(k);
     battery_cap.percentage = state_499.state_of_charge;
     CRITICAL_SECTION_EXIT(k);
+
     LOG_DBG("State of charge: %u%%", battery_cap.percentage);
     publish_new(&battery_cap, sizeof(battery_cap),
                 McuToJetson_battery_capacity_tag,
@@ -116,9 +123,18 @@ static void
 publish_battery_is_charging(void)
 {
     static BatteryIsCharging is_charging;
+
+    // LOG_INF when battery is_charging changes
+    if (is_charging.battery_is_charging !=
+        (state_499.flags & BIT(IS_CHARGING_BIT))) {
+        LOG_INF("Is charging: %s",
+                state_499.flags & BIT(IS_CHARGING_BIT) ? "yes" : "no");
+    }
+
     CRITICAL_SECTION_ENTER(k);
     is_charging.battery_is_charging = state_499.flags & BIT(IS_CHARGING_BIT);
     CRITICAL_SECTION_EXIT(k);
+
     LOG_DBG("Is charging? %s", is_charging.battery_is_charging ? "yes" : "no");
     publish_new(&is_charging, sizeof(is_charging),
                 McuToJetson_battery_is_charging_tag,
@@ -129,9 +145,11 @@ static void
 publish_battery_cell_temperature(void)
 {
     int16_t cell_temperature;
+
     CRITICAL_SECTION_ENTER(k);
     cell_temperature = state_415.cell_temperature;
     CRITICAL_SECTION_EXIT(k);
+
     LOG_DBG("Battery cell temperature: %u.%u°C", cell_temperature / 10,
             cell_temperature % 10);
     temperature_report(Temperature_TemperatureSource_BATTERY_CELL,

@@ -395,6 +395,12 @@
         reg = <0x29>;
         label = "VL53L1X";
     };
+
+    front_unit_als: bu27030@38 {
+        compatible = "rohm,bu27030";
+        reg = <0x38>;
+        label = "BU27030";
+    };
 };
 
 &can1 {

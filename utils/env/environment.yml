@@ -8,6 +8,8 @@ dependencies:
   - make
   - python=3.9
   - cmake
+  - gcc-arm-none-eabi
+  - multi-arch-gdb
   - pyserial
   - ccache
   - protobuf
@@ -23,5 +25,7 @@ dependencies:
       - west
       - pyserial
       - pyocd
+      - -r ../../../bootloader/mcuboot/scripts/requirements.txt
+      - -r ../../../zephyr/scripts/requirements.txt
 variables:
   ZEPHYR_TOOLCHAIN_VARIANT: zephyr

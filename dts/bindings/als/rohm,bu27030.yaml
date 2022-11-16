@@ -1,0 +1,11 @@
+description: |
+  BU27030 Ambient Light Sensor.
+
+compatible: "rohm,bu27030"
+
+include: i2c-device.yaml
+
+properties:
+  int-gpios:
+    type: phandle-array
+    required: false
