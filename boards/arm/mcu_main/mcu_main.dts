@@ -227,6 +227,17 @@
     };
 };
 
+&timers2 {
+    status = "okay";
+
+    fan_main_tach: fan_main_tach {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&tim2_ch3_pd7>;
+        pinctrl-names = "default";
+        channels = <3>;
+    };
+};
+
 &timers3 {
     status = "okay";
 
@@ -291,6 +302,17 @@
         pinctrl-0 = <&tim15_ch1_pb14 &tim15_ch2_pb15>;
         pinctrl-names = "default";
         channels = <1 2>;
+    };
+};
+
+&timers16 {
+    status = "okay";
+
+    fan_aux_tach: fan_aux_tach {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&tim16_ch1_pa12>;
+        pinctrl-names = "default";
+        channels = <1>;
     };
 };
 

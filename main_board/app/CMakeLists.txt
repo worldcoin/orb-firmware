@@ -81,6 +81,7 @@ set(SOURCES_FILES
     src/power_sequence/power_sequence.c
 
     src/fan/fan.c
+    src/fan/fan_tach.c
     src/fan/fan_tests.c
 
     src/sound/sound.c

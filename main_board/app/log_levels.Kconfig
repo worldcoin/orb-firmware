@@ -50,6 +50,10 @@ module = FAN
 module-str = FAN
 source "subsys/logging/Kconfig.template.log_config"
 
+module = FAN_TACH
+module-str = FAN_TACH
+source "subsys/logging/Kconfig.template.log_config"
+
 module = BUTTON
 module-str = BUTTON
 source "subsys/logging/Kconfig.template.log_config"

@@ -3,6 +3,7 @@
 #include "battery/battery.h"
 #include "button/button.h"
 #include "fan/fan.h"
+#include "fan/fan_tach.h"
 #include "fan/fan_tests.h"
 #include "gnss/gnss.h"
 #include "ir_camera_system/ir_camera_system.h"
@@ -190,6 +191,9 @@ main(void)
     ASSERT_SOFT(err_code);
 
     err_code = gnss_init();
+    ASSERT_SOFT(err_code);
+
+    err_code = fan_tach_init();
     ASSERT_SOFT(err_code);
 
     // launch tests if any is defined
