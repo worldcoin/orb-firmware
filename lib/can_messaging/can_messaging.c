@@ -16,8 +16,8 @@ static const struct device *can_dev =
 
 static enum can_state current_state;
 static struct can_bus_err_cnt current_err_cnt;
-static struct k_work state_change_work;
-static struct k_work can_reset_work;
+static struct k_work state_change_work = {0};
+static struct k_work can_reset_work = {0};
 
 /// Queue state_change_work_handler
 static void
@@ -77,7 +77,8 @@ can_reset_work_handler(struct k_work *work)
 ret_code_t
 can_messaging_reset_async(void)
 {
-    if (k_work_submit(&can_reset_work) < 0) {
+    // check that the job is intialized by reading the handler value
+    if (can_reset_work.handler != NULL && k_work_submit(&can_reset_work) < 0) {
         return RET_ERROR_INTERNAL;
     }
     return RET_SUCCESS;
