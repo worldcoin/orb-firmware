@@ -26,6 +26,7 @@
     };
 
     zephyr,user {
+        super-caps-charging-mode-gpios = <&gpiof 9 GPIO_ACTIVE_LOW>;
         // This is a mux for who controls the audio amp
         // 1 == MCU
         // 0 == Jetson
