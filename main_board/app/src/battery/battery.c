@@ -274,6 +274,12 @@ battery_init(void)
         return ret;
     }
 
+    ret = can_start(can_dev);
+    if (ret != RET_SUCCESS) {
+        ASSERT_SOFT(ret);
+        return ret;
+    }
+
     uint32_t full_voltage = 0;
 
     for (size_t i = 0; i < WAIT_FOR_VOLTAGES_TOTAL_PERIOD_MS /
@@ -324,12 +330,6 @@ battery_init(void)
         }
     } else {
         LOG_INF("Battery voltage is ok");
-    }
-
-    ret = can_start(can_dev);
-    if (ret != RET_SUCCESS) {
-        ASSERT_SOFT(ret);
-        return ret;
     }
 
     k_tid_t tid = k_thread_create(
