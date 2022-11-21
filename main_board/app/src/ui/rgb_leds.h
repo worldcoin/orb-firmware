@@ -21,4 +21,12 @@
         0, 0, 0                                                                \
     }
 
+#define MINIMUM_WHITE_BRIGHTNESS 9
+
+#define RGB_WHITE                                                              \
+    {                                                                          \
+        MINIMUM_WHITE_BRIGHTNESS, MINIMUM_WHITE_BRIGHTNESS,                    \
+            MINIMUM_WHITE_BRIGHTNESS                                           \
+    }
+
 #endif // ORB_MCU_MAIN_APP_RGB_LEDS_H

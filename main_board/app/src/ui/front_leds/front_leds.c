@@ -49,31 +49,24 @@ static volatile UserLEDsPattern_UserRgbLedPattern global_pattern =
 #ifdef CONFIG_NO_BOOT_LEDS
     UserLEDsPattern_UserRgbLedPattern_OFF;
 #else
-    UserLEDsPattern_UserRgbLedPattern_PULSING_RGB_ONLY_CENTER;
+    UserLEDsPattern_UserRgbLedPattern_BOOT_ANIMATION;
 #endif // CONFIG_NO_BOOT_LEDS
 
-#define INITIAL_PULSING_PERIOD_MS 4000
+#define INITIAL_PULSING_PERIOD_MS 5000
+#define PULSING_SCALE_DEFAULT     (7.0f)
 
 static volatile bool use_sequence;
 static volatile uint32_t global_start_angle_degrees = 0;
 static volatile int32_t global_angle_length_degrees = FULL_RING_DEGREES;
 static volatile uint8_t global_intensity = 25;
-static volatile struct led_rgb global_color = {.r = 15, .g = 15, .b = 15};
-static volatile float global_pulsing_scale = 2;
+static volatile struct led_rgb global_color = RGB_WHITE;
+static volatile float global_pulsing_scale = PULSING_SCALE_DEFAULT;
 static volatile uint32_t global_pulsing_period_ms = INITIAL_PULSING_PERIOD_MS;
 static volatile uint32_t global_pulsing_delay_time_ms =
-    INITIAL_PULSING_PERIOD_MS / PULSING_NUM_UPDATES_PER_PERIOD;
+    INITIAL_PULSING_PERIOD_MS / SINE_TABLE_LENGTH;
 
-#define PULSING_PERIOD_MS 2000
-#define PULSING_DELAY_TIME_US                                                  \
-    (PULSING_PERIOD_MS / PULSING_NUM_UPDATES_PER_PERIOD)
-// We use a minimum intensity because the apparent brightness of the lower 10
-// brightness settings is very noticeable. Above 10 it _seems_ like the pulsing
-// is much smoother and organic.
-#define PULSING_MIN_INTENSITY 10
-extern const float SINE_LUT[PULSING_NUM_UPDATES_PER_PERIOD];
-
-static_assert(PULSING_DELAY_TIME_US > 0, "pulsing delay time is too low");
+/// half period <=> from 0 to pi rad <=> 0 to 1 to 0
+extern const float SINE_LUT[SINE_TABLE_LENGTH];
 
 // NOTE:
 // All delays here are a bit skewed since it takes ~7ms to transmit the LED
@@ -218,10 +211,10 @@ front_leds_thread()
                 set_ring(color, start_angle_degrees, angle_length_degrees);
                 break;
             case UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE:;
-                color.r = 10;
-                color.g = 10;
-                color.b = 10;
-                pulsing_scale = 2;
+                color.r = MINIMUM_WHITE_BRIGHTNESS;
+                color.g = MINIMUM_WHITE_BRIGHTNESS;
+                color.b = MINIMUM_WHITE_BRIGHTNESS;
+                pulsing_scale = PULSING_SCALE_DEFAULT;
                 // fallthrough
             case UserLEDsPattern_UserRgbLedPattern_PULSING_RGB:;
                 scaler = (SINE_LUT[pulsing_index] * pulsing_scale) + 1;
@@ -245,6 +238,17 @@ front_leds_thread()
                 break;
             case UserLEDsPattern_UserRgbLedPattern_RGB:
                 set_ring(color, start_angle_degrees, angle_length_degrees);
+                break;
+            case UserLEDsPattern_UserRgbLedPattern_BOOT_ANIMATION:
+                // bottom brightness at 0
+                scaler = SINE_LUT[pulsing_index] * pulsing_scale;
+                color.r = roundf(scaler * color.r);
+                color.g = roundf(scaler * color.g);
+                color.b = roundf(scaler * color.b);
+
+                wait_until = K_MSEC(global_pulsing_delay_time_ms);
+                pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
+                set_center(color);
                 break;
             default:
                 LOG_ERR("Unhandled front LED pattern: %u", global_pattern);
@@ -301,7 +305,7 @@ previous_settings_are_identical(UserLEDsPattern_UserRgbLedPattern pattern,
     bool ret = (global_pulsing_scale == pulsing_scale) &&
                (global_pulsing_period_ms == pulsing_period_ms) &&
                (global_pulsing_delay_time_ms ==
-                global_pulsing_period_ms / PULSING_NUM_UPDATES_PER_PERIOD) &&
+                global_pulsing_period_ms / ARRAY_SIZE(SINE_LUT)) &&
                (global_pattern == pattern) &&
                (global_start_angle_degrees == start_angle) &&
                (global_angle_length_degrees == angle_length);
@@ -326,7 +330,7 @@ update_parameters(UserLEDsPattern_UserRgbLedPattern pattern,
     global_pulsing_scale = pulsing_scale;
     global_pulsing_period_ms = pulsing_period_ms;
     global_pulsing_delay_time_ms =
-        global_pulsing_period_ms / PULSING_NUM_UPDATES_PER_PERIOD;
+        global_pulsing_period_ms / ARRAY_SIZE(SINE_LUT);
     global_pattern = pattern;
     global_start_angle_degrees = start_angle;
     global_angle_length_degrees = angle_length;
