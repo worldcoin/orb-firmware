@@ -23,6 +23,7 @@
 
     aliases {
         battery-can-bus = &can2;
+        die-temperature = &die_temp;
     };
 
     chosen {
@@ -169,12 +170,6 @@
         clocks = <&rcc STM32_CLOCK_BUS_APB2 0x04000000>;
     };
 
-    stm32_temp {
-        compatible = "st,stm32-temp";
-        io-channels = <&adc1 16>;
-        status = "okay";
-    };
-
     fan_main {
         compatible = "pwm-fan";
         pwms = <&fan_main_and_aux_pwm 1 40000 PWM_POLARITY_NORMAL>;
@@ -184,6 +179,10 @@
         compatible = "pwm-fan";
         pwms = <&fan_main_and_aux_pwm 2 40000 PWM_POLARITY_NORMAL>;
     };
+};
+
+&die_temp {
+    status = "okay";
 };
 
 &rng {
