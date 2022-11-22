@@ -7,6 +7,12 @@ menuconfig VL53L1X
 	help
 	  Enable driver for VL53L1X I2C-based time of flight sensor.
 
+config VL53L1X_INTER_MEASUREMENT_PERIOD
+	int "Inter-measurement period in milliseconds"
+	default 1000
+	help
+	  Default inter-measurement period set during driver initialization
+
 config VL53L1X_PROXIMITY_THRESHOLD
 	int "Proximity threshold in millimeters"
 	default 100

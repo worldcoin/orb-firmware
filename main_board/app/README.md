@@ -11,7 +11,7 @@ want to work on the repo, make sure to check out the `main` branch and branch fr
 
 ```shell
 cd "$REPO_DIR"/orb
-git remote add origin git@github.com:worldcoin/proto2-mcu.git
+git remote add origin git@github.com:worldcoin/orb-mcu-firmware.git
 git fetch
 git checkout main
 

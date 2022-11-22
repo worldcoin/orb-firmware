@@ -1100,14 +1100,15 @@ motors_init(void)
     ASSERT_SOFT(err_code);
 
     // see `motors_center_from_end` array
-    enum hw_version_e rev = 0;
-    err_code = version_get_hardware_rev(&rev);
+    Hardware hw;
+    err_code = version_get_hardware_rev(&hw);
     ASSERT_SOFT(err_code);
 
-    if (rev == HW_VERSION_MAINBOARD_EV1) {
+    if (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1) {
         hw_rev_idx = 0;
-    } else if (rev == HW_VERSION_MAINBOARD_EV2 ||
-               rev == HW_VERSION_MAINBOARD_EV3) {
+    } else if (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2 ||
+               hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
+               hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4) {
         hw_rev_idx = 1;
     } else {
         ASSERT_SOFT(RET_ERROR_INVALID_STATE);

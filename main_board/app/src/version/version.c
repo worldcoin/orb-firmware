@@ -1,5 +1,4 @@
 #include "version.h"
-#include "mcu_messaging.pb.h"
 #include "pubsub/pubsub.h"
 #include <app_assert.h>
 #include <can_messaging.h>
@@ -24,12 +23,12 @@ const struct adc_dt_spec adc_dt_spec = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
 #define ADC_ACQUISITION_TIME ADC_ACQ_TIME_DEFAULT
 
 ret_code_t
-version_get_hardware_rev(enum hw_version_e *hw_version)
+version_get_hardware_rev(Hardware *hw_version)
 {
-    static uint16_t version = 0;
+    static Hardware_OrbVersion version = Hardware_OrbVersion_HW_VERSION_UNKNOWN;
 
     // read only once and keep hardware version into `version`
-    if (version == 0) {
+    if (version == Hardware_OrbVersion_HW_VERSION_UNKNOWN) {
         if (!device_is_ready(adc_dt_spec.dev)) {
             ASSERT_SOFT(RET_ERROR_INVALID_STATE);
             return RET_ERROR_INVALID_STATE;
@@ -66,14 +65,17 @@ version_get_hardware_rev(enum hw_version_e *hw_version)
             LOG_DBG("Hardware rev voltage: %dmV", hardware_version_mv);
 
             if (hardware_version_mv > 3200) {
-                // should be 3.3V
-                version = HW_VERSION_MAINBOARD_EV2;
+                // should be 3.3V = 3300mV
+                version = Hardware_OrbVersion_HW_VERSION_PEARL_EV2;
             } else if (hardware_version_mv > 2900) {
-                // should be 3.0V
-                version = HW_VERSION_MAINBOARD_EV3;
+                // should be 3.0V = 3000mV
+                version = Hardware_OrbVersion_HW_VERSION_PEARL_EV3;
             } else if (hardware_version_mv < 100) {
                 // should be 0.0V
-                version = HW_VERSION_MAINBOARD_EV1;
+                version = Hardware_OrbVersion_HW_VERSION_PEARL_EV1;
+            } else if (hardware_version_mv < 400) {
+                // should be 0.30V = 300mV
+                version = Hardware_OrbVersion_HW_VERSION_PEARL_EV4;
             } else {
                 LOG_ERR("Unknown main board from voltage: %umV",
                         hardware_version_mv);
@@ -81,13 +83,13 @@ version_get_hardware_rev(enum hw_version_e *hw_version)
         }
     }
 
-    *hw_version = version;
+    hw_version->version = version;
 
     return RET_SUCCESS;
 }
 
 int
-version_send(uint32_t remote)
+fw_version_send(uint32_t remote)
 {
     struct image_version version = {0};
 
@@ -112,4 +114,16 @@ version_send(uint32_t remote)
 
     return publish_new(&versions, sizeof(versions), McuToJetson_versions_tag,
                        remote);
+}
+
+int
+hw_version_send(uint32_t remote)
+{
+    Hardware hw;
+    int ret = version_get_hardware_rev(&hw);
+    if (ret) {
+        return ret;
+    }
+
+    return publish_new(&hw, sizeof(hw), McuToJetson_hardware_tag, remote);
 }

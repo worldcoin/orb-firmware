@@ -38,7 +38,7 @@ init_area(const struct flash_area *fa)
     }
 
     for (storage_header_t *hdr = (storage_header_t *)fa->fa_off;
-         (size_t)hdr < (fa->fa_off + fa->fa_size);) {
+         ((size_t)hdr + sizeof(*hdr)) < (fa->fa_off + fa->fa_size);) {
 
         // rd_idx set to the first valid record that we find
         if (storage_area.rd_idx == INVALID_INDEX &&
@@ -309,7 +309,13 @@ exit:
 bool
 storage_has_data(void)
 {
-    return storage_area.rd_idx != storage_area.wr_idx;
+    bool has_data;
+
+    k_sem_take(&sem_storage, K_FOREVER);
+    has_data = (storage_area.rd_idx != storage_area.wr_idx);
+    k_sem_give(&sem_storage);
+
+    return has_data;
 }
 
 int
