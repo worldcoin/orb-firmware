@@ -1,6 +1,7 @@
 #include "storage.h"
 #include <device.h>
 #include <errors.h>
+#include <kernel.h>
 #include <logging/log.h>
 #include <storage/flash_map.h>
 #include <sys/crc.h>

@@ -25,7 +25,7 @@ static_assert(
 #endif
 #endif
 
-K_MUTEX_DEFINE(new_pub_mutex);
+K_SEM_DEFINE(pub_buffers_sem, 1, 1);
 
 static bool sending = false;
 static k_tid_t pub_stored_tid = NULL;
@@ -123,28 +123,22 @@ pub_stored_thread()
             .size = size,
         };
 
-        int ret = k_mutex_lock(&new_pub_mutex, K_MSEC(5));
-        if (ret == 0) {
-            LOG_DBG(
-                "⬆️ Sending stored %s message to remote 0x%03x",
+        LOG_DBG("⬆️ Sending stored %s message to remote 0x%03x",
                 (to_send.destination & CAN_ADDR_IS_ISOTP ? "ISO-TP" : "CAN"),
                 to_send.destination);
 
-            if (to_send.destination & CAN_ADDR_IS_ISOTP) {
-                err_code = can_isotp_messaging_async_tx(&to_send);
-            } else {
-                err_code = can_messaging_async_tx(&to_send);
-            }
+        if (to_send.destination & CAN_ADDR_IS_ISOTP) {
+            err_code = can_isotp_messaging_async_tx(&to_send);
+        } else {
+            err_code = can_messaging_async_tx(&to_send);
+        }
 
-            k_mutex_unlock(&new_pub_mutex);
-
-            if (err_code) {
-                // come back later
-                pub_stored_tid = NULL;
-            } else {
-                err_code = storage_free();
-                ASSERT_SOFT(err_code);
-            }
+        if (err_code) {
+            // come back later
+            pub_stored_tid = NULL;
+        } else {
+            err_code = storage_free();
+            ASSERT_SOFT(err_code);
         }
     }
 }
@@ -163,9 +157,9 @@ publish_start(void)
     }
 }
 
-int
-publish_new(void *payload, size_t size, uint32_t which_payload,
-            uint32_t remote_addr)
+static int
+publish(void *payload, size_t size, uint32_t which_payload,
+        uint32_t remote_addr, bool store)
 {
     int err_code = RET_SUCCESS;
 
@@ -177,7 +171,8 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
         return RET_ERROR_INVALID_PARAM;
     }
 
-    if (!sending && sub_prios[which_payload].priority == SUB_PRIO_DISCARD) {
+    if (!store && !sending &&
+        sub_prios[which_payload].priority == SUB_PRIO_DISCARD) {
         return RET_ERROR_OFFLINE;
     }
 
@@ -187,7 +182,9 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
                                  .which_message = McuMessage_m_message_tag,
                                  .message.m_message = {0}};
 
-    int ret = k_mutex_lock(&new_pub_mutex, K_MSEC(5));
+    // no wait if ISR
+    k_timeout_t timeout = k_is_in_isr() ? K_NO_WAIT : K_MSEC(5);
+    int ret = k_sem_take(&pub_buffers_sem, timeout);
     if (ret == 0) {
         // copy payload
         message.message.m_message.which_payload = which_payload;
@@ -200,8 +197,8 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
                                     PB_ENCODE_DELIMITED);
 
         if (encoded) {
-            if (!sending &&
-                sub_prios[which_payload].priority == SUB_PRIO_STORE) {
+            if (store || (!sending && sub_prios[which_payload].priority ==
+                                          SUB_PRIO_STORE)) {
                 entry.destination = remote_addr;
 
                 // store message to be sent later
@@ -214,9 +211,13 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
                     LOG_INF("Stored payload %u", which_payload);
                 }
 
-                err_code = RET_ERROR_OFFLINE;
+                // error code to warn caller that the message
+                // hasn't been published in case it wasn't aimed to be stored
+                if (!store) {
+                    err_code = RET_ERROR_OFFLINE;
+                }
             } else {
-                // sending || (!sending && SUB_PRIO_TRY_SENDING)
+                // !store && SUB_PRIO_TRY_SENDING
 
                 can_message_t to_send = {
                     .destination = remote_addr,
@@ -239,10 +240,24 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
             LOG_ERR("PB encoding failed");
         }
 
-        k_mutex_unlock(&new_pub_mutex);
+        k_sem_give(&pub_buffers_sem);
     } else {
         err_code = RET_ERROR_BUSY;
     }
 
     return err_code;
+}
+
+int
+publish_new(void *payload, size_t size, uint32_t which_payload,
+            uint32_t remote_addr)
+{
+    return publish(payload, size, which_payload, remote_addr, false);
+}
+
+int
+publish_store(void *payload, size_t size, uint32_t which_payload,
+              uint32_t remote_addr)
+{
+    return publish(payload, size, which_payload, remote_addr, true);
 }
