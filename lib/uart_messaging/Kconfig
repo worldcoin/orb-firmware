@@ -2,7 +2,10 @@ config ORB_LIB_UART_MESSAGING
 	bool "Enable the UART messaging library"
 	select ORB_LIB_ERRORS
 
-config ORB_LIB_UART_MAX_SIZE_BYTES
-	int "Rx buffer max size"
+config ORB_LIB_UART_RX_BUF_SIZE_BYTES
+	int "RX buffer size"
 	default 700
 	depends on ORB_LIB_UART_MESSAGING
+	help
+		Least amount of bytes needed to receive the biggest message. Twice this amount will be allocated for reception
+		as UART continuously receives bytes while processing newly received messages.

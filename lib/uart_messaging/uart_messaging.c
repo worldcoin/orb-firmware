@@ -1,6 +1,5 @@
 #include "uart_messaging.h"
 #include <app_assert.h>
-#include <utils.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>
@@ -11,11 +10,15 @@ LOG_MODULE_REGISTER(uart_messaging, CONFIG_UART_MESSAGING_LOG_LEVEL);
 static const struct device *uart_dev =
     DEVICE_DT_GET(DT_PROP(DT_PATH(zephyr_user), jetson_serial));
 
-#define RX_BUF_COUNT             2UL
 #define UART_MESSAGE_HEADER_SIZE 4UL
 
-static uint8_t uart_rx_buf[CONFIG_ORB_LIB_UART_MAX_SIZE_BYTES * 2];
-static uint8_t bytes[CONFIG_ORB_LIB_UART_MAX_SIZE_BYTES];
+// twice the size defined in `CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES` is used in
+// `uart_rx_buf` to continuously receive data using the circular DMA buffer
+// when a message is chunked into two buffer parts, `bytes` is used to
+// reconstitute it before decoding.
+// `wr_idx` is the pointer into `bytes`
+static uint8_t uart_rx_buf[CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES * 2];
+static uint8_t bytes[CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES];
 static size_t wr_idx = 0;
 
 static void (*incoming_message_handler)(void *msg);
