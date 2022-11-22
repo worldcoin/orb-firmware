@@ -123,7 +123,7 @@ operator_leds_set_brightness(uint8_t brightness)
 int
 operator_leds_set_pattern(
     DistributorLEDsPattern_DistributorRgbLedPattern pattern, uint32_t mask,
-    RgbColor *color)
+    const RgbColor *color)
 {
     CRITICAL_SECTION_ENTER(k);
 
@@ -196,7 +196,7 @@ operator_leds_init(void)
 }
 
 void
-operator_leds_blocking_set(RgbColor *color, uint32_t mask)
+operator_leds_blocking_set(const RgbColor *color, uint32_t mask)
 {
     const struct device *led_strip =
         DEVICE_DT_GET(DT_NODELABEL(operator_rgb_leds));

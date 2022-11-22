@@ -25,7 +25,7 @@ operator_leds_set_brightness(uint8_t brightness);
 int
 operator_leds_set_pattern(
     DistributorLEDsPattern_DistributorRgbLedPattern pattern, uint32_t mask,
-    RgbColor *color);
+    const RgbColor *color);
 
 /// Init operator LED thread
 /// The LED won't turn on until pattern or brightness is set
@@ -41,9 +41,11 @@ operator_leds_set_leds_sequence(uint8_t *bytes, uint32_t size);
 
 /// Force setting of the color and mask
 /// ⚠️ Not to be used in normal condition, use \c operator_leds_set_pattern
-/// instead \param color rgb color \param mask Bit mask to control LED
-/// individually (max is OPERATOR_LEDS_ALL_MASK)
+/// instead
+/// \param color rgb color
+/// \param mask Bit mask to control LED individually (max is
+/// OPERATOR_LEDS_ALL_MASK)
 void
-operator_leds_blocking_set(RgbColor *color, uint32_t mask);
+operator_leds_blocking_set(const RgbColor *color, uint32_t mask);
 
 #endif // DISTRIBUTOR_LEDS_H
