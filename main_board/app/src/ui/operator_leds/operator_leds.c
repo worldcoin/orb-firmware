@@ -4,7 +4,6 @@
 #include <utils.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/led_strip.h>
-#include <zephyr/drivers/pwm.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
@@ -18,17 +17,14 @@ static K_THREAD_STACK_DEFINE(operator_leds_stack_area,
 static struct k_thread operator_leds_thread_data;
 static K_SEM_DEFINE(sem_new_setting, 0, 1);
 
-// maximum time for the thread to "consume" the new settings
-#define LEDS_REFRESH_TIMEOUT 10
-
 static struct led_rgb leds[OPERATOR_LEDS_COUNT];
 
 // default values
 static volatile DistributorLEDsPattern_DistributorRgbLedPattern global_pattern =
     DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE;
 static volatile uint8_t global_intensity = 20;
-static volatile uint32_t global_mask = 0b00100;
-static volatile struct led_rgb global_color = RGB_ORANGE_LIGHT;
+static volatile uint32_t global_mask = 0b11111;
+static volatile struct led_rgb global_color = RGB_WHITE_OPERATOR_LEDS;
 static volatile bool use_sequence;
 
 static void

@@ -29,4 +29,9 @@
             MINIMUM_WHITE_BRIGHTNESS                                           \
     }
 
+#define RGB_WHITE_OPERATOR_LEDS                                                \
+    {                                                                          \
+        20, 20, 20                                                             \
+    }
+
 #endif // ORB_MCU_MAIN_APP_RGB_LEDS_H

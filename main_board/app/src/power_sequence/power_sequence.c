@@ -18,6 +18,7 @@ LOG_MODULE_REGISTER(power_sequence, CONFIG_POWER_SEQUENCE_LOG_LEVEL);
 #include "power_sequence.h"
 #include "ui/front_leds/front_leds.h"
 #include "ui/operator_leds/operator_leds.h"
+#include "ui/rgb_leds.h"
 #include "utils.h"
 
 // Power supplies turned on in two phases:
@@ -58,13 +59,67 @@ check_is_ready(const struct device *dev, const char *name)
 #define I2C_CLOCK_PIN   DT_GPIO_PIN(I2C_CLOCK_NODE, i2c_clock_gpios)
 #define I2C_CLOCK_FLAGS DT_GPIO_FLAGS(I2C_CLOCK_NODE, i2c_clock_gpios)
 
+static void
+power_distributor_leds_supplies_on()
+{
+    const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
+    const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
+    const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
+
+    // We configure this pin here before we enable 3.3v supply
+    // just so that we can disable the automatically-enabled pull-up.
+    // We must do this because providing a voltage to the 3.3v power supply
+    // output before it is online can trigger the safety circuit.
+    //
+    // After this is configured, the I2C initialization will run and
+    // re-configure this pin as SCL.
+    if (gpio_pin_configure(i2c_clock, I2C_CLOCK_PIN,
+                           GPIO_OUTPUT | I2C_CLOCK_FLAGS)) {
+        LOG_ERR_IMM("Error configuring I2C clock pin!");
+        return;
+    }
+
+    regulator_enable(vbat_sw_regulator, NULL);
+    LOG_INF("VBAT SW enabled");
+    k_msleep(20);
+
+    regulator_enable(supply_5v, NULL);
+    LOG_INF("5V power supply enabled");
+
+    k_msleep(20);
+
+    regulator_enable(supply_3v3, NULL);
+    LOG_INF("3.3V power supply enabled");
+    k_msleep(20);
+}
+
+static void
+power_distributor_leds_supplies_off()
+{
+    const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
+    const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
+
+    regulator_disable(vbat_sw_regulator);
+    LOG_INF("VBAT SW enabled");
+    k_msleep(20);
+
+    regulator_disable(supply_5v);
+    LOG_INF("5V power supply enabled");
+
+    k_msleep(20);
+
+    regulator_disable(supply_3v3);
+    LOG_INF("3.3V power supply enabled");
+    k_msleep(20);
+}
+
 int
 power_turn_on_power_supplies(const struct device *dev)
 {
     ARG_UNUSED(dev);
     const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
-    const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
     const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
+    const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
     const struct device *supply_3v8 = DEVICE_DT_GET(DT_PATH(supply_3v8));
     const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
 
@@ -124,8 +179,7 @@ static_assert(CONFIG_I2C_INIT_PRIORITY > SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
 SYS_INIT(power_turn_on_power_supplies, POST_KERNEL,
          SYS_INIT_POWER_SUPPLY_INIT_PRIORITY);
 
-#define BUTTON_PRESS_TIME_MS    500
-#define BUTTON_SAMPLE_PERIOD_MS 10
+#define BUTTON_PRESS_TIME_MS 600
 
 #define POWER_BUTTON_NODE  DT_PATH(buttons, power_button)
 #define POWER_BUTTON_CTLR  DT_GPIO_CTLR(POWER_BUTTON_NODE, gpios)
@@ -157,18 +211,29 @@ power_wait_for_power_button_press(void)
     }
 
     LOG_INF("Waiting for button press of " TOSTR(BUTTON_PRESS_TIME_MS) "ms");
-    for (size_t i = 0; i < (BUTTON_PRESS_TIME_MS / BUTTON_SAMPLE_PERIOD_MS);
-         ++i) {
+    uint32_t operator_led_mask = 0;
+    const RgbColor white = RGB_WHITE_OPERATOR_LEDS;
+    for (size_t i = 0; i <= OPERATOR_LEDS_COUNT; ++i) {
         if (!gpio_pin_get(power_button, POWER_BUTTON_PIN)) {
             if (i > 1) {
                 LOG_INF("Press stopped.");
+                power_distributor_leds_supplies_off();
             }
+            operator_led_mask = 0;
             i = 0;
+        } else {
+            operator_led_mask = (operator_led_mask << 1) | 1;
         }
+
         if (i == 1) {
             LOG_INF("Press started.");
+            power_distributor_leds_supplies_on();
         }
-        k_msleep(BUTTON_SAMPLE_PERIOD_MS);
+
+        // update LEDs
+        operator_leds_blocking_set(&white, operator_led_mask);
+
+        k_msleep(BUTTON_PRESS_TIME_MS / OPERATOR_LEDS_COUNT);
     }
 
     return 0;
