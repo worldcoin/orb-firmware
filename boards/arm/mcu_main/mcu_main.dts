@@ -488,10 +488,16 @@
             reg = <0x0007C000 0x00002000>;
         };
 
-        /* final 8KiB reserved for app storage partition */
+        /* 4KiB reserved for app storage partition */
         storage_partition: partition@7E000 {
             label = "storage";
-            reg = <0x0007E000 0x00002000>;
+            reg = <0x0007E000 0x00001000>;
+        };
+
+        /* 4KiB reserved for configuration partition */
+        config_partition: partition@7F000 {
+            label = "config";
+            reg = <0x0007F000 0x00001000>;
         };
     };
 };

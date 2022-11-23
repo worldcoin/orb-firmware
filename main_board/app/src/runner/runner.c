@@ -1001,10 +1001,8 @@ runner_process_jobs_thread()
                 new.mcu_message.message.j_message.which_payload,
                 new.mcu_message.message.j_message.ack_number);
 
-        // first job, enable publishing new messages
-        if (job_counter == 0) {
-            publish_start();
-        }
+        // remote is up
+        publish_start();
 
         if (new.mcu_message.message.j_message.which_payload <
                 ARRAY_SIZE(handle_message_callbacks) &&

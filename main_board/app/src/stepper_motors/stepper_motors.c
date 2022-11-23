@@ -923,7 +923,7 @@ motors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                 spi_bus_controller, position_mode_full_speed[motor],
                 ARRAY_SIZE(position_mode_full_speed[motor]));
             int32_t steps = -motors_full_course_maximum_steps[motor];
-            LOG_WRN("Steps to one end: %i", steps);
+            LOG_INF("Steps to one end: %i", steps);
             motor_spi_write(spi_bus_controller,
                             TMC5041_REGISTERS[REG_IDX_XTARGET][motor], steps);
             motors_refs[motor].auto_homing_state = AH_LOOKING_FIRST_END;
