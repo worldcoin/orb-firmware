@@ -116,6 +116,8 @@ set(SOURCES_FILES
 
     src/ir_camera_system/ir_camera_system.c
     src/battery/battery.c
+
+    src/stm32_timer_utils/stm32_timer_utils.c
     )
 
 set(INCLUDE_DIRS

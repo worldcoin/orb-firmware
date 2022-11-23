@@ -7,6 +7,7 @@
 #include <stm32_ll_hrtim.h>
 #include <stm32_ll_rcc.h>
 #include <stm32_ll_tim.h>
+#include <stm32_timer_utils/stm32_timer_utils.h>
 #include <utils.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
@@ -297,100 +298,6 @@ static void (*const set_timer_compare[TIMER_MAX_CH])(TIM_TypeDef *,
     LL_TIM_OC_SetCompareCH3,
     LL_TIM_OC_SetCompareCH4,
 };
-
-/**
- * Obtain timer clock speed.
- *
- * @param pclken  Timer clock control subsystem.
- * @param tim_clk Where computed timer clock will be stored.
- *
- * @return 0 on success, error code otherwise.
- */
-static int
-get_tim_clk(const struct stm32_pclken *pclken, uint32_t *tim_clk)
-{
-    int r;
-    const struct device *clk;
-    uint32_t bus_clk, apb_psc;
-
-    clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
-
-    r = clock_control_get_rate(clk, (clock_control_subsys_t *)pclken, &bus_clk);
-    if (r < 0) {
-        return r;
-    }
-
-    if (pclken->bus == STM32_CLOCK_BUS_APB1) {
-        apb_psc = STM32_APB1_PRESCALER;
-    } else {
-        apb_psc = STM32_APB2_PRESCALER;
-    }
-
-    /*
-     * If the APB prescaler equals 1, the timer clock frequencies
-     * are set to the same frequency as that of the APB domain.
-     * Otherwise, they are set to twice (×2) the frequency of the
-     * APB domain.
-     */
-    if (apb_psc == 1u) {
-        *tim_clk = bus_clk;
-    } else {
-        *tim_clk = bus_clk * 2u;
-    }
-
-    return 0;
-}
-
-static int
-enable_clocks_and_configure_pins(void)
-{
-    int r;
-    size_t i;
-    uint32_t timer_clock_freq;
-    const struct device *clk;
-
-    r = 0;
-    clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
-
-    for (i = 0; i < ARRAY_SIZE(all_pclken); ++i) {
-        r = clock_control_on(clk, all_pclken[i]);
-        if (r < 0) {
-            LOG_ERR("Could not initialize clock (%d)", r);
-            return r;
-        }
-
-        r = get_tim_clk(all_pclken[i], &timer_clock_freq);
-        if (r < 0) {
-            LOG_ERR("Could not obtain timer clock (%d)", r);
-            return r;
-        }
-        if (timer_clock_freq != ASSUMED_TIMER_CLOCK_FREQ) {
-            LOG_ERR(
-                "To make Pete's life easier, this module is written with"
-                "the assumption that all timers involved are running "
-                "at " STRINGIFY(
-                    ASSUMED_TIMER_CLOCK_ASSUMED_TIMER_CLOCK_FREQ) "Hz, but one "
-                                                                  "of the "
-                                                                  "clocks "
-                                                                  "involved"
-                                                                  "is running "
-                                                                  "at %uHz!",
-                timer_clock_freq);
-            return -EINVAL;
-        }
-
-        r = pinctrl_apply_state(pin_controls[i], PINCTRL_STATE_DEFAULT);
-
-        if (r < 0) {
-            LOG_ERR("pinctrl"
-                    "setup failed (%d)",
-                    r);
-            return r;
-        }
-    }
-
-    return r;
-}
 
 static void
 zero_led_ccrs(void)
@@ -817,7 +724,10 @@ ir_camera_system_init(void)
         return RET_ERROR_INTERNAL;
     }
 
-    err_code = enable_clocks_and_configure_pins();
+    err_code = enable_clocks_and_configure_pins(
+        all_pclken, ARRAY_SIZE(all_pclken), pin_controls,
+        ARRAY_SIZE(pin_controls));
+
     if (err_code < 0) {
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;

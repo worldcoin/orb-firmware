@@ -9,6 +9,7 @@
 #include <zephyr/drivers/pinctrl.h>
 
 #include <stm32_ll_rcc.h>
+#include <stm32_timer_utils/stm32_timer_utils.h>
 #include <stm32g474xx.h>
 #include <stm32g4xx_ll_tim.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
@@ -136,91 +137,6 @@ static uint32_t (*const is_active_timer_cc_overrun[TIMER_MAX_CH])(
     LL_TIM_IsActiveFlag_CC3OVR,
     LL_TIM_IsActiveFlag_CC4OVR,
 };
-
-/**
- * Obtain timer clock speed.
- *
- * @param pclken  Timer clock control subsystem.
- * @param tim_clk Where computed timer clock will be stored.
- *
- * @return 0 on success, error code otherwise.
- */
-static int
-get_tim_clk(const struct stm32_pclken *pclken, uint32_t *tim_clk)
-{
-    int r;
-    const struct device *clk;
-    uint32_t bus_clk, apb_psc;
-
-    clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
-
-    r = clock_control_get_rate(clk, (clock_control_subsys_t *)pclken, &bus_clk);
-    if (r < 0) {
-        return r;
-    }
-
-    if (pclken->bus == STM32_CLOCK_BUS_APB1) {
-        apb_psc = STM32_APB1_PRESCALER;
-    } else {
-        apb_psc = STM32_APB2_PRESCALER;
-    }
-
-    /*
-     * If the APB prescaler equals 1, the timer clock frequencies
-     * are set to the same frequency as that of the APB domain.
-     * Otherwise, they are set to twice (×2) the frequency of the
-     * APB domain.
-     */
-    if (apb_psc == 1u) {
-        *tim_clk = bus_clk;
-    } else {
-        *tim_clk = bus_clk * 2u;
-    }
-
-    return 0;
-}
-
-static ret_code_t
-enable_clocks_and_configure_pins(void)
-{
-    int r;
-    size_t i;
-    uint32_t timer_clock_freq;
-    const struct device *clk;
-
-    r = 0;
-    clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
-
-    for (i = 0; i < ARRAY_SIZE(all_pclken); ++i) {
-        r = clock_control_on(clk, all_pclken[i]);
-        if (r < 0) {
-            LOG_ERR("Could not initialize clock (%d)", r);
-            return RET_ERROR_INTERNAL;
-        }
-
-        r = get_tim_clk(all_pclken[i], &timer_clock_freq);
-        if (r < 0) {
-            LOG_ERR("Could not obtain timer clock (%d)", r);
-            return RET_ERROR_INTERNAL;
-        }
-        if (timer_clock_freq != ASSUMED_TIMER_CLOCK_FREQ) {
-            LOG_ERR("Clock frequency must be " STRINGIFY(
-                ASSUMED_TIMER_CLOCK_ASSUMED_TIMER_CLOCK_FREQ));
-            return RET_ERROR_INTERNAL;
-        }
-
-        r = pinctrl_apply_state(pin_controls[i], PINCTRL_STATE_DEFAULT);
-
-        if (r < 0) {
-            LOG_ERR("pinctrl"
-                    "setup failed (%d)",
-                    r);
-            return RET_ERROR_INTERNAL;
-        }
-    }
-
-    return RET_SUCCESS;
-}
 
 static void
 fan_tachometer_isr(void *arg)
