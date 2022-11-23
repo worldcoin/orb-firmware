@@ -24,5 +24,7 @@ dependencies:
       - pyserial
       - pyocd
       - crc16
+      - -r ../../../bootloader/mcuboot/scripts/requirements.txt
+      - -r ../../../zephyr/scripts/requirements.txt
 variables:
   ZEPHYR_TOOLCHAIN_VARIANT: zephyr

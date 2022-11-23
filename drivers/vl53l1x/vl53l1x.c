@@ -200,6 +200,8 @@ vl53l1x_channel_get(const struct device *dev, enum sensor_channel chan,
         if (drv_data->RangingMeasurementData.RangeStatus != 0) {
             return -ENOMSG;
         }
+
+        // value in meters
         val->val1 = drv_data->RangingMeasurementData.RangeMilliMeter / 1000;
         val->val2 =
             (drv_data->RangingMeasurementData.RangeMilliMeter % 1000) * 1000;

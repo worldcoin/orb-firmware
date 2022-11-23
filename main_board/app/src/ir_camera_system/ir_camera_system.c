@@ -10,6 +10,7 @@
 #include <utils.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -171,6 +172,16 @@ static bool enable_2d_tof_camera;
 
 static InfraredLEDs_Wavelength enabled_led_wavelength =
     InfraredLEDs_Wavelength_WAVELENGTH_NONE;
+
+/// Drive super capacitors charging mode:
+///    * physical low: usage of PWM which allows for fast response to massive
+///    power draw by the IR LEDs, drawback is a passive draw of 2 by default
+///    forced by hardware when disconnected
+///    * physical high: diode-emulation mode, still charge super caps but
+///    doesn't allow high power demands. This mode is set during boot, see
+///    `ir_camera_system_init`
+static const struct gpio_dt_spec super_caps_charging_mode =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), super_caps_charging_mode_gpios);
 
 static bool
 ir_leds_are_on(void)
@@ -458,7 +469,22 @@ setup_camera_triggers(void)
 static void
 set_ccr_ir_leds(void)
 {
+    int ret;
     zero_led_ccrs();
+
+    // activate super caps charger for high demand when driving IR LEDs
+    // from logic low to logic high
+    if (enabled_led_wavelength != InfraredLEDs_Wavelength_WAVELENGTH_NONE &&
+        gpio_pin_get_dt(&super_caps_charging_mode) == 0) {
+        ret = gpio_pin_configure_dt(&super_caps_charging_mode,
+                                    GPIO_OUTPUT_ACTIVE);
+        ASSERT_SOFT(ret);
+
+        LOG_INF("Super caps charger set for high power demand");
+
+        // time to settle before driving LEDs
+        k_msleep(1);
+    }
 
     switch (enabled_led_wavelength) {
     case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
@@ -494,6 +520,12 @@ set_ccr_ir_leds(void)
             LED_740NM_TIMER, global_timer_settings.ccr_740nm);
         break;
     case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
+        if (gpio_pin_get_dt(&super_caps_charging_mode) == 1) {
+            LOG_INF("Super caps charger set for low power demand");
+            ret = gpio_pin_configure_dt(&super_caps_charging_mode,
+                                        GPIO_OUTPUT_INACTIVE);
+            ASSERT_SOFT(ret);
+        }
         break;
     }
 }
@@ -770,6 +802,20 @@ ret_code_t
 ir_camera_system_init(void)
 {
     int err_code = 0;
+
+    if (!device_is_ready(super_caps_charging_mode.port)) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+
+    // super caps charger to draw less current than default
+    // this mode is enabled when IR LEDs are not used
+    int ret =
+        gpio_pin_configure_dt(&super_caps_charging_mode, GPIO_OUTPUT_INACTIVE);
+    if (ret) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
 
     err_code = enable_clocks_and_configure_pins();
     if (err_code < 0) {

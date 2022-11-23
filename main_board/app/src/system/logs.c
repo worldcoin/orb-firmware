@@ -31,8 +31,7 @@ print_log_can(const char *data, size_t size, bool blocking)
 
     if (!blocking) {
         // use the pubsub API
-        publish_new(&log_msg.message.m_message.payload.log,
-                    sizeof(log_msg.message.m_message.payload.log),
+        publish_new(&log_msg.message.m_message.payload.log, size,
                     McuToJetson_log_tag, CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
     } else {
         // send in blocking mode by directly using the CAN API

@@ -1,4 +1,5 @@
 #include "1d_tof/tof_1d.h"
+#include "ambient_light/als.h"
 #include "battery/battery.h"
 #include "button/button.h"
 #include "fan/fan.h"
@@ -25,6 +26,8 @@
 #include <dfu/dfu_tests.h>
 #include <ir_camera_system/ir_camera_system_tests.h>
 #include <pb_encode.h>
+#include <storage.h>
+#include <storage_tests.h>
 #include <temperature/temperature.h>
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
@@ -59,6 +62,12 @@ run_tests()
 #if defined(CONFIG_TEST_FAN) || defined(RUN_ALL_TESTS)
     fan_tests_init();
 #endif
+#if defined(CONFIG_ORB_LIB_STORAGE_TESTS) || defined(RUN_ALL_TESTS)
+    storage_tests();
+#endif
+#ifdef CONFIG_ORB_LIB_ERRORS_TESTS
+    fatal_errors_test();
+#endif
 }
 
 /**
@@ -71,11 +80,11 @@ app_assert_cb(fatal_error_info_t *err_info)
 {
     if (jetson_up_and_running) {
         // fatal error, try to warn Jetson
-        McuMessage fatal_error = {.which_message = McuMessage_m_message_tag,
-                                  .message.m_message.which_payload =
-                                      McuToJetson_fatal_error_tag};
+        static McuMessage fatal_error = {
+            .which_message = McuMessage_m_message_tag,
+            .message.m_message.which_payload = McuToJetson_fatal_error_tag};
 
-        uint8_t buffer[CAN_FRAME_MAX_SIZE];
+        static uint8_t buffer[CAN_FRAME_MAX_SIZE];
         pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
         bool encoded = pb_encode_ex(&stream, McuMessage_fields, &fatal_error,
                                     PB_ENCODE_DELIMITED);
@@ -99,6 +108,14 @@ main(void)
 {
     int err_code;
 
+    LOG_INF("🚀");
+
+    err_code = storage_init();
+    ASSERT_SOFT(err_code);
+
+    err_code = logs_init();
+    ASSERT_SOFT(err_code);
+
     app_assert_init(app_assert_cb);
 
 #if CONFIG_ORB_LIB_CAN_MESSAGING
@@ -113,9 +130,6 @@ main(void)
 
     // check battery state early on
     err_code = battery_init();
-    ASSERT_SOFT(err_code);
-
-    err_code = logs_init();
     ASSERT_SOFT(err_code);
 
 #ifndef CONFIG_NO_JETSON_BOOT
@@ -159,6 +173,9 @@ main(void)
     ASSERT_SOFT(err_code);
 
     err_code = tof_1d_init();
+    ASSERT_SOFT(err_code);
+
+    err_code = als_init();
     ASSERT_SOFT(err_code);
 
     err_code = dfu_init();

@@ -5,7 +5,7 @@
 #include <zephyr/logging/log_backend.h>
 LOG_MODULE_REGISTER(log_can, CONFIG_LOG_CAN_LOG_LEVEL);
 
-static bool panic_mode = false;
+static int panic_count = 0;
 
 // Max log string length per message, without NULL termination character
 #define LOG_MAX_CHAR_COUNT (sizeof(Log) - 1)
@@ -24,9 +24,10 @@ can_message_out(uint8_t *data, size_t length, void *ctx)
 {
     (void)ctx;
 
-    if (print_log != NULL) {
+    // ⚠️ if panic has been called in panic mode, do not send any message
+    if (print_log != NULL && panic_count <= 1) {
         // ⚠️ if panic, block until message is sent
-        print_log(data, MIN(length, LOG_MAX_CHAR_COUNT), panic_mode);
+        print_log(data, MIN(length, LOG_MAX_CHAR_COUNT), (panic_count != 0));
     }
 
     // no matter if the bytes have been sent
@@ -44,7 +45,7 @@ LOG_OUTPUT_DEFINE(log_output_can, can_message_out, log_output_buf,
 static inline bool
 is_panic_mode(void)
 {
-    return panic_mode;
+    return (panic_count != 0);
 }
 
 /// Send message to physical channel
@@ -77,7 +78,7 @@ log_backend_can_init(struct log_backend const *const backend)
 {
     (void)backend;
 
-    panic_mode = false;
+    panic_count = 0;
 }
 
 static void
@@ -87,7 +88,9 @@ panic(struct log_backend const *const backend)
 
     // On that call backend should switch to synchronous, interrupt-less
     // operation or shut down itself if that is not supported.
-    panic_mode = true;
+    // panic() function could be called in panic mode, but should stop backend
+    // operation, so we count the number of panic() calls
+    panic_count++;
 }
 
 static void

@@ -8,6 +8,7 @@ source "../orb/lib/health_monitoring/log_levels.Kconfig"
 source "../orb/lib/i2c_scan/log_levels.Kconfig"
 source "../orb/lib/log_backend_can/log_levels.Kconfig"
 source "../orb/lib/errors/log_levels.Kconfig"
+source "../orb/lib/storage/log_levels.Kconfig"
 endmenu
 
 menu "CAN messaging"
@@ -28,6 +29,10 @@ endmenu
 
 menu "Device Firmware Upgrade"
 source "../orb/lib/dfu/Kconfig"
+endmenu
+
+menu "Storage"
+source "../orb/lib/storage/Kconfig"
 endmenu
 
 menu "Health monitoring"

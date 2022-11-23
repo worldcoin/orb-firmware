@@ -7,6 +7,7 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
+#include <zephyr/sys/reboot.h>
 #include <zephyr/sys_clock.h>
 
 #include <zephyr/logging/log.h>
@@ -15,29 +16,38 @@ LOG_MODULE_REGISTER(temperature, CONFIG_TEMPERATURE_LOG_LEVEL);
 // These values are informed by
 // https://www.notion.so/PCBA-thermals-96849052d5c24a0bafaedb4363f460b5
 
-#define MAIN_BOARD_OVERTEMP_C            85
-#define FRONT_UNIT_OVERTEMP_C            75
-#define MCU_DIE_OVERTEMP_C               70
-#define LIQUID_LENS_OVERTEMP_C           85
-#define OVERTEMP_DROP_C                  5 // drop in temperature needed to stop over-temp mode
+/// Emergency temperatures (fan at max speed)
+#define MAIN_BOARD_OVERTEMP_C  80
+#define FRONT_UNIT_OVERTEMP_C  70
+#define MCU_DIE_OVERTEMP_C     65
+#define LIQUID_LENS_OVERTEMP_C 80
+
+// drop in temperature needed to stop over-temp mode
+#define OVERTEMP_TO_NOMINAL_DROP_C 5
+// rise in temperature above over-temp/emergency which shuts down the device
+#define OVERTEMP_TO_CRITICAL_RISE_C   5
+#define CRITICAL_TO_SHUTDOWN_DELAY_MS 10000
+
+// number of samples used in a temperature measurement
 #define TEMPERATURE_AVERAGE_SAMPLE_COUNT 3
 
-static_assert((int)(MAIN_BOARD_OVERTEMP_C - OVERTEMP_DROP_C) > 0 &&
-                  (int)(FRONT_UNIT_OVERTEMP_C - OVERTEMP_DROP_C) > 0,
+static_assert((int)(MAIN_BOARD_OVERTEMP_C - OVERTEMP_TO_NOMINAL_DROP_C) > 0 &&
+                  (int)(FRONT_UNIT_OVERTEMP_C - OVERTEMP_TO_NOMINAL_DROP_C) > 0,
               "Unsigned integer will underflow");
 
 struct sensor_and_channel; // forward declaration
 
 typedef void (*temperature_callback)(
-    struct sensor_and_channel *sensor_and_channel, uint32_t temperature);
+    struct sensor_and_channel *sensor_and_channel, int32_t temperature);
 static void
 overtemp_callback(struct sensor_and_channel *sensor_and_channel,
-                  uint32_t temperature);
+                  int32_t temperature);
 
 struct overtemp_info {
-    uint32_t overtemp_c;
-    uint32_t overtemp_drop_c;
+    int32_t overtemp_c;
+    int32_t overtemp_drop_c;
     bool in_overtemp;
+    uint32_t critical_timer;
 };
 
 struct sensor_and_channel {
@@ -55,9 +65,11 @@ static struct sensor_and_channel sensors_and_channels[] = {
      .channel = SENSOR_CHAN_AMBIENT_TEMP,
      .temperature_source = Temperature_TemperatureSource_FRONT_UNIT,
      .cb = overtemp_callback,
-     .cb_data = &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
-                                        .overtemp_drop_c = OVERTEMP_DROP_C,
-                                        .in_overtemp = false},
+     .cb_data =
+         &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
+                                 .overtemp_drop_c = OVERTEMP_TO_NOMINAL_DROP_C,
+                                 .in_overtemp = false,
+                                 .critical_timer = 0},
      .history = {0},
      .wr_idx = 0},
 
@@ -65,9 +77,11 @@ static struct sensor_and_channel sensors_and_channels[] = {
      .channel = SENSOR_CHAN_AMBIENT_TEMP,
      .temperature_source = Temperature_TemperatureSource_MAIN_BOARD,
      .cb = overtemp_callback,
-     .cb_data = &(struct overtemp_info){.overtemp_c = MAIN_BOARD_OVERTEMP_C,
-                                        .overtemp_drop_c = OVERTEMP_DROP_C,
-                                        .in_overtemp = false},
+     .cb_data =
+         &(struct overtemp_info){.overtemp_c = MAIN_BOARD_OVERTEMP_C,
+                                 .overtemp_drop_c = OVERTEMP_TO_NOMINAL_DROP_C,
+                                 .in_overtemp = false,
+                                 .critical_timer = 0},
      .history = {0},
      .wr_idx = 0},
 
@@ -75,9 +89,11 @@ static struct sensor_and_channel sensors_and_channels[] = {
      .channel = SENSOR_CHAN_DIE_TEMP,
      .temperature_source = Temperature_TemperatureSource_MAIN_MCU,
      .cb = overtemp_callback,
-     .cb_data = &(struct overtemp_info){.overtemp_c = MCU_DIE_OVERTEMP_C,
-                                        .overtemp_drop_c = OVERTEMP_DROP_C,
-                                        .in_overtemp = false},
+     .cb_data =
+         &(struct overtemp_info){.overtemp_c = MCU_DIE_OVERTEMP_C,
+                                 .overtemp_drop_c = OVERTEMP_TO_NOMINAL_DROP_C,
+                                 .in_overtemp = false,
+                                 .critical_timer = 0},
      .history = {0},
      .wr_idx = 0},
 
@@ -85,9 +101,11 @@ static struct sensor_and_channel sensors_and_channels[] = {
      .channel = SENSOR_CHAN_AMBIENT_TEMP,
      .temperature_source = Temperature_TemperatureSource_LIQUID_LENS,
      .cb = overtemp_callback,
-     .cb_data = &(struct overtemp_info){.overtemp_c = LIQUID_LENS_OVERTEMP_C,
-                                        .overtemp_drop_c = OVERTEMP_DROP_C,
-                                        .in_overtemp = false},
+     .cb_data =
+         &(struct overtemp_info){.overtemp_c = LIQUID_LENS_OVERTEMP_C,
+                                 .overtemp_drop_c = OVERTEMP_TO_NOMINAL_DROP_C,
+                                 .in_overtemp = false,
+                                 .critical_timer = 0},
      .history = {0},
      .wr_idx = 0},
 };
@@ -266,13 +284,13 @@ check_overtemp_conditions(void)
         num_sensors_in_overtemp_conditions == 0) {
         // Warning so that it's logged over CAN
         LOG_WRN("All over-temperature conditions have abated, restoring fan "
-                "to old value of %u%%",
-                fan_speed_before_overtemperature);
+                "to old value of %.2f%%",
+                ((float)fan_speed_before_overtemperature / UINT16_MAX) * 100);
+
         fan_set_speed_by_value(fan_speed_before_overtemperature);
     } else if (old_num_sensors_in_overtemp_conditions == 0 &&
                num_sensors_in_overtemp_conditions > 0) {
-        LOG_WRN("Over-temperature detected, setting fan to max speed "
-                "until condition abates");
+        LOG_WRN("Setting fan in emergency mode");
         fan_speed_before_overtemperature = fan_get_speed_setting();
         fan_set_max_speed();
     }
@@ -296,7 +314,7 @@ dec_overtemp_condition(void)
 
 static void
 overtemp_callback(struct sensor_and_channel *sensor_and_channel,
-                  uint32_t temperature)
+                  int32_t temperature)
 {
     struct overtemp_info *overtemp_info =
         (struct overtemp_info *)sensor_and_channel->cb_data;
@@ -306,11 +324,32 @@ overtemp_callback(struct sensor_and_channel *sensor_and_channel,
         return;
     }
 
+    if (temperature > overtemp_info->overtemp_c + OVERTEMP_TO_CRITICAL_RISE_C) {
+        overtemp_info->critical_timer +=
+            (global_sample_period.ticks * TEMPERATURE_AVERAGE_SAMPLE_COUNT *
+             1000 / CONFIG_SYS_CLOCK_TICKS_PER_SEC);
+
+        if (overtemp_info->critical_timer > CRITICAL_TO_SHUTDOWN_DELAY_MS) {
+            // critical temperature
+            FatalError error = {
+                .reason = 0,
+                .arg = sensor_and_channel->temperature_source,
+            };
+
+            // store event
+            (void)publish_store(&error, sizeof(error),
+                                McuToJetson_fatal_error_tag,
+                                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+            sys_reboot(0);
+        }
+    } else {
+        overtemp_info->critical_timer = 0;
+    }
+
     if (!overtemp_info->in_overtemp &&
         temperature > overtemp_info->overtemp_c) {
-        LOG_WRN("Over-temperature alert -- %s temperature has "
-                "exceeded %u°C",
-                sensor_and_channel->sensor->name, overtemp_info->overtemp_c);
+        LOG_WRN("%s temperature exceeds %u°C", sensor_and_channel->sensor->name,
+                overtemp_info->overtemp_c);
         overtemp_info->in_overtemp = true;
         inc_overtemp_condition();
     } else if (overtemp_info->in_overtemp &&

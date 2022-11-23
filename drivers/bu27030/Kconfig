@@ -1,0 +1,7 @@
+# BU27030 ambient light sensor configuration options
+
+config BU27030
+	bool "BU27030 ambient light sensor"
+	depends on I2C
+	help
+	  Enable driver for BU27030 I2C-based ambient light sensor.

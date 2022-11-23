@@ -34,6 +34,7 @@
     };
 
     zephyr,user {
+        super-caps-charging-mode-gpios = <&gpiof 9 GPIO_ACTIVE_LOW>;
         // This is a mux for who controls the audio amp
         // 1 == MCU
         // 0 == Jetson
@@ -409,6 +410,12 @@
         reg = <0x29>;
         label = "VL53L1X";
     };
+
+    front_unit_als: bu27030@38 {
+        compatible = "rohm,bu27030";
+        reg = <0x38>;
+        label = "BU27030";
+    };
 };
 
 &can1 {
@@ -494,10 +501,16 @@
             reg = <0x0007C000 0x00002000>;
         };
 
-        /* final 8KiB reserved for app storage partition */
+        /* 4KiB reserved for app storage partition */
         storage_partition: partition@7E000 {
             label = "storage";
-            reg = <0x0007E000 0x00002000>;
+            reg = <0x0007E000 0x00001000>;
+        };
+
+        /* 4KiB reserved for configuration partition */
+        config_partition: partition@7F000 {
+            label = "config";
+            reg = <0x0007F000 0x00001000>;
         };
     };
 };

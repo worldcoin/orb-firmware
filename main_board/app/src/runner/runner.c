@@ -993,10 +993,8 @@ runner_process_jobs_thread()
                 "%02d, ack #%u",
                 new.remote_addr, new.message.which_payload, new.ack_number);
 
-        // first job, enable publishing new messages
-        if (job_counter == 0) {
-            publish_start();
-        }
+        // remote is up
+        publish_start();
 
         if (new.message.which_payload < ARRAY_SIZE(handle_message_callbacks) &&
             handle_message_callbacks[new.message.which_payload] != NULL) {
