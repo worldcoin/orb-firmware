@@ -27,6 +27,9 @@ LOG_MODULE_REGISTER(sound, CONFIG_SOUND_LOG_LEVEL);
 #define SOUND_AMP_I2C       DT_NODELABEL(i2c1)
 #define SOUND_AMP_ADDR      0x2c
 #define SOUND_AMP_REG_CTRL2 0x3
+#define SOUND_AMP_REG_AGAIN 0x54
+
+#define ANALOG_GAIN_MINUS_3DB 6
 
 int
 sound_init(void)
@@ -68,6 +71,8 @@ sound_init(void)
     if (!device_is_ready(sound_i2c)) {
         ASSERT_SOFT(RET_ERROR_INVALID_STATE);
     } else {
+        i2c_reg_write_byte(sound_i2c, SOUND_AMP_ADDR, SOUND_AMP_REG_AGAIN,
+                           ANALOG_GAIN_MINUS_3DB);
         LOG_INF("Giving control of sound amp to Jetson");
         i2c_reg_write_byte(sound_i2c, SOUND_AMP_ADDR, SOUND_AMP_REG_CTRL2,
                            0x03);
