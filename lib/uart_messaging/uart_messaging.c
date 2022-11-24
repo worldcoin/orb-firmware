@@ -10,6 +10,9 @@ LOG_MODULE_REGISTER(uart_messaging, CONFIG_UART_MESSAGING_LOG_LEVEL);
 static const struct device *uart_dev =
     DEVICE_DT_GET(DT_PROP(DT_PATH(zephyr_user), jetson_serial));
 
+/// Header is comprised of "magic" characters to mark the beginning of the
+/// message and the message length on 2 bytes (uint16_t, Little Endian)
+/// | 0x8E | 0xAD | len[0] | len[1] |
 #define UART_MESSAGE_HEADER_SIZE 4UL
 
 // twice the size defined in `CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES` is used in
