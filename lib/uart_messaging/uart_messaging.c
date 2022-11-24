@@ -14,6 +14,7 @@ static const struct device *uart_dev =
 /// message and the message length on 2 bytes (uint16_t, Little Endian)
 /// | 0x8E | 0xAD | len[0] | len[1] |
 #define UART_MESSAGE_HEADER_SIZE 4UL
+const uint8_t HEADER_MAGIC[2] = {0x8e, 0xad};
 
 // twice the size defined in `CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES` is used in
 // `uart_rx_buf` to continuously receive data using the circular DMA buffer
@@ -59,8 +60,8 @@ uart_receive_callback(const struct device *dev, struct uart_event *evt,
         }
 
         if (evt->data.rx.len > UART_MESSAGE_HEADER_SIZE &&
-            evt->data.rx.buf[evt->data.rx.offset] == 0x8e &&
-            evt->data.rx.buf[evt->data.rx.offset + 1] == 0xad &&
+            evt->data.rx.buf[evt->data.rx.offset] == HEADER_MAGIC[0] &&
+            evt->data.rx.buf[evt->data.rx.offset + 1] == HEADER_MAGIC[1] &&
             *(uint16_t *)&evt->data.rx.buf[evt->data.rx.offset + 2] +
                     UART_MESSAGE_HEADER_SIZE <=
                 evt->data.rx.len) {
@@ -72,8 +73,8 @@ uart_receive_callback(const struct device *dev, struct uart_event *evt,
 
             // detect new message
             if (evt->data.rx.len > 2 &&
-                evt->data.rx.buf[evt->data.rx.offset] == 0x8e &&
-                evt->data.rx.buf[evt->data.rx.offset + 1] == 0xad) {
+                evt->data.rx.buf[evt->data.rx.offset] == HEADER_MAGIC[0] &&
+                evt->data.rx.buf[evt->data.rx.offset + 1] == HEADER_MAGIC[1]) {
                 wr_idx = 0;
             }
 
@@ -85,8 +86,8 @@ uart_receive_callback(const struct device *dev, struct uart_event *evt,
             msg_ptr = bytes;
         }
 
-        if (wr_idx > UART_MESSAGE_HEADER_SIZE && msg_ptr[0] == 0x8e &&
-            msg_ptr[1] == 0xad &&
+        if (wr_idx > UART_MESSAGE_HEADER_SIZE &&
+            msg_ptr[0] == HEADER_MAGIC[0] && msg_ptr[1] == HEADER_MAGIC[1] &&
             *(uint16_t *)&msg_ptr[2] + UART_MESSAGE_HEADER_SIZE <= wr_idx) {
             if (k_sem_take(&sem_msg, K_NO_WAIT) == 0) {
                 // remove header and send payload to handler as it is
