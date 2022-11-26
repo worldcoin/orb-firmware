@@ -22,7 +22,6 @@
 #include "version/version.h"
 #include <app_assert.h>
 #include <can_messaging.h>
-#include <device.h>
 #include <dfu.h>
 #include <dfu/dfu_tests.h>
 #include <ir_camera_system/ir_camera_system_tests.h>
@@ -30,13 +29,14 @@
 #include <storage.h>
 #include <storage_tests.h>
 #include <temperature/temperature.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/kernel.h>
 
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
 #include "heartbeat.h"
 #endif
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(main);
 
 static bool jetson_up_and_running = false;
@@ -118,8 +118,15 @@ main(void)
 
     app_assert_init(app_assert_cb);
 
-    err_code = can_messaging_init(runner_handle_new);
+#if CONFIG_ORB_LIB_CAN_MESSAGING
+    err_code = can_messaging_init(runner_handle_new_can);
     ASSERT_SOFT(err_code);
+#endif
+
+#if CONFIG_ORB_LIB_UART_MESSAGING
+    err_code = uart_messaging_init(runner_handle_new_uart);
+    ASSERT_SOFT(err_code);
+#endif
 
     // check battery state early on
     err_code = battery_init();

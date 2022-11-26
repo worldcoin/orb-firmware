@@ -1,12 +1,11 @@
 #include "can_messaging.h"
 #include <app_assert.h>
 #include <assert.h>
-#include <canbus/isotp.h>
-#include <drivers/can.h>
-#include <logging/log.h>
 #include <pb_encode.h>
-#include <sys/__assert.h>
-#include <zephyr.h>
+#include <zephyr/canbus/isotp.h>
+#include <zephyr/drivers/can.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(isotp_tx, CONFIG_ISOTP_TX_LOG_LEVEL);
 

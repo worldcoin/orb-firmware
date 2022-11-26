@@ -9,16 +9,7 @@
 #ifndef __MCUBOOT_CONFIG_H__
 #define __MCUBOOT_CONFIG_H__
 
-/*
- * This file is also included by the simulator, but we don't want to
- * define anything here in simulator builds.
- *
- * Instead of using mcuboot_config.h, the simulator adds MCUBOOT_xxx
- * configuration flags to the compiler command lines based on the
- * values of environment variables. However, the file still must
- * exist, or bootutil won't build.
- */
-#ifndef __BOOTSIM__
+#include <zephyr/devicetree.h>
 
 #ifdef CONFIG_BOOT_SIGNATURE_TYPE_RSA
 #define MCUBOOT_SIGN_RSA
@@ -34,6 +25,14 @@
 #define MCUBOOT_SIGN_ED25519
 #endif
 
+#if defined(CONFIG_BOOT_USE_TINYCRYPT)
+#if defined(CONFIG_MBEDTLS) || defined(CONFIG_BOOT_USE_CC310)
+#error "One crypto library implementation allowed at a time."
+#endif
+#elif defined(CONFIG_MBEDTLS) && defined(CONFIG_BOOT_USE_CC310)
+#error "One crypto library implementation allowed at a time."
+#endif
+
 #ifdef CONFIG_BOOT_USE_MBEDTLS
 #define MCUBOOT_USE_MBED_TLS
 #elif defined(CONFIG_BOOT_USE_TINYCRYPT)
@@ -45,12 +44,19 @@
 #endif
 #endif
 
+/* Zephyr, regardless of C library used, provides snprintf */
+#define MCUBOOT_USE_SNPRINTF 1
+
 #ifdef CONFIG_BOOT_HW_KEY
 #define MCUBOOT_HW_KEY
 #endif
 
 #ifdef CONFIG_BOOT_VALIDATE_SLOT0
 #define MCUBOOT_VALIDATE_PRIMARY_SLOT
+#endif
+
+#ifdef CONFIG_BOOT_VALIDATE_SLOT0_ONCE
+#define MCUBOOT_VALIDATE_PRIMARY_SLOT_ONCE
 #endif
 
 #ifdef CONFIG_BOOT_UPGRADE_ONLY
@@ -60,6 +66,7 @@
 
 #ifdef CONFIG_SINGLE_APPLICATION_SLOT
 #define MCUBOOT_SINGLE_APPLICATION_SLOT 1
+#define MCUBOOT_IMAGE_NUMBER            1
 #else
 
 #ifdef CONFIG_BOOT_SWAP_USING_MOVE
@@ -72,6 +79,12 @@
 
 #ifdef CONFIG_BOOT_DIRECT_XIP_REVERT
 #define MCUBOOT_DIRECT_XIP_REVERT
+#endif
+
+#ifdef CONFIG_BOOT_RAM_LOAD
+#define MCUBOOT_RAM_LOAD           1
+#define IMAGE_EXECUTABLE_RAM_START CONFIG_BOOT_IMAGE_EXECUTABLE_RAM_START
+#define IMAGE_EXECUTABLE_RAM_SIZE  CONFIG_BOOT_IMAGE_EXECUTABLE_RAM_SIZE
 #endif
 
 #ifdef CONFIG_UPDATEABLE_IMAGE_NUMBER
@@ -96,6 +109,11 @@
 #endif
 
 #ifdef CONFIG_BOOT_ENCRYPT_EC256
+#define MCUBOOT_ENC_IMAGES
+#define MCUBOOT_ENCRYPT_EC256
+#endif
+
+#ifdef CONFIG_BOOT_SERIAL_ENCRYPT_EC256
 #define MCUBOOT_ENC_IMAGES
 #define MCUBOOT_ENCRYPT_EC256
 #endif
@@ -145,6 +163,52 @@
 #define MCUBOOT_FIH_PROFILE_HIGH
 #endif
 
+#ifdef CONFIG_ENABLE_MGMT_PERUSER
+#define MCUBOOT_PERUSER_MGMT_GROUP_ENABLED 1
+#else
+#define MCUBOOT_PERUSER_MGMT_GROUP_ENABLED 0
+#endif
+
+#ifdef CONFIG_BOOT_MGMT_CUSTOM_IMG_LIST
+#define MCUBOOT_MGMT_CUSTOM_IMG_LIST
+#endif
+
+#ifdef CONFIG_BOOT_MGMT_ECHO
+#define MCUBOOT_BOOT_MGMT_ECHO
+#endif
+
+#ifdef CONFIG_BOOT_IMAGE_ACCESS_HOOKS
+#define MCUBOOT_IMAGE_ACCESS_HOOKS
+#endif
+
+#ifdef CONFIG_MCUBOOT_VERIFY_IMG_ADDRESS
+#define MCUBOOT_VERIFY_IMG_ADDRESS
+#endif
+
+/*
+ * The configuration option enables direct image upload with the
+ * serial recovery.
+ */
+#ifdef CONFIG_MCUBOOT_SERIAL_DIRECT_IMAGE_UPLOAD
+#define MCUBOOT_SERIAL_DIRECT_IMAGE_UPLOAD
+#endif
+
+#ifdef CONFIG_BOOT_SERIAL_WAIT_FOR_DFU
+#define MCUBOOT_SERIAL_WAIT_FOR_DFU
+#endif
+
+/*
+ * The option enables code, currently in boot_serial, that attempts
+ * to erase flash progressively, as update fragments are received,
+ * instead of erasing whole image size of flash area after receiving
+ * first frame.
+ * Enabling this options prevents stalling the beginning of transfer
+ * for the time needed to erase large chunk of flash.
+ */
+#ifdef CONFIG_BOOT_ERASE_PROGRESSIVELY
+#define MCUBOOT_ERASE_PROGRESSIVELY
+#endif
+
 /*
  * Enabling this option uses newer flash map APIs. This saves RAM and
  * avoids deprecated API usage.
@@ -154,6 +218,12 @@
  */
 #define MCUBOOT_USE_FLASH_AREA_GET_SECTORS
 
+#if (defined(CONFIG_BOOT_USB_DFU_WAIT) || defined(CONFIG_BOOT_USB_DFU_GPIO))
+#ifndef CONFIG_MULTITHREADING
+#error "USB DFU Requires MULTITHREADING"
+#endif
+#endif
+
 #ifdef CONFIG_BOOT_MAX_IMG_SECTORS
 
 #define MCUBOOT_MAX_IMG_SECTORS CONFIG_BOOT_MAX_IMG_SECTORS
@@ -162,7 +232,13 @@
 #define MCUBOOT_MAX_IMG_SECTORS 128
 #endif
 
-#endif /* !__BOOTSIM__ */
+/* Support 32-byte aligned flash sizes */
+#if DT_HAS_CHOSEN(zephyr_flash)
+#if DT_PROP_OR(DT_CHOSEN(zephyr_flash), write_block_size, 0) > 8
+#define MCUBOOT_BOOT_MAX_ALIGN                                                 \
+    DT_PROP(DT_CHOSEN(zephyr_flash), write_block_size)
+#endif
+#endif
 
 #if CONFIG_BOOT_WATCHDOG_FEED
 #if CONFIG_NRFX_WDT
@@ -189,19 +265,47 @@
 #error "No NRFX WDT instances enabled"
 #endif /* defined(CONFIG_NRFX_WDT0) && defined(CONFIG_NRFX_WDT1) */
 
-#else /* CONFIG_NRFX_WDT */
-#warning "MCUBOOT_WATCHDOG_FEED() is no-op"
+#elif CONFIG_IWDG_STM32 /* CONFIG_NRFX_WDT */
+#include <zephyr/device.h>
+#include <zephyr/drivers/watchdog.h>
+
+#define MCUBOOT_WATCHDOG_FEED()                                                \
+    do {                                                                       \
+        const struct device *wdt =                                             \
+            DEVICE_DT_GET_OR_NULL(DT_INST(0, st_stm32_watchdog));              \
+        if (device_is_ready(wdt)) {                                            \
+            wdt_feed(wdt, 0);                                                  \
+        }                                                                      \
+    } while (0)
+
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(watchdog0), okay) /* CONFIG_IWDG_STM32 */
+#include <zephyr/device.h>
+#include <zephyr/drivers/watchdog.h>
+
+#define MCUBOOT_WATCHDOG_FEED()                                                \
+    do {                                                                       \
+        const struct device *wdt = DEVICE_DT_GET(DT_ALIAS(watchdog0));         \
+        if (device_is_ready(wdt)) {                                            \
+            wdt_feed(wdt, 0);                                                  \
+        }                                                                      \
+    } while (0)
+#else /* DT_NODE_HAS_STATUS(DT_ALIAS(watchdog0), okay) */
 /* No vendor implementation, no-op for historical reasons */
 #define MCUBOOT_WATCHDOG_FEED()                                                \
     do {                                                                       \
     } while (0)
-#endif /* CONFIG_NRFX_WDT */
-#else  /* CONFIG_BOOT_WATCHDOG_FEED */
+#endif
+#else /* CONFIG_BOOT_WATCHDOG_FEED */
 /* Not enabled, no feed activity */
 #define MCUBOOT_WATCHDOG_FEED()                                                \
     do {                                                                       \
     } while (0)
 
 #endif /* CONFIG_BOOT_WATCHDOG_FEED */
+
+#define MCUBOOT_CPU_IDLE()                                                     \
+    if (!IS_ENABLED(CONFIG_MULTITHREADING)) {                                  \
+        k_cpu_idle();                                                          \
+    }
 
 #endif /* __MCUBOOT_CONFIG_H__ */

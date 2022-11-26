@@ -2,9 +2,9 @@
 #define ORB_LIB_CAN_MESSAGING_H
 
 #include "errors.h"
-#include <drivers/can.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <zephyr/drivers/can.h>
 
 /// Maximum CAN frame size depends on CAN driver configuration
 #define CAN_FRAME_MAX_SIZE (CAN_MAX_DLEN)
@@ -67,6 +67,6 @@ can_messaging_reset_async(void);
 /// \param in_handler Function that will handle incoming messages
 /// \return
 ret_code_t
-can_messaging_init(void (*in_handler)(can_message_t *msg));
+can_messaging_init(void (*in_handler)(void *msg));
 
 #endif // ORB_LIB_CAN_MESSAGING_H

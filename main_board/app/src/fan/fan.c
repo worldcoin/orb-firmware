@@ -2,13 +2,12 @@
 #include "version/version.h"
 #include <app_config.h>
 #include <assert.h>
-#include <device.h>
-#include <drivers/gpio.h>
-#include <drivers/pwm.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/pwm.h>
+#include <zephyr/kernel.h>
 
-#include <app_assert.h>
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(fan, CONFIG_FAN_LOG_LEVEL);
 
 #define FAN_MAIN_NODE DT_PATH(fan_main)

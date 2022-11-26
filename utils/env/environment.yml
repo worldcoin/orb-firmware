@@ -8,8 +8,6 @@ dependencies:
   - make
   - python=3.9
   - cmake
-  - gcc-arm-none-eabi
-  - multi-arch-gdb
   - pyserial
   - ccache
   - protobuf
@@ -25,6 +23,7 @@ dependencies:
       - west
       - pyserial
       - pyocd
+      - crc16
       - -r ../../../bootloader/mcuboot/scripts/requirements.txt
       - -r ../../../zephyr/scripts/requirements.txt
 variables:

@@ -1,4 +1,4 @@
-if (CONFIG_ORB_LIB_CAN_MESSAGE)
+if (CONFIG_ORB_LIB_CAN_MESSAGING)
     orb_library(
         can_messaging.c
         canbus_rx.c

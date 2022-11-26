@@ -1,0 +1,3 @@
+module = UART_MESSAGING
+module-str = UART_MESSAGING
+source "subsys/logging/Kconfig.template.log_config"

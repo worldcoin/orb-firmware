@@ -2,12 +2,20 @@
 #include <st/g4/stm32g474Xe.dtsi>
 #include <st/g4/stm32g474v(b-c-e)tx-pinctrl.dtsi>
 
+// see stm32g4xx_ll_dmamux.h
+#define DMAMUX_REQ_USART1_RX 0x18
+#define DMAMUX_REQ_USART1_TX 0x19
 #define DMAMUX_REQ_USART3_RX 0x1C
 #define DMAMUX_REQ_USART3_TX 0x1D
+
 #define DMA_CONFIG_DIR_SHIFT 6
 #define DMA_DIR_MEM_TO_PERIPH 1
 #define DMA_DIR_PERIPH_TO_MEM 2
 #define DMA_MEM_INC_ADDR_SHIFT 10
+
+#define DMA_CONFIG_CYCLIC_SHIFT  5
+#define DMA_CONFIG_CIRCULAR_MODE  1
+
 
 / {
     model = "Worldcoin Orb Main MCU";
@@ -34,6 +42,7 @@
         i2c_clock_gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
         // GPIO used to get hardware version dynamically
         hw-version-gpios = <&gpiob 12 GPIO_ACTIVE_HIGH>;
+        jetson_serial = <&usart1>;
         gnss = <&usart3>;
         level-shifter-enable-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
         // To be clear, the enable/disable signal only does something
@@ -47,7 +56,6 @@
 
     vbat_sw {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "12V VBAT SW";
         regulator-name = "12v_vbat_sw";
         enable-gpios = <&gpiof 10 GPIO_ACTIVE_HIGH>;
 
@@ -60,49 +68,42 @@
 
     supply_12v {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "12V Supply";
         regulator-name = "supply_12v";
         enable-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;
     };
 
     supply_5v {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "5V Supply";
         regulator-name = "supply_5v";
         enable-gpios = <&gpiob 1 GPIO_ACTIVE_LOW>;
     };
 
     supply_3v8 {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "3.8V Supply";
         regulator-name = "supply_3v8";
         enable-gpios = <&gpioe 15 GPIO_ACTIVE_HIGH>;
     };
 
     supply_3v3 {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "3.3V Supply";
         regulator-name = "supply_3v3";
         enable-gpios = <&gpiod 15 GPIO_ACTIVE_HIGH>;
     };
 
     supply_1v8 {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "1.8V Supply";
         regulator-name = "supply_1v8";
         enable-gpios = <&gpioe 8 GPIO_ACTIVE_HIGH>;
     };
 
     supply_pvcc {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "PVCC Supply";
         regulator-name = "supply_pvcc";
         enable-gpios = <&gpioe 6 GPIO_ACTIVE_HIGH>;
     };
 
     supply_super_cap {
         compatible = "regulator-fixed-sync", "regulator-fixed";
-        label = "Super cap supply";
         regulator-name = "supply_super_cap";
         enable-gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>;
     };
@@ -168,8 +169,7 @@
         clocks = <&rcc STM32_CLOCK_BUS_APB2 0x04000000>;
     };
 
-    stm-tmp {
-        label = "DIE_TEMP";
+    stm32_temp {
         compatible = "st,stm32-temp";
         io-channels = <&adc1 16>;
         status = "okay";
@@ -184,6 +184,10 @@
         compatible = "pwm-fan";
         pwms = <&fan_main_and_aux_pwm 2 40000 PWM_POLARITY_NORMAL>;
     };
+};
+
+&rng {
+    status = "okay";
 };
 
 &adc1 {
@@ -214,7 +218,6 @@
 
     operator_rgb_leds: operator_rgb_leds {
         compatible = "worldsemi,ws2812-pwm-stm32";
-        label = "operator_rbg_leds";
         pinctrl-0 = <&tim1_ch1_pc0>;
         pinctrl-names = "default";
         timer-channel = <1>;
@@ -296,7 +299,6 @@
 
     front_unit_rgb_leds: front_unit_rgb_leds {
         compatible = "worldsemi,ws2812-pwm-stm32";
-        label = "front_unit_rgb_leds";
         pinctrl-0 = <&tim20_ch2_pe3>;
         pinctrl-names = "default";
         timer-channel = <2>;
@@ -306,7 +308,7 @@
     };
 };
 
-// needed for ws2812 user & operator LEDs
+// needed for ws2812, user & operator LEDs, USART
 &dma1 {
     status = "okay";
 };
@@ -343,6 +345,20 @@
     apb2-prescaler = <1>;
 };
 
+// Jetson
+&usart1 {
+    pinctrl-0 = <&usart1_tx_pc4 &usart1_rx_pc5>;
+    pinctrl-names = "default";
+    current-speed = <1000000>;
+    status = "okay";
+
+    // DMA1 channels 3 and 4 (1 and 2 used by front and operator LEDs (PWM), 5 and 6 used by GNSS (usart3)).
+    dmas = <&dma1 3 DMAMUX_REQ_USART1_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT) | (DMA_CONFIG_CIRCULAR_MODE << DMA_CONFIG_CYCLIC_SHIFT))>,
+           <&dma1 4 DMAMUX_REQ_USART1_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT) | (DMA_CONFIG_CIRCULAR_MODE << DMA_CONFIG_CYCLIC_SHIFT))>;
+    dma-names = "rx", "tx";
+};
+
+// debug
 &usart2 {
     pinctrl-0 = <&usart2_tx_pd5 &usart2_rx_pd6>;
     pinctrl-names = "default";
@@ -350,15 +366,16 @@
     status = "okay";
 };
 
+// GNSS module
 &usart3 {
     pinctrl-0 = <&usart3_tx_pb10 &usart3_rx_pb11>;
     pinctrl-names = "default";
     current-speed = <9600>;
     status = "okay";
 
-    // DMA1 channels 3 and 4 (1 and 2 used by front and operator LEDs).
-    dmas = <&dma1 3 DMAMUX_REQ_USART3_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>,
-           <&dma1 4 DMAMUX_REQ_USART3_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>;
+    // DMA1 channels 5 and 6 (1 and 2 used by front and operator LEDs (PWM), 3 and 4 by usart1).
+    dmas = <&dma1 5 DMAMUX_REQ_USART3_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>,
+           <&dma1 6 DMAMUX_REQ_USART3_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>;
     dma-names = "rx", "tx";
 };
 
@@ -374,13 +391,11 @@
     front_unit_tmp_sensor: tmp112@48 {
         compatible = "ti,tmp112";
         reg = <0x48>;
-        label = "FRONT_UNIT_TEMP_SENSOR";
     };
 
     liquid_lens_tmp_sensor: maxim31875@4a {
         compatible = "maxim,max31875";
         reg = <0x4a>;
-        label = "LIQUID_LENS_TEMP_SENSOR";
         conversions-per-second = "1";
         resolution = <8>;
     };
@@ -388,7 +403,6 @@
     main_board_tmp_sensor: tmp112@49 {
         compatible = "ti,tmp112";
         reg = <0x49>;
-        label = "MAIN_BOARD_TEMP_SENSOR";
     };
 
     tof_sensor: vl53l1x@29 {
@@ -445,7 +459,6 @@
 
     motion_controller: motion_controller@0 {
         compatible = "tmc,5041-spi";
-        label = "tmc_5041_motion_controller";
         reg = <0>;
         spi-max-frequency = <4000000>;
         status = "okay";

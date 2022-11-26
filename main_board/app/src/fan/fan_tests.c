@@ -2,10 +2,10 @@
 #include "app_config.h"
 #include "fan.h"
 #include "version/version.h"
-#include <zephyr.h>
-
 #include <app_assert.h>
-#include <logging/log.h>
+#include <zephyr/kernel.h>
+
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(fan_test);
 
 K_THREAD_STACK_DEFINE(fan_test_thread_stack, 3000);

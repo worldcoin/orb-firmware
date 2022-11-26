@@ -3,7 +3,7 @@
 
 #include <errors.h>
 #include <mcu_messaging.pb.h>
-#include <sys/util.h>
+#include <zephyr/sys/util.h>
 
 ret_code_t
 ir_camera_system_init(void);

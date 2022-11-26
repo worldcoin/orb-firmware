@@ -1,12 +1,12 @@
 // include kernel.h first
 // clang-format off
-#include <kernel.h>
-#include <arch/arm/aarch32/exc.h>
+#include <zephyr/kernel.h>
+#include <zephyr/arch/arm/aarch32/exc.h>
 // clang-format on
-#include <arch/cpu.h>
 #include <compilers.h>
-#include <logging/log.h>
-#include <logging/log_ctrl.h>
+#include <zephyr/arch/cpu.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/logging/log_ctrl.h>
 LOG_MODULE_REGISTER(fatal);
 
 static bool recursive_call_flag = false;

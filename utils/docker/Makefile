@@ -1,6 +1,6 @@
-DOCKER_CI_SHA := $(shell cat ci_docker_image_sha)
-ifeq ($(DOCKER_CI_SHA),)
-    $(error Error reading DOCKER_CI_SHA or SHA is empty!)
+DOCKER_CI_TAG := $(shell cat docker_image_tag)
+ifeq ($(DOCKER_CI_TAG),)
+    $(error Error reading DOCKER_CI_TAG or tag is empty!)
 endif
 
 DOCKER_REPO := $(shell cat docker_image_repo)
@@ -8,8 +8,8 @@ ifeq ($(DOCKER_REPO),)
     $(error Error reading DOCKER_REPO or repo is empty!)
 endif
 
-# Use DOCKER_TAG passed in from command line, or use the SHA used in CI
-DOCKER_IMAGE_NAME := $(DOCKER_REPO)$(if $(DOCKER_TAG),:$(DOCKER_TAG),@$(DOCKER_CI_SHA))
+# Use DOCKER_TAG passed in from command line, or use the tag used in CI
+DOCKER_IMAGE_NAME := $(DOCKER_REPO)$(if $(DOCKER_TAG),:$(DOCKER_TAG),:$(DOCKER_CI_TAG))
 
 ifneq ($(filter help all build,$(MAKECMDGOALS)),)
 
@@ -45,7 +45,7 @@ help:
 all build: .docker_image_built
 
 .docker_image_built: Dockerfile Makefile
-	docker build . -t $(DOCKER_REPO):local
+	docker build . -t $(DOCKER_REPO):$(if $(DOCKER_TAG),$(DOCKER_TAG),local)
 	touch $@
 
 else

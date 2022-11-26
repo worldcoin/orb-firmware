@@ -2,10 +2,10 @@
 #include "app_config.h"
 #include "mcu_messaging.pb.h"
 #include "pubsub/pubsub.h"
-#include <drivers/sensor.h>
 #include <errors.h>
+#include <zephyr/drivers/sensor.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(als);
 
 const struct device *als_device = DEVICE_DT_GET(DT_NODELABEL(front_unit_als));

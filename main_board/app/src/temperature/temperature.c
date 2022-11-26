@@ -3,14 +3,14 @@
 #include "pubsub/pubsub.h"
 #include <app_config.h>
 #include <assert.h>
-#include <device.h>
-#include <drivers/sensor.h>
 #include <math.h>
-#include <sys/reboot.h>
-#include <sys_clock.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/sensor.h>
+#include <zephyr/kernel.h>
+#include <zephyr/sys/reboot.h>
+#include <zephyr/sys_clock.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(temperature, CONFIG_TEMPERATURE_LOG_LEVEL);
 
 // These values are informed by
@@ -85,7 +85,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
      .history = {0},
      .wr_idx = 0},
 
-    {.sensor = DEVICE_DT_GET(DT_PATH(stm_tmp)),
+    {.sensor = DEVICE_DT_GET(DT_PATH(stm32_temp)),
      .channel = SENSOR_CHAN_DIE_TEMP,
      .temperature_source = Temperature_TemperatureSource_MAIN_MCU,
      .cb = overtemp_callback,

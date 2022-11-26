@@ -3,13 +3,13 @@
 #include "compilers.h"
 #include "errno.h"
 #include <app_assert.h>
-#include <devicetree.h>
 #include <errors.h>
 #include <flash_map_backend/flash_map_backend.h>
-#include <logging/log.h>
-#include <storage/flash_map.h>
-#include <sys/crc.h>
-#include <zephyr.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/storage/flash_map.h>
+#include <zephyr/sys/crc.h>
 
 LOG_MODULE_REGISTER(dfu, CONFIG_DFU_LOG_LEVEL);
 

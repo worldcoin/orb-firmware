@@ -1,11 +1,10 @@
 #include "can_messaging.h"
 #include <app_assert.h>
 #include <assert.h>
-#include <drivers/can.h>
-#include <logging/log.h>
 #include <pb_encode.h>
-#include <sys/__assert.h>
-#include <zephyr.h>
+#include <zephyr/drivers/can.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(can_tx, CONFIG_CAN_TX_LOG_LEVEL);
 
@@ -57,10 +56,10 @@ send(const char *data, size_t len,
 {
     ASSERT_HARD_BOOL(len < CAN_FRAME_MAX_SIZE);
 
-    struct zcan_frame frame = {.id_type = CAN_EXTENDED_IDENTIFIER,
-                               .fd = true,
-                               .rtr = CAN_DATAFRAME,
-                               .id = dest};
+    struct can_frame frame = {.id_type = CAN_EXTENDED_IDENTIFIER,
+                              .fd = true,
+                              .rtr = CAN_DATAFRAME,
+                              .id = dest};
 
     frame.dlc = can_bytes_to_dlc(len);
     memset(frame.data, 0, sizeof frame.data);

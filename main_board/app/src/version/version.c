@@ -3,9 +3,9 @@
 #include <app_assert.h>
 #include <can_messaging.h>
 #include <dfu.h>
-#include <drivers/adc.h>
-#include <drivers/gpio.h>
-#include <logging/log.h>
+#include <zephyr/drivers/adc.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
 

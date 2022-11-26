@@ -1,9 +1,9 @@
 #include "app_assert.h"
 #include "compilers.h"
-#include "kernel.h"
-#include <arch/cpu.h>
-#include <logging/log.h>
-#include <logging/log_ctrl.h>
+#include "zephyr/kernel.h"
+#include <zephyr/arch/cpu.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/logging/log_ctrl.h>
 LOG_MODULE_REGISTER(assert, CONFIG_ASSERT_LOG_LEVEL);
 
 static uint32_t error_count = 0;

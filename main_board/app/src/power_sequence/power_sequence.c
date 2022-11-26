@@ -1,16 +1,16 @@
 #include "sysflash/sysflash.h"
 #include <app_assert.h>
 #include <app_config.h>
-#include <arch/cpu.h>
 #include <assert.h>
 #include <bootutil/bootutil.h>
-#include <device.h>
-#include <drivers/gpio.h>
-#include <drivers/regulator.h>
 #include <errors.h>
-#include <logging/log.h>
 #include <stdio.h>
-#include <zephyr.h>
+#include <zephyr/arch/cpu.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/regulator.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
 LOG_MODULE_REGISTER(power_sequence, CONFIG_POWER_SEQUENCE_LOG_LEVEL);
 

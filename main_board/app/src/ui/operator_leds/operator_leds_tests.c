@@ -2,8 +2,8 @@
 #include "operator_leds.h"
 #include "ui/rgb_leds.h"
 #include <app_config.h>
-#include <logging/log.h>
-#include <zephyr.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(operator_leds_test);
 
 static K_THREAD_STACK_DEFINE(operator_leds_test_thread_stack, 1024);

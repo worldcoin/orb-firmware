@@ -7,9 +7,9 @@
 #include <pb_encode.h>
 #include <storage.h>
 #include <utils.h>
-#include <zephyr.h>
+#include <zephyr/kernel.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(pubsub, CONFIG_PUBSUB_LOG_LEVEL);
 
 // Check that CONFIG_CAN_ISOTP_MAX_SIZE_BYTES is large enough

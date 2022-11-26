@@ -1,8 +1,8 @@
 #include "front_leds_tests.h"
 #include "front_leds.h"
 #include <app_config.h>
-#include <logging/log.h>
-#include <zephyr.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(fu_rgb_leds_test);
 
 static K_THREAD_STACK_DEFINE(fu_rgb_leds_test_thread_stack, 1024);

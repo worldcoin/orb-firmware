@@ -1,11 +1,11 @@
 #include "can_messaging.h"
 #include <app_assert.h>
 #include <assert.h>
-#include <canbus/isotp.h>
-#include <device.h>
-#include <zephyr.h>
+#include <zephyr/canbus/isotp.h>
+#include <zephyr/device.h>
+#include <zephyr/kernel.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(isotp_rx, CONFIG_ISOTP_RX_LOG_LEVEL);
 
 #define ISOTP_FLOWCTRL_BS 8
@@ -23,7 +23,7 @@ static struct isotp_recv_ctx rx_ctx[1 + CONFIG_CAN_ISOTP_REMOTE_APP_COUNT] = {
 static struct k_poll_event poll_evt[1 + CONFIG_CAN_ISOTP_REMOTE_APP_COUNT] = {
     0};
 
-static void (*incoming_message_handler)(can_message_t *msg);
+static void (*incoming_message_handler)(void *msg);
 
 static_assert(CONFIG_CAN_ISOTP_REMOTE_APP_COUNT <= 15,
               "ISO-TP binding allowed to a maximum of 15 apps");
@@ -142,7 +142,7 @@ jetson_to_mcu_rx_thread()
                     rx_message.bytes = buffer;
                     rx_message.destination = rx_ctx[app_id].rx_addr.std_id;
                     if (incoming_message_handler != NULL) {
-                        incoming_message_handler(&rx_message);
+                        incoming_message_handler((void *)&rx_message);
                     } else {
                         LOG_ERR("Cannot handle message");
                     }
@@ -158,7 +158,7 @@ jetson_to_mcu_rx_thread()
 }
 
 ret_code_t
-canbus_isotp_rx_init(void (*in_handler)(can_message_t *msg))
+canbus_isotp_rx_init(void (*in_handler)(void *msg))
 {
     if (in_handler == NULL) {
         return RET_ERROR_INVALID_PARAM;

@@ -18,7 +18,7 @@
  */
 
 #include <string.h>
-#include <zephyr.h>
+#include <zephyr/kernel.h>
 
 #include "os/os_heap.h"
 

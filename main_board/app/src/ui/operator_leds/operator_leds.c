@@ -1,12 +1,12 @@
 #include <app_assert.h>
 #include <app_config.h>
-#include <device.h>
-#include <drivers/led_strip.h>
-#include <drivers/pwm.h>
 #include <errors.h>
-#include <logging/log.h>
 #include <utils.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/led_strip.h>
+#include <zephyr/drivers/pwm.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(operator_leds);
 

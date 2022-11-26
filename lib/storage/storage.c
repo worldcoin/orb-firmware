@@ -1,10 +1,10 @@
 #include "storage.h"
-#include <device.h>
 #include <errors.h>
-#include <kernel.h>
-#include <logging/log.h>
-#include <storage/flash_map.h>
-#include <sys/crc.h>
+#include <zephyr/device.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/storage/flash_map.h>
+#include <zephyr/sys/crc.h>
 
 LOG_MODULE_REGISTER(storage, CONFIG_STORAGE_LOG_LEVEL);
 
@@ -325,7 +325,8 @@ storage_init(void)
 
     k_sem_take(&sem_storage, K_FOREVER);
 
-    ret = flash_area_open(FLASH_AREA_ID(storage), &storage_area.fa);
+    ret = flash_area_open(FIXED_PARTITION_ID(storage_partition),
+                          &storage_area.fa);
     if (ret) {
         LOG_ERR("Unable to open flash area: %d", ret);
         ret = RET_ERROR_NOT_INITIALIZED;

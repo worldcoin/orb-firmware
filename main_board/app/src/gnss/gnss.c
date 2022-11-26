@@ -4,15 +4,14 @@
 #include <app_assert.h>
 #include <app_config.h>
 #include <assert.h>
-#include <device.h>
-#include <drivers/uart.h>
 #include <pubsub/pubsub.h>
 #include <stdlib.h>
-#include <sys/byteorder.h>
-#include <sys/ring_buffer.h>
-#include <zephyr.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/uart.h>
+#include <zephyr/kernel.h>
+#include <zephyr/sys/byteorder.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(gnss, CONFIG_GNSS_LOG_LEVEL);
 
 #define NMEA_MAX_SIZE 82 // Includes starting '$' and '\r' '\n'
@@ -21,8 +20,6 @@ LOG_MODULE_REGISTER(gnss, CONFIG_GNSS_LOG_LEVEL);
 #define GNSS_CTRL DT_PROP(GNSS_NODE, gnss)
 
 static const struct device *uart_dev = DEVICE_DT_GET(GNSS_CTRL);
-
-K_SEM_DEFINE(tx_done_sem, 0, 1);
 
 static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_GNSS);
 static struct k_thread gnss_thread_data;
@@ -62,7 +59,6 @@ uart_receive_callback(const struct device *dev, struct uart_event *evt,
         break;
     case UART_TX_DONE:
     case UART_TX_ABORTED:
-        k_sem_give(&tx_done_sem);
         break;
     default:
         LOG_ERR("Unhandled event %d", evt->type);

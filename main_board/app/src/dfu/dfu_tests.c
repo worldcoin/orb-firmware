@@ -1,17 +1,16 @@
 #include "dfu_tests.h"
-#include <logging/log.h>
-#define LOG_LEVEL LOG_LEVEL_DBG
-LOG_MODULE_REGISTER(dfutest);
-
 #include "dfu.h"
 #include "runner/runner.h"
 #include <app_config.h>
-#include <errors.h>
+#include <can_messaging.h>
 #include <flash_map_backend/flash_map_backend.h>
 #include <pb_encode.h>
-#include <random/rand32.h>
-#include <sys/crc.h>
-#include <zephyr.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/sys/crc.h>
+
+#define LOG_LEVEL LOG_LEVEL_DBG
+LOG_MODULE_REGISTER(dfutest);
 
 K_THREAD_STACK_DEFINE(dfu_test_thread_stack_upload, 3072);
 static struct k_thread test_thread_data_upload;
@@ -60,7 +59,7 @@ test_dfu_upload()
         to_send.destination = 0;
 
         if (encoded) {
-            runner_handle_new(&to_send);
+            runner_handle_new_can(&to_send);
         } else {
             LOG_ERR("Error encoding DFU block");
             return;
