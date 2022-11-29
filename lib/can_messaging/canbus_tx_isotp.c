@@ -34,7 +34,7 @@ static char __aligned(4)
 
 static K_SEM_DEFINE(tx_sem, 1, 1);
 
-static bool is_init = false;
+static ATOMIC_DEFINE(is_init, 1);
 
 static void
 tx_complete_cb(int error_nr, void *buffer_to_free)
@@ -65,14 +65,23 @@ process_tx_messages_thread()
         .std_id = 0, .id_type = CAN_STANDARD_IDENTIFIER, .use_ext_addr = 0};
 
     while (1) {
+        // set `is_init` flag if not
+        // flag can be reset in function `canbus_isotp_tx_init`
+        atomic_set(is_init, 1);
+
         // wait for semaphore to be released when TX done
         k_sem_take(&tx_sem, K_FOREVER);
 
         // wait for new message to be queued
+        // if queue is purged during init, k_msgq_get will return with error
+        // (-35), so we use the `is_init` flag to make sure we don't log
+        // foreseen error
         int ret = k_msgq_get(&isotp_tx_msg_queue, &new, K_FOREVER);
-        if (ret != 0) {
-            // error
+        if (ret != 0 && atomic_get(is_init) != 0) {
             LOG_ERR("msg queue error: %i", ret);
+            continue;
+        } else if (atomic_get(is_init) == 0) {
+            // queue as been purged, loop back without going further
             continue;
         }
 
@@ -104,7 +113,7 @@ process_tx_messages_thread()
 ret_code_t
 can_isotp_messaging_async_tx(const can_message_t *message)
 {
-    if (!is_init) {
+    if (atomic_get(is_init) == 0) {
         return RET_ERROR_INVALID_STATE;
     }
 
@@ -136,6 +145,8 @@ can_isotp_messaging_async_tx(const can_message_t *message)
 ret_code_t
 canbus_isotp_tx_init(void)
 {
+    atomic_clear(is_init);
+
     if (!can_dev) {
         LOG_ERR("CAN: Device driver not found.");
         return RET_ERROR_NOT_FOUND;
@@ -148,8 +159,6 @@ canbus_isotp_tx_init(void)
     k_heap_init(&can_tx_isotp_memory_heap, can_tx_isotp_memory_heap_buffer,
                 sizeof(can_tx_isotp_memory_heap_buffer));
     k_sem_init(&tx_sem, 1, 1);
-
-    is_init = true;
 
     return RET_SUCCESS;
 }
