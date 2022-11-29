@@ -49,7 +49,7 @@ static volatile UserLEDsPattern_UserRgbLedPattern global_pattern =
 #ifdef CONFIG_NO_BOOT_LEDS
     UserLEDsPattern_UserRgbLedPattern_OFF;
 #else
-    UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE;
+    UserLEDsPattern_UserRgbLedPattern_PULSING_RGB_ONLY_CENTER;
 #endif // CONFIG_NO_BOOT_LEDS
 
 #define INITIAL_PULSING_PERIOD_MS 4000
@@ -58,7 +58,7 @@ static volatile bool use_sequence;
 static volatile uint32_t global_start_angle_degrees = 0;
 static volatile int32_t global_angle_length_degrees = FULL_RING_DEGREES;
 static volatile uint8_t global_intensity = 25;
-static volatile struct led_rgb global_color = {.r = 0, .g = 0, .b = 0};
+static volatile struct led_rgb global_color = {.r = 15, .g = 15, .b = 15};
 static volatile float global_pulsing_scale = 2;
 static volatile uint32_t global_pulsing_period_ms = INITIAL_PULSING_PERIOD_MS;
 static volatile uint32_t global_pulsing_delay_time_ms =
@@ -136,6 +136,7 @@ front_leds_thread()
     int32_t angle_length_degrees;
     float pulsing_scale;
     uint32_t pulsing_period_ms;
+    float scaler;
 
     for (;;) {
         // wait for next command
@@ -223,7 +224,7 @@ front_leds_thread()
                 pulsing_scale = 2;
                 // fallthrough
             case UserLEDsPattern_UserRgbLedPattern_PULSING_RGB:;
-                float scaler = (SINE_LUT[pulsing_index] * pulsing_scale) + 1;
+                scaler = (SINE_LUT[pulsing_index] * pulsing_scale) + 1;
                 color.r = roundf(scaler * color.r);
                 color.g = roundf(scaler * color.g);
                 color.b = roundf(scaler * color.b);
@@ -231,6 +232,16 @@ front_leds_thread()
                 wait_until = K_MSEC(global_pulsing_delay_time_ms);
                 pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
                 set_ring(color, start_angle_degrees, angle_length_degrees);
+                break;
+            case UserLEDsPattern_UserRgbLedPattern_PULSING_RGB_ONLY_CENTER:
+                scaler = (SINE_LUT[pulsing_index] * pulsing_scale) + 1;
+                color.r = roundf(scaler * color.r);
+                color.g = roundf(scaler * color.g);
+                color.b = roundf(scaler * color.b);
+
+                wait_until = K_MSEC(global_pulsing_delay_time_ms);
+                pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
+                set_center(color);
                 break;
             case UserLEDsPattern_UserRgbLedPattern_RGB:
                 set_ring(color, start_angle_degrees, angle_length_degrees);
