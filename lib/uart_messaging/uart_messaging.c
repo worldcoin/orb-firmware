@@ -18,90 +18,130 @@ static const struct device *uart_dev =
 /// message and the message length on 2 bytes (uint16_t, Little Endian)
 /// | 0x8E | 0xAD | len[0] | len[1] |
 #define UART_MESSAGE_HEADER_SIZE 4UL
-const uint8_t HEADER_MAGIC[2] = {0x8e, 0xad};
+const uint16_t HEADER_MAGIC_U16 = 0xad8e; // uint16_t in little endian
 
-// twice the size defined in `CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES` is used in
-// `uart_rx_buf` to continuously receive data using the circular DMA buffer
-// when a message is chunked into two buffer parts, `bytes` is used to
-// reconstitute it before decoding.
-// `wr_idx` is the pointer into `bytes`
-static uint8_t uart_rx_buf[CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES * 2];
-static uint8_t bytes[CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES];
-static size_t wr_idx = 0;
+static uint8_t
+    __aligned(1) uart_rx_ring_buf[CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES];
+static size_t read_offset = SIZE_MAX;
+static size_t write_offset = SIZE_MAX;
+
+static_assert(CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES &&
+                  (CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES &
+                   (CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES - 1)) == 0,
+              "must be power of 2");
+
+#define RING_BUFFER_USED_BYTES(start, end)                                     \
+    ((end - start) & (sizeof(uart_rx_ring_buf) - 1))
 
 static void (*incoming_message_handler)(void *msg);
+K_MSGQ_DEFINE(uart_recv_queue, sizeof(uart_message_t), 6, 4);
+static K_THREAD_STACK_DEFINE(rx_thread_stack,
+                             CONFIG_ORB_LIB_THREAD_STACK_SIZE_UART_RX);
+static struct k_thread rx_thread_data = {0};
 
-static struct k_work uart_work;
-
-static K_SEM_DEFINE(sem_msg, 1, 1);
-static uart_message_t uart_message;
-
-static void
-new_message(struct k_work *item)
+_Noreturn static void
+rx_thread()
 {
-    UNUSED_PARAMETER(item);
+    uart_message_t message;
 
-    incoming_message_handler(&uart_message);
+    while (1) {
+        k_msgq_get(&uart_recv_queue, &message, K_FOREVER);
 
-    k_sem_give(&sem_msg);
+        incoming_message_handler(&message);
+    }
 }
 
-static void __attribute__((optimize("Ofast")))
+/// Handle new UART bytes received on DMA interrupts
+/// The callback detects the new messages by parsing the header and push
+/// the payload pointers encapsulated into \struct uart_message_t to a queue for
+/// further processing in a separate thread. See \fn rx_thread.
+///
+/// ⚠️ ISR context, keep it short
+/// \param dev unused
+/// \param evt rx data: buffer address, offset, length
+/// \param user_data unused
+static void
 uart_receive_callback(const struct device *dev, struct uart_event *evt,
                       void *user_data)
 {
     UNUSED_PARAMETER(dev);
     UNUSED_PARAMETER(user_data);
 
-    uint8_t *msg_ptr;
+    int ret;
+    uart_message_t message = {
+        uart_rx_ring_buf,
+        sizeof(uart_rx_ring_buf),
+        0,
+        0,
+    };
 
     switch (evt->type) {
-    case UART_RX_RDY:
-        if (wr_idx + evt->data.rx.len > sizeof(bytes)) {
-            LOG_ERR("Overflow rdy: l %u\to %u\twr_idx %u", evt->data.rx.len,
-                    evt->data.rx.offset, wr_idx);
-            wr_idx = 0;
+    case UART_RX_RDY: {
+        // initialize value
+        if (read_offset == SIZE_MAX && write_offset == SIZE_MAX) {
+            read_offset = evt->data.rx.offset;
+            write_offset = evt->data.rx.offset;
         }
 
-        if (evt->data.rx.len > UART_MESSAGE_HEADER_SIZE &&
-            evt->data.rx.buf[evt->data.rx.offset] == HEADER_MAGIC[0] &&
-            evt->data.rx.buf[evt->data.rx.offset + 1] == HEADER_MAGIC[1] &&
-            *(uint16_t *)&evt->data.rx.buf[evt->data.rx.offset + 2] +
-                    UART_MESSAGE_HEADER_SIZE <=
-                evt->data.rx.len) {
-            // full message in one chunk
-            wr_idx = evt->data.rx.len;
-            msg_ptr = &evt->data.rx.buf[evt->data.rx.offset];
-        } else {
-            // chunked message to reconstitute
+        write_offset =
+            (write_offset + evt->data.rx.len) % sizeof(uart_rx_ring_buf);
 
-            // detect new message
-            if (evt->data.rx.len > 2 &&
-                evt->data.rx.buf[evt->data.rx.offset] == HEADER_MAGIC[0] &&
-                evt->data.rx.buf[evt->data.rx.offset + 1] == HEADER_MAGIC[1]) {
-                wr_idx = 0;
+        // check new fully-received messages
+        while (read_offset != write_offset) {
+            // even if we didn't receive the header entirely, try to read both
+            // the header and the payload size where it should be located
+            // `header_magic` and `payload_size` must be used only if the bytes
+            // are all received by checking `RING_BUFFER_USED_BYTES` before
+            // using any of these
+            uint16_t payload_size =
+                (uint16_t)((uart_rx_ring_buf[(read_offset + 3) %
+                                             sizeof(uart_rx_ring_buf)]
+                            << 8) +
+                           uart_rx_ring_buf[(read_offset + 2) %
+                                            sizeof(uart_rx_ring_buf)]);
+            uint16_t header_magic =
+                (uint16_t)((uart_rx_ring_buf[(read_offset + 1) %
+                                             sizeof(uart_rx_ring_buf)]
+                            << 8) +
+                           uart_rx_ring_buf[read_offset]);
+
+            if (RING_BUFFER_USED_BYTES(read_offset, write_offset) >
+                    UART_MESSAGE_HEADER_SIZE &&
+                header_magic == HEADER_MAGIC_U16 &&
+                RING_BUFFER_USED_BYTES(read_offset, write_offset) >=
+                    (payload_size + UART_MESSAGE_HEADER_SIZE)) {
+                // entire message received
+
+                // remove header to get index to payload
+                message.start_idx = (read_offset + UART_MESSAGE_HEADER_SIZE) %
+                                    sizeof(uart_rx_ring_buf);
+                message.length = payload_size;
+
+                ret = k_msgq_put(&uart_recv_queue, &message, K_NO_WAIT);
+                if (ret) {
+                    LOG_ERR("rx queue err %d", ret);
+                }
+
+                read_offset =
+                    (read_offset + message.length + UART_MESSAGE_HEADER_SIZE) %
+                    sizeof(uart_rx_ring_buf);
+            } else if ((RING_BUFFER_USED_BYTES(read_offset, write_offset) <
+                        UART_MESSAGE_HEADER_SIZE) ||
+                       ((RING_BUFFER_USED_BYTES(read_offset, write_offset) >=
+                         UART_MESSAGE_HEADER_SIZE) &&
+                        header_magic == HEADER_MAGIC_U16 &&
+                        (RING_BUFFER_USED_BYTES(read_offset, write_offset) <
+                         (payload_size + UART_MESSAGE_HEADER_SIZE)))) {
+                // more bytes needed: no header or payload not entirely received
+
+                return;
+            } else {
+                // header not detected, progress into received bytes to find the
+                // next UART message
+                read_offset = (read_offset + 1) % sizeof(uart_rx_ring_buf);
             }
-
-            // copy into temporary buffer
-            memcpy(&bytes[wr_idx], &evt->data.rx.buf[evt->data.rx.offset],
-                   evt->data.rx.len);
-            wr_idx += evt->data.rx.len;
-
-            msg_ptr = bytes;
         }
-
-        if (wr_idx > UART_MESSAGE_HEADER_SIZE &&
-            msg_ptr[0] == HEADER_MAGIC[0] && msg_ptr[1] == HEADER_MAGIC[1] &&
-            *(uint16_t *)&msg_ptr[2] + UART_MESSAGE_HEADER_SIZE <= wr_idx) {
-            if (k_sem_take(&sem_msg, K_NO_WAIT) == 0) {
-                // remove header and send payload to handler as it is
-                uart_message.bytes = &msg_ptr[UART_MESSAGE_HEADER_SIZE];
-                uart_message.size = wr_idx - UART_MESSAGE_HEADER_SIZE;
-                k_work_submit(&uart_work);
-            }
-            wr_idx = 0;
-        }
-        break;
+    } break;
     case UART_RX_BUF_RELEASED:
     case UART_RX_BUF_REQUEST:
         break;
@@ -136,13 +176,18 @@ uart_messaging_init(void (*in_handler)(void *msg))
     }
 
     // no timeout, UART_RX_RDY as soon as uart reaches idle state
-    ret = uart_rx_enable(uart_dev, uart_rx_buf, sizeof uart_rx_buf, 0);
+    ret =
+        uart_rx_enable(uart_dev, uart_rx_ring_buf, sizeof uart_rx_ring_buf, 0);
     if (ret) {
         ASSERT_SOFT(ret);
         return RET_ERROR_INVALID_STATE;
     }
 
-    k_work_init(&uart_work, new_message);
+    k_tid_t tid = k_thread_create(
+        &rx_thread_data, rx_thread_stack,
+        K_THREAD_STACK_SIZEOF(rx_thread_stack), rx_thread, NULL, NULL, NULL,
+        CONFIG_ORB_LIB_THREAD_PRIORITY_UART_RX, 0, K_NO_WAIT);
+    k_thread_name_set(tid, "uart_rx");
 
     return RET_SUCCESS;
 }

@@ -1051,21 +1051,62 @@ runner_handle_new_can(void *msg)
 
         k_sem_give(&new_job_sem);
     } else {
-        LOG_ERR("Error taking semaphore for CAN: %d", ret);
+        LOG_ERR("Handling busy (CAN): %d", ret);
         k_sem_give(&new_job_sem);
     }
 }
 
 #if CONFIG_ORB_LIB_UART_MESSAGING
+
+static uart_message_t *uart_msg;
+
+static bool
+buf_read_circular(pb_istream_t *stream, pb_byte_t *buf, size_t count)
+{
+    if (buf == NULL) {
+        return false;
+    }
+
+    // get source address from previous state
+    pb_byte_t *source = (pb_byte_t *)stream->state;
+    // pointer to future source in the circular buffer once `count`
+    // bytes are copied
+    const pb_byte_t *end_ptr =
+        (pb_byte_t *)((size_t)uart_msg->buffer_addr +
+                      ((((size_t)source - (size_t)uart_msg->buffer_addr) +
+                        count) %
+                       (size_t)uart_msg->buffer_size));
+    size_t copy_idx = 0;
+
+    // if wrap around in the circular buffer, copy end of the buffer first
+    if (end_ptr < source) {
+        copy_idx =
+            (size_t)((uart_msg->buffer_addr + uart_msg->buffer_size) - source);
+
+        memcpy(buf, source, copy_idx);
+
+        source = (pb_byte_t *)uart_msg->buffer_addr;
+        count = count - copy_idx;
+    }
+
+    memcpy(&buf[copy_idx], source, count);
+
+    // update next read location
+    stream->state = (void *)end_ptr;
+
+    return true;
+}
+
 void
 runner_handle_new_uart(void *msg)
 {
-    uart_message_t *uart_msg = (uart_message_t *)msg;
-    pb_istream_t stream =
-        pb_istream_from_buffer(uart_msg->bytes, uart_msg->size);
-
-    int ret = k_sem_take(&new_job_sem, K_MSEC(5));
+    int ret = k_sem_take(&new_job_sem, K_MSEC(2));
     if (ret == 0) {
+        uart_msg = (uart_message_t *)msg;
+        pb_istream_t stream = pb_istream_from_buffer(
+            &uart_msg->buffer_addr[uart_msg->start_idx], uart_msg->length);
+        stream.callback = buf_read_circular;
+
         bool decoded = pb_decode_ex(&stream, McuMessage_fields, &mcu_message,
                                     PB_DECODE_DELIMITED);
         if (decoded) {
@@ -1086,7 +1127,7 @@ runner_handle_new_uart(void *msg)
 
         k_sem_give(&new_job_sem);
     } else {
-        LOG_ERR("Error taking semaphore for UART: %d", ret);
+        LOG_ERR("Handling busy (UART): %d", ret);
         k_sem_give(&new_job_sem);
     }
 }

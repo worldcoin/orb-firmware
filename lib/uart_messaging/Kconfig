@@ -3,9 +3,19 @@ config ORB_LIB_UART_MESSAGING
 	select ORB_LIB_ERRORS
 
 config ORB_LIB_UART_RX_BUF_SIZE_BYTES
-	int "RX buffer size"
-	default 700
+	int "RX buffer size (power of 2)"
+	default 2048
 	depends on ORB_LIB_UART_MESSAGING
 	help
-		Least amount of bytes needed to receive the biggest message. Twice this amount will be allocated for reception
-		as UART continuously receives bytes while processing newly received messages.
+		Least amount of bytes needed to receive the biggest message while some other bytes might be received in the
+		background. It is advised to allocate at least twice the size of the biggest UART message.
+
+config ORB_LIB_THREAD_PRIORITY_UART_RX
+	int "UART RX thread priority"
+	default 5
+	depends on ORB_LIB_CAN_MESSAGING
+
+config ORB_LIB_THREAD_STACK_SIZE_UART_RX
+	int "Stack size for CAN RX thread"
+	default 2048
+	depends on ORB_LIB_CAN_MESSAGING
