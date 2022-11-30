@@ -281,14 +281,14 @@ fan_tach_thread()
 
         // Only if all fans report a speed of 0 do we send 0
 
-        if (main_speed != 0) {
+        if (main_speed != 0 && main_speed != UINT32_MAX) {
             fs.measured_speed_rpm = main_speed;
             fs.fan_id = FanStatus_FanID_MAIN;
             publish_new(&fs, sizeof fs, McuToJetson_fan_status_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
             speed_sent = true;
         }
-        if (aux_speed != 0) {
+        if (aux_speed != 0 && aux_speed != UINT32_MAX) {
             fs.measured_speed_rpm = aux_speed;
             fs.fan_id = FanStatus_FanID_AUX;
             publish_new(&fs, sizeof fs, McuToJetson_fan_status_tag,
