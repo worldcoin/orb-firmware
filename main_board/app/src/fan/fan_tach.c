@@ -44,9 +44,19 @@ struct timer_info {
 #define ASSUMED_TIMER_CLOCK_FREQ_MHZ 170
 #define ASSUMED_TIMER_CLOCK_FREQ     (ASSUMED_TIMER_CLOCK_FREQ_MHZ * 1000000)
 
-// The timer runs at the CPU rate of 170MHz
-// A period of 1 second is equivalent to (1 / (170MHz / 2594))
-#define PRESCALER 2593 // 1 second
+/*!
+ * Setting the prescaler so that the timer times out after one second
+ * allows us to set a minimum measurable RPM of 60RPM (1 full tachometer period
+ * in 1 second).
+ * \note All the timers are counting using at least a 16-bit register, so the
+ * timeout occurs when counter reaches 65535.
+ * \note 32-bit timers will in any case be able to capture more than a second
+ * before timing out with the CPU rate of 170MHz.
+ *
+ * Based on a CPU rate of 170MHz, the prescaler must be set to:
+ *      (170MHz / 65535) = 2594 = (TACHOMETER_TIMER_PRESCALER + 1)
+ */
+#define TACHOMETER_TIMER_PRESCALER 2593
 
 #define FAN_MAIN_TACH_NODE DT_NODELABEL(fan_main_tach)
 PINCTRL_DT_DEFINE(FAN_MAIN_TACH_NODE);
@@ -161,8 +171,8 @@ fan_tachometer_isr(void *arg)
                 LOG_ERR("Internal error, second sample came before first");
                 atomic_set(&timer_info->rpm, UINT32_MAX);
             } else {
-                float hz =
-                    ASSUMED_TIMER_CLOCK_FREQ / (float)((PRESCALER + 1) * total);
+                float hz = ASSUMED_TIMER_CLOCK_FREQ /
+                           (float)((TACHOMETER_TIMER_PRESCALER + 1) * total);
                 uint32_t rpm = hz * 60;
                 atomic_set(&timer_info->rpm, rpm);
             }
@@ -211,7 +221,7 @@ config_timer(struct timer_info *timer_info)
     LL_TIM_InitTypeDef timer_general_config;
     LL_TIM_StructInit(&timer_general_config);
 
-    timer_general_config.Prescaler = PRESCALER;
+    timer_general_config.Prescaler = TACHOMETER_TIMER_PRESCALER;
     timer_general_config.CounterMode = LL_TIM_COUNTERMODE_UP;
     timer_general_config.Autoreload = 0xffff;
     timer_general_config.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
