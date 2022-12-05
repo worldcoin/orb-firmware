@@ -26,13 +26,21 @@ als_thread()
             continue;
         }
         ret = sensor_channel_get(als_device, SENSOR_CHAN_LIGHT, &als_value);
-        if (ret != 0) {
+        if (ret == -ERANGE) {
+            als_value.val1 = 0;
+            als.flag = AmbientLight_Flags_ALS_ERR_RANGE;
+        } else if (ret != 0) {
             LOG_WRN("Error getting data %d", ret);
             continue;
+        } else {
+            als.ambient_light_lux = als_value.val1;
+            als.flag = AmbientLight_Flags_ALS_OK;
         }
 
-        als.ambient_light_lux = als_value.val1;
-        LOG_INF("Ambient light: %u.%06u", als_value.val1, als_value.val2);
+        LOG_INF("Ambient light: %s %u.%06u",
+                als.flag == AmbientLight_Flags_ALS_ERR_RANGE ? "out of range"
+                                                             : "",
+                als_value.val1, als_value.val2);
 
         publish_new(&als, sizeof(als), McuToJetson_front_als_tag,
                     CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
