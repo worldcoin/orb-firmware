@@ -16,6 +16,6 @@ config ORB_LIB_THREAD_PRIORITY_UART_RX
 	depends on ORB_LIB_CAN_MESSAGING
 
 config ORB_LIB_THREAD_STACK_SIZE_UART_RX
-	int "Stack size for CAN RX thread"
+	int "Stack size for UART RX thread"
 	default 2048
 	depends on ORB_LIB_CAN_MESSAGING
