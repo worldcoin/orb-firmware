@@ -5,7 +5,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/// New UART message, pointers taken directly from DMA-allocated buffers
+/// New UART message
+/// In order to keep message-passing as fast as possible between threads,
+/// pointers to large memory buffers are used in this structure.
+/// ⚠️ Addresses points to DMA-allocated buffers which might be overwritten
+///    if not processed in time.
 typedef struct {
     const uint8_t *buffer_addr; //!< address to circular buffer
     const size_t buffer_size;   //!< size of circular buffer

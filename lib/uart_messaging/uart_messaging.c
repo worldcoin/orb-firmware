@@ -22,22 +22,25 @@ const uint16_t HEADER_MAGIC_U16 = 0xad8e; // uint16_t in little endian
 
 static uint8_t
     __aligned(1) uart_rx_ring_buf[CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES];
-static size_t read_offset = SIZE_MAX;
-static size_t write_offset = SIZE_MAX;
+static size_t read_index = SIZE_MAX;
+static size_t write_index = SIZE_MAX;
 
+// statically verify that buffer size is a power of 2
 static_assert(CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES &&
                   (CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES &
                    (CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES - 1)) == 0,
               "must be power of 2");
 
-#define RING_BUFFER_USED_BYTES(start, end)                                     \
+#define UART_RX_RING_BUFFER_USED_BYTES(start, end)                             \
     ((end - start) & (sizeof(uart_rx_ring_buf) - 1))
 
 static void (*incoming_message_handler)(void *msg);
-K_MSGQ_DEFINE(uart_recv_queue, sizeof(uart_message_t), 6, 4);
+
+// thread used to process queued ready-to-process messages
 static K_THREAD_STACK_DEFINE(rx_thread_stack,
                              CONFIG_ORB_LIB_THREAD_STACK_SIZE_UART_RX);
 static struct k_thread rx_thread_data = {0};
+K_MSGQ_DEFINE(uart_recv_queue, sizeof(uart_message_t), 6, 4);
 
 _Noreturn static void
 rx_thread()
@@ -52,8 +55,8 @@ rx_thread()
 }
 
 /// Handle new UART bytes received on DMA interrupts
-/// The callback detects the new messages by parsing the header and push
-/// the payload pointers encapsulated into \struct uart_message_t to a queue for
+/// The callback detects the new messages by parsing the header and pushes
+/// memory pointers (see \struct uart_message_t) to the payload for
 /// further processing in a separate thread. See \fn rx_thread.
 ///
 /// ⚠️ ISR context, keep it short
@@ -78,42 +81,42 @@ uart_receive_callback(const struct device *dev, struct uart_event *evt,
     switch (evt->type) {
     case UART_RX_RDY: {
         // initialize value
-        if (read_offset == SIZE_MAX && write_offset == SIZE_MAX) {
-            read_offset = evt->data.rx.offset;
-            write_offset = evt->data.rx.offset;
+        if (read_index == SIZE_MAX && write_index == SIZE_MAX) {
+            read_index = evt->data.rx.offset;
+            write_index = evt->data.rx.offset;
         }
 
-        write_offset =
-            (write_offset + evt->data.rx.len) % sizeof(uart_rx_ring_buf);
+        write_index =
+            (write_index + evt->data.rx.len) % sizeof(uart_rx_ring_buf);
 
         // check new fully-received messages
-        while (read_offset != write_offset) {
-            // even if we didn't receive the header entirely, try to read both
-            // the header and the payload size where it should be located
-            // `header_magic` and `payload_size` must be used only if the bytes
-            // are all received by checking `RING_BUFFER_USED_BYTES` before
-            // using any of these
+        while (read_index != write_index) {
+            /// even if we didn't receive the header entirely, try to read both
+            /// the header and the payload size where it should be located
+            /// `header_magic` and `payload_size` must be used only if the bytes
+            /// are all received by checking \def UART_RX_RING_BUFFER_USED_BYTES
+            /// before using any of these
             uint16_t payload_size =
-                (uint16_t)((uart_rx_ring_buf[(read_offset + 3) %
+                (uint16_t)((uart_rx_ring_buf[(read_index + 3) %
                                              sizeof(uart_rx_ring_buf)]
                             << 8) +
-                           uart_rx_ring_buf[(read_offset + 2) %
+                           uart_rx_ring_buf[(read_index + 2) %
                                             sizeof(uart_rx_ring_buf)]);
             uint16_t header_magic =
-                (uint16_t)((uart_rx_ring_buf[(read_offset + 1) %
+                (uint16_t)((uart_rx_ring_buf[(read_index + 1) %
                                              sizeof(uart_rx_ring_buf)]
                             << 8) +
-                           uart_rx_ring_buf[read_offset]);
+                           uart_rx_ring_buf[read_index]);
 
-            if (RING_BUFFER_USED_BYTES(read_offset, write_offset) >
+            if (UART_RX_RING_BUFFER_USED_BYTES(read_index, write_index) >
                     UART_MESSAGE_HEADER_SIZE &&
                 header_magic == HEADER_MAGIC_U16 &&
-                RING_BUFFER_USED_BYTES(read_offset, write_offset) >=
+                UART_RX_RING_BUFFER_USED_BYTES(read_index, write_index) >=
                     (payload_size + UART_MESSAGE_HEADER_SIZE)) {
                 // entire message received
 
                 // remove header to get index to payload
-                message.start_idx = (read_offset + UART_MESSAGE_HEADER_SIZE) %
+                message.start_idx = (read_index + UART_MESSAGE_HEADER_SIZE) %
                                     sizeof(uart_rx_ring_buf);
                 message.length = payload_size;
 
@@ -122,23 +125,26 @@ uart_receive_callback(const struct device *dev, struct uart_event *evt,
                     LOG_ERR("rx queue err %d", ret);
                 }
 
-                read_offset =
-                    (read_offset + message.length + UART_MESSAGE_HEADER_SIZE) %
+                read_index =
+                    (read_index + message.length + UART_MESSAGE_HEADER_SIZE) %
                     sizeof(uart_rx_ring_buf);
-            } else if ((RING_BUFFER_USED_BYTES(read_offset, write_offset) <
+            } else if ((UART_RX_RING_BUFFER_USED_BYTES(read_index,
+                                                       write_index) <
                         UART_MESSAGE_HEADER_SIZE) ||
-                       ((RING_BUFFER_USED_BYTES(read_offset, write_offset) >=
+                       ((UART_RX_RING_BUFFER_USED_BYTES(read_index,
+                                                        write_index) >=
                          UART_MESSAGE_HEADER_SIZE) &&
                         header_magic == HEADER_MAGIC_U16 &&
-                        (RING_BUFFER_USED_BYTES(read_offset, write_offset) <
+                        (UART_RX_RING_BUFFER_USED_BYTES(read_index,
+                                                        write_index) <
                          (payload_size + UART_MESSAGE_HEADER_SIZE)))) {
                 // more bytes needed: no header or payload not entirely received
 
                 return;
             } else {
-                // header not detected, progress into received bytes to find the
+                // header not detected, move into received bytes to find the
                 // next UART message
-                read_offset = (read_offset + 1) % sizeof(uart_rx_ring_buf);
+                read_index = (read_index + 1) % sizeof(uart_rx_ring_buf);
             }
         }
     } break;
