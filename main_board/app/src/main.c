@@ -83,7 +83,10 @@ app_assert_cb(fatal_error_info_t *err_info)
         // fatal error, try to warn Jetson
         static McuMessage fatal_error = {
             .which_message = McuMessage_m_message_tag,
-            .message.m_message.which_payload = McuToJetson_fatal_error_tag};
+            .message.m_message.which_payload = McuToJetson_fatal_error_tag,
+            .message.m_message.payload.fatal_error.reason =
+                FatalError_FatalReason_FATAL_ASSERT_HARD,
+        };
 
         static uint8_t buffer[CAN_FRAME_MAX_SIZE];
         pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));

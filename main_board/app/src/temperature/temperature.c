@@ -332,7 +332,7 @@ overtemp_callback(struct sensor_and_channel *sensor_and_channel,
         if (overtemp_info->critical_timer > CRITICAL_TO_SHUTDOWN_DELAY_MS) {
             // critical temperature
             FatalError error = {
-                .reason = 0,
+                .reason = FatalError_FatalReason_FATAL_CRITICAL_TEMPERATURE,
                 .arg = sensor_and_channel->temperature_source,
             };
 
