@@ -1052,7 +1052,6 @@ runner_handle_new_can(void *msg)
         k_sem_give(&new_job_sem);
     } else {
         LOG_ERR("Handling busy (CAN): %d", ret);
-        k_sem_give(&new_job_sem);
     }
 }
 
@@ -1128,7 +1127,6 @@ runner_handle_new_uart(void *msg)
         k_sem_give(&new_job_sem);
     } else {
         LOG_ERR("Handling busy (UART): %d", ret);
-        k_sem_give(&new_job_sem);
     }
 }
 #endif
