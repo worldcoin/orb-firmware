@@ -50,6 +50,8 @@
         // on mainboard versions 3.2+, but this pin is unused on
         // mainboard 3.1, so no harm no foul
         fans-enable-gpios = <&gpiob 13 GPIO_ACTIVE_HIGH>;
+        // enable opamps to allow for voltage measurements of the power supplies
+        supply-voltages-meas-enable-gpios = <&gpioe 1 GPIO_ACTIVE_LOW>;
 
         // Hardware rev ADC
         io-channels = <&adc1 11>;
@@ -59,6 +61,9 @@
         compatible = "regulator-fixed-sync", "regulator-fixed";
         regulator-name = "12v_vbat_sw";
         enable-gpios = <&gpiof 10 GPIO_ACTIVE_HIGH>;
+
+        // ADC channel to measure battery voltage
+        io-channels = <&adc1 1>;
 
         // This is attached to a MOSFET to allow the battery
         // power to be sent to the inputs of:
@@ -191,7 +196,7 @@
 
 &adc1 {
     status = "okay";
-    pinctrl-0 = <&adc1_in11_pb12>;
+    pinctrl-0 = <&adc1_in1_pa0>, <&adc1_in11_pb12>;
     pinctrl-names = "default";
 };
 
