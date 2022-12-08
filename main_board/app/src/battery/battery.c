@@ -23,7 +23,8 @@ static struct k_thread rx_thread_data = {0};
 static const struct adc_dt_spec adc_vbat_sw = ADC_DT_SPEC_GET(DT_PATH(vbat_sw));
 
 // minimum voltage needed to boot the Orb during startup (in millivolts)
-#define BATTERY_MINIMUM_VOLTAGE_STARTUP_MV 13500
+#define BATTERY_MINIMUM_VOLTAGE_STARTUP_MV       13500
+#define BATTERY_MINIMUM_CAPACITY_STARTUP_PERCENT 5
 
 // the time between sends of battery data to the Jetson
 #define BATTERY_INFO_SEND_PERIOD_MS 1000
@@ -285,27 +286,31 @@ battery_init(void)
     }
 
     uint32_t full_voltage_mv = 0;
+    uint32_t battery_cap_percentage = 0;
+    bool got_battery_voltage_can_message_local;
+
     for (size_t i = 0; i < WAIT_FOR_VOLTAGES_TOTAL_PERIOD_MS /
                                WAIT_FOR_VOLTAGES_CHECK_PERIOD_MS;
          ++i) {
+        CRITICAL_SECTION_ENTER(k);
         full_voltage_mv = state_414.voltage_group_1 +
                           state_414.voltage_group_2 +
                           state_414.voltage_group_3 + state_414.voltage_group_4;
-        if (full_voltage_mv >= BATTERY_MINIMUM_VOLTAGE_STARTUP_MV) {
+        battery_cap_percentage = state_499.state_of_charge;
+        got_battery_voltage_can_message_local = got_battery_voltage_can_message;
+        CRITICAL_SECTION_EXIT(k);
+        if (full_voltage_mv >= BATTERY_MINIMUM_VOLTAGE_STARTUP_MV &&
+            battery_cap_percentage >=
+                BATTERY_MINIMUM_CAPACITY_STARTUP_PERCENT) {
             break;
         }
         k_msleep(WAIT_FOR_VOLTAGES_CHECK_PERIOD_MS);
     }
 
     LOG_INF("Voltage from battery: %umV", full_voltage_mv);
+    LOG_INF("Capacity from battery: %u%%", battery_cap_percentage);
 
-    // if timeout on battery frames, check if powered on lab power supply
-    bool got_battery_voltage_can_message_local;
-    CRITICAL_SECTION_ENTER(k);
-    got_battery_voltage_can_message_local = got_battery_voltage_can_message;
-    CRITICAL_SECTION_EXIT(k);
-
-    if (!got_battery_voltage_can_message) {
+    if (!got_battery_voltage_can_message_local) {
         if (!device_is_ready(adc_vbat_sw.dev)) {
             LOG_ERR("ADC device not found");
         } else {
@@ -381,7 +386,8 @@ battery_init(void)
     // - show the user by blinking the operator LED in red
     // - reboot to allow for button startup again, hopefully with
     //   more charge
-    if (full_voltage_mv < BATTERY_MINIMUM_VOLTAGE_STARTUP_MV) {
+    if (full_voltage_mv < BATTERY_MINIMUM_VOLTAGE_STARTUP_MV ||
+        battery_cap_percentage < BATTERY_MINIMUM_CAPACITY_STARTUP_PERCENT) {
         // blink in red before rebooting
         RgbColor color = {.red = 5, .green = 0, .blue = 0};
         for (int i = 0; i < 3; ++i) {
