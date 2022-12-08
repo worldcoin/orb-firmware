@@ -122,10 +122,8 @@ fan_set_speed_by_percentage(uint32_t percentage)
 }
 
 int
-fan_init(const struct device *dev)
+fan_init(void)
 {
-    ARG_UNUSED(dev);
-
     if (!device_is_ready(main_fan_spec.dev) ||
         !device_is_ready(aux_fan_spec.dev)) {
         LOG_ERR(MSG "no");
@@ -196,5 +194,3 @@ fan_init(const struct device *dev)
 
     return RET_SUCCESS;
 }
-
-SYS_INIT(fan_init, POST_KERNEL, SYS_INIT_FAN_INIT_PRIORITY);

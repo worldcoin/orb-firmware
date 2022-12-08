@@ -66,9 +66,8 @@
 // logging thread priority              14
 
 #define SYS_INIT_UI_LEDS_PRIORITY               54
-#define SYS_INIT_FAN_INIT_PRIORITY              53
-#define SYS_INIT_POWER_SUPPLY_INIT_PRIORITY     52
-#define SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY 51
+#define SYS_INIT_POWER_SUPPLY_INIT_PRIORITY     53
+#define SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY 52
 
 ///////////////////////////////////////
 /// CAN bus config                  ///

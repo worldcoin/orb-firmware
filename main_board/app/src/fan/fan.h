@@ -20,4 +20,7 @@ fan_set_speed_by_value(uint16_t value);
 uint32_t
 fan_get_speed_setting(void);
 
+int
+fan_init(void);
+
 #endif // FAN_H

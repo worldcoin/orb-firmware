@@ -141,6 +141,9 @@ main(void)
     ASSERT_SOFT(err_code);
 #endif // CONFIG_NO_JETSON_BOOT
 
+    err_code = fan_init();
+    ASSERT_SOFT(err_code);
+
     temperature_init();
 
     err_code = sound_init();
