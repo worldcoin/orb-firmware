@@ -207,6 +207,10 @@ main(void)
 
     dfu_primary_confirm();
 
+    // enable reboot of the Orb <=> turning off the Orb
+    // if Jetson is turned off
+    power_reboot_set_pending();
+
     // wait for Jetson to show activity before sending our version
     while (!jetson_up_and_running) {
         k_msleep(5000);
@@ -223,8 +227,4 @@ main(void)
             jetson_up_and_running = true;
         }
     }
-
-    // enable reboot of the Orb <=> turning off the Orb
-    // if Jetson is turned off
-    power_reboot_set_pending();
 }
