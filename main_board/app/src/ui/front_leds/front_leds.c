@@ -197,18 +197,21 @@ front_leds_thread()
                 color.g = 0;
                 color.b = 0;
                 set_ring(color, start_angle_degrees, angle_length_degrees);
+                set_center(color);
                 break;
             case UserLEDsPattern_UserRgbLedPattern_ALL_GREEN:
                 color.r = 0;
                 color.g = intensity;
                 color.b = 0;
                 set_ring(color, start_angle_degrees, angle_length_degrees);
+                set_center(color);
                 break;
             case UserLEDsPattern_UserRgbLedPattern_ALL_BLUE:
                 color.r = 0;
                 color.g = 0;
                 color.b = intensity;
                 set_ring(color, start_angle_degrees, angle_length_degrees);
+                set_center(color);
                 break;
             case UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE:;
                 color.r = MINIMUM_WHITE_BRIGHTNESS;
