@@ -326,6 +326,9 @@ battery_init(void)
                 return RET_ERROR_INVALID_STATE;
             }
 
+            // give some time to obtain battery voltage at the MCU pin
+            k_msleep(1);
+
             // let's configure the ADC and ADC measurement
             struct adc_channel_cfg channel_cfg = {
                 .channel_id = adc_vbat_sw.channel_id,
@@ -371,6 +374,8 @@ battery_init(void)
                         state_414.voltage_group_3 = 4000;
                         state_414.voltage_group_4 = 4000;
                         state_499.state_of_charge = 100;
+
+                        battery_cap_percentage = 100;
                     }
                 }
             }
