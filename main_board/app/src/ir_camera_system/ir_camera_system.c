@@ -14,6 +14,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/kernel.h>
+
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
 
@@ -29,12 +30,12 @@ LOG_MODULE_REGISTER(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
 // START --- 2D ToF (time of flight) camera trigger
 #define TOF_NODE DT_NODELABEL(tof_2d_camera_trigger)
 PINCTRL_DT_DEFINE(TOF_NODE);
-static_assert(
+BUILD_ASSERT(
     DT_PROP_LEN(TOF_NODE, channels) == 1,
     "For tof_2d_camera_trigger, we expect one channel in the device tree node");
-static_assert(DT_PROP_LEN(TOF_NODE, pinctrl_0) == 1,
-              "For tof_2d_camera_trigger, we expect the pinctrl-0 property to "
-              "contain one entry in the device tree node");
+BUILD_ASSERT(DT_PROP_LEN(TOF_NODE, pinctrl_0) == 1,
+             "For tof_2d_camera_trigger, we expect the pinctrl-0 property to "
+             "contain one entry in the device tree node");
 static struct stm32_pclken tof_2d_camera_trigger_pclken =
     DT_INST_CLK(DT_NODELABEL(tof_2d_camera_trigger));
 #define TOF_2D_CAMERA_TRIGGER_TIMER                                            \
@@ -45,12 +46,12 @@ static struct stm32_pclken tof_2d_camera_trigger_pclken =
 // START --- IR eye camera trigger
 #define IR_EYE_CAMERA_NODE DT_NODELABEL(ir_eye_camera_trigger)
 PINCTRL_DT_DEFINE(IR_EYE_CAMERA_NODE);
-static_assert(
+BUILD_ASSERT(
     DT_PROP_LEN(IR_EYE_CAMERA_NODE, channels) == 1,
     "For ir_eye_camera_trigger, we expect one channel in the device tree node");
-static_assert(DT_PROP_LEN(IR_EYE_CAMERA_NODE, pinctrl_0) == 1,
-              "For ir_eye_camera_trigger, we expect the pinctrl-0 property to "
-              "contain one entry in the device tree node");
+BUILD_ASSERT(DT_PROP_LEN(IR_EYE_CAMERA_NODE, pinctrl_0) == 1,
+             "For ir_eye_camera_trigger, we expect the pinctrl-0 property to "
+             "contain one entry in the device tree node");
 static struct stm32_pclken ir_eye_camera_trigger_pclken =
     DT_INST_CLK(DT_NODELABEL(ir_eye_camera_trigger));
 #define IR_EYE_CAMERA_TRIGGER_TIMER                                            \
@@ -62,12 +63,12 @@ static struct stm32_pclken ir_eye_camera_trigger_pclken =
 // START --- IR face camera trigger
 #define IR_FACE_CAMERA_NODE DT_NODELABEL(ir_face_camera_trigger)
 PINCTRL_DT_DEFINE(IR_FACE_CAMERA_NODE);
-static_assert(DT_PROP_LEN(IR_FACE_CAMERA_NODE, channels) == 1,
-              "For ir_face_camera_trigger, we expect one channel in the device "
-              "tree node");
-static_assert(DT_PROP_LEN(IR_FACE_CAMERA_NODE, pinctrl_0) == 1,
-              "For ir_face_camera_trigger, we expect the pinctrl-0 property to "
-              "contain one entry in the device tree node");
+BUILD_ASSERT(DT_PROP_LEN(IR_FACE_CAMERA_NODE, channels) == 1,
+             "For ir_face_camera_trigger, we expect one channel in the device "
+             "tree node");
+BUILD_ASSERT(DT_PROP_LEN(IR_FACE_CAMERA_NODE, pinctrl_0) == 1,
+             "For ir_face_camera_trigger, we expect the pinctrl-0 property to "
+             "contain one entry in the device tree node");
 static struct stm32_pclken ir_face_camera_trigger_pclken =
     DT_INST_CLK(DT_NODELABEL(ir_face_camera_trigger));
 #define IR_FACE_CAMERA_TRIGGER_TIMER                                           \
@@ -78,10 +79,10 @@ static struct stm32_pclken ir_face_camera_trigger_pclken =
 
 // AKA: TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER ==
 // IR_FACE_CAMERA_TRIGGER_TIMER
-static_assert(TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER &&
-                  IR_EYE_CAMERA_TRIGGER_TIMER == IR_FACE_CAMERA_TRIGGER_TIMER,
-              "We expect that all camera triggers are different channels on "
-              "the same timer");
+BUILD_ASSERT(TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER &&
+                 IR_EYE_CAMERA_TRIGGER_TIMER == IR_FACE_CAMERA_TRIGGER_TIMER,
+             "We expect that all camera triggers are different channels on "
+             "the same timer");
 
 #define CAMERA_TRIGGER_TIMER IR_FACE_CAMERA_TRIGGER_TIMER
 #define CAMERA_TRIGGER_TIMER_IRQn                                              \
@@ -90,12 +91,12 @@ static_assert(TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER &&
 // START --- 850nm LEDs
 #define LED_850NM_NODE DT_NODELABEL(led_850nm)
 PINCTRL_DT_DEFINE(LED_850NM_NODE);
-static_assert(
+BUILD_ASSERT(
     DT_PROP_LEN(LED_850NM_NODE, channels) == 2,
     "For the 850nm LED, we expect two channels in the device tree node");
-static_assert(DT_PROP_LEN(LED_850NM_NODE, pinctrl_0) == 2,
-              "For the 850nm LED, we expect the pinctrl-0 property to contain "
-              "two entries in the device tree node");
+BUILD_ASSERT(DT_PROP_LEN(LED_850NM_NODE, pinctrl_0) == 2,
+             "For the 850nm LED, we expect the pinctrl-0 property to contain "
+             "two entries in the device tree node");
 static struct stm32_pclken led_850nm_pclken =
     DT_INST_CLK(DT_NODELABEL(led_850nm));
 #define LED_850NM_TIMER ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(LED_850NM_NODE)))
@@ -108,12 +109,12 @@ static struct stm32_pclken led_850nm_pclken =
 // START --- 940nm LED
 #define LED_940NM_NODE DT_NODELABEL(led_940nm)
 PINCTRL_DT_DEFINE(LED_940NM_NODE);
-static_assert(
+BUILD_ASSERT(
     DT_PROP_LEN(LED_940NM_NODE, channels) == 2,
     "For the 940nm LED, we expect two channels in the device tree node");
-static_assert(DT_PROP_LEN(LED_940NM_NODE, pinctrl_0) == 2,
-              "For the 940nm LED, we expect the pinctrl-0 property to contain "
-              "two entries in the device tree node");
+BUILD_ASSERT(DT_PROP_LEN(LED_940NM_NODE, pinctrl_0) == 2,
+             "For the 940nm LED, we expect the pinctrl-0 property to contain "
+             "two entries in the device tree node");
 static struct stm32_pclken led_940nm_pclken = DT_INST_CLK(LED_940NM_NODE);
 #define LED_940NM_TIMER ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(LED_940NM_NODE)))
 #define LED_940NM_TIMER_LEFT_CHANNEL                                           \
@@ -125,20 +126,20 @@ static struct stm32_pclken led_940nm_pclken = DT_INST_CLK(LED_940NM_NODE);
 // START --- 740nm LED
 #define LED_740NM_NODE DT_NODELABEL(led_740nm)
 PINCTRL_DT_DEFINE(LED_740NM_NODE);
-static_assert(
+BUILD_ASSERT(
     DT_PROP_LEN(LED_740NM_NODE, channels) == 1,
     "For the 740nm LED, we expect one channel in the device tree node");
-static_assert(DT_PROP_LEN(LED_740NM_NODE, pinctrl_0) == 1,
-              "For the 740nm LED, we expect the pinctrl-0 property to contain "
-              "one entry in the device tree node");
+BUILD_ASSERT(DT_PROP_LEN(LED_740NM_NODE, pinctrl_0) == 1,
+             "For the 740nm LED, we expect the pinctrl-0 property to contain "
+             "one entry in the device tree node");
 
 static struct stm32_pclken led_740nm_pclken = DT_INST_CLK(LED_740NM_NODE);
 #define LED_740NM_TIMER         ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(LED_740NM_NODE)))
 #define LED_740NM_TIMER_CHANNEL (DT_PROP_BY_IDX(LED_740NM_NODE, channels, 0))
 // END --- 740nm LED
 
-static_assert(LED_740NM_TIMER == LED_940NM_TIMER,
-              "The 740nm timer and the 940nm timer must be the same");
+BUILD_ASSERT(LED_740NM_TIMER == LED_940NM_TIMER,
+             "The 740nm timer and the 940nm timer must be the same");
 
 #define LED_740NM_940NM_COMMON_TIMER LED_740NM_TIMER
 

@@ -26,10 +26,10 @@ static size_t read_index = SIZE_MAX;
 static size_t write_index = SIZE_MAX;
 
 // statically verify that buffer size is a power of 2
-static_assert(CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES &&
-                  (CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES &
-                   (CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES - 1)) == 0,
-              "must be power of 2");
+BUILD_ASSERT(CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES &&
+                 (CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES &
+                  (CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES - 1)) == 0,
+             "must be power of 2");
 
 #define UART_RX_RING_BUFFER_USED_BYTES(start, end)                             \
     ((end - start) & (sizeof(uart_rx_ring_buf) - 1))

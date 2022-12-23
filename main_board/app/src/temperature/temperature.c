@@ -31,9 +31,9 @@ LOG_MODULE_REGISTER(temperature, CONFIG_TEMPERATURE_LOG_LEVEL);
 // number of samples used in a temperature measurement
 #define TEMPERATURE_AVERAGE_SAMPLE_COUNT 3
 
-static_assert((int)(MAIN_BOARD_OVERTEMP_C - OVERTEMP_TO_NOMINAL_DROP_C) > 0 &&
-                  (int)(FRONT_UNIT_OVERTEMP_C - OVERTEMP_TO_NOMINAL_DROP_C) > 0,
-              "Unsigned integer will underflow");
+BUILD_ASSERT((int)(MAIN_BOARD_OVERTEMP_C - OVERTEMP_TO_NOMINAL_DROP_C) > 0 &&
+                 (int)(FRONT_UNIT_OVERTEMP_C - OVERTEMP_TO_NOMINAL_DROP_C) > 0,
+             "Unsigned integer will underflow");
 
 struct sensor_and_channel; // forward declaration
 

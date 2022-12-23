@@ -14,6 +14,14 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/byteorder.h>
 
+// _ANSI_SOURCE is used with newlib to make sure newlib doesn't provide
+// primitives conflicting with Zephyr's POSIX definitions which remove
+// definition of M_PI, so let's redefine it
+#if defined(CONFIG_NEWLIB_LIBC) && defined(_ANSI_SOURCE)
+// taken from math.h
+#define M_PI 3.14159265358979323846
+#endif
+
 LOG_MODULE_REGISTER(stepper_motors, CONFIG_STEPPER_MOTORS_LOG_LEVEL);
 
 K_THREAD_STACK_DEFINE(stack_area_motor_horizontal_init, 2048);

@@ -18,9 +18,9 @@ K_THREAD_DEFINE(can_tx, CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX,
                 CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0, 0);
 
 #define QUEUE_ALIGN 4
-static_assert(QUEUE_ALIGN % 2 == 0, "QUEUE_ALIGN must be a multiple of 2");
-static_assert(sizeof(can_message_t) % QUEUE_ALIGN == 0,
-              "sizeof can_message_t must be a multiple of QUEUE_ALIGN");
+BUILD_ASSERT(QUEUE_ALIGN % 2 == 0, "QUEUE_ALIGN must be a multiple of 2");
+BUILD_ASSERT(sizeof(can_message_t) % QUEUE_ALIGN == 0,
+             "sizeof can_message_t must be a multiple of QUEUE_ALIGN");
 
 // Message queue to send messages
 K_MSGQ_DEFINE(can_tx_msg_queue, sizeof(can_message_t),
@@ -30,10 +30,10 @@ static struct k_mem_slab can_tx_memory_slab;
 static char __aligned(SLAB_BUFFER_ALIGNMENT)
     can_tx_memory_slab_buffer[CAN_FRAME_MAX_SIZE *
                               CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE];
-static_assert(CAN_FRAME_MAX_SIZE % SLAB_BUFFER_ALIGNMENT == 0 &&
-                  CAN_FRAME_MAX_SIZE > SLAB_BUFFER_ALIGNMENT,
-              "Each block must be at least SLAB_BUFFER_ALIGNMENT*N bytes long "
-              "and aligned on this boundary");
+BUILD_ASSERT(CAN_FRAME_MAX_SIZE % SLAB_BUFFER_ALIGNMENT == 0 &&
+                 CAN_FRAME_MAX_SIZE > SLAB_BUFFER_ALIGNMENT,
+             "Each block must be at least SLAB_BUFFER_ALIGNMENT*N bytes long "
+             "and aligned on this boundary");
 static K_SEM_DEFINE(tx_sem, 1, 1);
 
 static bool is_init = false;
@@ -57,10 +57,8 @@ send(const char *data, size_t len,
 {
     ASSERT_HARD_BOOL(len < CAN_FRAME_MAX_SIZE);
 
-    struct can_frame frame = {.id_type = CAN_EXTENDED_IDENTIFIER,
-                              .fd = true,
-                              .rtr = CAN_DATAFRAME,
-                              .id = dest};
+    struct can_frame frame = {
+        .flags = CAN_FRAME_IDE | CAN_FRAME_FDF | CAN_FRAME_BRS, .id = dest};
 
     frame.dlc = can_bytes_to_dlc(len);
     memset(frame.data, 0, sizeof frame.data);

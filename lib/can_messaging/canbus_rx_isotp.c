@@ -25,15 +25,15 @@ static struct k_poll_event poll_evt[1 + CONFIG_CAN_ISOTP_REMOTE_APP_COUNT] = {
 
 static void (*incoming_message_handler)(void *msg);
 
-static_assert(CONFIG_CAN_ISOTP_REMOTE_APP_COUNT <= 15,
-              "ISO-TP binding allowed to a maximum of 15 apps");
-static_assert(CONFIG_ISOTP_RX_SF_FF_BUF_COUNT >=
-                  (CONFIG_CAN_ISOTP_REMOTE_APP_COUNT + 1),
-              "Not enough receiving buffers configured for the ISO-TP module");
+BUILD_ASSERT(CONFIG_CAN_ISOTP_REMOTE_APP_COUNT <= 15,
+             "ISO-TP binding allowed to a maximum of 15 apps");
+BUILD_ASSERT(CONFIG_ISOTP_RX_SF_FF_BUF_COUNT >=
+                 (CONFIG_CAN_ISOTP_REMOTE_APP_COUNT + 1),
+             "Not enough receiving buffers configured for the ISO-TP module");
 
 // one buffer takes ISOTP_FLOWCTRL_BS*7
-static_assert(CONFIG_ISOTP_RX_BUF_COUNT * ISOTP_FLOWCTRL_BS * 7 >= 541,
-              "We need enough buffers to receive 512-byte long messages");
+BUILD_ASSERT(CONFIG_ISOTP_RX_BUF_COUNT *ISOTP_FLOWCTRL_BS * 7 >= 541,
+             "We need enough buffers to receive 512-byte long messages");
 
 static void
 bind_to_remotes(void)
@@ -50,13 +50,13 @@ bind_to_remotes(void)
             .std_id = CAN_ISOTP_STDID_DESTINATION(
                 (CONFIG_CAN_ISOTP_REMOTE_ID + app_id),
                 CONFIG_CAN_ISOTP_LOCAL_ID),
-            .id_type = CAN_STANDARD_IDENTIFIER,
+            .ide = 0,
             .use_ext_addr = 0};
         struct isotp_msg_id app_to_mcu_src_addr = {
             .std_id =
                 CAN_ISOTP_STDID_SOURCE((CONFIG_CAN_ISOTP_REMOTE_ID + app_id),
                                        CONFIG_CAN_ISOTP_LOCAL_ID),
-            .id_type = CAN_STANDARD_IDENTIFIER,
+            .ide = 0,
             .use_ext_addr = 0};
 
         ret = isotp_bind(&rx_ctx[app_id], can_dev, &app_to_mcu_dst_addr,

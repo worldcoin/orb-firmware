@@ -1,5 +1,4 @@
 #include <app_config.h>
-#include <assert.h>
 #include <fan/fan.h>
 #include <zephyr/device.h>
 #include <zephyr/sys/atomic.h>
@@ -13,6 +12,7 @@
 #include <stm32g474xx.h>
 #include <stm32g4xx_ll_tim.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
+#include <zephyr/kernel.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(fan_tach, CONFIG_FAN_TACH_LOG_LEVEL);
@@ -62,8 +62,8 @@ struct timer_info {
 PINCTRL_DT_DEFINE(FAN_MAIN_TACH_NODE);
 static struct stm32_pclken fan_main_tach_pclken =
     DT_INST_CLK(FAN_MAIN_TACH_NODE);
-static_assert(DT_PROP_LEN(FAN_MAIN_TACH_NODE, channels) == 1,
-              "We expect fan main tach to have only 1 channel");
+BUILD_ASSERT(DT_PROP_LEN(FAN_MAIN_TACH_NODE, channels) == 1,
+             "We expect fan main tach to have only 1 channel");
 #define FAN_MAIN_TIMER                                                         \
     ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(FAN_MAIN_TACH_NODE)))
 #define FAN_MAIN_CHANNEL DT_PROP_BY_IDX(FAN_MAIN_TACH_NODE, channels, 0)
@@ -74,8 +74,8 @@ static struct timer_info fan_main_timer_info = {
 #define FAN_AUX_TACH_NODE DT_NODELABEL(fan_aux_tach)
 PINCTRL_DT_DEFINE(FAN_AUX_TACH_NODE);
 static struct stm32_pclken fan_aux_tach_pclken = DT_INST_CLK(FAN_AUX_TACH_NODE);
-static_assert(DT_PROP_LEN(FAN_AUX_TACH_NODE, channels) == 1,
-              "We expect fan aux tach to have only 1 channel");
+BUILD_ASSERT(DT_PROP_LEN(FAN_AUX_TACH_NODE, channels) == 1,
+             "We expect fan aux tach to have only 1 channel");
 #define FAN_AUX_TIMER   ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(FAN_AUX_TACH_NODE)))
 #define FAN_AUX_CHANNEL DT_PROP_BY_IDX(FAN_AUX_TACH_NODE, channels, 0)
 #define FAN_AUX_IRQn    DT_IRQ_BY_NAME(DT_PARENT(FAN_AUX_TACH_NODE), global, irq)

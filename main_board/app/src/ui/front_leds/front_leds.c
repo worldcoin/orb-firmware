@@ -10,7 +10,6 @@
 #include <zephyr/drivers/led_strip.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/random/rand32.h>
 
 LOG_MODULE_REGISTER(front_unit_rgb_leds, CONFIG_FRONT_UNIT_RGB_LEDS_LOG_LEVEL);
 
@@ -173,12 +172,9 @@ front_leds_thread()
                                           ? SHADES_PER_COLOR
                                           : intensity;
                     for (size_t i = 0; i < ARRAY_SIZE(leds.all); ++i) {
-                        leds.all[i].r =
-                            sys_rand32_get() % shades * (intensity / shades);
-                        leds.all[i].g =
-                            sys_rand32_get() % shades * (intensity / shades);
-                        leds.all[i].b =
-                            sys_rand32_get() % shades * (intensity / shades);
+                        leds.all[i].r = rand() % shades * (intensity / shades);
+                        leds.all[i].g = rand() % shades * (intensity / shades);
+                        leds.all[i].b = rand() % shades * (intensity / shades);
                     }
                     wait_until = K_MSEC(50);
                 } else {

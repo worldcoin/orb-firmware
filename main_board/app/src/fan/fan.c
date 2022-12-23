@@ -21,9 +21,9 @@ static const struct gpio_dt_spec fan_enable_spec =
 
 static const struct pwm_dt_spec main_fan_spec = PWM_DT_SPEC_GET(FAN_MAIN_NODE);
 
-static_assert(DEVICE_DT_GET(DT_PWMS_CTLR(FAN_MAIN_NODE)) ==
-                  DEVICE_DT_GET(DT_PWMS_CTLR(FAN_AUX_NODE)),
-              "We expect the main and aux fan to use the same timer");
+BUILD_ASSERT(DEVICE_DT_GET(DT_PWMS_CTLR(FAN_MAIN_NODE)) ==
+                 DEVICE_DT_GET(DT_PWMS_CTLR(FAN_AUX_NODE)),
+             "We expect the main and aux fan to use the same timer");
 
 #define MSG "Checking that fan PWM controller is ready... "
 

@@ -38,12 +38,8 @@ struct battery_can_msg {
     void (*handler)(struct can_frame *frame);
 };
 
-static struct can_filter battery_can_filter = {.id_type =
-                                                   CAN_STANDARD_IDENTIFIER,
-                                               .rtr = CAN_DATAFRAME,
-                                               .id = 0,
-                                               .rtr_mask = 1,
-                                               .id_mask = CAN_STD_ID_MASK};
+static struct can_filter battery_can_filter = {
+    .id = 0, .mask = CAN_STD_ID_MASK, .flags = CAN_FILTER_DATA};
 
 __PACKED_STRUCT battery_415_s
 {

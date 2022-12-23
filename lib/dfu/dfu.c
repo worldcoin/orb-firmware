@@ -45,14 +45,14 @@ static struct image_header *secondary_slot;
 #define DFU_BLOCKS_BUFFER_SIZE                                                 \
     (DFU_BLOCKS_BUFFER_MIN_SIZE + 8 - (DFU_BLOCKS_BUFFER_MIN_SIZE % 8))
 
-static_assert(DFU_BLOCKS_BUFFER_SIZE % 8 == 0,
-              "DFU_BLOCKS_BUFFER_SIZE must be a multiple of a "
-              "double-word");
-static_assert(DFU_BLOCKS_WRITE_SIZE <= DFU_BLOCKS_BUFFER_SIZE,
-              "Write size must be lower than or equal "
-              "buffer size");
-static_assert(DFU_BLOCKS_WRITE_SIZE % 8 == 0,
-              "DFU_BLOCKS_WRITE_SIZE must be a multiple of a double-word");
+BUILD_ASSERT(DFU_BLOCKS_BUFFER_SIZE % 8 == 0,
+             "DFU_BLOCKS_BUFFER_SIZE must be a multiple of a "
+             "double-word");
+BUILD_ASSERT(DFU_BLOCKS_WRITE_SIZE <= DFU_BLOCKS_BUFFER_SIZE,
+             "Write size must be lower than or equal "
+             "buffer size");
+BUILD_ASSERT(DFU_BLOCKS_WRITE_SIZE % 8 == 0,
+             "DFU_BLOCKS_WRITE_SIZE must be a multiple of a double-word");
 
 #ifndef FLASH_PAGE_SIZE
 #define FLASH_PAGE_SIZE 4096

@@ -1,7 +1,12 @@
+#include "power_sequence.h"
+#include "button/button.h"
 #include "sysflash/sysflash.h"
+#include "ui/front_leds/front_leds.h"
+#include "ui/operator_leds/operator_leds.h"
+#include "ui/rgb_leds.h"
+#include "utils.h"
 #include <app_assert.h>
 #include <app_config.h>
-#include <assert.h>
 #include <bootutil/bootutil.h>
 #include <errors.h>
 #include <stdio.h>
@@ -11,15 +16,9 @@
 #include <zephyr/drivers/regulator.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+
 #include <zephyr/logging/log_ctrl.h>
 LOG_MODULE_REGISTER(power_sequence, CONFIG_POWER_SEQUENCE_LOG_LEVEL);
-
-#include "button/button.h"
-#include "power_sequence.h"
-#include "ui/front_leds/front_leds.h"
-#include "ui/operator_leds/operator_leds.h"
-#include "ui/rgb_leds.h"
-#include "utils.h"
 
 // Power supplies turned on in two phases:
 // - Phase 1 initializes just enough power supplies for us to use the Operator
@@ -79,16 +78,16 @@ power_distributor_leds_supplies_on()
         return;
     }
 
-    regulator_enable(vbat_sw_regulator, NULL);
+    regulator_enable(vbat_sw_regulator);
     LOG_INF("VBAT SW enabled");
     k_msleep(20);
 
-    regulator_enable(supply_5v, NULL);
+    regulator_enable(supply_5v);
     LOG_INF("5V power supply enabled");
 
     k_msleep(20);
 
-    regulator_enable(supply_3v3, NULL);
+    regulator_enable(supply_3v3);
     LOG_INF("3.3V power supply enabled");
     k_msleep(20);
 }
@@ -145,26 +144,26 @@ power_turn_on_power_supplies(const struct device *dev)
         return 1;
     }
 
-    regulator_enable(vbat_sw_regulator, NULL);
+    regulator_enable(vbat_sw_regulator);
     LOG_INF("VBAT SW enabled");
     k_msleep(100);
 
-    regulator_enable(supply_5v, NULL);
+    regulator_enable(supply_5v);
     LOG_INF("5V power supply enabled");
 
     k_msleep(100);
 
-    regulator_enable(supply_3v3, NULL);
+    regulator_enable(supply_3v3);
     LOG_INF("3.3V power supply enabled");
     k_msleep(100);
 
-    regulator_enable(supply_12v, NULL);
+    regulator_enable(supply_12v);
     LOG_INF("12V power supply enabled");
 
-    regulator_enable(supply_3v8, NULL);
+    regulator_enable(supply_3v8);
     LOG_INF("3.8V power supply enabled");
 
-    regulator_enable(supply_1v8, NULL);
+    regulator_enable(supply_1v8);
     LOG_INF("1.8V power supply enabled");
 
     k_msleep(100);
@@ -172,9 +171,9 @@ power_turn_on_power_supplies(const struct device *dev)
     return 0;
 }
 
-static_assert(CONFIG_I2C_INIT_PRIORITY > SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
-              "I2C must be initialized _after_ the power supplies so that the "
-              "safety circuit does't get tripped");
+BUILD_ASSERT(CONFIG_I2C_INIT_PRIORITY > SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
+             "I2C must be initialized _after_ the power supplies so that the "
+             "safety circuit does't get tripped");
 
 SYS_INIT(power_turn_on_power_supplies, POST_KERNEL,
          SYS_INIT_POWER_SUPPLY_INIT_PRIORITY);
@@ -509,7 +508,7 @@ power_turn_on_super_cap_charger(void)
         return RET_ERROR_INVALID_STATE;
     }
 
-    ret = regulator_enable(supply_super_cap, NULL);
+    ret = regulator_enable(supply_super_cap);
     if (ret < 0) {
         ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
@@ -529,7 +528,7 @@ power_turn_on_pvcc(void)
         return RET_ERROR_INVALID_STATE;
     }
 
-    ret = regulator_enable(supply_pvcc, NULL);
+    ret = regulator_enable(supply_pvcc);
     if (ret < 0) {
         ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
