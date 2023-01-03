@@ -116,6 +116,17 @@ list(APPEND SOURCES_FILES
     src/ui/sound/sound.c
     )
 
+if (CONFIG_ZTEST)
+    list(APPEND SOURCES_FILES
+        src/optics/ir_camera_system/ir_camera_system_tests.c
+        src/optics/mirrors/mirrors_tests.c
+        src/system/dfu/dfu_tests.c
+        src/temperature/fan/fan_tests.c
+        src/ui/front_leds/front_leds_tests.c
+        src/ui/operator_leds/operator_leds_tests.c
+        )
+endif ()
+
 set(INCLUDE_DIRS
     include
     src
