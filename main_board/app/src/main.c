@@ -1,10 +1,8 @@
 #include "gnss/gnss.h"
 #include "optics/1d_tof/tof_1d.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
-#include "optics/ir_camera_system/ir_camera_system_tests.h"
 #include "optics/liquid_lens/liquid_lens.h"
 #include "optics/mirrors/mirrors.h"
-#include "optics/mirrors/mirrors_tests.h"
 #include "power/battery/battery.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
@@ -13,23 +11,17 @@
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "temperature/fan/fan_tach.h"
-#include "temperature/fan/fan_tests.h"
 #include "temperature/sensors/temperature.h"
 #include "ui/ambient_light/als.h"
 #include "ui/button/button.h"
 #include "ui/front_leds/front_leds.h"
-#include "ui/front_leds/front_leds_tests.h"
 #include "ui/operator_leds/operator_leds.h"
-#include "ui/operator_leds/operator_leds_tests.h"
-#include "ui/rgb_leds.h"
 #include "ui/sound/sound.h"
 #include <app_assert.h>
 #include <can_messaging.h>
 #include <dfu.h>
 #include <pb_encode.h>
 #include <storage.h>
-#include <storage_tests.h>
-#include <system/dfu/dfu_tests.h>
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
 
@@ -42,36 +34,24 @@ LOG_MODULE_REGISTER(main);
 
 static bool jetson_up_and_running = false;
 
-void
+#ifdef CONFIG_ZTEST_NEW_API
+#include <zephyr/ztest.h>
+
+ZTEST_SUITE(runtime_tests, NULL, NULL, NULL, NULL, NULL);
+#endif
+
+/**
+ * @brief execute ZTests or other runtime tests
+ */
+static void
 run_tests()
 {
-#if defined(CONFIG_TEST_MOTORS) || defined(RUN_ALL_TESTS)
-    mirrors_tests_init();
-#endif
-#if defined(CONFIG_TEST_DFU) || defined(RUN_ALL_TESTS)
-    dfu_tests_init();
-#endif
-#if defined(CONFIG_TEST_OPERATOR_LEDS) || defined(RUN_ALL_TESTS)
-    operator_leds_tests_init();
-#endif
-#if defined(CONFIG_TEST_USER_LEDS) || defined(RUN_ALL_TESTS)
-    front_unit_rdb_leds_tests_init();
-#endif
-#if defined(CONFIG_TEST_IR_CAMERA_SYSTEM) || defined(RUN_ALL_TESTS)
-    ir_camera_system_tests_init();
-#endif
-#if defined(CONFIG_TEST_FAN) || defined(RUN_ALL_TESTS)
-    fan_tests_init();
-#endif
-#if defined(CONFIG_ORB_LIB_STORAGE_TESTS) || defined(RUN_ALL_TESTS)
-    storage_tests();
+#if defined(CONFIG_ZTEST_NEW_API)
+    ztest_run_all(NULL);
+    ztest_verify_all_test_suites_ran();
 #endif
 
-#if defined(RUN_ALL_TESTS)
-    k_msleep(30000);
-#endif
-
-#if defined(RUN_ALL_TESTS) || defined(CONFIG_ORB_LIB_ERRORS_TESTS)
+#if defined(CONFIG_ORB_LIB_ERRORS_TESTS)
     fatal_errors_test();
 #endif
 }
@@ -112,8 +92,29 @@ app_assert_cb(fatal_error_info_t *err_info)
     }
 }
 
+__maybe_unused static void
+wait_jetson_up(void)
+{
+    // wait for Jetson to show activity before sending our version
+    while (!jetson_up_and_running) {
+        k_msleep(5000);
+
+        // as soon as the Jetson sends the first message, send firmware version
+        if (runner_successful_jobs_count() > 0) {
+            version_fw_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+
+            uint32_t error_count = app_assert_soft_count();
+            if (error_count) {
+                LOG_ERR("Error count during boot: %u", error_count);
+            }
+
+            jetson_up_and_running = true;
+        }
+    }
+}
+
 void
-main(void)
+initialize(void)
 {
     int err_code;
 
@@ -206,24 +207,21 @@ main(void)
 
     err_code = fan_tach_init();
     ASSERT_SOFT(err_code);
-
-    // launch tests if any is defined
-    run_tests();
-
-    // wait for Jetson to show activity before sending our version
-    while (!jetson_up_and_running) {
-        k_msleep(5000);
-
-        // as soon as the Jetson sends the first message, send firmware version
-        if (runner_successful_jobs_count() > 0) {
-            version_fw_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-
-            uint32_t error_count = app_assert_soft_count();
-            if (error_count) {
-                LOG_ERR("Error count during boot: %u", error_count);
-            }
-
-            jetson_up_and_running = true;
-        }
-    }
 }
+
+#ifdef CONFIG_ZTEST
+void
+test_main(void)
+{
+    initialize();
+    run_tests();
+}
+#else
+void
+main(void)
+{
+    initialize();
+    run_tests();
+    wait_jetson_up();
+}
+#endif

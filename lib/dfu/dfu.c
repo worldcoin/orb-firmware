@@ -20,8 +20,8 @@ K_THREAD_STACK_DEFINE(dfu_thread_stack, CONFIG_ORB_LIB_THREAD_STACK_SIZE_DFU);
 static struct k_thread dfu_thread_data = {0};
 static k_tid_t tid_dfu = NULL;
 
-static struct image_header *primary_slot;
-static struct image_header *secondary_slot;
+static struct image_header *primary_slot = NULL;
+static struct image_header *secondary_slot = NULL;
 
 // Image data comes in at chunks of exactly DFU_BLOCK_SIZE_MAX, except for
 // perhaps the last chunk, which can be smaller.
@@ -270,7 +270,7 @@ static int
 dfu_secondary_activate(bool permanent)
 {
     // check that we have an image in secondary slot
-    if (secondary_slot->ih_magic != IMAGE_MAGIC) {
+    if (secondary_slot != NULL && secondary_slot->ih_magic != IMAGE_MAGIC) {
         return RET_ERROR_INVALID_STATE;
     }
 
@@ -357,6 +357,10 @@ dfu_primary_is_confirmed()
 int
 dfu_version_primary_get(struct image_version *ih_ver)
 {
+    if (primary_slot == NULL) {
+        return RET_ERROR_INVALID_STATE;
+    }
+
     memcpy(ih_ver, &primary_slot->ih_ver, sizeof(struct image_version));
 
     return RET_SUCCESS;
@@ -384,21 +388,39 @@ dfu_init(void)
     int ret = flash_device_base(0, &flash_base_addr);
     ASSERT_SOFT(ret);
 
+    size_t img_size;
+    size_t partition_size;
     primary_slot =
         (struct image_header *)(flash_base_addr +
                                 DT_REG_ADDR(DT_NODELABEL(slot0_partition)));
+    img_size = primary_slot->ih_hdr_size + primary_slot->ih_img_size;
+    partition_size = DT_REG_SIZE(DT_NODELABEL(slot0_partition));
+    if (img_size > partition_size) {
+        // header not written?
+        primary_slot = NULL;
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
+    } else {
+        LOG_INF("Primary slot version %u.%u.%u-0x%x",
+                primary_slot->ih_ver.iv_major, primary_slot->ih_ver.iv_minor,
+                primary_slot->ih_ver.iv_revision,
+                primary_slot->ih_ver.iv_build_num);
+    }
+
     secondary_slot =
         (struct image_header *)(flash_base_addr +
                                 DT_REG_ADDR(DT_NODELABEL(slot1_partition)));
-
-    LOG_INF("Primary slot version %u.%u.%u-0x%x", primary_slot->ih_ver.iv_major,
-            primary_slot->ih_ver.iv_minor, primary_slot->ih_ver.iv_revision,
-            primary_slot->ih_ver.iv_build_num);
-
-    LOG_INF("Secondary slot version %u.%u.%u-0x%x",
-            secondary_slot->ih_ver.iv_major, secondary_slot->ih_ver.iv_minor,
-            secondary_slot->ih_ver.iv_revision,
-            secondary_slot->ih_ver.iv_build_num);
+    img_size = secondary_slot->ih_hdr_size + secondary_slot->ih_img_size;
+    partition_size = DT_REG_SIZE(DT_NODELABEL(slot1_partition));
+    if (img_size > partition_size) {
+        secondary_slot = NULL;
+        LOG_WRN("Invalid image in secondary slot");
+    } else {
+        LOG_INF("Secondary slot version %u.%u.%u-0x%x",
+                secondary_slot->ih_ver.iv_major,
+                secondary_slot->ih_ver.iv_minor,
+                secondary_slot->ih_ver.iv_revision,
+                secondary_slot->ih_ver.iv_build_num);
+    }
 
     return RET_SUCCESS;
 }

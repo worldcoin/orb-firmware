@@ -58,7 +58,7 @@ check_is_ready(const struct device *dev, const char *name)
 #define I2C_CLOCK_PIN   DT_GPIO_PIN(I2C_CLOCK_NODE, i2c_clock_gpios)
 #define I2C_CLOCK_FLAGS DT_GPIO_FLAGS(I2C_CLOCK_NODE, i2c_clock_gpios)
 
-static void
+__maybe_unused static void
 power_distributor_leds_supplies_on()
 {
     const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
@@ -92,7 +92,7 @@ power_distributor_leds_supplies_on()
     k_msleep(20);
 }
 
-static void
+__maybe_unused static void
 power_distributor_leds_supplies_off()
 {
     const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));

@@ -1,15 +1,12 @@
 #include "ir_camera_system.h"
 #include <app_config.h>
 #include <zephyr/kernel.h>
+#include <zephyr/ztest.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(ir_camera_system_tests_init);
 
 // These tests are intended to be observed with a logic analyzer
-
-static K_THREAD_STACK_DEFINE(ir_camera_system_test_stack_area,
-                             THREAD_STACK_SIZE_IR_CAMERA_SYSTEM_TEST);
-struct k_thread ir_camera_system_thread_data;
 
 #define PRINT_TEST_NAME() LOG_INF("Executing test '%s'", __func__)
 
@@ -293,14 +290,9 @@ static void (*tests[])(void) = {
     test_leds,
 };
 
-static void
-ir_camera_system_test_thread(void *a, void *b, void *c)
+ZTEST(runtime_tests, ir_camera_system)
 {
-    ARG_UNUSED(a);
-    ARG_UNUSED(b);
-    ARG_UNUSED(c);
-
-    LOG_INF("Begin tests");
+    Z_TEST_SKIP_IFNDEF(CONFIG_TEST_IR_CAMERA_SYSTEM);
 
     size_t i;
     for (i = 0; i < ARRAY_SIZE(tests); ++i) {
@@ -310,17 +302,4 @@ ir_camera_system_test_thread(void *a, void *b, void *c)
             k_msleep(5000);
         }
     }
-
-    LOG_INF("Tests complete");
-}
-
-void
-ir_camera_system_tests_init(void)
-{
-    k_tid_t tid = k_thread_create(
-        &ir_camera_system_thread_data, ir_camera_system_test_stack_area,
-        K_THREAD_STACK_SIZEOF(ir_camera_system_test_stack_area),
-        ir_camera_system_test_thread, NULL, NULL, NULL,
-        THREAD_PRIORITY_IR_CAMERA_SYSTEM_TEST, 0, K_NO_WAIT);
-    k_thread_name_set(tid, "ir_cam_test");
 }

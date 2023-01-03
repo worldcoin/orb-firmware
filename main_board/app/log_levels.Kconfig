@@ -57,3 +57,11 @@ source "subsys/logging/Kconfig.template.log_config"
 module = BUTTON
 module-str = BUTTON
 source "subsys/logging/Kconfig.template.log_config"
+
+module = TOF_1D
+module-str = TOF_1D
+source "subsys/logging/Kconfig.template.log_config"
+
+module = ALS
+module-str = ALS
+source "subsys/logging/Kconfig.template.log_config"

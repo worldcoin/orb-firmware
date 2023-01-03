@@ -1,42 +1,33 @@
-#include "front_leds_tests.h"
 #include "front_leds.h"
-#include <app_config.h>
 #include <zephyr/kernel.h>
+#include <zephyr/ztest.h>
+
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(fu_rgb_leds_test);
+LOG_MODULE_REGISTER(user_leds_test);
 
-static K_THREAD_STACK_DEFINE(fu_rgb_leds_test_thread_stack, 1024);
-static struct k_thread test_thread_data;
-
-static void
-fu_rgb_leds_test_thread()
+ZTEST(runtime_tests, user_leds)
 {
+    Z_TEST_SKIP_IFNDEF(CONFIG_TEST_USER_LEDS);
+
     front_leds_set_brightness(0x10);
+    int ret_code;
 
     RgbColor custom = {60, 60, 0};
-    while (1) {
-        // test all patterns
-        for (int i = UserLEDsPattern_UserRgbLedPattern_OFF;
-             i <= UserLEDsPattern_UserRgbLedPattern_RGB; ++i) {
-            for (int j = 0; j <= 360; j = j + 90) {
-                front_leds_set_pattern(i, 90, j, &custom, 0, 0);
-                k_msleep(1000);
-            }
-            for (int j = 360; j >= 0; j = j - 90) {
-                front_leds_set_pattern(i, 90, j, &custom, 0, 0);
-                k_msleep(1000);
-            }
+    // test all patterns
+    for (int i = UserLEDsPattern_UserRgbLedPattern_OFF;
+         i <= UserLEDsPattern_UserRgbLedPattern_RGB; ++i) {
+        for (int j = 0; j <= 360; j = j + 90) {
+            ret_code = front_leds_set_pattern(i, 90, j, &custom, 0, 0);
+            zassert_equal(ret_code, 0);
+
+            // time for visual inspection
+            k_msleep(1000);
         }
     }
-}
 
-void
-front_unit_rdb_leds_tests_init(void)
-{
-    k_tid_t tid =
-        k_thread_create(&test_thread_data, fu_rgb_leds_test_thread_stack,
-                        K_THREAD_STACK_SIZEOF(fu_rgb_leds_test_thread_stack),
-                        fu_rgb_leds_test_thread, NULL, NULL, NULL,
-                        THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
-    k_thread_name_set(tid, "fu_leds_test");
+    // verify that we don't have: color * pulsing_scale > 255
+    ret_code =
+        front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern_PULSING_RGB,
+                               90, 180, &custom, 1000, 6);
+    zassert_equal(ret_code, RET_ERROR_INVALID_PARAM);
 }

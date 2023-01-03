@@ -4,11 +4,8 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 
-#ifdef CONFIG_ZTEST
-LOG_MODULE_REGISTER(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
-#else
-LOG_MODULE_DECLARE(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
-#endif
+LOG_MODULE_REGISTER(ir_camera_timer_settings,
+                    CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
 
 #define MAX_PSC_DIV 65536U
 
