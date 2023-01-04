@@ -7,7 +7,7 @@
 LOG_MODULE_REGISTER(operator_leds_test);
 
 /// Test all patterns with 2 brightness levels
-ZTEST(runtime_tests, operator_leds)
+ZTEST(runtime_tests_1, operator_leds)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_OPERATOR_LEDS);
 

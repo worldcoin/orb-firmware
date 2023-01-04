@@ -5,7 +5,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(fan_test);
 
-ZTEST(runtime_tests, fan)
+ZTEST(runtime_tests_1, fan)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_FAN);
 

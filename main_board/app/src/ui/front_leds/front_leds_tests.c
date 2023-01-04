@@ -5,7 +5,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(user_leds_test);
 
-ZTEST(runtime_tests, user_leds)
+ZTEST(runtime_tests_1, user_leds)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_USER_LEDS);
 

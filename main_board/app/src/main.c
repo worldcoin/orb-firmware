@@ -37,7 +37,8 @@ static bool jetson_up_and_running = false;
 #ifdef CONFIG_ZTEST_NEW_API
 #include <zephyr/ztest.h>
 
-ZTEST_SUITE(runtime_tests, NULL, NULL, NULL, NULL, NULL);
+ZTEST_SUITE(runtime_tests_1, NULL, NULL, NULL, NULL, NULL);
+ZTEST_SUITE(runtime_tests_2, NULL, NULL, NULL, NULL, NULL);
 #endif
 
 /**

@@ -66,7 +66,24 @@ set(SINE_LUT_SRC_FILE ${CMAKE_BINARY_DIR}/zephyr/sine_lut.c)
 add_custom_command(OUTPUT ${SINE_LUT_SRC_FILE}
     COMMAND python3 ${PROJECT_DIR}/utils/math/generate_sine.py ${SINE_TABLE_LENGTH} > ${SINE_LUT_SRC_FILE})
 
-set(SOURCES_FILES
+set(SOURCES_FILES)
+if (NOT CONFIG_ZTEST)
+    list(APPEND SOURCES_FILES
+        src/pubsub/pubsub.c)
+else ()
+    list(APPEND SOURCES_FILES
+        src/optics/ir_camera_system/ir_camera_system_tests.c
+        src/optics/mirrors/mirrors_tests.c
+        src/system/dfu/dfu_tests.c
+        src/temperature/fan/fan_tests.c
+        src/ui/front_leds/front_leds_tests.c
+        src/ui/operator_leds/operator_leds_tests.c
+        src/pubsub/pubsub_tests.c
+        )
+endif ()
+
+# common source files
+list(APPEND SOURCES_FILES
     src/main.c
 
     src/gnss/gnss.c
@@ -81,7 +98,6 @@ set(SOURCES_FILES
     src/power/boot/boot.c
     src/power/battery/battery.c
 
-    src/pubsub/pubsub.c
     src/runner/runner.c
 
     src/system/fatal.c
@@ -100,17 +116,6 @@ set(SOURCES_FILES
     src/ui/operator_leds/operator_leds.c
     src/ui/sound/sound.c
     )
-
-if (CONFIG_ZTEST)
-    list(APPEND SOURCES_FILES
-        src/optics/ir_camera_system/ir_camera_system_tests.c
-        src/optics/mirrors/mirrors_tests.c
-        src/system/dfu/dfu_tests.c
-        src/temperature/fan/fan_tests.c
-        src/ui/front_leds/front_leds_tests.c
-        src/ui/operator_leds/operator_leds_tests.c
-        )
-endif ()
 
 set(INCLUDE_DIRS
     include
