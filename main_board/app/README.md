@@ -6,7 +6,7 @@
 
 First, follow the instructions in the [top-level README.md](../../README.md).
 
-Once downloaded, West will check out this repository in the `orb` directory with a branch called `manifest-rev`. If you
+Once downloaded, `west` will check out this repository in the `orb` directory with a branch called `manifest-rev`. If you
 want to work on the repo, make sure to check out the `main` branch and branch from there.
 
 ```shell
@@ -20,10 +20,11 @@ git checkout main
 
 ### Compiling and Flashing
 
-Let's build and run the application, you have two options:
+Let's build and run the application, you have several options:
 
-- the Makefile w/ Docker
-- manually using `west`
+- the Makefile with Docker
+- manually with west
+- manually with CMake (from CLion for example)
 
 > 💡 Important notes:
 >
@@ -74,16 +75,21 @@ su-exec root pyocd flash combined_mcu_main_<board_version>_<version>.hex --targe
 
 ### Cmake build options
 
+#### Developer options
+
 Use `west build -DCONFIG_<option>=y` to use any of these convenience build options:
 
-- `TEST_IR_CAMERA_SYSTEM`
 - `INSTA_BOOT`
 - `NO_JETSON_BOOT`
 - `NO_BOOT_LEDS`
 - `NO_SUPER_CAPS`
 - `MCU_DEVEL`
 
-Example: `west build -- -DCONFIG_MCU_DEVEL=y`.
+#### Tests
+
+Use `west build -p -- -DOVERLAY_CONFIG="tests.conf"` to build the test firmware. This configuration uses
+ZTest to perform tests from the running application. The configuration doesn't wait for someone to press the button
+and doesn't boot the Jetson (`INSTA_BOOT` & `NO_JETSON_BOOT`).
 
 ### Memory map
 
