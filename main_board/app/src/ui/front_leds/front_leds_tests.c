@@ -15,7 +15,7 @@ ZTEST(runtime_tests, user_leds)
     RgbColor custom = {60, 60, 0};
     // test all patterns
     for (int i = UserLEDsPattern_UserRgbLedPattern_OFF;
-         i <= UserLEDsPattern_UserRgbLedPattern_RGB; ++i) {
+         i <= UserLEDsPattern_UserRgbLedPattern_BOOT_ANIMATION; ++i) {
         for (int j = 0; j <= 360; j = j + 90) {
             ret_code = front_leds_set_pattern(i, 90, j, &custom, 0, 0);
             zassert_equal(ret_code, 0);
