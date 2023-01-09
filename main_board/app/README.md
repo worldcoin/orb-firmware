@@ -106,6 +106,17 @@ twister -vv --testsuite-root . --board-root ../../boards/ --platform mcu_main \
   by using `pyocd list`.
 - When using a J-Link instead of an ST-Link add: `--west-runner=jlink`
 
+Twister can be used to compile and flash test configurations defined in `testcase.yaml`, here is an example,
+with `pyocd` runner:
+
+```shell
+twister -vv -T . -A ./../../boards/ -p mcu_main -c --test orb/main_board/app/orb.hil \
+--device-serial /dev/ttyXXX --device-testing --west-flash="-i=<UNIQUE_ID>"
+```
+
+- `--device-serial` is used to provide the path to the serial to USB dongle
+- `UNIQUE_ID` can be obtained by using `pyocd list` and passed to pyocd with the `-i` option
+
 ### Memory map
 
 | Region                              | Location   | Size  |

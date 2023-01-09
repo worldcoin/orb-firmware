@@ -6,7 +6,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(mirrors_test);
 
-ZTEST(runtime_tests, mirrors_ah_past_the_end)
+ZTEST(hil, test_motors_ah_past_the_end)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_MIRRORS);
 
@@ -52,7 +52,7 @@ ZTEST(runtime_tests, mirrors_ah_past_the_end)
 
 /* Disable auto-homing test with stall detection as we don't use it */
 #if 0
-ZTEST(runtime_tests, mirrors_ah_stall_detection)
+ZTEST(hil, test_motors_ah_stall_detection)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_MIRRORS);
 
