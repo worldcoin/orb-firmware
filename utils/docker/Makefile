@@ -89,7 +89,7 @@ shell:
 
 %-tests:
 	$(DOCKER_CMD) /bin/bash -c -- \
-		'source $(REPO_DIR)/zephyr/zephyr-env.sh && cd $(REPO_DIR)/orb/$*/app && twister -T . -vv -c'
+		'source $(REPO_DIR)/zephyr/zephyr-env.sh && cd $(REPO_DIR)/orb/$*/app && twister -T . -vv -c -p native_posix_64'
 
 .PHONY: format
 format:
