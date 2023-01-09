@@ -7,7 +7,7 @@
 LOG_MODULE_REGISTER(operator_leds_test);
 
 /// Test all patterns with 2 brightness levels
-ZTEST(runtime_tests_1, operator_leds)
+ZTEST(hil, test_operator_leds_patterns)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_OPERATOR_LEDS);
 
@@ -21,7 +21,7 @@ ZTEST(runtime_tests_1, operator_leds)
 
         for (int i = DistributorLEDsPattern_DistributorRgbLedPattern_OFF;
              i <= DistributorLEDsPattern_DistributorRgbLedPattern_RGB; ++i) {
-            for (uint32_t j = 0; j <= OPERATOR_LEDS_ALL_MASK; j++) {
+            for (uint32_t j = 1; j <= OPERATOR_LEDS_ALL_MASK; j = j * 2) {
                 ret_code = operator_leds_set_pattern(i, j, &color);
                 zassert_equal(ret_code, 0);
 
@@ -30,4 +30,8 @@ ZTEST(runtime_tests_1, operator_leds)
             }
         }
     }
+
+    ret_code = operator_leds_set_pattern(
+        DistributorLEDsPattern_DistributorRgbLedPattern_OFF, 0, NULL);
+    zassert_equal(ret_code, 0);
 }

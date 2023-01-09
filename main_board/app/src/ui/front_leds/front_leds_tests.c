@@ -5,7 +5,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(user_leds_test);
 
-ZTEST(runtime_tests_1, user_leds)
+ZTEST(hil, test_front_leds_patterns)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_USER_LEDS);
 
@@ -21,7 +21,7 @@ ZTEST(runtime_tests_1, user_leds)
             zassert_equal(ret_code, 0);
 
             // time for visual inspection
-            k_msleep(1000);
+            k_msleep(200);
         }
     }
 

@@ -6,7 +6,8 @@
 
 First, follow the instructions in the [top-level README.md](../../README.md).
 
-Once downloaded, `west` will check out this repository in the `orb` directory with a branch called `manifest-rev`. If you
+Once downloaded, `west` will check out this repository in the `orb` directory with a branch called `manifest-rev`. If
+you
 want to work on the repo, make sure to check out the `main` branch and branch from there.
 
 ```shell
@@ -90,6 +91,17 @@ Use `west build -DCONFIG_<option>=y` to use any of these convenience build optio
 Use `west build -p -- -DOVERLAY_CONFIG="tests.conf"` to build the test firmware. This configuration uses
 ZTest to perform tests from the running application. The configuration doesn't wait for someone to press the button
 and doesn't boot the Jetson (`INSTA_BOOT` & `NO_JETSON_BOOT`).
+
+Twister can be used to compile and flash test configurations defined in `testcase.yaml`, here is an example,
+with `pyocd` runner:
+
+```shell
+twister -vv -T . -A ./../../boards/ -p mcu_main -c \
+--device-serial /dev/ttyXXX --device-testing --west-flash="-i=<UNIQUE_ID>"
+```
+
+- `--device-serial` is used to provide the path to the serial to USB dongle
+- `UNIQUE_ID` can be obtained by using `pyocd list` and passed to pyocd with the `-i` option
 
 ### Memory map
 

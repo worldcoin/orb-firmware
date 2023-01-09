@@ -10,7 +10,7 @@
 
 LOG_MODULE_REGISTER(dfutest, LOG_LEVEL_DBG);
 
-ZTEST(runtime_tests_1, dfu_upload_tests)
+ZTEST(hil, test_dfu_upload_tests)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_DFU);
 
@@ -111,7 +111,7 @@ ZTEST(runtime_tests_1, dfu_upload_tests)
     zassert_equal(rc, 0);
 }
 
-ZTEST(runtime_tests_1, crc_tests)
+ZTEST(hil, test_crc_over_flash)
 {
     // Test CRC speed over entire slot
     uint8_t *sec_slot = (uint8_t *)0x8044000;

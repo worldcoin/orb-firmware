@@ -1,11 +1,12 @@
 #include "fan.h"
+#include "fan_tach.h"
 #include "system/version/version.h"
 #include <zephyr/ztest.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(fan_test);
 
-ZTEST(runtime_tests_1, fan)
+ZTEST(hil, test_fan_set_speed)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_FAN);
 
@@ -19,4 +20,13 @@ ZTEST(runtime_tests_1, fan)
     zassert_equal(fan_get_speed_setting(), fan_speed_value);
 
     fan_set_speed_by_percentage(FAN_INITIAL_SPEED_PERCENT);
+}
+
+ZTEST(hil, test_fan_tachometer)
+{
+    uint32_t fan_aux_speed = fan_tach_get_aux_speed();
+    uint32_t fan_main_speed = fan_tach_get_main_speed();
+
+    // check that either one or the other fan is spinning
+    zassert_true(fan_aux_speed != 0 || fan_main_speed != 0);
 }

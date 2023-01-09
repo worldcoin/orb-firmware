@@ -290,7 +290,7 @@ static void (*tests[])(void) = {
     test_leds,
 };
 
-ZTEST(runtime_tests_1, ir_camera_system)
+ZTEST(hil, test_ir_camera_sys_logic_analyzer)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_IR_CAMERA_SYSTEM);
 

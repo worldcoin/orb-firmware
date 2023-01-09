@@ -44,7 +44,7 @@ publish_store(void *payload, size_t size, uint32_t which_payload,
     return publish_new(payload, size, which_payload, remote_addr);
 }
 
-ZTEST(runtime_tests_2, pubsub)
+ZTEST(hil, test_pubsub_sent_messages)
 {
     zassert_equal(error_code, 0);
 
