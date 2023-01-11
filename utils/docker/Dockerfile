@@ -19,6 +19,7 @@ RUN apt-get update && \
         git \
         gperf \
         libsdl2-dev \
+        libusb-dev \
         make \
         ninja-build \
         protobuf-compiler \
