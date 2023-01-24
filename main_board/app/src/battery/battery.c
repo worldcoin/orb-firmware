@@ -1,6 +1,7 @@
 #include "app_config.h"
 #include "errors.h"
 #include "mcu_messaging.pb.h"
+#include "power_sequence/power_sequence.h"
 #include "pubsub/pubsub.h"
 #include "temperature/temperature.h"
 #include "ui/operator_leds/operator_leds.h"
@@ -24,6 +25,7 @@ static const struct adc_dt_spec adc_vbat_sw = ADC_DT_SPEC_GET(DT_PATH(vbat_sw));
 
 // minimum voltage needed to boot the Orb during startup (in millivolts)
 #define BATTERY_MINIMUM_VOLTAGE_STARTUP_MV       13500
+#define BATTERY_MINIMUM_VOLTAGE_RUNTIME_MV       12500
 #define BATTERY_MINIMUM_CAPACITY_STARTUP_PERCENT 5
 
 // the time between sends of battery data to the Jetson
@@ -84,6 +86,18 @@ static struct battery_414_s state_414 = {0};
 static struct battery_415_s state_415 = {0};
 
 static bool got_battery_voltage_can_message = false;
+
+static void
+battery_low_operator_leds_blink(void)
+{
+    RgbColor color = {.red = 5, .green = 0, .blue = 0};
+    for (int i = 0; i < 3; ++i) {
+        operator_leds_blocking_set(&color, 0b11111);
+        k_msleep(500);
+        operator_leds_blocking_set(&color, 0b00000);
+        k_msleep(500);
+    }
+}
 
 static void
 publish_battery_voltages(void)
@@ -248,9 +262,23 @@ setup_filters(void)
 }
 
 static void
+check_battery_voltage()
+{
+    if ((state_414.voltage_group_1 + state_414.voltage_group_2 +
+         state_414.voltage_group_3 + state_414.voltage_group_4) <
+        BATTERY_MINIMUM_VOLTAGE_RUNTIME_MV) {
+        // blink operator leds
+        battery_low_operator_leds_blink();
+        power_reset(1);
+    }
+}
+
+static void
 battery_rx_thread()
 {
     while (1) {
+        check_battery_voltage();
+
         publish_battery_voltages();
         publish_battery_capacity();
         publish_battery_is_charging();
@@ -393,14 +421,7 @@ battery_init(void)
     //   more charge
     if (full_voltage_mv < BATTERY_MINIMUM_VOLTAGE_STARTUP_MV ||
         battery_cap_percentage < BATTERY_MINIMUM_CAPACITY_STARTUP_PERCENT) {
-        // blink in red before rebooting
-        RgbColor color = {.red = 5, .green = 0, .blue = 0};
-        for (int i = 0; i < 3; ++i) {
-            operator_leds_blocking_set(&color, 0b11111);
-            k_msleep(500);
-            operator_leds_blocking_set(&color, 0b00000);
-            k_msleep(500);
-        }
+        battery_low_operator_leds_blink();
 
         LOG_ERR_IMM("Low battery voltage, rebooting!");
         NVIC_SystemReset();
