@@ -37,7 +37,6 @@ static const struct device *supply_3v3 = DEVICE_DT_GET(DT_PATH(supply_3v3));
 static const struct device *supply_1v8 = DEVICE_DT_GET(DT_PATH(supply_1v8));
 
 K_SEM_DEFINE(sem_reboot, 0, 1);
-static bool reboot_pending_shutdown_req_line = false;
 static uint32_t reboot_delay_s = 0;
 static struct gpio_callback shutdown_cb_data;
 
@@ -323,28 +322,29 @@ shutdown_requested(const struct device *dev, struct gpio_callback *cb,
     if (pins & BIT(shutdown_pin.pin)) {
         gpio_pin_set(power_enable, POWER_ENABLE_PIN, DISABLE);
 
-        if (reboot_pending_shutdown_req_line) {
-            // offload reboot to power management thread
-            reboot_delay_s = 1;
-            k_sem_give(&sem_reboot);
-        } else {
-            LOG_INF("Jetson shut down");
-        }
+        // offload reboot to power management thread
+        reboot_delay_s = 1;
+        k_sem_give(&sem_reboot);
+
+        LOG_INF("Jetson shut down");
     }
 }
 
 static void
 reboot_thread()
 {
+    // wait until triggered
     k_sem_take(&sem_reboot, K_FOREVER);
 
-    if (reboot_pending_shutdown_req_line) {
+    // check if shutdown_pin is active, if so, it means Jetson
+    // needs proper shutdown
+    if (gpio_pin_get_dt(&shutdown_pin) == 1) {
         // From the Jetson Datasheet DS-10184-001 § 2.6.2 Power Down:
         //  > Once POWER_EN is deasserted, the module will assert SYS_RESET*,
         //  and the baseboard may shut down. SoC 3.3V I/O must reach 0.5V or
         //  lower at most 1.5ms after SYS_RESET* is asserted. SoC 1.8V I/O must
         //  reach 0.5V or lower at most 4ms after SYS_RESET* is asserted.
-        while (gpio_pin_get(system_reset, SYSTEM_RESET_PIN) != RESET)
+        while (gpio_pin_get(system_reset, SYSTEM_RESET_PIN) == 0)
             ;
 
         regulator_disable(supply_3v3);
@@ -491,9 +491,6 @@ power_turn_on_jetson(void)
         ASSERT_SOFT(ret);
     }
 
-    // mainboard 3.0 uses PC13 and PE13 for shutdown request line and power
-    // button, so we enable interrupt on shutdown line only when necessary, see
-    // power_reboot_set_pending()
     shutdown_req_init();
 
     // Spawn reboot thread
@@ -554,23 +551,10 @@ power_reset(uint32_t delay_s)
         // already in progress
         return RET_ERROR_INVALID_STATE;
     } else {
-        power_reboot_clear_pending();
         reboot_delay_s = delay_s;
 
         k_sem_give(&sem_reboot);
     }
 
     return RET_SUCCESS;
-}
-
-void
-power_reboot_set_pending(void)
-{
-    reboot_pending_shutdown_req_line = true;
-}
-
-void
-power_reboot_clear_pending(void)
-{
-    reboot_pending_shutdown_req_line = false;
 }
