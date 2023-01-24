@@ -3,6 +3,7 @@
 #include <app_config.h>
 #include <assert.h>
 #include <bootutil/bootutil.h>
+#include <dfu.h>
 #include <errors.h>
 #include <stdio.h>
 #include <zephyr/arch/cpu.h>
@@ -209,6 +210,13 @@ power_wait_for_power_button_press(void)
         LOG_ERR("Error configuring power button!");
         return 1;
     }
+
+    // FIXME image to be confirmed once MCU fully booted
+    // Image is confirmed before we actually reboot the Orb
+    // in case the MCU is rebooted due to a removed battery or insufficient
+    // battery capacity. This is a temporary workaround until we
+    // have fallback mechanism in place.
+    dfu_primary_confirm();
 
     LOG_INF("Waiting for button press of " TOSTR(BUTTON_PRESS_TIME_MS) "ms");
     uint32_t operator_led_mask = 0;

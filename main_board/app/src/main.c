@@ -205,8 +205,6 @@ main(void)
     // launch tests if any is defined
     run_tests();
 
-    dfu_primary_confirm();
-
     // enable reboot of the Orb <=> turning off the Orb
     // if Jetson is turned off
     power_reboot_set_pending();
