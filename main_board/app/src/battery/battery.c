@@ -30,6 +30,10 @@ static const struct adc_dt_spec adc_vbat_sw = ADC_DT_SPEC_GET(DT_PATH(vbat_sw));
 
 // the time between sends of battery data to the Jetson
 #define BATTERY_INFO_SEND_PERIOD_MS 1000
+#define BATTERY_MESSAGES_TIMEOUT_MS (BATTERY_INFO_SEND_PERIOD_MS * 5)
+static_assert(
+    BATTERY_MESSAGES_TIMEOUT_MS > BATTERY_INFO_SEND_PERIOD_MS * 3,
+    "Coarse timing resolution to check if battery is still sending messages");
 
 #define WAIT_FOR_VOLTAGES_TOTAL_PERIOD_MS 2000
 #define WAIT_FOR_VOLTAGES_CHECK_PERIOD_MS 100
@@ -86,6 +90,7 @@ static struct battery_414_s state_414 = {0};
 static struct battery_415_s state_415 = {0};
 
 static bool got_battery_voltage_can_message = false;
+static bool dev_mode = false;
 
 static void
 battery_low_operator_leds_blink(void)
@@ -264,9 +269,13 @@ setup_filters(void)
 static void
 check_battery_voltage()
 {
-    if ((state_414.voltage_group_1 + state_414.voltage_group_2 +
-         state_414.voltage_group_3 + state_414.voltage_group_4) <
-        BATTERY_MINIMUM_VOLTAGE_RUNTIME_MV) {
+    uint32_t voltage_mv;
+    CRITICAL_SECTION_ENTER(k);
+    voltage_mv = state_414.voltage_group_1 + state_414.voltage_group_2 +
+                 state_414.voltage_group_3 + state_414.voltage_group_4;
+    CRITICAL_SECTION_EXIT(k);
+
+    if (voltage_mv < BATTERY_MINIMUM_VOLTAGE_RUNTIME_MV) {
         // blink operator leds
         battery_low_operator_leds_blink();
         power_reset(1);
@@ -276,6 +285,9 @@ check_battery_voltage()
 static void
 battery_rx_thread()
 {
+    bool got_battery_voltage_can_message_local = false;
+    uint32_t battery_messages_timeout = 0;
+
     while (1) {
         check_battery_voltage();
 
@@ -285,6 +297,27 @@ battery_rx_thread()
         publish_battery_cell_temperature();
         publish_battery_diagnostic_flags();
         publish_battery_pcb_temperature();
+
+        if (!dev_mode) {
+            // check that we are still receiving messages from the battery
+            // and consider the battery as removed if no message
+            // has been received for BATTERY_MESSAGES_TIMEOUT_MS
+            CRITICAL_SECTION_ENTER(k);
+            got_battery_voltage_can_message_local =
+                got_battery_voltage_can_message;
+            got_battery_voltage_can_message = false;
+            CRITICAL_SECTION_EXIT(k);
+
+            if (got_battery_voltage_can_message_local) {
+                battery_messages_timeout = 0;
+            } else {
+                battery_messages_timeout += BATTERY_INFO_SEND_PERIOD_MS;
+
+                if (battery_messages_timeout >= BATTERY_MESSAGES_TIMEOUT_MS) {
+                    power_reset(0);
+                }
+            }
+        }
 
         k_msleep(BATTERY_INFO_SEND_PERIOD_MS);
     }
@@ -395,6 +428,7 @@ battery_init(void)
 
                     if (full_voltage_mv >= BATTERY_MINIMUM_VOLTAGE_STARTUP_MV) {
                         LOG_WRN("🧑‍💻 Power supply mode [dev mode]");
+                        dev_mode = true;
 
                         // insert some fake values to keep orb-core happy
                         state_414.voltage_group_1 = 4000;
