@@ -197,8 +197,18 @@ handle_infrared_leds_message(job_t *job)
     InfraredLEDs_Wavelength wavelength = msg->payload.infrared_leds.wavelength;
 
     LOG_DBG("Got LED wavelength message = %d", wavelength);
-    ir_camera_system_enable_leds(wavelength);
-    job_ack(Ack_ErrorCode_SUCCESS, job);
+    ret_code_t err = ir_camera_system_enable_leds(wavelength);
+    switch (err) {
+    case RET_SUCCESS:
+        job_ack(Ack_ErrorCode_SUCCESS, job);
+        break;
+    case RET_ERROR_BUSY:
+        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        break;
+    default:
+        job_ack(Ack_ErrorCode_FAIL, job);
+        LOG_ERR("Unhandled error (%d)!", err);
+    }
 }
 
 static void
@@ -243,9 +253,18 @@ handle_start_triggering_ir_eye_camera_message(job_t *job)
     JetsonToMcu *msg = &job->message;
     MAKE_ASSERTS(JetsonToMcu_start_triggering_ir_eye_camera_tag);
 
-    LOG_DBG("");
-    ir_camera_system_enable_ir_eye_camera();
-    job_ack(Ack_ErrorCode_SUCCESS, job);
+    ret_code_t err = ir_camera_system_enable_ir_eye_camera();
+    switch (err) {
+    case RET_SUCCESS:
+        job_ack(Ack_ErrorCode_SUCCESS, job);
+        break;
+    case RET_ERROR_BUSY:
+        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        break;
+    default:
+        job_ack(Ack_ErrorCode_FAIL, job);
+        LOG_ERR("Unhandled error (%d)!", err);
+    }
 }
 
 static void
@@ -254,9 +273,19 @@ handle_stop_triggering_ir_eye_camera_message(job_t *job)
     JetsonToMcu *msg = &job->message;
     MAKE_ASSERTS(JetsonToMcu_stop_triggering_ir_eye_camera_tag);
 
-    LOG_DBG("");
-    ir_camera_system_disable_ir_eye_camera();
-    job_ack(Ack_ErrorCode_SUCCESS, job);
+    ret_code_t err = ir_camera_system_disable_ir_eye_camera();
+
+    switch (err) {
+    case RET_SUCCESS:
+        job_ack(Ack_ErrorCode_SUCCESS, job);
+        break;
+    case RET_ERROR_BUSY:
+        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        break;
+    default:
+        job_ack(Ack_ErrorCode_FAIL, job);
+        LOG_ERR("Unhandled error (%d)!", err);
+    }
 }
 
 static void
@@ -734,11 +763,14 @@ handle_fps(job_t *job)
     uint16_t fps = (uint16_t)msg->payload.fps.fps;
 
     LOG_DBG("Got FPS message = %u", fps);
+
     ret_code_t ret = ir_camera_system_set_fps(fps);
     if (ret == RET_SUCCESS) {
         job_ack(Ack_ErrorCode_SUCCESS, job);
     } else if (ret == RET_ERROR_INVALID_PARAM) {
         job_ack(Ack_ErrorCode_RANGE, job);
+    } else if (ret == RET_ERROR_BUSY) {
+        job_ack(Ack_ErrorCode_INVALID_STATE, job);
     } else {
         job_ack(Ack_ErrorCode_FAIL, job);
     }
@@ -820,21 +852,32 @@ handle_liquid_lens(job_t *job)
     int32_t current = msg->payload.liquid_lens.current;
     bool enable = msg->payload.liquid_lens.enable;
 
-    if (current < -400 || current > 400) {
-        LOG_ERR("Got liquid lens current value of %d out of range [-400,400]",
-                current);
+    if (!IN_RANGE(current, LIQUID_LENS_MIN_CURRENT_MA,
+                  LIQUID_LENS_MAX_CURRENT_MA)) {
+        LOG_ERR("Got liquid lens current value of %d out of range [%d,%d]",
+                current, LIQUID_LENS_MIN_CURRENT_MA,
+                LIQUID_LENS_MAX_CURRENT_MA);
         job_ack(Ack_ErrorCode_RANGE, job);
     } else {
         LOG_DBG("Got liquid lens current value of %d", current);
-        liquid_set_target_current_ma(current);
+        ret_code_t err = liquid_set_target_current_ma(current);
 
-        if (enable) {
-            liquid_lens_enable();
-        } else {
-            liquid_lens_disable();
+        switch (err) {
+        case RET_SUCCESS:
+            job_ack(Ack_ErrorCode_SUCCESS, job);
+            if (enable) {
+                liquid_lens_enable();
+            } else {
+                liquid_lens_disable();
+            }
+            break;
+        case RET_ERROR_BUSY:
+            job_ack(Ack_ErrorCode_INVALID_STATE, job);
+            break;
+        default:
+            job_ack(Ack_ErrorCode_FAIL, job);
+            LOG_ERR("Unhandled error (%d)!", err);
         }
-
-        job_ack(Ack_ErrorCode_SUCCESS, job);
     }
 }
 
@@ -920,6 +963,87 @@ handle_value_get_message(job_t *job)
     job_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
+static void
+handle_ir_eye_camera_focus_sweep_lens_values(job_t *job)
+{
+    JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(JetsonToMcu_ir_eye_camera_focus_sweep_lens_values_tag);
+
+    BUILD_ASSERT(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__,
+                 "We assume we are little endian");
+    int16_t *focus_values =
+        (int16_t *)msg->payload.ir_eye_camera_focus_sweep_lens_values
+            .focus_values.bytes;
+    size_t num_focus_values =
+        msg->payload.ir_eye_camera_focus_sweep_lens_values.focus_values.size /
+        sizeof(*focus_values);
+
+    ret_code_t ret = ir_camera_system_set_focus_values_for_focus_sweep(
+        focus_values, num_focus_values);
+
+    switch (ret) {
+    case RET_SUCCESS:
+        job_ack(Ack_ErrorCode_SUCCESS, job);
+        break;
+    case RET_ERROR_BUSY:
+        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        break;
+    case RET_ERROR_INVALID_PARAM:
+        job_ack(Ack_ErrorCode_RANGE, job);
+        break;
+    default:
+        job_ack(Ack_ErrorCode_FAIL, job);
+        LOG_ERR("Unhandled error (%d)!", ret);
+    }
+}
+
+static void
+handle_ir_eye_camera_focus_sweep_values_polynomial(job_t *job)
+{
+    JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(JetsonToMcu_ir_eye_camera_focus_sweep_values_polynomial_tag);
+
+    IREyeCameraFocusSweepValuesPolynomial p =
+        msg->payload.ir_eye_camera_focus_sweep_values_polynomial;
+    LOG_DBG("a: %f, b: %f, c: %f, d: %f, e: %f, f: %f, num frames: %u",
+            p.coef_a, p.coef_b, p.coef_c, p.coef_d, p.coef_e, p.coef_f,
+            p.number_of_frames);
+    ret_code_t err =
+        ir_camera_system_set_polynomial_coefficients_for_focus_sweep(
+            msg->payload.ir_eye_camera_focus_sweep_values_polynomial);
+    switch (err) {
+    case RET_SUCCESS:
+        job_ack(Ack_ErrorCode_SUCCESS, job);
+        break;
+    case RET_ERROR_BUSY:
+        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        break;
+    default:
+        job_ack(Ack_ErrorCode_FAIL, job);
+        LOG_ERR("Unhandled error (%d)!", err);
+    }
+}
+
+static void
+handle_perform_ir_eye_camera_focus_sweep(job_t *job)
+{
+    JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(JetsonToMcu_perform_ir_eye_camera_focus_sweep_tag);
+
+    ret_code_t ret = ir_camera_system_perform_focus_sweep();
+
+    if (ret == RET_ERROR_BUSY) {
+        job_ack(Ack_ErrorCode_IN_PROGRESS, job);
+    } else if (ret == RET_ERROR_INVALID_STATE) {
+        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+    } else if (ret == RET_SUCCESS) {
+        job_ack(Ack_ErrorCode_SUCCESS, job);
+    } else {
+        LOG_ERR("Unexpected error code (%d)!", ret);
+        job_ack(Ack_ErrorCode_FAIL, job);
+    }
+}
+
 typedef void (*hm_callback)(job_t *job);
 
 // These functions ARE NOT allowed to block!
@@ -966,10 +1090,17 @@ static const hm_callback handle_message_callbacks[] = {
         handle_distributor_leds_sequence,
     [JetsonToMcu_ring_leds_sequence_tag] = handle_user_ring_leds_sequence,
     [JetsonToMcu_fw_image_primary_confirm_tag] = handle_fw_img_primary_confirm,
+    [JetsonToMcu_ir_eye_camera_focus_sweep_lens_values_tag] =
+        handle_ir_eye_camera_focus_sweep_lens_values,
+    [JetsonToMcu_ir_eye_camera_focus_sweep_values_polynomial_tag] =
+        handle_ir_eye_camera_focus_sweep_values_polynomial,
+    [JetsonToMcu_perform_ir_eye_camera_focus_sweep_tag] =
+        handle_perform_ir_eye_camera_focus_sweep,
 };
 
-BUILD_ASSERT(ARRAY_SIZE(handle_message_callbacks) <= 38,
-             "It seems like the `handle_message_callbacks` array is too large");
+static_assert(
+    ARRAY_SIZE(handle_message_callbacks) <= 41,
+    "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
 runner_process_jobs_thread()

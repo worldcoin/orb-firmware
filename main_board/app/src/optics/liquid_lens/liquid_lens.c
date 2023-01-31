@@ -1,4 +1,5 @@
 #include "liquid_lens.h"
+#include "optics/ir_camera_system/ir_camera_system.h"
 #include <app_assert.h>
 #include <app_config.h>
 #include <stdlib.h>
@@ -64,7 +65,7 @@ LOG_MODULE_REGISTER(liquid_lens, CONFIG_LIQUID_LENS_LOG_LEVEL);
     }
 
 static volatile uint16_t samples[LIQUID_LENS_ADC_NUM_CONVERSION_SAMPLES];
-static volatile int32_t target_current = 0;
+static atomic_t target_current;
 static volatile int8_t prev_pwm = 0;
 
 static K_THREAD_STACK_DEFINE(liquid_lens_stack_area,
@@ -87,10 +88,19 @@ static struct stm32_pclken liquid_lens_dmamux_pclken =
 PINCTRL_DT_DEFINE(DT_NODELABEL(liquid_lens));
 PINCTRL_DT_DEFINE(DT_NODELABEL(adc3));
 
-void
+ret_code_t
 liquid_set_target_current_ma(int32_t new_target_current)
 {
-    target_current = new_target_current;
+    if (ir_camera_system_is_focus_sweep_in_progress()) {
+        LOG_ERR("Focus sweep in progress!");
+        return RET_ERROR_BUSY;
+    }
+
+    atomic_set(&target_current,
+               CLAMP(new_target_current, LIQUID_LENS_MIN_CURRENT_MA,
+                     LIQUID_LENS_MAX_CURRENT_MA));
+
+    return RET_SUCCESS;
 }
 
 static void
@@ -186,7 +196,7 @@ dma_isr(const void *arg)
         /* LOG_INF("lens_current: %d", lens_current); */
 
         // PID control (currently just I.)
-        int32_t lens_current_error = target_current - lens_current;
+        int32_t lens_current_error = atomic_get(&target_current) - lens_current;
         int32_t ki = LIQUID_LENS_CONTROLLER_KI * 10000;
         int32_t prev_control_output = prev_pwm;
         prev_pwm += (int32_t)(lens_current_error * ki) / 10000;

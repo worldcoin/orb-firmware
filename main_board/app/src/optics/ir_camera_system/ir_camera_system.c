@@ -1,8 +1,10 @@
 #include "ir_camera_system.h"
 #include "ir_camera_timer_settings.h"
 #include "optics/1d_tof/tof_1d.h"
+#include "optics/liquid_lens/liquid_lens.h"
 #include <app_assert.h>
 #include <assert.h>
+#include <math.h>
 #include <soc.h>
 #include <stm32_ll_hrtim.h>
 #include <stm32_ll_rcc.h>
@@ -84,9 +86,11 @@ BUILD_ASSERT(TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER &&
              "We expect that all camera triggers are different channels on "
              "the same timer");
 
+#define CAMERA_SWEEP_INTERRUPT_PRIO 10
+
 #define CAMERA_TRIGGER_TIMER IR_FACE_CAMERA_TRIGGER_TIMER
-#define CAMERA_TRIGGER_TIMER_IRQn                                              \
-    DT_IRQ_BY_NAME(DT_PARENT(IR_FACE_CAMERA_NODE), up, irq)
+#define CAMERA_TRIGGER_TIMER_CC_IRQn                                           \
+    DT_IRQ_BY_NAME(DT_PARENT(IR_FACE_CAMERA_NODE), cc, irq)
 
 // START --- 850nm LEDs
 #define LED_850NM_NODE DT_NODELABEL(led_850nm)
@@ -166,6 +170,47 @@ static_assert(ARRAY_SIZE(pin_controls) == ARRAY_SIZE(all_pclken),
               "Each array must be the same length");
 // END --- combined
 
+#define TIMER_MAX_CH 4
+
+/** Channel to LL mapping. */
+static const uint32_t ch2ll[TIMER_MAX_CH] = {
+    LL_TIM_CHANNEL_CH1, LL_TIM_CHANNEL_CH2, LL_TIM_CHANNEL_CH3,
+    LL_TIM_CHANNEL_CH4};
+
+/** Channel to compare set function mapping. */
+static void (*const set_timer_compare[TIMER_MAX_CH])(TIM_TypeDef *,
+                                                     uint32_t) = {
+    LL_TIM_OC_SetCompareCH1,
+    LL_TIM_OC_SetCompareCH2,
+    LL_TIM_OC_SetCompareCH3,
+    LL_TIM_OC_SetCompareCH4,
+};
+
+/* Channel to enable ccr interrupt function */
+static void (*const enable_ccr_interrupt[TIMER_MAX_CH])(TIM_TypeDef *) = {
+    LL_TIM_EnableIT_CC1, LL_TIM_EnableIT_CC2, LL_TIM_EnableIT_CC3,
+    LL_TIM_EnableIT_CC4};
+
+/* Channel to disable ccr interrupt function */
+static void (*const disable_ccr_interrupt[TIMER_MAX_CH])(TIM_TypeDef *) = {
+    LL_TIM_DisableIT_CC1, LL_TIM_DisableIT_CC2, LL_TIM_DisableIT_CC3,
+    LL_TIM_DisableIT_CC4};
+
+/* Channel to clear ccr interrupt flag function */
+static void (*const clear_ccr_interrupt_flag[TIMER_MAX_CH])(TIM_TypeDef *) = {
+    LL_TIM_ClearFlag_CC1, LL_TIM_ClearFlag_CC2, LL_TIM_ClearFlag_CC3,
+    LL_TIM_ClearFlag_CC4};
+
+static void
+zero_led_ccrs(void)
+{
+    set_timer_compare[LED_850NM_TIMER_LEFT_CHANNEL - 1](LED_850NM_TIMER, 0);
+    set_timer_compare[LED_850NM_TIMER_RIGHT_CHANNEL - 1](LED_850NM_TIMER, 0);
+    set_timer_compare[LED_940NM_TIMER_LEFT_CHANNEL - 1](LED_940NM_TIMER, 0);
+    set_timer_compare[LED_940NM_TIMER_RIGHT_CHANNEL - 1](LED_940NM_TIMER, 0);
+    set_timer_compare[LED_740NM_TIMER_CHANNEL - 1](LED_740NM_TIMER, 0);
+}
+
 static struct ir_camera_timer_settings global_timer_settings;
 
 static bool enable_ir_eye_camera;
@@ -184,6 +229,151 @@ static InfraredLEDs_Wavelength enabled_led_wavelength =
 ///    `ir_camera_system_init`
 static const struct gpio_dt_spec super_caps_charging_mode =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), super_caps_charging_mode_gpios);
+
+static int16_t global_focus_values[MAX_NUMBER_OF_FOCUS_VALUES];
+static size_t global_num_focus_values;
+static volatile bool focus_sweep_in_progress;
+static volatile size_t focus_sweep_index;
+static bool use_polynomial;
+static IREyeCameraFocusSweepValuesPolynomial polynomial;
+
+bool
+ir_camera_system_is_focus_sweep_in_progress(void)
+{
+    return focus_sweep_in_progress;
+}
+
+ret_code_t
+ir_camera_system_set_polynomial_coefficients_for_focus_sweep(
+    IREyeCameraFocusSweepValuesPolynomial poly)
+{
+    if (ir_camera_system_is_focus_sweep_in_progress()) {
+        LOG_ERR("Focus sweep in progress!");
+        return RET_ERROR_BUSY;
+    }
+
+    use_polynomial = true;
+    global_num_focus_values = poly.number_of_frames;
+    polynomial = poly;
+
+    return RET_SUCCESS;
+}
+
+ret_code_t
+ir_camera_system_set_focus_values_for_focus_sweep(int16_t *focus_values,
+                                                  size_t num_focus_values)
+{
+    if (ir_camera_system_is_focus_sweep_in_progress()) {
+        LOG_ERR("Focus sweep in progress!");
+        return RET_ERROR_BUSY;
+    } else if (num_focus_values > MAX_NUMBER_OF_FOCUS_VALUES) {
+        LOG_ERR("Too many focus values!");
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    global_num_focus_values = num_focus_values;
+    memcpy(global_focus_values, focus_values, sizeof(global_focus_values));
+
+    use_polynomial = false;
+
+    return RET_SUCCESS;
+}
+
+static uint32_t
+evaluate_polynomial(uint32_t frame_no)
+{
+    // We are evaluating this formula:
+    // focus(n) = a + bn + cn^2 + dn^3 + en^4 + fn^5
+    //
+    // Transforming the formula using Horner's rule we get:
+    // f(x0) = a + x0(b + x0(c + x0(d + x0(e + fx0))))
+    //
+    // Using Horner's rule reduces the number of multiplications
+    return lroundf(
+        polynomial.coef_a +
+        (frame_no * (polynomial.coef_b +
+                     frame_no * (polynomial.coef_c +
+                                 frame_no * (polynomial.coef_d +
+                                             frame_no * (polynomial.coef_e +
+                                                         (polynomial.coef_f *
+                                                          frame_no)))))));
+}
+
+static void
+camera_sweep_isr(void *arg)
+{
+    ARG_UNUSED(arg);
+
+    clear_ccr_interrupt_flag[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
+        CAMERA_TRIGGER_TIMER);
+
+    if (focus_sweep_index == global_num_focus_values) {
+        disable_ccr_interrupt[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
+            CAMERA_TRIGGER_TIMER);
+        LOG_DBG("Focus sweep complete!");
+        focus_sweep_in_progress = false;
+        ir_camera_system_disable_ir_eye_camera();
+    } else {
+        if (use_polynomial) {
+            liquid_set_target_current_ma(
+                evaluate_polynomial(focus_sweep_index));
+        } else {
+            liquid_set_target_current_ma(
+                global_focus_values[focus_sweep_index]);
+        }
+    }
+    focus_sweep_index++;
+}
+
+static void
+initialize_focus_sweep(void)
+{
+    if (use_polynomial) {
+        liquid_set_target_current_ma(evaluate_polynomial(0));
+    } else {
+        liquid_set_target_current_ma(global_focus_values[0]);
+    }
+
+    focus_sweep_index = 1;
+
+    clear_ccr_interrupt_flag[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
+        CAMERA_TRIGGER_TIMER);
+    enable_ccr_interrupt[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
+        CAMERA_TRIGGER_TIMER);
+
+    LOG_DBG("Starting focus sweep!");
+
+    ir_camera_system_enable_ir_eye_camera();
+}
+
+ret_code_t
+ir_camera_system_perform_focus_sweep(void)
+{
+    if (focus_sweep_in_progress == true) {
+        LOG_ERR("Focus sweep already in progress!");
+        return RET_ERROR_BUSY;
+    }
+
+    if (global_timer_settings.fps == 0) {
+        LOG_ERR("FPS must be greater than 0!");
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    if (ir_camera_system_ir_eye_camera_is_enabled()) {
+        LOG_ERR("IR eye camera must be disabled!");
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    // No focus values means we trivially succeed
+    if (global_num_focus_values > 0) {
+        focus_sweep_in_progress = true;
+        initialize_focus_sweep();
+    } else {
+        LOG_WRN("Num focus values is 0!");
+    }
+
+    return RET_SUCCESS;
+}
 
 static bool
 ir_leds_are_on(void)
@@ -284,32 +474,6 @@ configure_timeout(void)
     }
 }
 
-#define TIMER_MAX_CH 4
-
-/** Channel to LL mapping. */
-static const uint32_t ch2ll[TIMER_MAX_CH] = {
-    LL_TIM_CHANNEL_CH1, LL_TIM_CHANNEL_CH2, LL_TIM_CHANNEL_CH3,
-    LL_TIM_CHANNEL_CH4};
-
-/** Channel to compare set function mapping. */
-static void (*const set_timer_compare[TIMER_MAX_CH])(TIM_TypeDef *,
-                                                     uint32_t) = {
-    LL_TIM_OC_SetCompareCH1,
-    LL_TIM_OC_SetCompareCH2,
-    LL_TIM_OC_SetCompareCH3,
-    LL_TIM_OC_SetCompareCH4,
-};
-
-static void
-zero_led_ccrs(void)
-{
-    set_timer_compare[LED_850NM_TIMER_LEFT_CHANNEL - 1](LED_850NM_TIMER, 0);
-    set_timer_compare[LED_850NM_TIMER_RIGHT_CHANNEL - 1](LED_850NM_TIMER, 0);
-    set_timer_compare[LED_940NM_TIMER_LEFT_CHANNEL - 1](LED_940NM_TIMER, 0);
-    set_timer_compare[LED_940NM_TIMER_RIGHT_CHANNEL - 1](LED_940NM_TIMER, 0);
-    set_timer_compare[LED_740NM_TIMER_CHANNEL - 1](LED_740NM_TIMER, 0);
-}
-
 static int
 setup_camera_triggers(void)
 {
@@ -368,6 +532,10 @@ setup_camera_triggers(void)
                             ch2ll[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
 
     LL_TIM_SetTriggerOutput(CAMERA_TRIGGER_TIMER, LL_TIM_TRGO_UPDATE);
+
+    IRQ_CONNECT(CAMERA_TRIGGER_TIMER_CC_IRQn, CAMERA_SWEEP_INTERRUPT_PRIO,
+                camera_sweep_isr, NULL, 0);
+    irq_enable(CAMERA_TRIGGER_TIMER_CC_IRQn);
 
     LL_TIM_EnableCounter(CAMERA_TRIGGER_TIMER);
 
@@ -444,11 +612,8 @@ static inline void
 set_trigger_cc(bool enabled, int channel)
 {
     if (enabled && global_timer_settings.fps > 0) {
-        uint16_t ccr =
-            ((TRIGGER_PULSE_WIDTH_US * ASSUMED_TIMER_CLOCK_FREQ_MHZ) /
-             (global_timer_settings.psc + 1)) +
-            1;
-        set_timer_compare[channel - 1](CAMERA_TRIGGER_TIMER, ccr);
+        set_timer_compare[channel - 1](CAMERA_TRIGGER_TIMER,
+                                       global_timer_settings.ccr);
     } else {
         set_timer_compare[channel - 1](CAMERA_TRIGGER_TIMER, 0);
     }
@@ -640,20 +805,34 @@ setup_740nm_940nm_led_timer(void)
     return 0;
 }
 
-void
+ret_code_t
 ir_camera_system_enable_ir_eye_camera(void)
 {
+    if (ir_camera_system_is_focus_sweep_in_progress()) {
+        LOG_ERR("Focus sweep in progress!");
+        return RET_ERROR_BUSY;
+    }
+
     enable_ir_eye_camera = true;
     set_trigger_cc(enable_ir_eye_camera, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
+
+    return RET_SUCCESS;
 }
 
-void
+ret_code_t
 ir_camera_system_disable_ir_eye_camera(void)
 {
+    if (ir_camera_system_is_focus_sweep_in_progress()) {
+        LOG_ERR("Focus sweep in progress!");
+        return RET_ERROR_BUSY;
+    }
+
     enable_ir_eye_camera = false;
     set_trigger_cc(enable_ir_eye_camera, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
+
+    return RET_SUCCESS;
 }
 
 bool
@@ -760,7 +939,10 @@ ir_camera_system_set_fps(uint16_t fps)
 {
     ret_code_t ret;
 
-    if (fps > IR_CAMERA_SYSTEM_MAX_FPS) {
+    if (ir_camera_system_is_focus_sweep_in_progress()) {
+        LOG_ERR("Focus sweep in progress!");
+        ret = RET_ERROR_BUSY;
+    } else if (fps > IR_CAMERA_SYSTEM_MAX_FPS) {
         ret = RET_ERROR_INVALID_PARAM;
     } else {
         ret = timer_settings_from_fps(fps, &global_timer_settings,
@@ -815,9 +997,14 @@ ir_camera_system_set_on_time_740nm_us(uint16_t on_time_us)
     return ret;
 }
 
-void
+ret_code_t
 ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength)
 {
+    if (ir_camera_system_is_focus_sweep_in_progress()) {
+        LOG_ERR("Focus sweep in progress!");
+        return RET_ERROR_BUSY;
+    }
+
     CRITICAL_SECTION_ENTER(k);
 
     enabled_led_wavelength = wavelength;
@@ -836,6 +1023,8 @@ ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength)
 
     debug_print();
     configure_timeout();
+
+    return RET_SUCCESS;
 }
 
 InfraredLEDs_Wavelength
