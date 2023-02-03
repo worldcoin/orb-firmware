@@ -143,22 +143,44 @@ parse_nmea(char *msg)
     return RET_SUCCESS;
 }
 
-static void
+#if CONFIG_TEST_GNSS
+static K_SEM_DEFINE(nmea_sem, 1, 1);
+#endif
+
+static int
 send_nmea_message(const char *nmea_str)
 {
-    static uint32_t counter = 0;
+    static uint32_t counter = UINT32_MAX;
     static GNSSDataPartial msg;
+    int ret;
+
+#if CONFIG_TEST_GNSS
+    ret = k_sem_take(&nmea_sem, K_MSEC(5));
+
+    // force counter to be the max value to test encoding max possible size
+    counter = UINT32_MAX;
+#endif
+
     size_t len = strlen(nmea_str);
     size_t min = MIN(len, sizeof msg.nmea_part - 1);
     memcpy(msg.nmea_part, nmea_str, min);
     msg.nmea_part[min] = '\0';
     msg.counter = counter++;
-    publish_new(&msg, sizeof(msg), McuToJetson_gnss_partial_tag,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-    strncpy(msg.nmea_part, nmea_str + min, sizeof msg.nmea_part - 1);
-    msg.counter = counter++;
-    publish_new(&msg, sizeof(msg), McuToJetson_gnss_partial_tag,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+
+    ret = publish_new(&msg, sizeof(msg), McuToJetson_gnss_partial_tag,
+                      CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+    if (ret == RET_SUCCESS) {
+        strncpy(msg.nmea_part, nmea_str + min, sizeof msg.nmea_part - 1);
+        msg.counter = counter++;
+        ret = publish_new(&msg, sizeof(msg), McuToJetson_gnss_partial_tag,
+                          CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+    }
+
+#if CONFIG_TEST_GNSS
+    k_sem_give(&nmea_sem);
+#endif
+
+    return ret;
 }
 
 static void
@@ -169,7 +191,7 @@ gnss_thread_entry_point()
     static char msg[NMEA_MAX_SIZE + 1];
 
     BUILD_ASSERT(sizeof msg <= STRUCT_MEMBER_ARRAY_SIZE(GNSSData, nmea),
-                 "msg must be small enought to fit into protobuf message");
+                 "msg must be small enough to fit into protobuf message");
 
     for (;;) {
         ch = get_char();
@@ -216,3 +238,17 @@ gnss_init(void)
 
     return RET_SUCCESS;
 }
+
+#if CONFIG_TEST_GNSS
+#include <zephyr/ztest.h>
+
+ZTEST(hil, test_gnss_message)
+{
+    char *test_message_max_length =
+        "$notavalidnmeamessagebutonlyshowingthatan82bytessentencecanbesentcorre"
+        "ctly*wooow\r\n";
+
+    int ret = send_nmea_message(test_message_max_length);
+    zassert_equal(ret, RET_SUCCESS);
+}
+#endif

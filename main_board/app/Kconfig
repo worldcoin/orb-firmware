@@ -47,6 +47,9 @@ config TEST_IR_CAMERA_SYSTEM
 config TEST_FAN
     bool "Test fan"
 
+config TEST_GNSS
+	bool "Test GNSS frame parsing"
+
 config APP_TESTS_ALL
     bool "Enable all integration tests"
     select TEST_MIRRORS
@@ -55,6 +58,7 @@ config APP_TESTS_ALL
     select TEST_USER_LEDS
     select TEST_IR_CAMERA_SYSTEM
     select TEST_FAN
+    select TEST_GNSS
 
 endmenu
 
