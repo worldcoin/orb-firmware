@@ -55,7 +55,7 @@ static int
 send(const char *data, size_t len,
      void (*tx_complete_cb)(const struct device *, int, void *), uint32_t dest)
 {
-    ASSERT_HARD_BOOL(len < CAN_FRAME_MAX_SIZE);
+    ASSERT_HARD_BOOL(len <= CAN_FRAME_MAX_SIZE);
 
     struct can_frame frame = {.id_type = CAN_EXTENDED_IDENTIFIER,
                               .fd = true,
