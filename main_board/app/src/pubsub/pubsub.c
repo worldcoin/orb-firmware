@@ -33,17 +33,6 @@ static K_THREAD_STACK_DEFINE(pub_stored_stack_area,
                              THREAD_STACK_SIZE_PUB_STORED);
 static struct k_thread pub_stored_thread_data;
 
-#if JetsonToMcu_size >= JetsonToSec_size &&                                    \
-    JetsonToMcu_size >= McuToJetson_size &&                                    \
-    JetsonToMcu_size >= SecToJetson_size
-#define MCU_MESSAGE_ENCODED_WRAPPER_SIZE (McuMessage_size - JetsonToMcu_size)
-#else
-// A payload is larger than JetsonToMcu which does not allow to find the number
-// of bytes needed to wrap the payload into an McuMessage. Please use another
-// field to calculate the number of bytes needed to wrap the payload.
-#error Unable to calculate bytes needed to wrap a payload into an McuMessage.
-#endif
-
 /// Structure holding a message to store when sending isn't enabled
 /// `data` contains an `McuToJetson` into an `McuMessage`.
 /// The McuMessage is encoded (serialized).

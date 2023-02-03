@@ -4,6 +4,17 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#if JetsonToMcu_size >= JetsonToSec_size &&                                    \
+    JetsonToMcu_size >= McuToJetson_size &&                                    \
+    JetsonToMcu_size >= SecToJetson_size
+#define MCU_MESSAGE_ENCODED_WRAPPER_SIZE (McuMessage_size - JetsonToMcu_size)
+#else
+// A payload is larger than JetsonToMcu which does not allow to find the number
+// of bytes needed to wrap the payload into an McuMessage. Please use another
+// field to calculate the number of bytes needed to wrap the payload.
+#error Unable to calculate bytes needed to wrap a payload into an McuMessage.
+#endif
+
 void
 publish_start(void);
 
