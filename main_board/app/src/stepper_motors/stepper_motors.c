@@ -14,6 +14,14 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/byteorder.h>
 
+// _ANSI_SOURCE is used with newlib to make sure newlib doesn't provide
+// primitives conflicting with Zephyr's POSIX definitions which remove
+// definition of M_PI, so let's redefine it
+#if defined(CONFIG_NEWLIB_LIBC) && defined(_ANSI_SOURCE)
+// taken from math.h
+#define M_PI 3.14159265358979323846f
+#endif
+
 LOG_MODULE_REGISTER(stepper_motors, CONFIG_STEPPER_MOTORS_LOG_LEVEL);
 
 K_THREAD_STACK_DEFINE(stack_area_motor_horizontal_init, 2048);
@@ -246,7 +254,7 @@ microsteps_to_millidegrees(uint32_t microsteps, motor_t motor)
 {
     uint32_t mdegrees = asinf((float)microsteps / (motors_arm_length[motor] *
                                                    (float)steps_per_mm)) *
-                        360000 / M_PI;
+                        360000.0f / M_PI;
     return mdegrees;
 }
 
@@ -421,8 +429,8 @@ motors_set_angle_relative(int32_t d_from_center, motor_t motor)
         return motors_refs[motor].motor_state;
     }
 
-    float millimeters =
-        sinf((float)d_from_center * M_PI / 360000.0) * motors_arm_length[motor];
+    float millimeters = sinf((float)d_from_center * M_PI / 360000.0f) *
+                        motors_arm_length[motor];
     int32_t steps = (int32_t)roundf(millimeters * (float)steps_per_mm);
     int32_t xtarget = motors_refs[motor].x0 + steps;
 
@@ -442,7 +450,7 @@ motors_angle_relative(int32_t angle_millidegrees, motor_t motor)
         spi_bus_controller, TMC5041_REGISTERS[REG_IDX_XACTUAL][motor]);
 
     int32_t steps =
-        (int32_t)roundf(sinf((float)angle_millidegrees * M_PI / 360000.0) *
+        (int32_t)roundf(sinf((float)angle_millidegrees * M_PI / 360000.0f) *
                         motors_arm_length[motor] * (float)steps_per_mm);
     int32_t xtarget = x + steps;
 

@@ -8,9 +8,9 @@
 
 LOG_MODULE_REGISTER(storage, CONFIG_STORAGE_LOG_LEVEL);
 
-static_assert(sizeof(storage_header_t) % FLASH_WRITE_BLOCK_SIZE == 0,
-              "storage_header_t must have a size aligned to "
-              "FLASH_WRITE_BLOCK_SIZE bytes");
+BUILD_ASSERT(sizeof(storage_header_t) % FLASH_WRITE_BLOCK_SIZE == 0,
+             "storage_header_t must have a size aligned to "
+             "FLASH_WRITE_BLOCK_SIZE bytes");
 
 static struct storage_area_s storage_area = {0};
 

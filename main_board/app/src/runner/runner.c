@@ -972,9 +972,8 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_fw_image_primary_confirm_tag] = handle_fw_img_primary_confirm,
 };
 
-static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 38,
-    "It seems like the `handle_message_callbacks` array is too large");
+BUILD_ASSERT(ARRAY_SIZE(handle_message_callbacks) <= 38,
+             "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
 runner_process_jobs_thread()
@@ -989,9 +988,13 @@ runner_process_jobs_thread()
             continue;
         }
 
-        LOG_DBG("⬇️ Received message from remote 0x%03x with payload ID "
+        // filter out jobs from UART for debugging
+        if (new.remote_addr != 0) {
+            LOG_DBG(
+                "⬇️ Received message from remote 0x%03x with payload ID "
                 "%02d, ack #%u",
                 new.remote_addr, new.message.which_payload, new.ack_number);
+        }
 
         // remote is up
         publish_start();

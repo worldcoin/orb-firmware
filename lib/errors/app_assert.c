@@ -1,5 +1,6 @@
 #include "app_assert.h"
 #include "compilers.h"
+#include "string.h"
 #include "zephyr/kernel.h"
 #include <zephyr/arch/cpu.h>
 #include <zephyr/logging/log.h>
@@ -50,10 +51,13 @@ app_assert_hard_handler(int32_t error_code, uint32_t line_num,
 {
     fatal_error.error_info.err_code = error_code;
     fatal_error.error_info.line_num = line_num;
-    memset(fatal_error.error_info.filename, 0,
-           sizeof(fatal_error.error_info.filename));
-    strlcpy(fatal_error.error_info.filename, p_file_name,
+
+    // destination is padded with zeros if null-character is found,
+    // if not, make sure the last character is null
+    strncpy(fatal_error.error_info.filename, p_file_name,
             sizeof(fatal_error.error_info.filename));
+    fatal_error.error_info
+        .filename[sizeof(fatal_error.error_info.filename) - 1] = '\0';
 
     if (!k_is_in_isr()) {
         // thread mode

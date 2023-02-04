@@ -4,13 +4,14 @@
 #include "pubsub/pubsub.h"
 #include <errors.h>
 #include <zephyr/drivers/sensor.h>
+#include <zephyr/kernel.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(als);
 
 const struct device *als_device = DEVICE_DT_GET(DT_NODELABEL(front_unit_als));
 
-void
+static void
 als_thread()
 {
     int ret;
@@ -58,5 +59,5 @@ als_init(void)
     return RET_SUCCESS;
 }
 
-K_THREAD_DEFINE(als, THREAD_STACK_SIZE_1DTOF, als_thread, NULL, NULL, NULL,
-                THREAD_PRIORITY_1DTOF, 0, 0);
+K_THREAD_DEFINE(als, THREAD_STACK_SIZE_ALS, als_thread, NULL, NULL, NULL,
+                THREAD_PRIORITY_ALS, 0, 0);

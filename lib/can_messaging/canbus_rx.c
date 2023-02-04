@@ -16,11 +16,9 @@ static const struct device *can_dev =
     DEVICE_DT_GET_OR_NULL(DT_CHOSEN(zephyr_canbus));
 static struct can_frame rx_frame;
 static const struct can_filter recv_queue_filter = {
-    .id_type = CAN_EXTENDED_IDENTIFIER,
-    .rtr = CAN_DATAFRAME,
     .id = CONFIG_CAN_ADDRESS_MCU,
-    .rtr_mask = 1,
-    .id_mask = CAN_EXT_ID_MASK};
+    .mask = CAN_EXT_ID_MASK,
+    .flags = CAN_FILTER_IDE | CAN_FILTER_FDF | CAN_FILTER_DATA};
 CAN_MSGQ_DEFINE(can_recv_queue, 5);
 
 static void (*incoming_message_handler)(void *msg);

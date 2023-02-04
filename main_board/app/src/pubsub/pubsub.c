@@ -15,7 +15,7 @@ LOG_MODULE_REGISTER(pubsub, CONFIG_PUBSUB_LOG_LEVEL);
 // Check that CONFIG_CAN_ISOTP_MAX_SIZE_BYTES is large enough
 // print friendly message if CONFIG_CAN_ISOTP_MAX_SIZE_BYTES can be reduced
 #ifdef CONFIG_CAN_ISOTP_MAX_SIZE_BYTES
-static_assert(
+BUILD_ASSERT(
     CONFIG_CAN_ISOTP_MAX_SIZE_BYTES >= McuMessage_size,
     "CONFIG_CAN_ISOTP_MAX_SIZE_BYTES must be at least McuMessage_size");
 #if CONFIG_CAN_ISOTP_MAX_SIZE_BYTES > McuMessage_size

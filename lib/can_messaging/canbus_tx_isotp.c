@@ -19,9 +19,9 @@ K_THREAD_DEFINE(can_isotp_tx, CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX,
                 CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0, 0);
 
 #define QUEUE_ALIGN 4
-static_assert(QUEUE_ALIGN % 2 == 0, "QUEUE_ALIGN must be a multiple of 2");
-static_assert(sizeof(can_message_t) % QUEUE_ALIGN == 0,
-              "sizeof can_message_t must be a multiple of QUEUE_ALIGN");
+BUILD_ASSERT(QUEUE_ALIGN % 2 == 0, "QUEUE_ALIGN must be a multiple of 2");
+BUILD_ASSERT(sizeof(can_message_t) % QUEUE_ALIGN == 0,
+             "sizeof can_message_t must be a multiple of QUEUE_ALIGN");
 
 // Message queue to send messages
 K_MSGQ_DEFINE(isotp_tx_msg_queue, sizeof(can_message_t),
@@ -60,9 +60,9 @@ process_tx_messages_thread()
 
     // CAN ISO-TP addressing
     struct isotp_msg_id mcu_to_jetson_dst_addr = {
-        .std_id = 0, .id_type = CAN_STANDARD_IDENTIFIER, .use_ext_addr = 0};
+        .std_id = 0, .ide = 0, .use_ext_addr = 0};
     struct isotp_msg_id mcu_to_jetson_src_addr = {
-        .std_id = 0, .id_type = CAN_STANDARD_IDENTIFIER, .use_ext_addr = 0};
+        .std_id = 0, .ide = 0, .use_ext_addr = 0};
 
     while (1) {
         // set `is_init` flag if not

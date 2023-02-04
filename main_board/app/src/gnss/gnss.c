@@ -3,7 +3,6 @@
 #include "utils.h"
 #include <app_assert.h>
 #include <app_config.h>
-#include <assert.h>
 #include <pubsub/pubsub.h>
 #include <stdlib.h>
 #include <zephyr/device.h>
@@ -169,8 +168,8 @@ gnss_thread_entry_point()
     char ch;
     static char msg[NMEA_MAX_SIZE + 1];
 
-    static_assert(sizeof msg <= STRUCT_MEMBER_ARRAY_SIZE(GNSSData, nmea),
-                  "msg must be small enought to fit into protobuf message");
+    BUILD_ASSERT(sizeof msg <= STRUCT_MEMBER_ARRAY_SIZE(GNSSData, nmea),
+                 "msg must be small enought to fit into protobuf message");
 
     for (;;) {
         ch = get_char();
