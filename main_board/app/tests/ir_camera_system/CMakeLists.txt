@@ -7,8 +7,8 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 
 project(tests_ir_camera_system)
 set(SOURCES
-        ../../src/ir_camera_system/ir_camera_timer_settings.c
+        ../../src/optics/ir_camera_system/ir_camera_timer_settings.c
         main.c
         )
-target_include_directories(app PRIVATE ../../src/ir_camera_system/ ../../../../lib/include)
+target_include_directories(app PRIVATE ../../src/optics/ir_camera_system/ ../../../../lib/include)
 target_sources(app PRIVATE ${SOURCES})

@@ -3,21 +3,20 @@
 #include "can_messaging.h"
 #include "dfu.h"
 #include "mcu_messaging.pb.h"
-#include "power_sequence/power_sequence.h"
+#include "optics/ir_camera_system/ir_camera_system.h"
+#include "optics/liquid_lens/liquid_lens.h"
+#include "optics/mirrors/mirrors.h"
+#include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
+#include "system/version/version.h"
+#include "temperature/fan/fan.h"
+#include "temperature/sensors/temperature.h"
 #include "ui/operator_leds/operator_leds.h"
 #include "ui/rgb_leds.h"
-#include "version/version.h"
 #include <app_assert.h>
-#include <assert.h>
-#include <fan/fan.h>
 #include <heartbeat.h>
-#include <ir_camera_system/ir_camera_system.h>
-#include <liquid_lens/liquid_lens.h>
 #include <pb_decode.h>
 #include <stdlib.h>
-#include <stepper_motors/stepper_motors.h>
-#include <temperature/temperature.h>
 #include <uart_messaging.h>
 #include <ui/front_leds/front_leds.h>
 #include <zephyr/kernel.h>
@@ -145,14 +144,16 @@ auto_homing_thread_entry_point(void *a, void *b, void *c)
     if (mode == PerformMirrorHoming_Mode_STALL_DETECTION) {
         if (angle == PerformMirrorHoming_Angle_BOTH ||
             angle == PerformMirrorHoming_Angle_HORIZONTAL) {
-            ret = motors_auto_homing_stall_detection(MOTOR_HORIZONTAL, &horiz);
+            ret = mirrors_auto_homing_stall_detection(MIRROR_HORIZONTAL_ANGLE,
+                                                      &horiz);
             if (ret == RET_ERROR_BUSY) {
                 goto leave;
             }
         }
         if (angle == PerformMirrorHoming_Angle_BOTH ||
             angle == PerformMirrorHoming_Angle_VERTICAL) {
-            ret = motors_auto_homing_stall_detection(MOTOR_VERTICAL, &vert);
+            ret = mirrors_auto_homing_stall_detection(MIRROR_VERTICAL_ANGLE,
+                                                      &vert);
             if (ret == RET_ERROR_BUSY) {
                 goto leave;
             }
@@ -160,14 +161,14 @@ auto_homing_thread_entry_point(void *a, void *b, void *c)
     } else if (mode == PerformMirrorHoming_Mode_ONE_BLOCKING_END) {
         if (angle == PerformMirrorHoming_Angle_BOTH ||
             angle == PerformMirrorHoming_Angle_HORIZONTAL) {
-            ret = motors_auto_homing_one_end(MOTOR_HORIZONTAL, &horiz);
+            ret = mirrors_auto_homing_one_end(MIRROR_HORIZONTAL_ANGLE, &horiz);
             if (ret == RET_ERROR_BUSY) {
                 goto leave;
             }
         }
         if (angle == PerformMirrorHoming_Angle_BOTH ||
             angle == PerformMirrorHoming_Angle_VERTICAL) {
-            ret = motors_auto_homing_one_end(MOTOR_VERTICAL, &vert);
+            ret = mirrors_auto_homing_one_end(MIRROR_VERTICAL_ANGLE, &vert);
             if (ret == RET_ERROR_BUSY) {
                 goto leave;
             }
@@ -314,7 +315,7 @@ handle_shutdown(job_t *job)
     if (delay > 30) {
         job_ack(Ack_ErrorCode_RANGE, job);
     } else {
-        int ret = power_reset(delay);
+        int ret = reboot(delay);
 
         if (ret == RET_SUCCESS) {
             job_ack(Ack_ErrorCode_SUCCESS, job);
@@ -338,7 +339,7 @@ handle_reboot_message(job_t *job)
         job_ack(Ack_ErrorCode_RANGE, job);
         LOG_ERR("Reboot with delay > 60 seconds: %u", delay);
     } else {
-        int ret = power_reset(delay);
+        int ret = reboot(delay);
 
         if (ret == RET_SUCCESS) {
             job_ack(Ack_ErrorCode_SUCCESS, job);
@@ -357,23 +358,23 @@ handle_mirror_angle_message(job_t *job)
     uint32_t horizontal_angle = msg->payload.mirror_angle.horizontal_angle;
     int32_t vertical_angle = msg->payload.mirror_angle.vertical_angle;
 
-    if (auto_homing_tid != NULL || motors_auto_homing_in_progress()) {
+    if (auto_homing_tid != NULL || mirrors_auto_homing_in_progress()) {
         job_ack(Ack_ErrorCode_IN_PROGRESS, job);
         return;
     }
 
-    if (horizontal_angle > MOTORS_ANGLE_HORIZONTAL_MAX ||
-        horizontal_angle < MOTORS_ANGLE_HORIZONTAL_MIN) {
+    if (horizontal_angle > MIRRORS_ANGLE_HORIZONTAL_MAX ||
+        horizontal_angle < MIRRORS_ANGLE_HORIZONTAL_MIN) {
         LOG_ERR("Horizontal angle of %u out of range [%u;%u]", horizontal_angle,
-                MOTORS_ANGLE_HORIZONTAL_MIN, MOTORS_ANGLE_HORIZONTAL_MAX);
+                MIRRORS_ANGLE_HORIZONTAL_MIN, MIRRORS_ANGLE_HORIZONTAL_MAX);
         job_ack(Ack_ErrorCode_RANGE, job);
         return;
     }
 
-    if (vertical_angle > MOTORS_ANGLE_VERTICAL_MAX ||
-        vertical_angle < MOTORS_ANGLE_VERTICAL_MIN) {
+    if (vertical_angle > MIRRORS_ANGLE_VERTICAL_MAX ||
+        vertical_angle < MIRRORS_ANGLE_VERTICAL_MIN) {
         LOG_ERR("Vertical angle of %d out of range [%d;%d]", vertical_angle,
-                MOTORS_ANGLE_VERTICAL_MIN, MOTORS_ANGLE_VERTICAL_MAX);
+                MIRRORS_ANGLE_VERTICAL_MIN, MIRRORS_ANGLE_VERTICAL_MAX);
         job_ack(Ack_ErrorCode_RANGE, job);
         return;
     }
@@ -381,9 +382,9 @@ handle_mirror_angle_message(job_t *job)
     LOG_DBG("Got mirror angle message, vert: %d, horiz: %u", vertical_angle,
             horizontal_angle);
 
-    if (motors_angle_horizontal(horizontal_angle) != RET_SUCCESS) {
+    if (mirrors_angle_horizontal(horizontal_angle) != RET_SUCCESS) {
         job_ack(Ack_ErrorCode_FAIL, job);
-    } else if (motors_angle_vertical(vertical_angle) != RET_SUCCESS) {
+    } else if (mirrors_angle_vertical(vertical_angle) != RET_SUCCESS) {
         job_ack(Ack_ErrorCode_FAIL, job);
     } else {
         job_ack(Ack_ErrorCode_SUCCESS, job);
@@ -800,7 +801,7 @@ handle_do_homing(job_t *job)
     PerformMirrorHoming_Angle angle = msg->payload.do_homing.angle;
     LOG_DBG("Got do autohoming message, mode = %u, angle = %u", mode, angle);
 
-    if (auto_homing_tid != NULL || motors_auto_homing_in_progress()) {
+    if (auto_homing_tid != NULL || mirrors_auto_homing_in_progress()) {
         job_ack(Ack_ErrorCode_IN_PROGRESS, job);
     } else {
         auto_homing_tid =
@@ -868,20 +869,20 @@ handle_mirror_angle_relative_message(job_t *job)
         msg->payload.mirror_angle_relative.horizontal_angle;
     int32_t vertical_angle = msg->payload.mirror_angle_relative.vertical_angle;
 
-    if (auto_homing_tid != NULL || motors_auto_homing_in_progress()) {
+    if (auto_homing_tid != NULL || mirrors_auto_homing_in_progress()) {
         job_ack(Ack_ErrorCode_IN_PROGRESS, job);
         return;
     }
 
-    if (abs(horizontal_angle) > MOTORS_ANGLE_HORIZONTAL_RANGE) {
+    if (abs(horizontal_angle) > MIRRORS_ANGLE_HORIZONTAL_RANGE) {
         LOG_ERR("Horizontal angle of %u out of range (max %u)",
-                horizontal_angle, MOTORS_ANGLE_HORIZONTAL_RANGE);
+                horizontal_angle, MIRRORS_ANGLE_HORIZONTAL_RANGE);
         job_ack(Ack_ErrorCode_RANGE, job);
         return;
     }
-    if (abs(vertical_angle) > MOTORS_ANGLE_VERTICAL_RANGE) {
+    if (abs(vertical_angle) > MIRRORS_ANGLE_VERTICAL_RANGE) {
         LOG_ERR("Vertical angle of %u out of range (max %u)", vertical_angle,
-                MOTORS_ANGLE_VERTICAL_RANGE);
+                MIRRORS_ANGLE_VERTICAL_RANGE);
         job_ack(Ack_ErrorCode_RANGE, job);
         return;
     }
@@ -889,9 +890,9 @@ handle_mirror_angle_relative_message(job_t *job)
     LOG_DBG("Got relative mirror angle message, vert: %d, horiz: %u",
             vertical_angle, horizontal_angle);
 
-    if (motors_angle_horizontal_relative(horizontal_angle) != RET_SUCCESS) {
+    if (mirrors_angle_horizontal_relative(horizontal_angle) != RET_SUCCESS) {
         job_ack(Ack_ErrorCode_FAIL, job);
-    } else if (motors_angle_vertical_relative(vertical_angle) != RET_SUCCESS) {
+    } else if (mirrors_angle_vertical_relative(vertical_angle) != RET_SUCCESS) {
         job_ack(Ack_ErrorCode_FAIL, job);
     } else {
         job_ack(Ack_ErrorCode_SUCCESS, job);
@@ -909,10 +910,10 @@ handle_value_get_message(job_t *job)
 
     switch (value) {
     case ValueGet_Value_FIRMWARE_VERSIONS:
-        fw_version_send(job->remote_addr);
+        version_fw_send(job->remote_addr);
         break;
     case ValueGet_Value_HARDWARE_VERSIONS:
-        hw_version_send(job->remote_addr);
+        version_hw_send(job->remote_addr);
         break;
     default: {
         // unknown value, respond with error

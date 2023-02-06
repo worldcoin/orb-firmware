@@ -1,6 +1,6 @@
-#include "power_sequence.h"
-#include "button/button.h"
+#include "boot.h"
 #include "sysflash/sysflash.h"
+#include "ui/button/button.h"
 #include "ui/front_leds/front_leds.h"
 #include "ui/operator_leds/operator_leds.h"
 #include "ui/rgb_leds.h"
@@ -432,7 +432,7 @@ shutdown_req_uninit()
 }
 
 int
-power_turn_on_jetson(void)
+boot_turn_on_jetson(void)
 {
     const struct device *sleep_wake = DEVICE_DT_GET(SLEEP_WAKE_CTLR);
     const struct device *shutdown_request =
@@ -503,7 +503,7 @@ power_turn_on_jetson(void)
 }
 
 int
-power_turn_on_super_cap_charger(void)
+boot_turn_on_super_cap_charger(void)
 {
     int ret;
 
@@ -525,7 +525,7 @@ power_turn_on_super_cap_charger(void)
 }
 
 int
-power_turn_on_pvcc(void)
+boot_turn_on_pvcc(void)
 {
     int ret;
     const struct device *supply_pvcc = DEVICE_DT_GET(DT_PATH(supply_pvcc));
@@ -544,7 +544,7 @@ power_turn_on_pvcc(void)
 }
 
 int
-power_reset(uint32_t delay_s)
+reboot(uint32_t delay_s)
 {
     if (reboot_delay_s) {
         // already in progress

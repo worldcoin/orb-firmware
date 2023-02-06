@@ -73,52 +73,41 @@ add_custom_command(OUTPUT ${SINE_LUT_SRC_FILE}
 set(SOURCES_FILES
     src/main.c
 
-    src/dfu/dfu_tests.c
+    src/gnss/gnss.c
+
+    src/optics/1d_tof/tof_1d.c
+    src/optics/ir_camera_system/ir_camera_timer_settings.c
+    src/optics/ir_camera_system/ir_camera_system.c
+    src/optics/ir_camera_system/ir_camera_system_tests.c
+    src/optics/liquid_lens/liquid_lens.c
+    src/optics/mirrors/mirrors.c
+    src/optics/mirrors/mirrors_tests.c
+
+    src/power/boot/boot.c
+    src/power/battery/battery.c
 
     src/pubsub/pubsub.c
-
     src/runner/runner.c
 
-    src/power_sequence/power_sequence.c
+    src/system/fatal.c
+    src/system/logs.c
+    src/system/version/version.c
+    src/system/dfu/dfu_tests.c
+    src/system/stm32_timer_utils/stm32_timer_utils.c
 
-    src/fan/fan.c
-    src/fan/fan_tach.c
-    src/fan/fan_tests.c
-
-    src/sound/sound.c
-
-    src/button/button.c
+    src/temperature/sensors/temperature.c
+    src/temperature/fan/fan.c
+    src/temperature/fan/fan_tach.c
+    src/temperature/fan/fan_tests.c
 
     ${SINE_LUT_SRC_FILE}
+    src/ui/ambient_light/als.c
+    src/ui/button/button.c
     src/ui/front_leds/front_leds.c
     src/ui/front_leds/front_leds_tests.c
     src/ui/operator_leds/operator_leds.c
     src/ui/operator_leds/operator_leds_tests.c
-
-    src/ir_camera_system/ir_camera_timer_settings.c
-    src/ir_camera_system/ir_camera_system_tests.c
-
-    src/stepper_motors/stepper_motors.c
-    src/stepper_motors/motors_tests.c
-
-    src/1d_tof/tof_1d.c
-
-    src/ambient_light/als.c
-
-    src/temperature/temperature.c
-
-    src/liquid_lens/liquid_lens.c
-
-    src/system/fatal.c
-    src/system/logs.c
-    src/version/version.c
-
-    src/gnss/gnss.c
-
-    src/ir_camera_system/ir_camera_system.c
-    src/battery/battery.c
-
-    src/stm32_timer_utils/stm32_timer_utils.c
+    src/ui/sound/sound.c
     )
 
 set(INCLUDE_DIRS

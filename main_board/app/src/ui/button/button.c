@@ -1,6 +1,6 @@
 #include "button.h"
 #include "mcu_messaging.pb.h"
-#include "power_sequence/power_sequence.h"
+#include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include <app_assert.h>
 #include <zephyr/device.h>

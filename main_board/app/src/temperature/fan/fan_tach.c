@@ -1,18 +1,16 @@
 #include <app_config.h>
-#include <fan/fan.h>
-#include <zephyr/device.h>
-#include <zephyr/sys/atomic.h>
-
 #include <mcu_messaging.pb.h>
 #include <pubsub/pubsub.h>
-#include <zephyr/drivers/pinctrl.h>
-
 #include <stm32_ll_rcc.h>
-#include <stm32_timer_utils/stm32_timer_utils.h>
 #include <stm32g474xx.h>
 #include <stm32g4xx_ll_tim.h>
+#include <system/stm32_timer_utils/stm32_timer_utils.h>
+#include <temperature/fan/fan.h>
+#include <zephyr/device.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
+#include <zephyr/drivers/pinctrl.h>
 #include <zephyr/kernel.h>
+#include <zephyr/sys/atomic.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(fan_tach, CONFIG_FAN_TACH_LOG_LEVEL);

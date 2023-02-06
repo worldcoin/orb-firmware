@@ -1,35 +1,35 @@
-#include "1d_tof/tof_1d.h"
-#include "ambient_light/als.h"
-#include "battery/battery.h"
-#include "button/button.h"
-#include "fan/fan.h"
-#include "fan/fan_tach.h"
-#include "fan/fan_tests.h"
 #include "gnss/gnss.h"
-#include "ir_camera_system/ir_camera_system.h"
-#include "liquid_lens/liquid_lens.h"
-#include "power_sequence/power_sequence.h"
+#include "optics/1d_tof/tof_1d.h"
+#include "optics/ir_camera_system/ir_camera_system.h"
+#include "optics/ir_camera_system/ir_camera_system_tests.h"
+#include "optics/liquid_lens/liquid_lens.h"
+#include "optics/mirrors/mirrors.h"
+#include "optics/mirrors/mirrors_tests.h"
+#include "power/battery/battery.h"
+#include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "runner/runner.h"
-#include "sound/sound.h"
-#include "stepper_motors/motors_tests.h"
-#include "stepper_motors/stepper_motors.h"
 #include "system/logs.h"
+#include "system/version/version.h"
+#include "temperature/fan/fan.h"
+#include "temperature/fan/fan_tach.h"
+#include "temperature/fan/fan_tests.h"
+#include "temperature/sensors/temperature.h"
+#include "ui/ambient_light/als.h"
+#include "ui/button/button.h"
 #include "ui/front_leds/front_leds.h"
 #include "ui/front_leds/front_leds_tests.h"
 #include "ui/operator_leds/operator_leds.h"
 #include "ui/operator_leds/operator_leds_tests.h"
 #include "ui/rgb_leds.h"
-#include "version/version.h"
+#include "ui/sound/sound.h"
 #include <app_assert.h>
 #include <can_messaging.h>
 #include <dfu.h>
-#include <dfu/dfu_tests.h>
-#include <ir_camera_system/ir_camera_system_tests.h>
 #include <pb_encode.h>
 #include <storage.h>
 #include <storage_tests.h>
-#include <temperature/temperature.h>
+#include <system/dfu/dfu_tests.h>
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
 
@@ -46,7 +46,7 @@ void
 run_tests()
 {
 #if defined(CONFIG_TEST_MOTORS) || defined(RUN_ALL_TESTS)
-    motors_tests_init();
+    mirrors_tests_init();
 #endif
 #if defined(CONFIG_TEST_DFU) || defined(RUN_ALL_TESTS)
     dfu_tests_init();
@@ -66,7 +66,12 @@ run_tests()
 #if defined(CONFIG_ORB_LIB_STORAGE_TESTS) || defined(RUN_ALL_TESTS)
     storage_tests();
 #endif
-#ifdef CONFIG_ORB_LIB_ERRORS_TESTS
+
+#if defined(RUN_ALL_TESTS)
+    k_msleep(30000);
+#endif
+
+#if defined(RUN_ALL_TESTS) || defined(CONFIG_ORB_LIB_ERRORS_TESTS)
     fatal_errors_test();
 #endif
 }
@@ -137,7 +142,7 @@ main(void)
     ASSERT_SOFT(err_code);
 
 #ifndef CONFIG_NO_JETSON_BOOT
-    err_code = power_turn_on_jetson();
+    err_code = boot_turn_on_jetson();
     ASSERT_SOFT(err_code);
 #endif // CONFIG_NO_JETSON_BOOT
 
@@ -156,9 +161,9 @@ main(void)
     ASSERT_SOFT(err_code);
 
 #ifndef CONFIG_NO_SUPER_CAPS
-    err_code = power_turn_on_super_cap_charger();
+    err_code = boot_turn_on_super_cap_charger();
     if (err_code == RET_SUCCESS) {
-        err_code = power_turn_on_pvcc();
+        err_code = boot_turn_on_pvcc();
         if (err_code == RET_SUCCESS) {
             err_code = ir_camera_system_init();
             ASSERT_SOFT(err_code);
@@ -173,7 +178,7 @@ main(void)
     ASSERT_SOFT(err_code);
 #endif // CONFIG_NO_SUPER_CAPS
 
-    err_code = motors_init();
+    err_code = mirrors_init();
     ASSERT_SOFT(err_code);
 
     err_code = liquid_lens_init();
@@ -211,7 +216,7 @@ main(void)
 
         // as soon as the Jetson sends the first message, send firmware version
         if (runner_successful_jobs_count() > 0) {
-            fw_version_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+            version_fw_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 
             uint32_t error_count = app_assert_soft_count();
             if (error_count) {

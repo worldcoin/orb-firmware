@@ -22,8 +22,8 @@ module = RUNNER
 module-str = RUNNER
 source "subsys/logging/Kconfig.template.log_config"
 
-module = STEPPER_MOTORS
-module-str = STEPPER_MOTORS
+module = MIRRORS
+module-str = MIRRORS
 source "subsys/logging/Kconfig.template.log_config"
 
 module = LIQUID_LENS

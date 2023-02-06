@@ -89,7 +89,7 @@ version_get_hardware_rev(Hardware *hw_version)
 }
 
 int
-fw_version_send(uint32_t remote)
+version_fw_send(uint32_t remote)
 {
     struct image_version version = {0};
 
@@ -117,7 +117,7 @@ fw_version_send(uint32_t remote)
 }
 
 int
-hw_version_send(uint32_t remote)
+version_hw_send(uint32_t remote)
 {
     Hardware hw;
     int ret = version_get_hardware_rev(&hw);

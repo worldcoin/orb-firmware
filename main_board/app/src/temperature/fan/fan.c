@@ -1,5 +1,6 @@
 #include "fan.h"
-#include "version/version.h"
+#include "app_assert.h"
+#include "system/version/version.h"
 #include <app_config.h>
 #include <assert.h>
 #include <zephyr/device.h>

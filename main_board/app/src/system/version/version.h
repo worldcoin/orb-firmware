@@ -6,10 +6,10 @@
 #include <stdint.h>
 
 int
-fw_version_send(uint32_t remote);
+version_fw_send(uint32_t remote);
 
 int
-hw_version_send(uint32_t remote);
+version_hw_send(uint32_t remote);
 
 /// Get hardware revision
 /// \return RET_SUCCESS if successful, error code otherwise

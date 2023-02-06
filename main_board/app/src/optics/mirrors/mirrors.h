@@ -1,20 +1,24 @@
-#ifndef STEPPER_MOTORS_H
-#define STEPPER_MOTORS_H
+#ifndef MIRRORS_H
+#define MIRRORS_H
 
 #include <errors.h>
 #include <zephyr/kernel.h>
 
-typedef enum { MOTOR_VERTICAL = 0, MOTOR_HORIZONTAL, MOTOR_COUNT } motor_t;
+typedef enum {
+    MIRROR_VERTICAL_ANGLE = 0,
+    MIRROR_HORIZONTAL_ANGLE,
+    MIRRORS_COUNT
+} mirror_t;
 
-#define MOTORS_ANGLE_HORIZONTAL_MIN (26000)
-#define MOTORS_ANGLE_HORIZONTAL_MAX (64000)
-#define MOTORS_ANGLE_HORIZONTAL_RANGE                                          \
-    (MOTORS_ANGLE_HORIZONTAL_MAX - MOTORS_ANGLE_HORIZONTAL_MIN)
+#define MIRRORS_ANGLE_HORIZONTAL_MIN (26000)
+#define MIRRORS_ANGLE_HORIZONTAL_MAX (64000)
+#define MIRRORS_ANGLE_HORIZONTAL_RANGE                                         \
+    (MIRRORS_ANGLE_HORIZONTAL_MAX - MIRRORS_ANGLE_HORIZONTAL_MIN)
 
-#define MOTORS_ANGLE_VERTICAL_MIN (-35000)
-#define MOTORS_ANGLE_VERTICAL_MAX (35000)
-#define MOTORS_ANGLE_VERTICAL_RANGE                                            \
-    (MOTORS_ANGLE_VERTICAL_MAX - MOTORS_ANGLE_VERTICAL_MIN)
+#define MIRRORS_ANGLE_VERTICAL_MIN (-35000)
+#define MIRRORS_ANGLE_VERTICAL_MAX (35000)
+#define MIRRORS_ANGLE_VERTICAL_RANGE                                           \
+    (MIRRORS_ANGLE_VERTICAL_MAX - MIRRORS_ANGLE_VERTICAL_MIN)
 
 #define MOTOR_DRV_STATUS_STALLGUARD (1 << 24)
 #define MOTOR_DRV_STATUS_STANDSTILL (1 << 31)
@@ -23,29 +27,29 @@ typedef enum { MOTOR_VERTICAL = 0, MOTOR_HORIZONTAL, MOTOR_COUNT } motor_t;
 
 /**
  * Set horizontal angle
- * @param angle_millidegrees millidegrees, accepted range is [25000;65000]
+ * @param angle_millidegrees milli-degrees, accepted range is [25000;65000]
  * @return
- *  * RET_SUCESS motor successfully set to passed angle \c angle_millidegrees
+ *  * RET_SUCESS mirror successfully set to passed angle \c angle_millidegrees
  *  * RET_ERROR_INVALID_PARAM invalid value for \c angle_millidegrees
- *  * RET_ERROR_NOT_INITIALIZED motor is not fully initialized
- *  * RET_ERROR_INVALID_STATE motor critical error detected during auto-homing:
+ *  * RET_ERROR_NOT_INITIALIZED mirror control is not fully initialized
+ *  * RET_ERROR_INVALID_STATE critical error detected during auto-homing:
  * positioning not available
  */
 ret_code_t
-motors_angle_horizontal(int32_t angle_millidegrees);
+mirrors_angle_horizontal(int32_t angle_millidegrees);
 
 /**
  * Set vertical angle
  * @param angle_millidegrees milli-degrees, accepted range is [20000;40000]
  * @return
- *  * RET_SUCESS motor successfully set to passed angle \c angle_millidegrees
+ *  * RET_SUCESS mirror successfully set to passed angle \c angle_millidegrees
  *  * RET_ERROR_INVALID_PARAM invalid value for \c angle_millidegrees
- *  * RET_ERROR_NOT_INITIALIZED motor is not fully initialized
- *  * RET_ERROR_INVALID_STATE motor critical error detected during auto-homing:
+ *  * RET_ERROR_NOT_INITIALIZED mirror control is not fully initialized
+ *  * RET_ERROR_INVALID_STATE critical error detected during auto-homing:
  * positioning not available
  */
 ret_code_t
-motors_angle_vertical(int32_t angle_millidegrees);
+mirrors_angle_vertical(int32_t angle_millidegrees);
 
 /**
  * Set horizontal angle relative to current position
@@ -53,7 +57,7 @@ motors_angle_vertical(int32_t angle_millidegrees);
  * @return
  */
 ret_code_t
-motors_angle_horizontal_relative(int32_t angle_millidegrees);
+mirrors_angle_horizontal_relative(int32_t angle_millidegrees);
 
 /**
  * Set vertical angle relative to current position
@@ -61,11 +65,11 @@ motors_angle_horizontal_relative(int32_t angle_millidegrees);
  * @return
  */
 ret_code_t
-motors_angle_vertical_relative(int32_t angle_millidegrees);
+mirrors_angle_vertical_relative(int32_t angle_millidegrees);
 
 /**
- * Perform auto-homing using stall detection to detect both ends and go to the
- * center based on measured range.
+ * Perform auto-homing using motors' stall detection to detect both ends and go
+ * to the center based on measured range.
  * @param motor MOTOR_VERTICAL or MOTOR_HORIZONTAL
  * @param thread_ret optional, return a pointer to the thread info about thew
  * spawned auto-homing thread. This intended to be used for waiting on
@@ -76,10 +80,11 @@ motors_angle_vertical_relative(int32_t angle_millidegrees);
  * * RET_ERROR_FORBIDDEN auto-homing already in progress
  */
 ret_code_t
-motors_auto_homing_stall_detection(motor_t motor, struct k_thread **thread_ret);
+mirrors_auto_homing_stall_detection(mirror_t mirror,
+                                    struct k_thread **thread_ret);
 
 /**
- * Perform auto-homing by going to one end using the maximum nunmber of steps
+ * Perform auto-homing by going to one end using the maximum number of steps
  * in the available mechanical range, then to center using half the range
  * This method does not allow for blockers detection
  * @param motor MOTOR_VERTICAL or MOTOR_HORIZONTAL
@@ -92,17 +97,17 @@ motors_auto_homing_stall_detection(motor_t motor, struct k_thread **thread_ret);
  * * RET_ERROR_FORBIDDEN auto-homing already in progress
  */
 ret_code_t
-motors_auto_homing_one_end(motor_t motor, struct k_thread **thread_ret);
+mirrors_auto_homing_one_end(mirror_t mirror, struct k_thread **thread_ret);
 
 /**
- * Check that auto-homing is in progress for at least one motor
+ * Check that auto-homing is in progress for at least one mirror
  * @return true if in progress, false otherwise
  */
 bool
-motors_auto_homing_in_progress();
+mirrors_auto_homing_in_progress();
 
 /**
- * Initiliazing motors
+ * Initiliazing mirrors controlling system
  * @return
  * * RET_SUCCESS communication with motor controller is working. Spawned threads
  * to perform auto-homing procedure.
@@ -111,9 +116,9 @@ motors_auto_homing_in_progress();
  * * RET_ERROR_INTERNAL cannot initialize semaphores needed for auto-homing
  */
 ret_code_t
-motors_init(void);
+mirrors_init(void);
 
 bool
-motors_homed_successfully(void);
+mirrors_homed_successfully(void);
 
-#endif // STEPPER_MOTORS_H
+#endif // MIRRORS_H

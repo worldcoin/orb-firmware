@@ -1,7 +1,7 @@
 #include "fan_tests.h"
 #include "app_config.h"
 #include "fan.h"
-#include "version/version.h"
+#include "system/version/version.h"
 #include <app_assert.h>
 #include <zephyr/kernel.h>
 

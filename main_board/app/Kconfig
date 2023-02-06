@@ -40,9 +40,18 @@ config MCU_DEVEL
     select NO_BOOT_LEDS
     select NO_SUPER_CAPS
 
+config APP_TESTS_ALL
+	default n
+	bool "Enable dev tests"
+	select TEST_MOTORS
+	select TEST_DFU
+	select TEST_OPERATOR_LEDS
+	select TEST_USER_LEDS
+	select TEST_FAN
+
 config TEST_MOTORS
     default n
-    bool "Test the stepper motors"
+    bool "Test the mirrors control"
 
 config TEST_DFU
 	default n

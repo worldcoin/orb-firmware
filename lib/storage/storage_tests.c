@@ -1,9 +1,9 @@
 #include "storage_tests.h"
 #include "storage.h"
-#include <device.h>
 #include <errors.h>
-#include <logging/log.h>
-#include <storage/flash_map.h>
+#include <zephyr/device.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/storage/flash_map.h>
 
 LOG_MODULE_REGISTER(storage_tests, CONFIG_STORAGE_LOG_LEVEL);
 
@@ -17,7 +17,7 @@ storage_tests(void)
     struct storage_area_s area;
 
     // start by erasing flash content
-    ret = flash_area_open(FLASH_AREA_ID(storage), &fa);
+    ret = flash_area_open(FIXED_PARTITION_ID(storage_partition), &fa);
     __ASSERT_NO_MSG(ret == 0);
     flash_area_erase(fa, 0, fa->fa_size);
 

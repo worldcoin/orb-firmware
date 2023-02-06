@@ -1,9 +1,9 @@
 #include "app_config.h"
 #include "errors.h"
 #include "mcu_messaging.pb.h"
-#include "power_sequence/power_sequence.h"
+#include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
-#include "temperature/temperature.h"
+#include "temperature/sensors/temperature.h"
 #include "ui/operator_leds/operator_leds.h"
 #include "utils.h"
 #include <app_assert.h>
@@ -274,7 +274,7 @@ check_battery_voltage()
     if (voltage_mv < BATTERY_MINIMUM_VOLTAGE_RUNTIME_MV) {
         // blink operator leds
         battery_low_operator_leds_blink();
-        power_reset(1);
+        reboot(1);
     }
 }
 
@@ -310,7 +310,7 @@ battery_rx_thread()
                 battery_messages_timeout += BATTERY_INFO_SEND_PERIOD_MS;
 
                 if (battery_messages_timeout >= BATTERY_MESSAGES_TIMEOUT_MS) {
-                    power_reset(0);
+                    reboot(0);
                 }
             }
         }

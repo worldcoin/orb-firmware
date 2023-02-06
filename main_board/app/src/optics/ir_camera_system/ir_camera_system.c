@@ -1,13 +1,13 @@
 #include "ir_camera_system.h"
-#include "1d_tof/tof_1d.h"
 #include "ir_camera_timer_settings.h"
+#include "optics/1d_tof/tof_1d.h"
 #include <app_assert.h>
 #include <assert.h>
 #include <soc.h>
 #include <stm32_ll_hrtim.h>
 #include <stm32_ll_rcc.h>
 #include <stm32_ll_tim.h>
-#include <stm32_timer_utils/stm32_timer_utils.h>
+#include <system/stm32_timer_utils/stm32_timer_utils.h>
 #include <utils.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>

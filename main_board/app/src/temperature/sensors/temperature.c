@@ -1,8 +1,7 @@
 #include "temperature.h"
-#include "fan/fan.h"
 #include "pubsub/pubsub.h"
+#include "temperature/fan/fan.h"
 #include <app_config.h>
-#include <assert.h>
 #include <math.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
