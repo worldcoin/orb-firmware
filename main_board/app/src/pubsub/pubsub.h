@@ -38,7 +38,8 @@ publish_store(void *payload, size_t size, uint32_t which_payload,
 /// \return RET_ERROR_OFFLINE depending on payload's priority, message is either
 ///     discarded or stored
 /// \return RET_ERROR_INVALID_PARAM one argument isn't supported
-/// \return RET_ERROR_BUSY resource not available, likely taken by another thread
+/// \return RET_ERROR_BUSY resource not available, likely taken by another
+/// \return RET_ERROR_INTERNAL error encoding message into Protobuf
 int
 publish_new(void *payload, size_t size, uint32_t which_payload,
             uint32_t remote_addr);
