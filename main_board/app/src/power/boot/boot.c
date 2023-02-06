@@ -84,7 +84,6 @@ power_distributor_leds_supplies_on()
 
     regulator_enable(supply_5v);
     LOG_INF("5V power supply enabled");
-
     k_msleep(20);
 
     regulator_enable(supply_3v3);
@@ -99,16 +98,15 @@ power_distributor_leds_supplies_off()
     const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
 
     regulator_disable(vbat_sw_regulator);
-    LOG_INF("VBAT SW enabled");
+    LOG_INF("VBAT SW disabled");
     k_msleep(20);
 
     regulator_disable(supply_5v);
-    LOG_INF("5V power supply enabled");
-
+    LOG_INF("5V power supply disabled");
     k_msleep(20);
 
     regulator_disable(supply_3v3);
-    LOG_INF("3.3V power supply enabled");
+    LOG_INF("3.3V power supply disabled");
     k_msleep(20);
 }
 
@@ -224,7 +222,11 @@ power_wait_for_power_button_press(void)
             if (i > 1) {
                 LOG_INF("Press stopped.");
                 power_distributor_leds_supplies_off();
+
+                // give some time for the wifi module to reset correctly
+                k_msleep(1000);
             }
+
             operator_led_mask = 0;
             i = 0;
         } else {
