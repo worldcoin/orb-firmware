@@ -79,7 +79,6 @@ Use `west build -DCONFIG_<option>=y` to use any of these convenience build optio
 - `TEST_IR_CAMERA_SYSTEM`
 - `INSTA_BOOT`
 - `NO_JETSON_BOOT`
-- `NO_BOOT_LEDS`
 - `NO_SUPER_CAPS`
 - `MCU_DEVEL`
 

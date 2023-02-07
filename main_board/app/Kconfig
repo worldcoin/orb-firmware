@@ -24,10 +24,6 @@ config NO_JETSON_BOOT
     default n
     bool "Do not boot the Jetson"
 
-config NO_BOOT_LEDS
-    default n
-    bool "Keep user LEDs off during boot. The Jetson may command them after it boots, however."
-
 config NO_SUPER_CAPS
     default n
     bool "Do not turn on super capacitor charging"
@@ -37,7 +33,6 @@ config MCU_DEVEL
     bool "Select all developer options"
     select INSTA_BOOT
     select NO_JETSON_BOOT
-    select NO_BOOT_LEDS
     select NO_SUPER_CAPS
 
 config APP_TESTS_ALL
