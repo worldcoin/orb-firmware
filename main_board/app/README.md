@@ -74,34 +74,38 @@ su-exec root pyocd flash combined_mcu_main_<board_version>_<version>.hex --targe
 
 ## Misc Documentation
 
-### Cmake build options
-
-#### Developer options
+### Developer options
 
 Use `west build -DCONFIG_<option>=y` to use any of these convenience build options:
 
-- `INSTA_BOOT`
-- `NO_JETSON_BOOT`
-- `NO_BOOT_LEDS`
-- `NO_SUPER_CAPS`
-- `MCU_DEVEL`
+- `INSTA_BOOT`: do not wait for button press to proceed to boot
+- `NO_JETSON_BOOT`: do not power up the Jetson
+- `NO_BOOT_LEDS`: do not turn on the RGB LED during boot
+- `NO_SUPER_CAPS`: do not charge the super capacitors
+- `MCU_DEVEL`: select all 4 options above
 
-#### Tests
+### Tests
 
 Use `west build -p -- -DOVERLAY_CONFIG="tests.conf"` to build the test firmware. This configuration uses
 ZTest to perform tests from the running application. The configuration doesn't wait for someone to press the button
-and doesn't boot the Jetson (`INSTA_BOOT` & `NO_JETSON_BOOT`).
+and doesn't boot the Jetson (`INSTA_BOOT` & `NO_JETSON_BOOT`, see above).
 
 Twister can be used to compile and flash test configurations defined in `testcase.yaml`, here is an example,
 with `pyocd` runner:
 
 ```shell
-twister -vv -T . -A ./../../boards/ -p mcu_main -c \
---device-serial /dev/ttyXXX --device-testing --west-flash="-i=<UNIQUE_ID>"
+# From the `main_board/app` directory
+# Load path to twister
+source ../../../zephyr/zephyr-env.sh
+# Run the test suites available in the current directory for board `mcu_main`:
+twister -vv --testsuite-root . --board-root ../../boards/ --platform mcu_main \
+ --clobber-output --device-serial=/dev/ttyXXX --device-testing --west-flash
 ```
 
-- `--device-serial` is used to provide the path to the serial to USB dongle
-- `UNIQUE_ID` can be obtained by using `pyocd list` and passed to pyocd with the `-i` option
+- `--device-serial` is used to provide the path to the serial-to-USB dongle
+- In case several debuggers are connected, append `--west-flash="-i=<UNIQUE_ID>"`. `UNIQUE_ID` is obtained
+  by using `pyocd list`.
+- When using a J-Link instead of an ST-Link add: `--west-runner=jlink`
 
 ### Memory map
 
@@ -111,7 +115,8 @@ twister -vv -T . -A ./../../boards/ -p mcu_main -c \
 | Application Primary Slot            | 0x0000C000 | 224kB |
 | Application Secondary Slot          | 0x00044000 | 224kB |
 | Scratch partition                   | 0x0007C000 | 8kB   |
-| Persistent storage                  | 0x0007E000 | 8kB   |
+| App storage                         | 0x0007E000 | 4kB   |
+| Config                              | 0x0007F000 | 4kB   |
 
 ### Timer allocations - Mainboard 3.1
 
