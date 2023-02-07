@@ -93,7 +93,6 @@ list(APPEND SOURCES_FILES
     src/optics/ir_camera_system/ir_camera_system.c
     src/optics/liquid_lens/liquid_lens.c
     src/optics/mirrors/mirrors.c
-    src/optics/mirrors/mirrors_tests.c
 
     src/power/boot/boot.c
     src/power/battery/battery.c

@@ -1,47 +1,86 @@
-#include "mirrors_tests.h"
 #include "mirrors.h"
-#include <app_config.h>
+#include <stdlib.h>
 #include <zephyr/kernel.h>
-#include <zephyr/random/rand32.h>
+#include <zephyr/ztest.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(mirrors_test);
 
-static K_THREAD_STACK_DEFINE(mirrors_test_thread_stack, 1024);
-static struct k_thread test_thread_data;
-
-static void
-test_routine()
+ZTEST(runtime_tests, mirrors_ah_past_the_end)
 {
+    Z_TEST_SKIP_IFNDEF(CONFIG_TEST_MIRRORS);
+
+    ret_code_t err_code;
+    struct k_thread *horiz = NULL, *vert = NULL;
+    bool ah_progress;
+    bool ah_success;
+
     // wait for motors to initialize themselves
-    k_msleep(15000);
+    k_msleep(2000);
 
-    while (1) {
-        mirrors_auto_homing_one_end(MIRROR_HORIZONTAL_ANGLE, NULL);
-        mirrors_auto_homing_one_end(MIRROR_VERTICAL_ANGLE, NULL);
+    err_code = mirrors_auto_homing_one_end(MIRROR_HORIZONTAL_ANGLE, &horiz);
+    zassert_equal(err_code, RET_SUCCESS);
+    err_code = mirrors_auto_homing_one_end(MIRROR_VERTICAL_ANGLE, &vert);
+    zassert_equal(err_code, RET_SUCCESS);
 
-        k_msleep(10000);
+    ah_progress = mirrors_auto_homing_in_progress();
+    zassert_true(ah_progress);
 
-        // set to random position before restarting auto-homing
-        int angle_vertical = (sys_rand32_get() % 40000) - 20000;
-        int angle_horizontal = (sys_rand32_get() % 40000) + 25000;
-        mirrors_angle_vertical(angle_vertical);
-        mirrors_angle_horizontal(angle_horizontal);
-        k_msleep(1000);
+    // wait for completion
+    zassert_not_null(horiz);
+    k_thread_join(horiz, K_FOREVER);
+    zassert_not_null(vert);
+    k_thread_join(vert, K_FOREVER);
 
-        struct k_thread *horiz = NULL, *vert = NULL;
-        mirrors_auto_homing_stall_detection(MIRROR_VERTICAL_ANGLE, &horiz);
-        mirrors_auto_homing_stall_detection(MIRROR_HORIZONTAL_ANGLE, &vert);
-        k_msleep(10000);
-    }
+    ah_progress = mirrors_auto_homing_in_progress();
+    zassert_false(ah_progress);
+
+    ah_success = mirrors_homed_successfully();
+    zassert_true(ah_success);
+
+    // set to random position before restarting auto-homing
+    int angle_vertical =
+        (rand() % MIRRORS_ANGLE_VERTICAL_RANGE) + MIRRORS_ANGLE_VERTICAL_MIN;
+    int angle_horizontal = (rand() % MIRRORS_ANGLE_HORIZONTAL_RANGE) +
+                           MIRRORS_ANGLE_HORIZONTAL_MIN;
+
+    err_code = mirrors_angle_vertical(angle_vertical);
+    zassert_equal(err_code, RET_SUCCESS);
+    err_code = mirrors_angle_horizontal(angle_horizontal);
+    zassert_equal(err_code, RET_SUCCESS);
 }
 
-void
-mirrors_tests_init(void)
+/* Disable auto-homing test with stall detection as we don't use it */
+#if 0
+ZTEST(runtime_tests, mirrors_ah_stall_detection)
 {
-    k_tid_t tid = k_thread_create(
-        &test_thread_data, mirrors_test_thread_stack,
-        K_THREAD_STACK_SIZEOF(mirrors_test_thread_stack), test_routine, NULL,
-        NULL, NULL, THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
-    k_thread_name_set(tid, "mirrors_test");
+    Z_TEST_SKIP_IFNDEF(CONFIG_TEST_MIRRORS);
+
+    ret_code_t err_code;
+    struct k_thread *horiz = NULL, *vert = NULL;
+    bool ah_progress;
+    bool ah_success;
+
+    horiz = NULL;
+    vert = NULL;
+    err_code = mirrors_auto_homing_stall_detection(MIRROR_VERTICAL_ANGLE, &horiz);
+    zassert_equal(err_code, RET_SUCCESS);
+    err_code = mirrors_auto_homing_stall_detection(MIRROR_HORIZONTAL_ANGLE, &vert);
+    zassert_equal(err_code, RET_SUCCESS);
+
+    ah_progress = mirrors_auto_homing_in_progress();
+    zassert_true(ah_progress);
+
+    // wait for completion
+    zassert_not_null(horiz);
+    k_thread_join(horiz, K_FOREVER);
+    zassert_not_null(vert);
+    k_thread_join(vert, K_FOREVER);
+
+    ah_progress = mirrors_auto_homing_in_progress();
+    zassert_false(ah_progress);
+
+    ah_success = mirrors_homed_successfully();
+    zassert_true(ah_success);
 }
+#endif

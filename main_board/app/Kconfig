@@ -43,13 +43,13 @@ config MCU_DEVEL
 config APP_TESTS_ALL
 	default n
 	bool "Enable runtime dev tests"
-	select TEST_MOTORS
+	select TEST_MIRRORS
 	select TEST_DFU
 	select TEST_OPERATOR_LEDS
 	select TEST_USER_LEDS
 	select TEST_FAN
 
-config TEST_MOTORS
+config TEST_MIRRORS
     default n
     bool "Test the mirrors control"
 
