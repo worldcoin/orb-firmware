@@ -106,7 +106,7 @@ process_tx_messages_thread()
         if (err_code != RET_SUCCESS) {
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
             LOG_WRN("Error sending message");
-#else
+#elifndef CONFIG_NO_JETSON_BOOT
             printk("<wrn> Error sending raw CAN message, err %i!\r\n",
                    err_code);
 #endif

@@ -2,14 +2,13 @@
 #include "app_config.h"
 #include "mcu_messaging.pb.h"
 #include "pubsub/pubsub.h"
-#include <app_assert.h>
 #include <errors.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(1d_tof);
+LOG_MODULE_REGISTER(1d_tof, CONFIG_TOF_1D_LOG_LEVEL);
 
 const struct device *tof_1d_device = DEVICE_DT_GET(DT_NODELABEL(tof_sensor));
 

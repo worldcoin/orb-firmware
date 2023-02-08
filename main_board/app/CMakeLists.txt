@@ -4,10 +4,6 @@ set(TARGET app)
 get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../ ABSOLUTE)
 get_filename_component(WORKSPACE_DIR ${PROJECT_DIR} DIRECTORY)
 
-if(RUN_ALL_TESTS)
-    add_definitions(-DRUN_ALL_TESTS)
-endif()
-
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
     message(STATUS "Building ${CMAKE_BUILD_TYPE}: optimized for speed")
 
@@ -70,7 +66,24 @@ set(SINE_LUT_SRC_FILE ${CMAKE_BINARY_DIR}/zephyr/sine_lut.c)
 add_custom_command(OUTPUT ${SINE_LUT_SRC_FILE}
     COMMAND python3 ${PROJECT_DIR}/utils/math/generate_sine.py ${SINE_TABLE_LENGTH} > ${SINE_LUT_SRC_FILE})
 
-set(SOURCES_FILES
+set(SOURCES_FILES)
+if (NOT CONFIG_ZTEST)
+    list(APPEND SOURCES_FILES
+        src/pubsub/pubsub.c)
+else ()
+    list(APPEND SOURCES_FILES
+        src/optics/ir_camera_system/ir_camera_system_tests.c
+        src/optics/mirrors/mirrors_tests.c
+        src/system/dfu/dfu_tests.c
+        src/temperature/fan/fan_tests.c
+        src/ui/front_leds/front_leds_tests.c
+        src/ui/operator_leds/operator_leds_tests.c
+        src/pubsub/pubsub_tests.c
+        )
+endif ()
+
+# common source files
+list(APPEND SOURCES_FILES
     src/main.c
 
     src/gnss/gnss.c
@@ -78,35 +91,28 @@ set(SOURCES_FILES
     src/optics/1d_tof/tof_1d.c
     src/optics/ir_camera_system/ir_camera_timer_settings.c
     src/optics/ir_camera_system/ir_camera_system.c
-    src/optics/ir_camera_system/ir_camera_system_tests.c
     src/optics/liquid_lens/liquid_lens.c
     src/optics/mirrors/mirrors.c
-    src/optics/mirrors/mirrors_tests.c
 
     src/power/boot/boot.c
     src/power/battery/battery.c
 
-    src/pubsub/pubsub.c
     src/runner/runner.c
 
     src/system/fatal.c
     src/system/logs.c
     src/system/version/version.c
-    src/system/dfu/dfu_tests.c
     src/system/stm32_timer_utils/stm32_timer_utils.c
 
     src/temperature/sensors/temperature.c
     src/temperature/fan/fan.c
     src/temperature/fan/fan_tach.c
-    src/temperature/fan/fan_tests.c
 
     ${SINE_LUT_SRC_FILE}
     src/ui/ambient_light/als.c
     src/ui/button/button.c
     src/ui/front_leds/front_leds.c
-    src/ui/front_leds/front_leds_tests.c
     src/ui/operator_leds/operator_leds.c
-    src/ui/operator_leds/operator_leds_tests.c
     src/ui/sound/sound.c
     )
 

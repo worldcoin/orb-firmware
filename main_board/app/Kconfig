@@ -42,14 +42,14 @@ config MCU_DEVEL
 
 config APP_TESTS_ALL
 	default n
-	bool "Enable dev tests"
-	select TEST_MOTORS
+	bool "Enable runtime dev tests"
+	select TEST_MIRRORS
 	select TEST_DFU
 	select TEST_OPERATOR_LEDS
 	select TEST_USER_LEDS
 	select TEST_FAN
 
-config TEST_MOTORS
+config TEST_MIRRORS
     default n
     bool "Test the mirrors control"
 
@@ -64,10 +64,16 @@ config TEST_OPERATOR_LEDS
 config TEST_USER_LEDS
 	default n
 	bool "Test user/front LEDs"
+	help
+	  Tests all the user LED patterns. Visual inspection is needed to check
+	  for correct pattern implementation.
 
 config TEST_IR_CAMERA_SYSTEM
     default n
     bool "Test the IR camera system"
+    help
+      The IR/Camera test has to be verified using a scope
+      or logic analyzer.
 
 config TEST_FAN
 	default n

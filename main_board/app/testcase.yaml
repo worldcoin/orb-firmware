@@ -1,0 +1,5 @@
+tests:
+  orb.hil:
+    extra_args: OVERLAY_CONFIG=tests.conf
+    platform_allow: mcu_main
+    timeout: 120
