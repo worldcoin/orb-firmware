@@ -7,7 +7,7 @@
 #include <zephyr/kernel.h>
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(als);
+LOG_MODULE_REGISTER(als, CONFIG_ALS_LOG_LEVEL);
 
 const struct device *als_device = DEVICE_DT_GET(DT_NODELABEL(front_unit_als));
 

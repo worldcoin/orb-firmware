@@ -1,14 +1,13 @@
-#include "storage_tests.h"
 #include "storage.h"
 #include <errors.h>
 #include <zephyr/device.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/storage/flash_map.h>
+#include <zephyr/ztest.h>
 
 LOG_MODULE_REGISTER(storage_tests, CONFIG_STORAGE_LOG_LEVEL);
 
-void
-storage_tests(void)
+ZTEST(runtime_tests_1, storage)
 {
     int ret;
     const struct flash_area *fa;

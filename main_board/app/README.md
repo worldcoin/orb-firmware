@@ -6,7 +6,8 @@
 
 First, follow the instructions in the [top-level README.md](../../README.md).
 
-Once downloaded, West will check out this repository in the `orb` directory with a branch called `manifest-rev`. If you
+Once downloaded, `west` will check out this repository in the `orb` directory with a branch called `manifest-rev`. If
+you
 want to work on the repo, make sure to check out the `main` branch and branch from there.
 
 ```shell
@@ -20,10 +21,11 @@ git checkout main
 
 ### Compiling and Flashing
 
-Let's build and run the application, you have two options:
+Let's build and run the application, you have several options:
 
-- the Makefile w/ Docker
-- manually using `west`
+- the Makefile with Docker
+- manually with west
+- manually with CMake (from CLion for example)
 
 > 💡 Important notes:
 >
@@ -72,17 +74,37 @@ su-exec root pyocd flash combined_mcu_main_<board_version>_<version>.hex --targe
 
 ## Misc Documentation
 
-### Cmake build options
+### Developer options
 
 Use `west build -DCONFIG_<option>=y` to use any of these convenience build options:
 
-- `TEST_IR_CAMERA_SYSTEM`
-- `INSTA_BOOT`
-- `NO_JETSON_BOOT`
-- `NO_SUPER_CAPS`
-- `MCU_DEVEL`
+- `INSTA_BOOT`: do not wait for button press to proceed to boot
+- `NO_JETSON_BOOT`: do not power up the Jetson
+- `NO_SUPER_CAPS`: do not charge the super capacitors
+- `MCU_DEVEL`: select all 4 options above
 
-Example: `west build -- -DCONFIG_MCU_DEVEL=y`.
+### Tests
+
+Use `west build -p -- -DOVERLAY_CONFIG="tests.conf"` to build the test firmware. This configuration uses
+ZTest to perform tests from the running application. The configuration doesn't wait for someone to press the button
+and doesn't boot the Jetson (`INSTA_BOOT` & `NO_JETSON_BOOT`, see above).
+
+Twister can be used to compile and flash test configurations defined in `testcase.yaml`, here is an example,
+with `pyocd` runner:
+
+```shell
+# From the `main_board/app` directory
+# Load path to twister
+source ../../../zephyr/zephyr-env.sh
+# Run the test suites available in the current directory for board `mcu_main`:
+twister -vv --testsuite-root . --board-root ../../boards/ --platform mcu_main \
+ --clobber-output --device-serial=/dev/ttyXXX --device-testing --west-flash
+```
+
+- `--device-serial` is used to provide the path to the serial-to-USB dongle
+- In case several debuggers are connected, append `--west-flash="-i=<UNIQUE_ID>"`. `UNIQUE_ID` is obtained
+  by using `pyocd list`.
+- When using a J-Link instead of an ST-Link add: `--west-runner=jlink`
 
 ### Memory map
 
@@ -92,7 +114,8 @@ Example: `west build -- -DCONFIG_MCU_DEVEL=y`.
 | Application Primary Slot            | 0x0000C000 | 224kB |
 | Application Secondary Slot          | 0x00044000 | 224kB |
 | Scratch partition                   | 0x0007C000 | 8kB   |
-| Persistent storage                  | 0x0007E000 | 8kB   |
+| App storage                         | 0x0007E000 | 4kB   |
+| Config                              | 0x0007F000 | 4kB   |
 
 ### Timer allocations - Mainboard 3.1
 

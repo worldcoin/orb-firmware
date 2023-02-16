@@ -1,12 +1,11 @@
-#include <assert.h>
 #include <ir_camera_timer_settings.h>
 #include <zephyr/ztest.h>
 
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(test_ir_camera_system);
+ZTEST_SUITE(timer_settings_on_time, NULL, NULL, NULL, NULL, NULL);
+ZTEST_SUITE(timer_settings_fps, NULL, NULL, NULL, NULL, NULL);
+ZTEST_SUITE(ir_740nm_tests, NULL, NULL, NULL, NULL, NULL);
 
-static void
-test_on_time_set_0us_with_0_fps(void)
+ZTEST(timer_settings_on_time, test_on_time_set_0us_with_0_fps)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -24,8 +23,7 @@ test_on_time_set_0us_with_0_fps(void)
     zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
 }
 
-static void
-test_on_time_set_under_max_with_0_fps(void)
+ZTEST(timer_settings_on_time, test_on_time_set_under_max_with_0_fps)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -42,8 +40,7 @@ test_on_time_set_under_max_with_0_fps(void)
     zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
 }
 
-static void
-test_on_time_set_at_max_with_0_fps(void)
+ZTEST(timer_settings_on_time, test_on_time_set_at_max_with_0_fps)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -60,8 +57,7 @@ test_on_time_set_at_max_with_0_fps(void)
     zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
 }
 
-static void
-test_on_time_over_max_with_0_fps(void)
+ZTEST(timer_settings_on_time, test_on_time_over_max_with_0_fps)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -87,8 +83,7 @@ test_on_time_over_max_with_0_fps(void)
     zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
 }
 
-static void
-test_on_time_within_45_percent_duty_cycle_740nm(void)
+ZTEST(ir_740nm_tests, test_on_time_within_45_percent_duty_cycle_740nm)
 {
     struct ir_camera_timer_settings settings = {0};
     uint16_t fps = 0;
@@ -172,8 +167,7 @@ test_on_time_within_45_percent_duty_cycle_740nm(void)
                    settings.ccr_740nm);
 }
 
-static void
-test_on_time_with_corresponding_max_fps(void)
+ZTEST(timer_settings_on_time, test_on_time_with_corresponding_max_fps)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -200,8 +194,7 @@ test_on_time_with_corresponding_max_fps(void)
     zassert_not_equal(0, ts.ccr, "must not be 0, actual %u", ts.ccr);
 }
 
-static void
-test_on_time_with_corresponding_max_fps_plus_1(void)
+ZTEST(timer_settings_on_time, test_on_time_with_corresponding_max_fps_plus_1)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -229,8 +222,8 @@ test_on_time_with_corresponding_max_fps_plus_1(void)
     zassert_equal(0, ts.ccr, "must not be 0, actual %u", ts.ccr);
 }
 
-static void
-test_on_time_set_valid_then_set_fps_to_zero_on_time_should_be_zeroed(void)
+ZTEST(timer_settings_on_time,
+      test_on_time_set_valid_then_set_fps_to_zero_on_time_should_be_zeroed)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -276,8 +269,7 @@ test_on_time_set_valid_then_set_fps_to_zero_on_time_should_be_zeroed(void)
     zassert_not_equal(0, ts.ccr, "must not be 0, actual %u", ts.ccr);
 }
 
-static void
-test_on_time_set_valid_then_lower_on_time(void)
+ZTEST(timer_settings_on_time, test_on_time_set_valid_then_lower_on_time)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -320,8 +312,8 @@ test_on_time_set_valid_then_lower_on_time(void)
                   settings.ccr, ts.ccr);
 }
 
-static void
-test_on_time_set_valid_then_increase_to_another_valid_value(void)
+ZTEST(timer_settings_on_time,
+      test_on_time_set_valid_then_increase_to_another_valid_value)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -366,8 +358,8 @@ test_on_time_set_valid_then_increase_to_another_valid_value(void)
                  ts.ccr);
 }
 
-static void
-test_on_time_set_valid_then_increase_to_an_invalid_on_time(void)
+ZTEST(timer_settings_on_time,
+      test_on_time_set_valid_then_increase_to_an_invalid_on_time)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -413,8 +405,7 @@ test_on_time_set_valid_then_increase_to_an_invalid_on_time(void)
                   settings.ccr, ts.ccr);
 }
 
-static void
-test_fps_under_max_fps_0_on_time(void)
+ZTEST(timer_settings_fps, test_fps_under_max_fps_0_on_time)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -435,8 +426,7 @@ test_fps_under_max_fps_0_on_time(void)
     zassert_equal(0, ts.ccr_740nm, "must be 0, actual %u", ts.ccr_740nm);
 }
 
-static void
-test_fps_at_max_0_on_time(void)
+ZTEST(timer_settings_fps, test_fps_at_max_0_on_time)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -457,8 +447,7 @@ test_fps_at_max_0_on_time(void)
     zassert_equal(0, ts.ccr_740nm, "must be 0, actual %u", ts.ccr_740nm);
 }
 
-static void
-test_fps_over_max_0_on_time(void)
+ZTEST(timer_settings_fps, test_fps_over_max_0_on_time)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -476,8 +465,7 @@ test_fps_over_max_0_on_time(void)
     zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
 }
 
-static void
-test_fps_set_valid_then_increase_to_an_invalid_fps(void)
+ZTEST(timer_settings_fps, test_fps_set_valid_then_increase_to_an_invalid_fps)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -532,8 +520,8 @@ test_fps_set_valid_then_increase_to_an_invalid_fps(void)
     zassert_equal(0, ts.ccr_740nm, "must be 0, actual %u", ts.ccr_740nm);
 }
 
-static void
-test_fps_set_valid_then_increase_to_another_valid_value(void)
+ZTEST(timer_settings_fps,
+      test_fps_set_valid_then_increase_to_another_valid_value)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -580,8 +568,7 @@ test_fps_set_valid_then_increase_to_another_valid_value(void)
     zassert_equal(0, ts.ccr_740nm, "must be 0, actual %u", ts.ccr_740nm);
 }
 
-static void
-test_fps_set_valid_then_lower_fps(void)
+ZTEST(timer_settings_fps, test_fps_set_valid_then_lower_fps)
 {
 
     struct ir_camera_timer_settings settings = {0};
@@ -625,8 +612,7 @@ test_fps_set_valid_then_lower_fps(void)
     zassert_not_equal(0, ts.ccr, "must not be zero");
 }
 
-static void
-test_fps_set_valid_then_invalid_on_time(void)
+ZTEST(timer_settings_fps, test_fps_set_valid_then_invalid_on_time)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
@@ -662,43 +648,4 @@ test_fps_set_valid_then_invalid_on_time(void)
     zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
     zassert_equal(0, ts.ccr_740nm, "must be 0, actual %u", ts.ccr_740nm);
     zassert_equal(0, ts.ccr_740nm, "must be 0, actual %u", ts.ccr_740nm);
-}
-
-void
-test_main(void)
-{
-    ztest_test_suite(
-        ir_camera_test_timer_settings_on_time,
-        ztest_unit_test(
-            test_on_time_set_valid_then_increase_to_an_invalid_on_time),
-        ztest_unit_test(
-            test_on_time_set_valid_then_increase_to_another_valid_value),
-        ztest_unit_test(test_on_time_set_valid_then_lower_on_time),
-        ztest_unit_test(
-            test_on_time_set_valid_then_set_fps_to_zero_on_time_should_be_zeroed),
-        ztest_unit_test(test_on_time_with_corresponding_max_fps_plus_1),
-        ztest_unit_test(test_on_time_with_corresponding_max_fps),
-        ztest_unit_test(test_on_time_set_0us_with_0_fps),
-        ztest_unit_test(test_on_time_set_under_max_with_0_fps),
-        ztest_unit_test(test_on_time_set_at_max_with_0_fps),
-        ztest_unit_test(test_on_time_over_max_with_0_fps));
-
-    ztest_test_suite(
-        ir_camera_test_timer_settings_fps,
-        ztest_unit_test(test_fps_set_valid_then_lower_fps),
-        ztest_unit_test(test_fps_over_max_0_on_time),
-        ztest_unit_test(test_fps_at_max_0_on_time),
-        ztest_unit_test(test_fps_set_valid_then_increase_to_an_invalid_fps),
-        ztest_unit_test(
-            test_fps_set_valid_then_increase_to_another_valid_value),
-        ztest_unit_test(test_fps_under_max_fps_0_on_time),
-        ztest_unit_test(test_fps_set_valid_then_invalid_on_time));
-
-    ztest_test_suite(
-        ir_740nm_tests,
-        ztest_unit_test(test_on_time_within_45_percent_duty_cycle_740nm));
-
-    ztest_run_test_suite(ir_camera_test_timer_settings_on_time);
-    ztest_run_test_suite(ir_camera_test_timer_settings_fps);
-    ztest_run_test_suite(ir_740nm_tests);
 }

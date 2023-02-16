@@ -19,7 +19,7 @@ cd "$REPO_DIR"/orb && pre-commit install -c utils/format/pre-commit-config.yaml
 Manually:
 
 ```shell
-cd "$REPO_DIR" && pre-commit run --all-files --config orb/utils/format/pre-commit-config.yaml
+cd "$REPO_DIR"/orb && pre-commit run --all-files --config utils/format/pre-commit-config.yaml
 ```
 
 Using Docker:

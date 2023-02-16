@@ -1,26 +1,19 @@
-#include "dfu_tests.h"
 #include "dfu.h"
 #include "runner/runner.h"
-#include <app_config.h>
 #include <can_messaging.h>
 #include <flash_map_backend/flash_map_backend.h>
 #include <pb_encode.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/crc.h>
+#include <zephyr/ztest.h>
 
-#define LOG_LEVEL LOG_LEVEL_DBG
-LOG_MODULE_REGISTER(dfutest);
+LOG_MODULE_REGISTER(dfutest, LOG_LEVEL_DBG);
 
-K_THREAD_STACK_DEFINE(dfu_test_thread_stack_upload, 3072);
-static struct k_thread test_thread_data_upload;
-
-K_THREAD_STACK_DEFINE(dfu_test_thread_stack_crc, 1024);
-static struct k_thread test_thread_data_crc;
-
-static void
-test_dfu_upload()
+ZTEST(hil, test_dfu_upload_tests)
 {
+    Z_TEST_SKIP_IFNDEF(CONFIG_TEST_DFU);
+
     // with block size of 39,
     // 53 blocks is a sweet spot for testing:
     // - uses two pages (erasing two times)
@@ -58,6 +51,7 @@ test_dfu_upload()
         to_send.bytes = buffer;
         to_send.destination = 0;
 
+        zassert_true(encoded);
         if (encoded) {
             runner_handle_new_can(&to_send);
         } else {
@@ -77,18 +71,15 @@ test_dfu_upload()
         k_msleep(500);
     }
 
-    k_msleep(1000);
-
     LOG_INF("Reading back flash");
 
     // open Flash
     const struct flash_area *fap = NULL;
-    int rc = 0;
+    int rc;
 
     rc = flash_area_open(flash_area_id_from_image_slot(1), &fap);
-    if (rc != 0) {
-        LOG_ERR("Error opening flash area: %i", rc);
-    }
+    zassert_equal(rc, 0);
+    zassert_not_null(fap);
 
     uint8_t buf_compare[DFU_BLOCK_SIZE_MAX];
     uint8_t buf_read_back[DFU_BLOCK_SIZE_MAX];
@@ -98,12 +89,15 @@ test_dfu_upload()
 
         rc = flash_area_read(fap, i * DFU_BLOCK_SIZE_MAX, buf_read_back,
                              sizeof(buf_read_back));
+        zassert_equal(rc, 0);
         if (rc != 0) {
             LOG_ERR("Test failed, error reading flash, rc %i", rc);
             break;
         }
 
-        if (memcmp(buf_read_back, buf_compare, sizeof(buf_read_back)) != 0) {
+        rc = memcmp(buf_read_back, buf_compare, sizeof(buf_read_back));
+        zassert_equal(rc, 0);
+        if (rc != 0) {
             LOG_ERR("Test failed, incorrect flash content (%u)", i + 1);
             rc = -EILSEQ;
             break;
@@ -114,55 +108,21 @@ test_dfu_upload()
         flash_area_close(fap);
     }
 
-    if (rc == 0) {
-        LOG_INF("Test successful 🎉");
-    }
+    zassert_equal(rc, 0);
 }
 
-void
-dfu_tests_init(void)
+ZTEST(hil, test_crc_over_flash)
 {
-    LOG_INF("Creating DFU test thread");
+    // Test CRC speed over entire slot
+    uint8_t *sec_slot = (uint8_t *)0x8044000;
+    uint32_t tick = k_cycle_get_32();
+    crc32_ieee(sec_slot, 224 * 1024);
+    uint32_t tock = k_cycle_get_32();
 
-    k_tid_t tid = k_thread_create(
-        &test_thread_data_upload, dfu_test_thread_stack_upload,
-        K_THREAD_STACK_SIZEOF(dfu_test_thread_stack_upload), test_dfu_upload,
-        NULL, NULL, NULL, THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
-    k_thread_name_set(tid, "dfu_test");
-}
-
-static void
-test_crc()
-{
-    while (1) {
-        // Test CRC speed over entire slot
-        uint8_t *sec_slot = (uint8_t *)0x8044000;
-        uint32_t tick = k_cycle_get_32();
-        crc32_ieee(sec_slot, 224 * 1024);
-        uint32_t tock = k_cycle_get_32();
-
-        uint32_t crc_computation_us =
-            (tock - tick) / (sys_clock_hw_cycles_per_sec() / 1000 / 1000);
-        LOG_INF("CRC over entire slot took %uus, %u cycles (%u cycle/sec)",
-                crc_computation_us, tock - tick, sys_clock_hw_cycles_per_sec());
-
-        k_msleep(10000);
-
-        // test `dfu_secondary_check` function
-        dfu_secondary_check(0);
-
-        k_msleep(10000);
-    }
-}
-
-void
-dfu_crc_tests_init(void)
-{
-    LOG_INF("Creating CRC test thread");
-
-    k_tid_t tid = k_thread_create(
-        &test_thread_data_crc, dfu_test_thread_stack_crc,
-        K_THREAD_STACK_SIZEOF(dfu_test_thread_stack_crc), test_crc, NULL, NULL,
-        NULL, THREAD_PRIORITY_TESTS, 0, K_NO_WAIT);
-    k_thread_name_set(tid, "dfu_crc_test");
+    uint32_t crc_computation_us =
+        (tock - tick) / (sys_clock_hw_cycles_per_sec() / 1000 / 1000);
+    LOG_INF("CRC over entire slot took %uus, %u cycles (%u cycle/sec)",
+            crc_computation_us, tock - tick, sys_clock_hw_cycles_per_sec());
+    // check within 50ms
+    zassert_within(crc_computation_us, 25000, 25000);
 }

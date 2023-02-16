@@ -16,7 +16,7 @@ fan_set_speed_by_percentage(uint32_t percentage);
 void
 fan_set_speed_by_value(uint16_t value);
 
-// Get speed as duty cycle in ns
+// Get speed as raw value from 0 to UINT16_MAX
 uint32_t
 fan_get_speed_setting(void);
 

@@ -220,6 +220,7 @@ front_leds_thread()
                 wait_until = K_MSEC(global_pulsing_delay_time_ms);
                 pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
                 set_ring(color, start_angle_degrees, angle_length_degrees);
+                set_center((struct led_rgb)RGB_OFF);
                 break;
             case UserLEDsPattern_UserRgbLedPattern_PULSING_RGB_ONLY_CENTER:
                 scaler = (SINE_LUT[pulsing_index] * pulsing_scale) + 1;
@@ -230,9 +231,11 @@ front_leds_thread()
                 wait_until = K_MSEC(global_pulsing_delay_time_ms);
                 pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
                 set_center(color);
+                set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
                 break;
             case UserLEDsPattern_UserRgbLedPattern_RGB:
                 set_ring(color, start_angle_degrees, angle_length_degrees);
+                set_center((struct led_rgb)RGB_OFF);
                 break;
             case UserLEDsPattern_UserRgbLedPattern_BOOT_ANIMATION:
                 // bottom brightness at 0
@@ -244,6 +247,7 @@ front_leds_thread()
                 wait_until = K_MSEC(global_pulsing_delay_time_ms);
                 pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
                 set_center(color);
+                set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
                 break;
             default:
                 LOG_ERR("Unhandled front LED pattern: %u", global_pattern);
