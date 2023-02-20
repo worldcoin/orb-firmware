@@ -19,7 +19,7 @@ manifest:
       revision: 86d4313f721126a9cd84c958ef2b3af631988132
       path: modules/orb-protobuf-definitions
     - name: plug-and-trust
-      revision: cfe1d5c3f9b4e62c8092668c173df8461a8f7c7c
+      revision: beb0db6da441f8fd5becfab6c216c8d51aac8dbf
       path: modules/plug-and-trust
   self:
     path: orb
