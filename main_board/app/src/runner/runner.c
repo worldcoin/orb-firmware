@@ -991,10 +991,9 @@ runner_process_jobs_thread()
 
         // filter out jobs from UART for debugging
         if (new.remote_addr != 0) {
-            LOG_DBG(
-                "⬇️ Received message from remote 0x%03x with payload ID "
-                "%02d, ack #%u",
-                new.remote_addr, new.message.which_payload, new.ack_number);
+            LOG_DBG("⬇️ Received message from remote 0x%03x with payload ID "
+                    "%02d, ack #%u",
+                    new.remote_addr, new.message.which_payload, new.ack_number);
         }
 
         // remote is up
