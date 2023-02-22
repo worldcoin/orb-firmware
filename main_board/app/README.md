@@ -80,7 +80,6 @@ Use `west build -DCONFIG_<option>=y` to use any of these convenience build optio
 
 - `INSTA_BOOT`: do not wait for button press to proceed to boot
 - `NO_JETSON_BOOT`: do not power up the Jetson
-- `NO_BOOT_LEDS`: do not turn on the RGB LED during boot
 - `NO_SUPER_CAPS`: do not charge the super capacitors
 - `MCU_DEVEL`: select all 4 options above
 

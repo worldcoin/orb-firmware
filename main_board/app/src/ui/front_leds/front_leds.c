@@ -45,11 +45,7 @@ static volatile bool final_done = false;
 // default values
 
 static volatile UserLEDsPattern_UserRgbLedPattern global_pattern =
-#ifdef CONFIG_NO_BOOT_LEDS
     UserLEDsPattern_UserRgbLedPattern_OFF;
-#else
-    UserLEDsPattern_UserRgbLedPattern_BOOT_ANIMATION;
-#endif // CONFIG_NO_BOOT_LEDS
 
 #define INITIAL_PULSING_PERIOD_MS 5000
 #define PULSING_SCALE_DEFAULT     (7.0f)
