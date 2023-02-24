@@ -263,8 +263,22 @@ app_init_state(const struct device *dev)
 
     LOG_INF("Hello from " CONFIG_BOARD " :)");
 
-    // wait for button press
-    ret = power_wait_for_power_button_press();
+    // read image status to know whether we are waiting for user to press
+    // the button
+    struct boot_swap_state primary_slot = {0};
+    boot_read_swap_state_by_id(FLASH_AREA_IMAGE_PRIMARY(0), &primary_slot);
+
+    LOG_DBG("Magic: %u, swap type: %u, image_ok: %u", primary_slot.magic,
+            primary_slot.swap_type, primary_slot.image_ok);
+
+    // if FW image is confirmed, gate turning on power supplies on button press
+    // otherwise, application have been updated and not confirmed, boot Jetson
+    if (primary_slot.image_ok != BOOT_FLAG_UNSET ||
+        primary_slot.magic == BOOT_MAGIC_UNSET) {
+        ret = power_wait_for_power_button_press();
+    } else {
+        LOG_INF("Firmware image not confirmed");
+    }
     LOG_INF_IMM("Booting system...");
 
     return ret;
