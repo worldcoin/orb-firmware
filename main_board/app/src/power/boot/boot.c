@@ -207,13 +207,6 @@ power_wait_for_power_button_press(void)
         return 1;
     }
 
-    // FIXME image to be confirmed once MCU fully booted
-    // Image is confirmed before we actually reboot the Orb
-    // in case the MCU is rebooted due to a removed battery or insufficient
-    // battery capacity. This is a temporary workaround until we
-    // have fallback mechanism in place.
-    dfu_primary_confirm();
-
     LOG_INF("Waiting for button press of " TOSTR(BUTTON_PRESS_TIME_MS) "ms");
     uint32_t operator_led_mask = 0;
     const RgbColor white = RGB_WHITE_OPERATOR_LEDS;
@@ -277,7 +270,14 @@ app_init_state(const struct device *dev)
         primary_slot.magic == BOOT_MAGIC_UNSET) {
         ret = power_wait_for_power_button_press();
     } else {
-        LOG_INF("Firmware image not confirmed");
+        LOG_INF("Firmware image not confirmed, confirming");
+
+        // FIXME image to be confirmed once MCU fully booted
+        // Image is confirmed before we actually reboot the Orb
+        // in case the MCU is rebooted due to a removed battery or insufficient
+        // battery capacity. This is a temporary workaround until we
+        // have fallback mechanism in place.
+        dfu_primary_confirm();
     }
     LOG_INF_IMM("Booting system...");
 
