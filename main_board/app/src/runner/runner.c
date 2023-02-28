@@ -677,11 +677,6 @@ handle_fw_img_sec_activate(job_t *job)
         job_ack(Ack_ErrorCode_FAIL, job);
     } else {
         job_ack(Ack_ErrorCode_SUCCESS, job);
-
-        // turn operator LEDs orange
-        operator_leds_set_pattern(
-            DistributorLEDsPattern_DistributorRgbLedPattern_RGB,
-            OPERATOR_LEDS_ALL_MASK, &(RgbColor)RGB_ORANGE);
     }
 }
 
