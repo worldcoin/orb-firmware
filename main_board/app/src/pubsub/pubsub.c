@@ -28,7 +28,6 @@ BUILD_ASSERT(
 K_SEM_DEFINE(pub_buffers_sem, 1, 1);
 
 static bool sending = false;
-static k_tid_t pub_stored_tid = NULL;
 
 static K_THREAD_STACK_DEFINE(pub_stored_stack_area,
                              THREAD_STACK_SIZE_PUB_STORED);
@@ -98,7 +97,7 @@ pub_stored_thread()
 
     LOG_INF("Flushing stored messages");
 
-    while (pub_stored_tid != NULL) {
+    while (true) {
         size_t size = sizeof(record);
         err_code = storage_peek((char *)&record, &size);
         switch (err_code) {
@@ -106,9 +105,9 @@ pub_stored_thread()
             // do nothing
             break;
         case RET_ERROR_NOT_FOUND:
+            LOG_INF("Done flushing stored messages");
             // no more records, terminate thread
-            pub_stored_tid = NULL;
-            continue;
+            return;
         case RET_ERROR_NO_MEM:
         case RET_ERROR_INVALID_STATE:
         default:
@@ -123,10 +122,6 @@ pub_stored_thread()
             .size = size,
         };
 
-        LOG_DBG("⬆️ Sending stored %s message to remote 0x%03x",
-                (to_send.destination & CAN_ADDR_IS_ISOTP ? "ISO-TP" : "CAN"),
-                to_send.destination);
-
         if (to_send.destination & CAN_ADDR_IS_ISOTP) {
             err_code = can_isotp_messaging_async_tx(&to_send);
         } else {
@@ -134,26 +129,54 @@ pub_stored_thread()
         }
 
         if (err_code) {
-            // come back later
-            pub_stored_tid = NULL;
+            LOG_WRN(
+                "Queued stored %s message for sending to remote 0x%03x; "
+                "ret %d",
+                (to_send.destination & CAN_ADDR_IS_ISOTP ? "ISO-TP" : "CAN"),
+                to_send.destination, err_code);
         } else {
+            LOG_DBG(
+                "Queued stored %s message for sending to remote 0x%03x; "
+                "ret %d",
+                (to_send.destination & CAN_ADDR_IS_ISOTP ? "ISO-TP" : "CAN"),
+                to_send.destination, err_code);
+        }
+
+        switch (err_code) {
+        case RET_SUCCESS:
+        case RET_ERROR_INVALID_PARAM: // record cannot be sent, free it
             err_code = storage_free();
             ASSERT_SOFT(err_code);
+            break;
+        case RET_ERROR_INVALID_STATE:
+        case RET_ERROR_BUSY:
+        case RET_ERROR_NO_MEM:
+            // come back later
+            return;
+        default:
+            LOG_WRN("Unhandled %d", err_code);
+            break;
         }
     }
 }
 
+// This function may only be called from one thread
 void
 publish_start(void)
 {
+    static bool started_once = false;
+
     sending = true;
 
-    if (pub_stored_tid == NULL && storage_has_data()) {
-        pub_stored_tid = k_thread_create(
-            &pub_stored_thread_data, pub_stored_stack_area,
-            K_THREAD_STACK_SIZEOF(pub_stored_stack_area), pub_stored_thread,
-            NULL, NULL, NULL, THREAD_PRIORITY_PUB_STORED, 0, K_NO_WAIT);
+    if ((started_once == false ||
+         (k_thread_join(&pub_stored_thread_data, K_NO_WAIT) == 0)) &&
+        storage_has_data()) {
+        k_thread_create(&pub_stored_thread_data, pub_stored_stack_area,
+                        K_THREAD_STACK_SIZEOF(pub_stored_stack_area),
+                        pub_stored_thread, NULL, NULL, NULL,
+                        THREAD_PRIORITY_PUB_STORED, 0, K_NO_WAIT);
         k_thread_name_set(&pub_stored_thread_data, "pub_stored");
+        started_once = true;
     }
 }
 
