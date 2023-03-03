@@ -191,6 +191,8 @@
 };
 
 &rng {
+    clocks = <&rcc STM32_CLOCK_BUS_AHB2 0x04000000>,
+             <&rcc STM32_SRC_HSI48 CLK48_SEL(0)>; // domain clock
     status = "okay";
 };
 
