@@ -1,0 +1,3 @@
+tests:
+  optic.ir_camera_system.timer_settings:
+    type: unit
