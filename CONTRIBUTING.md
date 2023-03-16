@@ -44,7 +44,7 @@ Use the linear ID into the Pull Request title to link to the Linear issue.
 Follow these steps:
 
 - Test change on release branch prefixed with `release/`
-- Bump versions in the VERSION files ([main](main_board/app/VERSION) and [security](sec_board/app/VERSION))
+- Bump versions in the [VERSION file](VERSION)
 - Tag new versioned release using semver. As an example: `git tag -a v0.6.2 -m "Release v0.6.2 - Eager Elk RC3"`. Make
   sure to push the tags (`git push --follow-tags`). This will trigger CI to create a new release on GitHub.
 - Any modification to the release has to be done using a new Pull Request to `main`

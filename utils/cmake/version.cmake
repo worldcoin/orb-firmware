@@ -17,7 +17,7 @@ function(application_version app_version)
         message(STATUS "Not embedding commit hash in image version")
     endif()
 
-    file(READ ${CMAKE_CURRENT_SOURCE_DIR}/VERSION ver)
+    file(READ ${PROJECT_DIR}/VERSION ver)
 
     string(REGEX MATCH "VERSION_MAJOR=([0-9]*)" _ ${ver})
     set(PROJECT_VERSION_MAJOR ${CMAKE_MATCH_1})
