@@ -65,8 +65,9 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
     // check encoded data size < CAN_MAX_DLEN if message sent through CAN-FD
     if ((remote_addr & CAN_ADDR_IS_ISOTP) == 0 &&
         stream.bytes_written > CAN_MAX_DLEN) {
-        LOG_ERR("Encoded payload doesn't fit a CAN FD frame: %u",
-                which_payload);
+        LOG_ERR("Encoded payload (id %u, size %u) doesn't fit a CAN FD frame "
+                "(encoded sz %u)",
+                which_payload, size, stream.bytes_written);
         err_code = RET_ERROR_FORBIDDEN;
         goto free_on_error;
     }
