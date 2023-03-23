@@ -1,11 +1,7 @@
-if ORB_MCU_LIBRARIES_LIB
-
-menu "Orb drivers"
-source "../orb/drivers/Kconfig"
+menu "Device Drivers"
+rsource "drivers/Kconfig"
 endmenu
 
-menu "Orb libraries"
-source "../orb/lib/Kconfig"
+menu "Additional libraries"
+rsource "lib/Kconfig"
 endmenu
-
-endif

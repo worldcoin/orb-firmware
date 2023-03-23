@@ -1,0 +1,11 @@
+menuconfig SENSOR
+    bool "Sensor Drivers"
+    help
+        Include sensor drivers in system config
+
+if SENSOR
+
+rsource "vl53l1x/Kconfig"
+rsource "bu27030/Kconfig"
+
+endif

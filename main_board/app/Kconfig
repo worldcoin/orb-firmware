@@ -1,77 +1,63 @@
-mainmenu "Application configuration"
+menu "Main MCU Options"
 
 menu "Log levels"
-source "../orb/main_board/app/log_levels.Kconfig"
+rsource "log_levels.Kconfig"
 endmenu
 
-config ORB_PROTOBUF_DEFINITIONS_LIB
-    default y
-    bool "Orb Protobuf definitions"
-    depends on NANOPB
-
-# Shared libraries used on Orb
-config ORB_MCU_LIBRARIES_LIB
-    default y
-    bool "Orb shared components"
-
-# Convenience/Developer options
+comment "Developer options"
 
 config INSTA_BOOT
-    default n
     bool "Boot right away without waiting for a button press"
 
 config NO_JETSON_BOOT
-    default n
     bool "Do not boot the Jetson"
 
 config NO_SUPER_CAPS
-    default n
     bool "Do not turn on super capacitor charging"
 
 config MCU_DEVEL
-    default n
-    bool "Select all developer options"
+    bool "Enable all developer options"
     select INSTA_BOOT
     select NO_JETSON_BOOT
     select NO_SUPER_CAPS
 
-config APP_TESTS_ALL
-	default n
-	bool "Enable runtime dev tests"
-	select TEST_MIRRORS
-	select TEST_DFU
-	select TEST_OPERATOR_LEDS
-	select TEST_USER_LEDS
-	select TEST_FAN
+comment "Integration tests"
 
 config TEST_MIRRORS
-    default n
     bool "Test the mirrors control"
 
 config TEST_DFU
-	default n
-	bool "Test device firmware upgrade"
+    bool "Test device firmware upgrade"
 
 config TEST_OPERATOR_LEDS
-	default n
-	bool "Test operator LEDs"
+    bool "Test operator LEDs"
 
 config TEST_USER_LEDS
-	default n
-	bool "Test user/front LEDs"
-	help
-	  Tests all the user LED patterns. Visual inspection is needed to check
-	  for correct pattern implementation.
+    bool "Test user/front LEDs"
+    help
+      Tests all the user LED patterns. Visual inspection is needed to check
+      for correct pattern implementation.
 
 config TEST_IR_CAMERA_SYSTEM
-    default n
     bool "Test the IR camera system"
     help
       The IR/Camera test has to be verified using a scope
       or logic analyzer.
 
 config TEST_FAN
-	default n
-	bool "Test fan"
+    bool "Test fan"
 
+config APP_TESTS_ALL
+    bool "Enable all integration tests"
+    select TEST_MIRRORS
+    select TEST_DFU
+    select TEST_OPERATOR_LEDS
+    select TEST_USER_LEDS
+    select TEST_IR_CAMERA_SYSTEM
+    select TEST_FAN
+
+endmenu
+
+menu "Zephyr Options"
 source "Kconfig.zephyr"
+endmenu

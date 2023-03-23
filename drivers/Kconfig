@@ -1,7 +1,2 @@
-menu "Device Drivers"
-
-source "../orb/drivers/led_strip/Kconfig"
-source "../orb/drivers/vl53l1x/Kconfig"
-source "../orb/drivers/bu27030/Kconfig"
-
-endmenu
+rsource "led_strip/Kconfig"
+rsource "sensor/Kconfig"

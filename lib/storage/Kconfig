@@ -1,6 +1,9 @@
 config ORB_LIB_STORAGE
-    bool "Enable the storage lib"
+    bool "Storage library"
+
+if ORB_LIB_STORAGE
 
 config ORB_LIB_STORAGE_TESTS
-	bool "Include storage tests"
-	depends on ORB_LIB_STORAGE
+    bool "Include storage tests"
+
+endif

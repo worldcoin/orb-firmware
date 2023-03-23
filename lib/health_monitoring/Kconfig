@@ -1,2 +1,2 @@
 config ORB_LIB_HEALTH_MONITORING
-    bool "Enable device health monitoring"
+    bool "Health monitoring"

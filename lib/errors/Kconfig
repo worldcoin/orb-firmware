@@ -1,18 +1,21 @@
 config ORB_LIB_ERRORS
-    bool "Enable the custom Orb errors"
+    bool "Custom Orb errors library"
+
+if ORB_LIB_ERRORS
 
 config ORB_LIB_ERRORS_APP_ASSERT
-    default y
     bool "Use assertions"
+    default y
     help
         Enable assertions. Hard assertions are for fatal errors and make the system reset. Soft assertions are for recoverable errors.
 
 config ORB_LIB_ERRORS_TESTS
-	default n
-	bool "Provide fatal errors examples"
-	select TEST
-	select IRQ_OFFLOAD
-	select ASSERT
-	depends on ORB_LIB_ERRORS_APP_ASSERT
-	help
-		Allows for testing fatal errors and asserts
+    bool "Provide fatal errors examples"
+    select TEST
+    select IRQ_OFFLOAD
+    select ASSERT
+    depends on ORB_LIB_ERRORS_APP_ASSERT
+    help
+        Allows for testing fatal errors and assert
+
+endif

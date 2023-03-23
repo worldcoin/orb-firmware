@@ -1,5 +1,4 @@
 #include "log_backend_can.h"
-#include "can_messaging.h"
 #include "mcu_messaging.pb.h"
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_backend.h>

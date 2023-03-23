@@ -1,21 +1,22 @@
-config ORB_LIB_UART_MESSAGING
-	bool "Enable the UART messaging library"
-	select ORB_LIB_ERRORS
+menuconfig ORB_LIB_UART_MESSAGING
+    bool "UART messaging library"
+    select ORB_LIB_ERRORS
+
+if ORB_LIB_UART_MESSAGING
 
 config ORB_LIB_UART_RX_BUF_SIZE_BYTES
-	int "RX buffer size (power of 2)"
-	default 2048
-	depends on ORB_LIB_UART_MESSAGING
-	help
-		Least amount of bytes needed to receive the biggest message while some other bytes might be received in the
-		background. It is advised to allocate at least twice the size of the biggest UART message.
+    int "RX buffer size (power of 2)"
+    default 2048
+    help
+        Least amount of bytes needed to receive the biggest message while some other bytes might be received in the
+        background. It is advised to allocate at least twice the size of the biggest UART message.
 
 config ORB_LIB_THREAD_PRIORITY_UART_RX
-	int "UART RX thread priority"
-	default 5
-	depends on ORB_LIB_CAN_MESSAGING
+    int "UART RX thread priority"
+    default 5
 
 config ORB_LIB_THREAD_STACK_SIZE_UART_RX
-	int "Stack size for UART RX thread"
-	default 2048
-	depends on ORB_LIB_CAN_MESSAGING
+    int "Stack size for UART RX thread"
+    default 2048
+
+endif
