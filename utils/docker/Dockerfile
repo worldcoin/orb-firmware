@@ -42,6 +42,8 @@ RUN cd /tmp && \
 RUN apt-get update && apt-get install -y cmake
 
 RUN pip3 install \
+    junit2html \
+    junitparser \
     pre-commit \
     west
 
