@@ -91,11 +91,6 @@ PINCTRL_DT_DEFINE(DT_NODELABEL(adc3));
 ret_code_t
 liquid_set_target_current_ma(int32_t new_target_current)
 {
-    if (ir_camera_system_is_focus_sweep_in_progress()) {
-        LOG_ERR("Focus sweep in progress!");
-        return RET_ERROR_BUSY;
-    }
-
     atomic_set(&target_current,
                CLAMP(new_target_current, LIQUID_LENS_MIN_CURRENT_MA,
                      LIQUID_LENS_MAX_CURRENT_MA));

@@ -31,16 +31,16 @@ ir_camera_system_disable_ir_eye_camera(void);
 bool
 ir_camera_system_ir_eye_camera_is_enabled(void);
 
-void
+ret_code_t
 ir_camera_system_enable_ir_face_camera(void);
-void
+ret_code_t
 ir_camera_system_disable_ir_face_camera(void);
 bool
 ir_camera_system_ir_face_camera_is_enabled(void);
 
-void
+ret_code_t
 ir_camera_system_enable_2d_tof_camera(void);
-void
+ret_code_t
 ir_camera_system_disable_2d_tof_camera(void);
 bool
 ir_camera_system_2d_tof_camera_is_enabled(void);
@@ -57,10 +57,6 @@ ret_code_t
 ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength);
 InfraredLEDs_Wavelength
 ir_camera_system_get_enabled_leds(void);
-
-// 0 - 100%
-ret_code_t
-ir_camera_system_set_740nm_led_brightness(uint32_t percentage);
 
 /**
  * Set cameras' Frames-Per-Second value
@@ -155,9 +151,9 @@ ret_code_t
 ir_camera_system_perform_focus_sweep(void);
 
 /**
- * @return true is a focus sweep is in progress.
+ * @return true if ir camera system is busy.
  */
 bool
-ir_camera_system_is_focus_sweep_in_progress(void);
+ir_camera_system_is_busy(void);
 
 #endif // IR_CAMERA_SYSTEM
