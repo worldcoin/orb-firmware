@@ -242,11 +242,16 @@ gnss_init(void)
 #if CONFIG_TEST_GNSS
 #include <zephyr/ztest.h>
 
+#define TEST_MSG_MAX_LEN                                                       \
+    "$notavalidnmeamessagebutonlyshowingthatan82bytessentencecanbesentcorrect" \
+    "ly*wooow\r\n"
+BUILD_ASSERT(
+    sizeof(TEST_MSG_MAX_LEN) == (NMEA_MAX_SIZE + 1),
+    "Test string not of length equal to the maximum NMEA message size");
+
 ZTEST(hil, test_gnss_message)
 {
-    char *test_message_max_length =
-        "$notavalidnmeamessagebutonlyshowingthatan82bytessentencecanbesentcorre"
-        "ctly*wooow\r\n";
+    char *test_message_max_length = TEST_MSG_MAX_LEN;
 
     int ret = send_nmea_message(test_message_max_length);
     zassert_equal(ret, RET_SUCCESS);
