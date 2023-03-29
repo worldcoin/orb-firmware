@@ -118,6 +118,7 @@ list(APPEND SOURCES_FILES
     )
 
 if (CONFIG_ZTEST)
+    add_compile_definitions(HIL_TEST=y)
     list(APPEND SOURCES_FILES
         src/optics/ir_camera_system/ir_camera_system_tests.c
         src/optics/mirrors/mirrors_tests.c

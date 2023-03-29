@@ -1141,9 +1141,10 @@ static K_SEM_DEFINE(new_job_sem, 1, 1);
 static job_t new = {0};
 static McuMessage mcu_message;
 
-void
+ret_code_t
 runner_handle_new_can(void *msg)
 {
+    ret_code_t err_ret = RET_SUCCESS;
     can_message_t *can_msg = (can_message_t *)msg;
 
     pb_istream_t stream = pb_istream_from_buffer(can_msg->bytes, can_msg->size);
@@ -1155,7 +1156,7 @@ runner_handle_new_can(void *msg)
         if (decoded) {
             if (mcu_message.which_message != McuMessage_j_message_tag) {
                 LOG_INF("Got message not intended for us. Dropping.");
-                return;
+                return RET_ERROR_INVALID_ADDR;
             }
 
             new.remote = CAN_MESSAGING;
@@ -1173,15 +1174,22 @@ runner_handle_new_can(void *msg)
             }
 
             ret = k_msgq_put(&process_queue, &new, K_MSEC(5));
-            ASSERT_SOFT(ret);
+            if (ret) {
+                ASSERT_SOFT(ret);
+                err_ret = RET_ERROR_BUSY;
+            }
         } else {
             LOG_ERR("Unable to decode");
+            err_ret = RET_ERROR_INVALID_PARAM;
         }
 
         k_sem_give(&new_job_sem);
     } else {
         LOG_ERR("Handling busy (CAN): %d", ret);
+        err_ret = RET_ERROR_BUSY;
     }
+
+    return err_ret;
 }
 
 #if CONFIG_ORB_LIB_UART_MESSAGING

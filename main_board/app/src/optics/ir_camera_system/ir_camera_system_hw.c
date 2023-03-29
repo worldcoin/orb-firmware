@@ -270,6 +270,10 @@ evaluate_polynomial(uint32_t frame_no)
                                                           frame_no)))))));
 }
 
+#ifdef HIL_TEST
+K_SEM_DEFINE(camera_sweep_sem, 0, 1);
+#endif
+
 static void
 camera_sweep_isr(void *arg)
 {
@@ -284,6 +288,9 @@ camera_sweep_isr(void *arg)
         LOG_DBG("Focus sweep complete!");
         ir_camera_system_disable_ir_eye_camera_force();
         clear_focus_sweep_in_progress();
+#ifdef HIL_TEST
+        k_sem_give(&camera_sweep_sem);
+#endif
     } else {
         if (use_polynomial) {
             liquid_set_target_current_ma(

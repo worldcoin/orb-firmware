@@ -1,5 +1,8 @@
 #include "ir_camera_system.h"
 #include <app_config.h>
+#include <can_messaging.h>
+#include <pb_encode.h>
+#include <runner/runner.h>
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
@@ -289,6 +292,105 @@ static void (*tests[])(void) = {
     test_camera_triggers_and_leds_changing_fps,
     test_leds,
 };
+
+static void
+send_msg(McuMessage *msg)
+{
+    can_message_t to_send;
+    pb_ostream_t stream;
+    ret_code_t ret;
+    bool encoded_successfully;
+    uint8_t buffer[CAN_FRAME_MAX_SIZE] = {0};
+
+    stream = pb_ostream_from_buffer(buffer, sizeof buffer);
+    encoded_successfully =
+        pb_encode_ex(&stream, McuMessage_fields, msg, PB_ENCODE_DELIMITED);
+    zassert_true(encoded_successfully);
+
+    to_send.size = stream.bytes_written;
+    to_send.bytes = buffer;
+    to_send.destination = 0;
+
+    ret = runner_handle_new_can(&to_send);
+    zassert_equal(ret, RET_SUCCESS);
+}
+
+#define FOCUS_SWEEP_NUM_FRAMES 50
+#define FOCUS_SWEEP_FPS        30
+#define FOCUS_SWEEP_WAIT_TIME_MS                                               \
+    ((uint32_t)((((float)(FOCUS_SWEEP_NUM_FRAMES) / FOCUS_SWEEP_FPS) * 1000) + \
+                ((1.0f / (FOCUS_SWEEP_FPS)*2))))
+
+ZTEST(hil, test_ir_eye_camera_focus_sweep)
+{
+    McuMessage msg;
+
+    // Stop triggering IR eye camera message
+    msg = (McuMessage)McuMessage_init_zero;
+    msg.version = Version_VERSION_0;
+    msg.which_message = McuMessage_j_message_tag;
+    msg.message.j_message.ack_number = 0;
+    msg.message.j_message.which_payload =
+        JetsonToMcu_stop_triggering_ir_eye_camera_tag;
+
+    send_msg(&msg);
+
+    // Set FPS
+    msg = (McuMessage)McuMessage_init_zero;
+    msg.version = Version_VERSION_0;
+    msg.which_message = McuMessage_j_message_tag;
+    msg.message.j_message.ack_number = 0;
+    msg.message.j_message.which_payload = JetsonToMcu_fps_tag;
+    msg.message.j_message.payload.fps.fps = FOCUS_SWEEP_FPS;
+
+    send_msg(&msg);
+
+    // Set on-time
+    msg = (McuMessage)McuMessage_init_zero;
+    msg.version = Version_VERSION_0;
+    msg.which_message = McuMessage_j_message_tag;
+    msg.message.j_message.ack_number = 0;
+    msg.message.j_message.which_payload = JetsonToMcu_led_on_time_tag;
+    msg.message.j_message.payload.led_on_time.on_duration_us = 2500;
+
+    // Set focus sweep polynomial
+    msg = (McuMessage)McuMessage_init_zero;
+    msg.version = Version_VERSION_0;
+    msg.which_message = McuMessage_j_message_tag;
+    msg.message.j_message.ack_number = 0;
+    msg.message.j_message.which_payload =
+        JetsonToMcu_ir_eye_camera_focus_sweep_values_polynomial_tag;
+    msg.message.j_message.payload.ir_eye_camera_focus_sweep_values_polynomial =
+        (IREyeCameraFocusSweepValuesPolynomial){
+            .coef_a = -120.0f,
+            .coef_b = 4.5f,
+            .coef_c = 0.045f,
+            .coef_d = 0.00015f,
+            .coef_e = 0.0f,
+            .coef_f = 0.0f,
+            .number_of_frames = FOCUS_SWEEP_NUM_FRAMES,
+        };
+
+    send_msg(&msg);
+
+    // Perform focus sweep
+    msg = (McuMessage)McuMessage_init_zero;
+    msg.version = Version_VERSION_0;
+    msg.which_message = McuMessage_j_message_tag;
+    msg.message.j_message.ack_number = 0;
+    msg.message.j_message.which_payload =
+        JetsonToMcu_perform_ir_eye_camera_focus_sweep_tag;
+
+    extern struct k_sem camera_sweep_sem;
+
+    k_sem_reset(&camera_sweep_sem);
+
+    send_msg(&msg);
+
+    int ret = k_sem_take(&camera_sweep_sem, K_MSEC(FOCUS_SWEEP_WAIT_TIME_MS));
+    zassert_ok(ret, "Timed out! Waited for %ums", FOCUS_SWEEP_WAIT_TIME_MS);
+    zassert_false(ir_camera_system_is_busy());
+}
 
 ZTEST(hil, test_ir_camera_sys_logic_analyzer)
 {
