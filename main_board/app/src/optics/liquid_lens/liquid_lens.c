@@ -1,5 +1,4 @@
 #include "liquid_lens.h"
-#include "optics/ir_camera_system/ir_camera_system.h"
 #include <app_assert.h>
 #include <app_config.h>
 #include <stdlib.h>
@@ -91,9 +90,18 @@ PINCTRL_DT_DEFINE(DT_NODELABEL(adc3));
 ret_code_t
 liquid_set_target_current_ma(int32_t new_target_current)
 {
-    atomic_set(&target_current,
-               CLAMP(new_target_current, LIQUID_LENS_MIN_CURRENT_MA,
-                     LIQUID_LENS_MAX_CURRENT_MA));
+
+    int32_t clamped_target_current =
+        CLAMP(new_target_current, LIQUID_LENS_MIN_CURRENT_MA,
+              LIQUID_LENS_MAX_CURRENT_MA);
+
+    if (clamped_target_current != new_target_current) {
+        LOG_WRN("Clamp %" PRId32 "mA -> %" PRId32 "mA", new_target_current,
+                clamped_target_current);
+    }
+
+    LOG_DBG("Setting target current to %" PRId32 " mA", clamped_target_current);
+    atomic_set(&target_current, clamped_target_current);
 
     return RET_SUCCESS;
 }
