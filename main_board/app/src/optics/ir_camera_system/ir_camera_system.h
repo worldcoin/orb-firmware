@@ -151,9 +151,17 @@ ret_code_t
 ir_camera_system_perform_focus_sweep(void);
 
 /**
- * @return true if ir camera system is busy.
+ * Determine the state/status of the IR camera system.
+ *
+ * @return error code:
+ *  - RET_SUCCESS: IR camera system is initialized and is not performing an
+ * uninterruptable function.
+ *  - RET_ERROR_NOT_INITIALIZED: The IR camera system is not initialized and one
+ * needs to call `ir_camera_system_init()`.
+ *  - RET_ERROR_BUSY: Some uninterruptable function is in progress, like a focus
+ * sweep. Said function will terminate eventually.
  */
-bool
-ir_camera_system_is_busy(void);
+ret_code_t
+ir_camera_system_get_status(void);
 
 #endif // IR_CAMERA_SYSTEM

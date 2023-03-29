@@ -45,4 +45,6 @@
 #define LOG_ERR_IMM(...)
 #endif
 
+#define STATIC_OR_EXTERN static
+
 #endif // FIRMWARE_UTILS_H
