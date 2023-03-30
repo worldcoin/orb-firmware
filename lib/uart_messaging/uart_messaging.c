@@ -4,6 +4,7 @@
 #include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/pm/device.h>
 
 LOG_MODULE_REGISTER(uart_messaging, CONFIG_UART_MESSAGING_LOG_LEVEL);
 
@@ -64,8 +65,8 @@ rx_thread()
 /// \param evt rx data: buffer address, offset, length
 /// \param user_data unused
 static void
-uart_receive_callback(const struct device *dev, struct uart_event *evt,
-                      void *user_data)
+uart_event_callback(const struct device *dev, struct uart_event *evt,
+                    void *user_data)
 {
     UNUSED_PARAMETER(dev);
     UNUSED_PARAMETER(user_data);
@@ -157,6 +158,46 @@ uart_receive_callback(const struct device *dev, struct uart_event *evt,
     }
 }
 
+#ifdef CONFIG_PM
+int
+uart_messaging_suspend(void)
+{
+    int ret = RET_SUCCESS;
+
+    if (pm_device_is_busy(uart_dev)) {
+        ret = uart_rx_disable(uart_dev);
+        if (ret) {
+            ASSERT_SOFT(ret);
+            return RET_ERROR_INVALID_STATE;
+        }
+
+        pm_device_busy_clear(uart_dev);
+    }
+
+    return ret;
+}
+
+int
+uart_messaging_resume(void)
+{
+    int ret = RET_SUCCESS;
+
+    if (!pm_device_is_busy(uart_dev)) {
+        // no timeout, UART_RX_RDY as soon as uart reaches idle state
+        ret = uart_rx_enable(uart_dev, uart_rx_ring_buf,
+                             sizeof uart_rx_ring_buf, 0);
+        if (ret) {
+            ASSERT_SOFT(ret);
+            return RET_ERROR_INVALID_STATE;
+        }
+
+        pm_device_busy_set(uart_dev);
+    }
+
+    return ret;
+}
+#endif
+
 int
 uart_messaging_init(void (*in_handler)(void *msg))
 {
@@ -175,19 +216,20 @@ uart_messaging_init(void (*in_handler)(void *msg))
         return RET_ERROR_INVALID_STATE;
     }
 
-    int ret = uart_callback_set(uart_dev, uart_receive_callback, NULL);
+    int ret = uart_callback_set(uart_dev, uart_event_callback, NULL);
     if (ret) {
         ASSERT_SOFT(ret);
-        return ret;
+        return RET_ERROR_INTERNAL;
     }
 
-    // no timeout, UART_RX_RDY as soon as uart reaches idle state
+#ifndef CONFIG_PM
     ret =
         uart_rx_enable(uart_dev, uart_rx_ring_buf, sizeof uart_rx_ring_buf, 0);
     if (ret) {
         ASSERT_SOFT(ret);
-        return RET_ERROR_INVALID_STATE;
+        return RET_ERROR_INTERNAL;
     }
+#endif
 
     k_tid_t tid = k_thread_create(
         &rx_thread_data, rx_thread_stack,

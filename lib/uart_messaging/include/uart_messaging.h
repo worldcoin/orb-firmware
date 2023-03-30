@@ -17,6 +17,29 @@ typedef struct {
     size_t length;              //!< payload length
 } uart_message_t;
 
+#ifdef CONFIG_PM
+/**
+ * @brief Suspend UART messaging
+ * For low power modes, the UART messaging module can be suspended.
+ *
+ * @retval RET_SUCCESS
+ * @retval RET_ERROR_INVALID_STATE
+ */
+int
+uart_messaging_suspend(void);
+
+/**
+ * @brief Resume UART messaging
+ * Resume UART messaging after a suspend to bring back UART messaging to normal
+ * operation after it has been suspended.
+ *
+ * @retval RET_SUCCESS
+ * @retval RET_ERROR_INVALID_STATE
+ */
+int
+uart_messaging_resume(void);
+#endif
+
 /// Init UART message module
 /// Pass a function to handle incoming messages
 /// \param in_handler Function that will handle incoming messages
