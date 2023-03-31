@@ -20,7 +20,7 @@ LOG_MODULE_REGISTER(gnss, CONFIG_GNSS_LOG_LEVEL);
 
 static const struct device *uart_dev = DEVICE_DT_GET(GNSS_CTRL);
 
-static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_GNSS);
+K_THREAD_STACK_DEFINE(gnss_stack_area, THREAD_STACK_SIZE_GNSS);
 static struct k_thread gnss_thread_data;
 
 static uint8_t uart_buffer1[NMEA_MAX_SIZE * 2];
@@ -225,9 +225,10 @@ gnss_init(void)
         return RET_ERROR_INVALID_STATE;
     }
 
-    k_thread_create(&gnss_thread_data, stack_area,
-                    K_THREAD_STACK_SIZEOF(stack_area), gnss_thread_entry_point,
-                    NULL, NULL, NULL, THREAD_PRIORITY_GNSS, 0, K_NO_WAIT);
+    k_thread_create(&gnss_thread_data, gnss_stack_area,
+                    K_THREAD_STACK_SIZEOF(gnss_stack_area),
+                    gnss_thread_entry_point, NULL, NULL, NULL,
+                    THREAD_PRIORITY_GNSS, 0, K_NO_WAIT);
     k_thread_name_set(&gnss_thread_data, "gnss");
 
     ret = uart_rx_enable(uart_dev, uart_buffer1, sizeof uart_buffer1, 1000);

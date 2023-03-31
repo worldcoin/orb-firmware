@@ -7,7 +7,7 @@ LOG_MODULE_REGISTER(heartbeat, CONFIG_HEARTBEAT_LOG_LEVEL);
 
 #define THREAD_PRIORITY_HEARTBEAT   8
 #define THREAD_STACK_SIZE_HEARTBEAT 512
-static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_HEARTBEAT);
+K_THREAD_STACK_DEFINE(heartbeat_stack_area, THREAD_STACK_SIZE_HEARTBEAT);
 static struct k_thread health_monitoring_thread_data;
 static k_tid_t thread_id;
 
@@ -52,9 +52,9 @@ heartbeat_boom(uint32_t delay_s)
 
     if (thread_id == NULL && global_delay_s != 0) {
         k_tid_t tid = k_thread_create(
-            &health_monitoring_thread_data, stack_area,
-            K_THREAD_STACK_SIZEOF(stack_area), thread_entry_point, NULL, NULL,
-            NULL, THREAD_PRIORITY_HEARTBEAT, 0, K_NO_WAIT);
+            &health_monitoring_thread_data, heartbeat_stack_area,
+            K_THREAD_STACK_SIZEOF(heartbeat_stack_area), thread_entry_point,
+            NULL, NULL, NULL, THREAD_PRIORITY_HEARTBEAT, 0, K_NO_WAIT);
         k_thread_name_set(tid, "heartbeat");
 
         // make sure timeout handler is initialized
