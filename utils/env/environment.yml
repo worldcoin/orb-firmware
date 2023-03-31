@@ -24,6 +24,7 @@ dependencies:
       - pyserial
       - pyocd
       - crc16
+      - -r ../test/requirements.txt
       - -r ../../../bootloader/mcuboot/scripts/requirements.txt
       - -r ../../../zephyr/scripts/requirements.txt
 variables:
