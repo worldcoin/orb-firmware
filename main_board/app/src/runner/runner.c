@@ -1237,6 +1237,17 @@ void
 runner_handle_new_uart(void *msg)
 {
     int ret = k_sem_take(&new_job_sem, K_MSEC(2));
+
+#ifdef CONFIG_MCU_UTIL_UART_TESTS
+    static size_t counter = 0;
+    counter++;
+    if (counter == 100) {
+        counter = 0;
+        // some Easter egg to test the communication over UART
+        LOG_WRN("My heart is beating");
+    }
+#endif
+
     if (ret == 0) {
         uart_msg = (uart_message_t *)msg;
         pb_istream_t stream = pb_istream_from_buffer(

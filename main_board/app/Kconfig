@@ -60,6 +60,13 @@ config APP_TESTS_ALL
     select TEST_FAN
     select TEST_GNSS
 
+config MCU_UTIL_UART_TESTS
+	bool "Send specific string in logs when testing UART with mcu_util"
+	help
+	  UART communication is unidirectional and doesn't allow
+	  to respond to the Jetson. Use the log to print out a string
+	  that can be used to verify the UART communication.
+
 endmenu
 
 menu "Zephyr Options"
