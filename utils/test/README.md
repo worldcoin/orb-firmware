@@ -23,3 +23,9 @@ A few consideration to take into account:
 - In order to test that UART messages are received, a log message is sent from the MCU to the Jetson over CAN.
   This feature is optional so make sure to compile with `CONFIG_MCU_UTIL_UART_TESTS=y`.
 - SSH is performed with user `worldcoin`
+
+## Install the automated test program
+
+```shell
+setup.py install
+```

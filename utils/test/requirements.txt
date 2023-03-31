@@ -1,3 +1,4 @@
 fabric2==3.0.0
+matplotlib==3.7.1
 ppk2-api==0.9.1
 pyftdi==0.54.0
