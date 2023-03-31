@@ -1,1 +1,3 @@
-fabric2
+fabric2==3.0.0
+ppk2-api==0.9.1
+pyftdi==0.54.0
