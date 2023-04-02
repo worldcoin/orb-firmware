@@ -7,12 +7,13 @@ import remote.remote as remote
 
 URL = 'ftdi://ftdi:232:B0001FLO/1'
 IP = '192.168.1.143'
+JETSON_BOOT_WAIT_TIME_S = 60
 
 
 def wait_loading_bar(seconds):
     for i in range(seconds):
         time.sleep(1)
-        print("\r{:.0f}%".format(i / seconds * 100), end="️")
+        print("\r{:.0f}%".format(i / seconds * 100), end='')
     print("\n")
 
 
@@ -35,40 +36,60 @@ def main():
     gpio = None
     smu = None
     jetson = None
+
     try:
+        # This disconnects the battery
+        print("Attempting to connect to the GPIO controller.")
         gpio = ftdi_gpio.FtdiGpio(args.ftdi)
+        print("Connected successfully.")
+        print("* NOTE: the battery has been disconnect by connecting to the GPIO controller.")
+        print("* NOTE: although the battery was disconnected, the super caps may be charged and thus may have prevented the board from losing power.")
+        time.sleep(2)
     except Exception as e:
-        print("❌ Error connecting to FTDI: {}".format(e))
+        print(f"❌ Error connecting to FTDI: {e}")
 
     # turn on the Orb if FTDI is connected
     # otherwise, consider the Orb as powered on
     if gpio is not None:
+        print("Connecting battery.")
         gpio.connect_battery()
+        print("Pressing button.")
+        gpio.connect_battery()
+        print(f"Waiting {JETSON_BOOT_WAIT_TIME_S} seconds for Jetson to boot.")
         gpio.button_turn_on()
-        wait_loading_bar(60)
+        wait_loading_bar(JETSON_BOOT_WAIT_TIME_S)
+        print("Done waiting.")
     else:
         print("⚠️ No FTDI GPIO found, cannot turn on the Orb. Considering the Orb as powered on.")
 
+
     try:
+        print(f"Attempting to SSH into the Jetson at {args.ip}.")
         jetson = remote.Remote(args.ip)
-        jetson = None
+        print("Connected successfully.")
     except Exception as e:
-        print("❌ Error connecting to Jetson: {}".format(e))
+        print(f"❌ Error connecting to Jetson: {e}.")
+        return 1
 
     # stress test communication between Jetson and microcontrollers
-    if jetson is not None:
-        jetson.stress_test("main")
-        jetson.stress_test("security")
-        jetson.info()
+    print("Beginning stress test of main MCU.")
+    jetson.stress_test("main")
+    print("Done stress testing main MCU.")
+    print("Beginning stress test of security MCU.")
+    jetson.stress_test("security")
+    print("Done stress testing security MCU.")
+    jetson.info()
 
     try:
+        print("Attempting to connect to the power profiler.")
         smu = power.PowerProfiler()
+        print("Connected successfully.")
     except Exception as e:
         print("⚠️ Error connecting to source-measurement unit: {}".format(e))
+        return 1
 
     # turn on the DUT if SMU is connected
-    if smu is not None:
-        smu.dut_power_on()
+    smu.dut_power_on()
 
     # turn off the Orb if FTDI is connected
     # otherwise, ask the user to manually turn off the Orb
