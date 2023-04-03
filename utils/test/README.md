@@ -24,8 +24,6 @@ A few consideration to take into account:
   This feature is optional so make sure to compile with `CONFIG_MCU_UTIL_UART_TESTS=y`.
 - SSH is performed with user `worldcoin`
 
-## Install the automated test program
-
 ```shell
-setup.py install
+python3 main.py [--ftdi=...] [--ip=...]
 ```
