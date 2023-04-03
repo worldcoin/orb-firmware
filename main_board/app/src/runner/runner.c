@@ -1241,7 +1241,7 @@ runner_handle_new_uart(void *msg)
 #ifdef CONFIG_MCU_UTIL_UART_TESTS
     static size_t counter = 0;
     counter++;
-    if (counter == 100) {
+    if (counter == 500) {
         counter = 0;
         // some Easter egg to test the communication over UART
         LOG_WRN("My heart is beating");
