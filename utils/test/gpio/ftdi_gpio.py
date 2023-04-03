@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import time
+
 from pyftdi.gpio import GpioAsyncController
+
 
 # Structure to keep track of the state of the GPIO pins for the Orb
 class FtdiGpio:
@@ -24,38 +26,42 @@ class FtdiGpio:
         self.controller.write(self.gpio)
         time.sleep(1)
 
-    def button_turn_on(self):
-        if self.gpio & (1 << self.MainBatteryBit) > 0:
-            raise Exception("Cannot press button without battery connected")
-
-        # press button for 2 seconds
+    def button_turn_on(self, hold_time=2.0):
         self.gpio &= ~(1 << self.ButtonBit)
         self.controller.write(self.gpio)
-        time.sleep(2.0)
+        time.sleep(hold_time)
         self.gpio |= (1 << self.ButtonBit)
         self.controller.write(self.gpio)
 
-    def button_turn_off(self):
-        if self.gpio & (1 << self.MainBatteryBit) > 0:
-            raise Exception("Cannot press button without battery connected")
-
+    def button_turn_off(self, hold_time=20.0):
         # press button for 15 seconds
         self.gpio &= ~(1 << self.ButtonBit)
         self.controller.write(self.gpio)
-        time.sleep(15.0)
+        time.sleep(hold_time)
         self.gpio |= (1 << self.ButtonBit)
         self.controller.write(self.gpio)
+
 
 def main():
     import argparse
     URL = 'ftdi://ftdi:232:B0001FLO/1'
-    p = argparse.ArgumentParser(description=f"Connects to the GPIO controller at {URL} by default and resets all lines, optionally followed by an additional action. This should diconnect the battery, though the supercaps may continue to provide power for some time.")
+    p = argparse.ArgumentParser(
+        description=f"Connects to the GPIO controller at {URL} by default and resets all lines, optionally followed by "
+                    f"an additional action. This should diconnect the battery, though the supercaps may continue to "
+                    f"provide power for some time.")
     p.add_argument("-f", "--ftdi", help="FTDI URL", default=URL)
-    p.add_argument("-a", "--action", choices=["reset", "turn-on"], default="reset", help="Action to perform. Defaults to reset.")
+    p.add_argument("-a", "--action", choices=["on", "off", "reset"], default="reset",
+                   help="Action to perform. Defaults to reset.")
     args = p.parse_args()
     gpio = FtdiGpio(args.ftdi)
-    if args.action == "turn-on":
+    if args.action == "on":
         gpio.connect_battery()
+        gpio.button_turn_on()
+    elif args.action == "off":
+        gpio.button_turn_off()
+        gpio.disconnect_battery()
+    elif args.action == "reset":
+        gpio.button_turn_off()
         gpio.button_turn_on()
 
 

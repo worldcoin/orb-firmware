@@ -3,6 +3,7 @@ from ppk2_api.ppk2_api import PPK2_API, PPK2_MP
 # Constants
 VOLTAGE = 3.7
 
+
 class PowerProfiler:
     def __init__(self):
         self.samples = []
@@ -14,7 +15,10 @@ class PowerProfiler:
             self.ppk.set_source_voltage(VOLTAGE * 1000)
             self.ppk.use_source_meter()
         else:
-            raise Exception(f'Too many connected PPK2\'s: {ppk2s_connected}')
+            raise Exception(f'Expected 1 PPK2 to be connected, found {len(ppk2s_connected)}: {ppk2s_connected}')
+
+    def __del__(self):
+        self.ppk = None
 
     def dut_power_on(self):
         self.ppk.toggle_DUT_power("ON")
