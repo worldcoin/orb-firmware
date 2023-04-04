@@ -28,6 +28,13 @@ static uint8_t uart_buffer2[sizeof uart_buffer1];
 
 K_MSGQ_DEFINE(uart_chars_q, 1, (sizeof uart_buffer1) * 2, 1);
 
+/**
+ * @brief Callback for UART RX events
+ * ⚡️ This might be called from an ISR
+ * @param dev
+ * @param evt
+ * @param user_data
+ */
 static void
 uart_receive_callback(const struct device *dev, struct uart_event *evt,
                       void *user_data)
@@ -48,9 +55,7 @@ uart_receive_callback(const struct device *dev, struct uart_event *evt,
             ret = k_msgq_put(&uart_chars_q,
                              evt->data.rx.buf + evt->data.rx.offset + i,
                              K_NO_WAIT);
-            if (ret) {
-                LOG_ERR("Not consuming fast enough!");
-            }
+            ASSERT_SOFT(ret);
         }
         break;
     case UART_RX_BUF_RELEASED:
@@ -58,9 +63,7 @@ uart_receive_callback(const struct device *dev, struct uart_event *evt,
         break;
     case UART_TX_DONE:
     case UART_TX_ABORTED:
-        break;
     default:
-        LOG_ERR("Unhandled event %d", evt->type);
         break;
     };
 }
@@ -231,7 +234,7 @@ gnss_init(void)
                     THREAD_PRIORITY_GNSS, 0, K_NO_WAIT);
     k_thread_name_set(&gnss_thread_data, "gnss");
 
-    ret = uart_rx_enable(uart_dev, uart_buffer1, sizeof uart_buffer1, 1000);
+    ret = uart_rx_enable(uart_dev, uart_buffer1, sizeof uart_buffer1, 0);
     if (ret) {
         ASSERT_SOFT(ret);
         return RET_ERROR_INVALID_STATE;

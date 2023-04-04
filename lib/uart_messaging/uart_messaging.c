@@ -122,9 +122,7 @@ uart_event_callback(const struct device *dev, struct uart_event *evt,
                 message.length = payload_size;
 
                 ret = k_msgq_put(&uart_recv_queue, &message, K_NO_WAIT);
-                if (ret) {
-                    LOG_ERR("rx queue err %d", ret);
-                }
+                ASSERT_SOFT(ret);
 
                 read_index =
                     (read_index + message.length + UART_MESSAGE_HEADER_SIZE) %
@@ -151,9 +149,7 @@ uart_event_callback(const struct device *dev, struct uart_event *evt,
     } break;
     case UART_RX_BUF_RELEASED:
     case UART_RX_BUF_REQUEST:
-        break;
     default:
-        LOG_ERR("Unhandled event %d", evt->type);
         break;
     }
 }
