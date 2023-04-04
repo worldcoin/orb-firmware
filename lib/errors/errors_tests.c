@@ -1,4 +1,3 @@
-#include "app_assert.h"
 #include "watchdog.h"
 #include <zephyr/logging/log.h>
 #include <zephyr/random/rand32.h>
@@ -95,6 +94,7 @@ fatal_errors_test(void)
     uint32_t sub_type = sys_rand32_get() % TEST_ERROR_CASE_COUNT;
 
     printk("Triggering error: %u/%u\n", sub_type, TEST_ERROR_CASE_COUNT);
+    k_msleep(100);
 
     switch (sub_type) {
     case FATAL_ACCESS:
