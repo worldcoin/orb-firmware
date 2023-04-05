@@ -2,6 +2,7 @@
 #include <app_assert.h>
 #include <assert.h>
 #include <pb_encode.h>
+#include <utils.h>
 #include <zephyr/drivers/can.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -87,6 +88,7 @@ process_tx_messages_thread()
         // and wait for next tx message in the next loop
         ret = k_sem_take(&tx_sem, K_MSEC(5000));
         if (ret != 0) {
+            LOG_ERR("tx isotp semaphore error: %i", ret);
             k_sem_give(&tx_sem);
             continue;
         }
@@ -195,17 +197,20 @@ canbus_tx_init(void)
         k_thread_name_set(&can_tx_thread_data, "can_tx");
     }
 
-    // this function might be called while threads are running
-    // make sure the thread is waiting for a new message
-    // while the queue is purged
+    // this function might be called while threads are running,
+    // and we don't want to have other, higher priority, threads
+    // woken up while we are reinitializing the semaphore, queue & mem_slab,
+    // so we create a critical section to make these operations atomic
+    CRITICAL_SECTION_ENTER(k);
     k_msgq_purge(&can_tx_msg_queue);
+    k_sem_give(&tx_sem);
     ret = k_mem_slab_init(&can_tx_memory_slab, can_tx_memory_slab_buffer,
                           CAN_FRAME_MAX_SIZE,
                           CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE);
-    ASSERT_SOFT(ret);
-
-    k_sem_give(&tx_sem);
     is_init = true;
+    CRITICAL_SECTION_EXIT(k);
+
+    ASSERT_SOFT(ret);
 
     return RET_SUCCESS;
 }
