@@ -14,9 +14,9 @@ static const struct device *can_dev =
 
 static void
 process_tx_messages_thread();
-K_THREAD_DEFINE(can_isotp_tx, CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX,
-                process_tx_messages_thread, NULL, NULL, NULL,
-                CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0, 0);
+static K_THREAD_STACK_DEFINE(can_tx_isotp_stack_area,
+                             CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX);
+static struct k_thread can_tx_isotp_thread_data;
 
 #define QUEUE_ALIGN 4
 BUILD_ASSERT(QUEUE_ALIGN % 2 == 0, "QUEUE_ALIGN must be a multiple of 2");
@@ -63,6 +63,7 @@ process_tx_messages_thread()
         .std_id = 0, .ide = 0, .use_ext_addr = 0};
     struct isotp_msg_id mcu_to_jetson_src_addr = {
         .std_id = 0, .ide = 0, .use_ext_addr = 0};
+    int ret;
 
     while (1) {
         // set `is_init` flag if not
@@ -70,13 +71,19 @@ process_tx_messages_thread()
         atomic_set(is_init, 1);
 
         // wait for semaphore to be released when TX done
-        k_sem_take(&tx_sem, K_FOREVER);
+        // if tx not done within 5s, consider it as failure
+        // and wait for next tx message in the next loop
+        ret = k_sem_take(&tx_sem, K_MSEC(5000));
+        if (ret != 0) {
+            k_sem_give(&tx_sem);
+            continue;
+        }
 
         // wait for new message to be queued
         // if queue is purged during init, k_msgq_get will return with error
         // (-ENOMSG = -35), so we use the `is_init` flag to make sure we don't
         // log foreseen error
-        int ret = k_msgq_get(&isotp_tx_msg_queue, &new, K_FOREVER);
+        ret = k_msgq_get(&isotp_tx_msg_queue, &new, K_FOREVER);
         if (ret != 0 && atomic_get(is_init) != 0) {
             LOG_ERR("msg queue error: %i", ret);
             k_sem_give(&tx_sem);
@@ -147,6 +154,10 @@ can_isotp_messaging_async_tx(const can_message_t *message)
 ret_code_t
 canbus_isotp_tx_init(void)
 {
+    // keep a pointer to the thread data as a flag to know if the thread is
+    // initialized
+    static k_tid_t tid = NULL;
+
     atomic_clear(is_init);
 
     if (!can_dev) {
@@ -154,13 +165,22 @@ canbus_isotp_tx_init(void)
         return RET_ERROR_NOT_FOUND;
     }
 
+    if (tid == NULL) {
+        tid = k_thread_create(
+            &can_tx_isotp_thread_data, can_tx_isotp_stack_area,
+            K_THREAD_STACK_SIZEOF(can_tx_isotp_stack_area),
+            process_tx_messages_thread, NULL, NULL, NULL,
+            CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0, K_NO_WAIT);
+        k_thread_name_set(&can_tx_isotp_thread_data, "can_tx_isotp");
+    }
+
     // this function might be called while threads are running
-    // so purge before resetting the semaphore to make sure tx thread
-    // blocks on the empty queue once the semaphore is freed
+    // make sure the thread is waiting for a new message
+    // while the queue is purged
+    k_sem_give(&tx_sem);
     k_msgq_purge(&isotp_tx_msg_queue);
     k_heap_init(&can_tx_isotp_memory_heap, can_tx_isotp_memory_heap_buffer,
                 sizeof(can_tx_isotp_memory_heap_buffer));
-    k_sem_init(&tx_sem, 1, 1);
 
     return RET_SUCCESS;
 }

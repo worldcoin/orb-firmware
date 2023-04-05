@@ -13,9 +13,9 @@ static const struct device *can_dev =
 
 static void
 process_tx_messages_thread();
-K_THREAD_DEFINE(can_tx, CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX,
-                process_tx_messages_thread, NULL, NULL, NULL,
-                CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0, 0);
+static K_THREAD_STACK_DEFINE(can_tx_stack_area,
+                             CONFIG_ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX);
+static struct k_thread can_tx_thread_data;
 
 #define QUEUE_ALIGN 4
 BUILD_ASSERT(QUEUE_ALIGN % 2 == 0, "QUEUE_ALIGN must be a multiple of 2");
@@ -84,6 +84,7 @@ process_tx_messages_thread()
     while (1) {
         // wait for semaphore to be released when TX done
         // if tx not done within 5s, consider it as failure
+        // and wait for next tx message in the next loop
         ret = k_sem_take(&tx_sem, K_MSEC(5000));
         if (ret != 0) {
             k_sem_give(&tx_sem);
@@ -174,6 +175,10 @@ can_messaging_blocking_tx(const can_message_t *message)
 ret_code_t
 canbus_tx_init(void)
 {
+    // keep a pointer to the thread data as a flag to know if the thread is
+    // initialized
+    static k_tid_t tid = NULL;
+
     int ret;
 
     if (!can_dev) {
@@ -181,17 +186,25 @@ canbus_tx_init(void)
         return RET_ERROR_NOT_FOUND;
     }
 
+    if (tid == NULL) {
+        tid = k_thread_create(&can_tx_thread_data, can_tx_stack_area,
+                              K_THREAD_STACK_SIZEOF(can_tx_stack_area),
+                              process_tx_messages_thread, NULL, NULL, NULL,
+                              CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0,
+                              K_NO_WAIT);
+        k_thread_name_set(&can_tx_thread_data, "can_tx");
+    }
+
     // this function might be called while threads are running
-    // so purge before resetting the semaphore to make sure tx thread
-    // blocks on the empty queue once the semaphore is freed
+    // make sure the thread is waiting for a new message
+    // while the queue is purged
     k_msgq_purge(&can_tx_msg_queue);
     ret = k_mem_slab_init(&can_tx_memory_slab, can_tx_memory_slab_buffer,
                           CAN_FRAME_MAX_SIZE,
                           CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE);
     ASSERT_SOFT(ret);
-    ret = k_sem_init(&tx_sem, 1, 1);
-    ASSERT_SOFT(ret);
 
+    k_sem_give(&tx_sem);
     is_init = true;
 
     return RET_SUCCESS;
