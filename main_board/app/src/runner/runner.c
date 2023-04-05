@@ -28,6 +28,9 @@ static K_THREAD_STACK_DEFINE(auto_homing_stack, 600);
 static struct k_thread auto_homing_thread;
 static k_tid_t auto_homing_tid = NULL;
 
+K_THREAD_STACK_DEFINE(runner_process_stack, THREAD_STACK_SIZE_RUNNER);
+static struct k_thread runner_process;
+
 #define MAKE_ASSERTS(tag) ASSERT_SOFT_BOOL(msg->which_payload == tag)
 
 static uint32_t job_counter = 0;
@@ -1279,5 +1282,11 @@ runner_handle_new_uart(void *msg)
 }
 #endif
 
-K_THREAD_DEFINE(runner, THREAD_STACK_SIZE_RUNNER, runner_process_jobs_thread,
-                NULL, NULL, NULL, THREAD_PRIORITY_RUNNER, 0, 0);
+void
+runner_init(void)
+{
+    k_thread_create(&runner_process, runner_process_stack,
+                    K_THREAD_STACK_SIZEOF(runner_process_stack),
+                    runner_process_jobs_thread, NULL, NULL, NULL,
+                    THREAD_PRIORITY_RUNNER, 0, K_NO_WAIT);
+}

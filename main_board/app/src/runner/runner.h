@@ -21,4 +21,8 @@ void
 runner_handle_new_uart(void *msg);
 #endif
 
+/// Spawn runner thread
+void
+runner_init(void);
+
 #endif // RUNNER_H

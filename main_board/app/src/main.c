@@ -168,8 +168,8 @@ initialize(void)
     err_code = storage_init();
     ASSERT_SOFT(err_code);
 
-    err_code = logs_init();
-    ASSERT_SOFT(err_code);
+    // initialize runner before communication modules
+    runner_init();
 
     app_assert_init(app_assert_cb);
 
@@ -187,6 +187,10 @@ initialize(void)
     err_code = uart_messaging_init(runner_handle_new_uart);
     ASSERT_SOFT(err_code);
 #endif
+
+    // logs over CAN must be initialized after CAN-messaging module
+    err_code = logs_init();
+    ASSERT_SOFT(err_code);
 
     // check battery state early on
     err_code = battery_init();
