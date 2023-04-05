@@ -74,14 +74,16 @@ process_tx_messages_thread()
 
         // wait for new message to be queued
         // if queue is purged during init, k_msgq_get will return with error
-        // (-35), so we use the `is_init` flag to make sure we don't log
-        // foreseen error
+        // (-ENOMSG = -35), so we use the `is_init` flag to make sure we don't
+        // log foreseen error
         int ret = k_msgq_get(&isotp_tx_msg_queue, &new, K_FOREVER);
         if (ret != 0 && atomic_get(is_init) != 0) {
             LOG_ERR("msg queue error: %i", ret);
+            k_sem_give(&tx_sem);
             continue;
         } else if (atomic_get(is_init) == 0) {
             // queue as been purged, loop back without going further
+            k_sem_give(&tx_sem);
             continue;
         }
 
