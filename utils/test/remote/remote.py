@@ -17,7 +17,7 @@ class Remote:
     def stress_test(self, mcu):
         t = threading.Thread(target=self.mcu_util_stress, args=(mcu,))
         t.start()
-        uart_test_status = False or mcu == "security"  # skip uart test for security mcu
+        uart_test_status = False
         result = self.conn.run("/mnt/ssd/mcu_util dump --duration 60 {}".format(mcu), hide=True, warn=True, pty=True,
                                echo=False)
         print_line_count = 0
