@@ -64,8 +64,11 @@ config MCU_UTIL_UART_TESTS
 	bool "Send specific string in logs when testing UART with mcu_util"
 	help
 	  UART communication is unidirectional and doesn't allow
-	  to respond to the Jetson. Use the log to print out a string
-	  that can be used to verify the UART communication.
+	  the MCU to respond to the Jetson. To allow the Jetson to confirm
+	  that the MCU is receiving its UART messages, this option configures
+	  the MCU to emit a special log message when it successfully receives UART
+	  communications from the Jetson. The Jetson can then look for this special
+	  log message to confirm the UART channel to the MCU is working.
 
 endmenu
 
