@@ -19,10 +19,10 @@ tests.
 
 A few consideration to take into account:
 
-- `mcu_util` path is hardcoded at `/mnt/ssd/mcu_util`, make sure to copy the `mcu_util v0.5.0` at this location.
+- The `mcu_util` path is hard-coded at `/mnt/ssd/mcu_util`, so make sure to copy the `mcu_util v0.5.0` binary to this location.
 - In order to test that UART messages are received, a log message is sent from the MCU to the Jetson over CAN.
-  This feature is optional so make sure to compile with `CONFIG_MCU_UTIL_UART_TESTS=y`.
-- SSH is performed with user `worldcoin`
+  This feature of the MCU is optional, so make sure to compile the MCU code with `CONFIG_MCU_UTIL_UART_TESTS=y`.
+- SSH is performed with user `worldcoin`.
 
 ```shell
 python3 main.py [--ftdi=...] [--ip=...]
