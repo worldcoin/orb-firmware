@@ -389,7 +389,7 @@ ZTEST(hil, test_ir_eye_camera_focus_sweep)
 
     int ret = k_sem_take(&camera_sweep_sem, K_MSEC(FOCUS_SWEEP_WAIT_TIME_MS));
     zassert_ok(ret, "Timed out! Waited for %ums", FOCUS_SWEEP_WAIT_TIME_MS);
-    zassert_false(ir_camera_system_is_busy());
+    zassert_equal(ir_camera_system_get_status(), RET_SUCCESS);
 }
 
 ZTEST(hil, test_ir_camera_sys_logic_analyzer)
