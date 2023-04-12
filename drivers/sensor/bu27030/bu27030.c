@@ -129,6 +129,12 @@ bu27030_channel_get(const struct device *dev, enum sensor_channel chan,
         return -ERANGE;
     }
 
+    // Prevent divide by zero
+    if (drv_data->data0 == 0) {
+        LOG_WRN("Value at zero, consider increasing the gain");
+        return -ERANGE;
+    }
+
     // scale value as if it were measured using x256 gain and 100ms period
     uint32_t data0 =
         drv_data->data0 * (DATA_TRANSFER_COEF / SENSOR_MEAS_MODE / SENSOR_GAIN);
