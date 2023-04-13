@@ -136,7 +136,7 @@ ir_camera_system_set_polynomial_coefficients_for_focus_sweep(
  * While the sweep is running, several things are not allowed:
  * 1. The FPS may not be changed.
  * 2. The liquid lens focus value may not be changed.
- * 3. Wavelegnths may not be enabled/disabled.
+ * 3. Wavelengths may not be enabled/disabled.
  * 4. The IR eye camera may not be enabled/disabled.
  *
  * This function is asynchronous and returns immediately.
@@ -155,10 +155,10 @@ ir_camera_system_perform_focus_sweep(void);
  *
  * @return error code:
  *  - RET_SUCCESS: IR camera system is initialized and is not performing an
- * uninterruptable function.
+ * uninterruptible function.
  *  - RET_ERROR_NOT_INITIALIZED: The IR camera system is not initialized and one
  * needs to call `ir_camera_system_init()`.
- *  - RET_ERROR_BUSY: Some uninterruptable function is in progress, like a focus
+ *  - RET_ERROR_BUSY: Some uninterruptible function is in progress, like a focus
  * sweep. Said function will terminate eventually.
  */
 ret_code_t
