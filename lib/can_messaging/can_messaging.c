@@ -85,7 +85,7 @@ can_messaging_reset_async(void)
 }
 
 ret_code_t
-can_messaging_init(void (*in_handler)(void *msg))
+can_messaging_init(ret_code_t (*in_handler)(void *message))
 {
     uint32_t err_code;
 

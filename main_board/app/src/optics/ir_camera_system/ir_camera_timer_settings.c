@@ -1,5 +1,4 @@
 #include "ir_camera_timer_settings.h"
-#include "zephyr/kernel.h"
 #include <utils.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>

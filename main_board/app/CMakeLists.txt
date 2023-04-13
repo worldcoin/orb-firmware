@@ -90,6 +90,7 @@ list(APPEND SOURCES_FILES
 
     src/optics/1d_tof/tof_1d.c
     src/optics/ir_camera_system/ir_camera_timer_settings.c
+    src/optics/ir_camera_system/ir_camera_system_hw.c
     src/optics/ir_camera_system/ir_camera_system.c
     src/optics/liquid_lens/liquid_lens.c
     src/optics/mirrors/mirrors.c
@@ -117,6 +118,7 @@ list(APPEND SOURCES_FILES
     )
 
 if (CONFIG_ZTEST)
+    add_compile_definitions(HIL_TEST=y)
     list(APPEND SOURCES_FILES
         src/optics/ir_camera_system/ir_camera_system_tests.c
         src/optics/mirrors/mirrors_tests.c

@@ -85,6 +85,8 @@ Use `west build -DCONFIG_<option>=y` to use any of these convenience build optio
 
 ### Tests
 
+#### Integration / HIL Tests
+
 Use `west build -p -- -DOVERLAY_CONFIG="tests.conf"` to build the test firmware. This configuration uses
 ZTest to perform tests from the running application. The configuration doesn't wait for someone to press the button
 and doesn't boot the Jetson (`INSTA_BOOT` & `NO_JETSON_BOOT`, see above).
@@ -116,6 +118,17 @@ twister -vv -T . -A ./../../boards/ -p mcu_main -c --test orb/main_board/app/orb
 
 - `--device-serial` is used to provide the path to the serial to USB dongle
 - `UNIQUE_ID` can be obtained by using `pyocd list` and passed to pyocd with the `-i` option
+
+#### Local integration (simulation) and unit tests
+
+```shell
+# From the `main_board/app` directory
+# Load path to twister
+source ../../../zephyr/zephyr-env.sh
+# Run the test suites available in the current directory for board `mcu_main`:
+twister -vv --testsuite-root . --platform native_posix_64 --platform unit_testing \
+--clobber-output
+```
 
 ### Memory map
 

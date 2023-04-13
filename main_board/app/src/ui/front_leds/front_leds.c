@@ -374,6 +374,8 @@ front_leds_set_center_leds_sequence(uint8_t *bytes, uint32_t size)
 {
     bool found_a_difference = false;
 
+    LOG_DBG("Got center seq of len %" PRIu32, size);
+
     if (size % 3 != 0) {
         LOG_ERR("Bytes must be a multiple of 3");
         ret_code_t ret = RET_ERROR_INVALID_PARAM;
@@ -421,6 +423,8 @@ ret_code_t
 front_leds_set_ring_leds_sequence(uint8_t *bytes, uint32_t size)
 {
     ret_code_t ret = RET_SUCCESS;
+
+    LOG_DBG("Got ring seq of len %" PRIu32, size);
 
     if (size % 3 != 0) {
         LOG_ERR("Bytes must be a multiple of 3");
