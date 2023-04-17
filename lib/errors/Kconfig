@@ -1,5 +1,6 @@
 config ORB_LIB_ERRORS
     bool "Custom Orb errors library"
+    select ORB_LIB_WATCHDOG
 
 if ORB_LIB_ERRORS
 

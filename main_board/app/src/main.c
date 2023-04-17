@@ -29,6 +29,7 @@
 #include "heartbeat.h"
 #endif
 
+#include <watchdog.h>
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(main);
 
@@ -127,6 +128,11 @@ initialize(void)
     ASSERT_SOFT(err_code);
 
     app_assert_init(app_assert_cb);
+
+#ifndef CONFIG_ORB_LIB_ERRORS_TESTS
+    err_code = watchdog_init();
+    ASSERT_SOFT(err_code);
+#endif
 
 #if CONFIG_ORB_LIB_CAN_MESSAGING
     err_code = can_messaging_init(runner_handle_new_can);

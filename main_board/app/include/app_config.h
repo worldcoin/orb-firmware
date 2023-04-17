@@ -57,6 +57,9 @@
 #define THREAD_PRIORITY_GNSS   9
 #define THREAD_STACK_SIZE_GNSS 2048
 
+#define THREAD_PRIORITY_WATCHDOG   10
+#define THREAD_STACK_SIZE_WATCHDOG 512
+
 // Testing threads
 // - CAN
 // - DFU

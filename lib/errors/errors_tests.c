@@ -1,4 +1,5 @@
 #include "app_assert.h"
+#include "watchdog.h"
 #include <zephyr/logging/log.h>
 #include <zephyr/random/rand32.h>
 
@@ -20,6 +21,7 @@ enum {
 #if defined(CONFIG_USERSPACE)
     TEST_CATCH_USER_FATAL_Z_OOPS,
 #endif
+    TEST_WATCHDOG,
     TEST_ERROR_MAX
 } error_case_type;
 
@@ -92,7 +94,7 @@ fatal_errors_test(void)
 {
     uint32_t sub_type = sys_rand32_get() % TEST_ERROR_MAX;
 
-    printk("Triggering error: %u\n", sub_type);
+    printk("Triggering error: %u/%u\n", sub_type, TEST_ERROR_MAX);
 
     switch (sub_type) {
     case TEST_CATCH_FATAL_ACCESS:
@@ -122,6 +124,9 @@ fatal_errors_test(void)
         break;
     case TEST_CATCH_USER_ASSERT_HARD_IN_ISR:
         irq_offload(user_assert_in_isr, NULL);
+        break;
+    case TEST_WATCHDOG:
+        (void)watchdog_init();
         break;
 #if defined(CONFIG_USERSPACE)
     case ZTEST_CATCH_USER_FATAL_Z_OOPS:

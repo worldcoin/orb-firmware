@@ -24,6 +24,7 @@
     aliases {
         battery-can-bus = &can2;
         die-temperature = &die_temp;
+        watchdog0 = &iwdg;
     };
 
     chosen {
@@ -493,6 +494,10 @@
         spi-max-frequency = <4000000>;
         status = "okay";
     };
+};
+
+&iwdg {
+    status = "okay";
 };
 
 &flash0 {

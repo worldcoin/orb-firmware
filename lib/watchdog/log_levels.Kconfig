@@ -1,0 +1,3 @@
+module = WATCHDOG
+module-str = WATCHDOG
+source "subsys/logging/Kconfig.template.log_config"
