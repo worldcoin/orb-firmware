@@ -60,7 +60,12 @@ watchdog_init(void)
         return RET_ERROR_NOT_INITIALIZED;
     }
 
-    err_code = wdt_setup(watchdog_dev, WDT_OPT_PAUSE_HALTED_BY_DBG);
+    uint8_t opt = 0;
+#ifdef DEBUG
+    opt |= WDT_OPT_PAUSE_HALTED_BY_DBG;
+#endif
+
+    err_code = wdt_setup(watchdog_dev, opt);
     if (err_code < 0) {
         ASSERT_SOFT(RET_ERROR_NOT_INITIALIZED);
         return RET_ERROR_NOT_INITIALIZED;
