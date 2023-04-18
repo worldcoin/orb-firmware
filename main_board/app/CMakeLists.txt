@@ -5,7 +5,7 @@ get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../ ABSOLUTE)
 get_filename_component(WORKSPACE_DIR ${PROJECT_DIR} DIRECTORY)
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
-    message(STATUS "Building ${CMAKE_BUILD_TYPE}: optimized for speed")
+    message(STATUS "Building ${CMAKE_BUILD_TYPE}: optimized ⚡️")
 
     # Add configuration file to overwrite debug configuration
     list(APPEND OVERLAY_CONFIG "release.conf")
