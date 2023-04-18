@@ -12,6 +12,14 @@ config ORB_LIB_THREAD_STACK_SIZE_WATCHDOG
     int "Stack size for the watchdog thread"
     default 512
 
+config ORB_LIB_WATCHDOG_TIMEOUT_MS
+	int "Watchdog timeout"
+	default 1000
+
+config ORB_LIB_WATCHDOG_RELOAD_MS
+	int "Watchdog reload interval"
+	default 200
+
 config ORB_LIB_WATCHDOG_TESTS
     bool "Include watchdog tests"
 

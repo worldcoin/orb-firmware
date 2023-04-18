@@ -16,8 +16,12 @@ static const struct device *const watchdog_dev =
     DEVICE_DT_GET(DT_ALIAS(watchdog0));
 
 #ifndef WATCHDOG_RELOAD_MS
-#define WATCHDOG_RELOAD_MS 200
+#define WATCHDOG_RELOAD_MS CONFIG_ORB_LIB_WATCHDOG_RELOAD_MS
 #endif
+
+BUILD_ASSERT(CONFIG_ORB_LIB_WATCHDOG_RELOAD_MS <
+                 CONFIG_ORB_LIB_WATCHDOG_TIMEOUT_MS,
+             "Watchdog reload time must be less than watchdog timeout");
 
 static void
 watchdog_thread()
@@ -46,7 +50,7 @@ watchdog_init(void)
 
         /* Expire watchdog after max window */
         .window.min = 0,
-        .window.max = 1000,
+        .window.max = CONFIG_ORB_LIB_WATCHDOG_TIMEOUT_MS,
     };
 
     if (wdt_channel_id >= 0) {
