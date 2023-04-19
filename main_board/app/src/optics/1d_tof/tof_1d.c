@@ -12,6 +12,9 @@ LOG_MODULE_REGISTER(1d_tof, CONFIG_TOF_1D_LOG_LEVEL);
 
 const struct device *tof_1d_device = DEVICE_DT_GET(DT_NODELABEL(tof_sensor));
 
+K_THREAD_STACK_DEFINE(stack_area_tof_1d, THREAD_STACK_SIZE_1DTOF);
+static struct k_thread tof_1d_thread_data;
+
 struct distance_history {
     uint32_t buffer[4];
     size_t wr_idx;
@@ -108,8 +111,9 @@ tof_1d_init(void)
         return RET_ERROR_INTERNAL;
     }
 
+    k_thread_create(&tof_1d_thread_data, stack_area_tof_1d,
+                    K_THREAD_STACK_SIZEOF(stack_area_tof_1d), tof_1d_thread,
+                    NULL, NULL, NULL, THREAD_PRIORITY_1DTOF, 0, K_NO_WAIT);
+
     return RET_SUCCESS;
 }
-
-K_THREAD_DEFINE(tof_1d, THREAD_STACK_SIZE_1DTOF, tof_1d_thread, NULL, NULL,
-                NULL, THREAD_PRIORITY_1DTOF, 0, 0);
