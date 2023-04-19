@@ -11,6 +11,9 @@ LOG_MODULE_REGISTER(als, CONFIG_ALS_LOG_LEVEL);
 
 const struct device *als_device = DEVICE_DT_GET(DT_NODELABEL(front_unit_als));
 
+K_THREAD_STACK_DEFINE(stack_area_als, THREAD_STACK_SIZE_ALS);
+static struct k_thread als_thread_data;
+
 static void
 als_thread()
 {
@@ -56,8 +59,9 @@ als_init(void)
         return RET_ERROR_INTERNAL;
     }
 
+    k_thread_create(&als_thread_data, stack_area_als,
+                    K_THREAD_STACK_SIZEOF(stack_area_als), als_thread, NULL,
+                    NULL, NULL, THREAD_PRIORITY_ALS, 0, K_NO_WAIT);
+
     return RET_SUCCESS;
 }
-
-K_THREAD_DEFINE(als, THREAD_STACK_SIZE_ALS, als_thread, NULL, NULL, NULL,
-                THREAD_PRIORITY_ALS, 0, 0);
