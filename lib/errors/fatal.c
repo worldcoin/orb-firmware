@@ -7,9 +7,11 @@
 #include <zephyr/arch/cpu.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
+
 LOG_MODULE_REGISTER(fatal);
 
 static bool recursive_call_flag = false;
+static uint32_t reset_reason_reg = 0;
 
 /// Fatal kernel error handling, resets the sytem
 /// Reimplementation of weak `k_sys_fatal_error_handler` based on kernel/fatal.c
@@ -36,4 +38,20 @@ k_sys_fatal_error_handler(unsigned int reason, const z_arch_esf_t *esf)
 
     NVIC_SystemReset();
     CODE_UNREACHABLE;
+}
+
+uint32_t
+fatal_get_status_register(void)
+{
+    return reset_reason_reg;
+}
+
+void
+fatal_init(void)
+{
+    // copy the reset flags locally before clearing them for the next reset
+    reset_reason_reg = RCC->CSR;
+    WRITE_BIT(RCC->CSR, RCC_CSR_RMVF_Pos, 1);
+
+    LOG_DBG("RCC->CSR: 0x%08x", reset_reason_reg);
 }
