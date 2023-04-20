@@ -29,6 +29,7 @@
 #include "heartbeat.h"
 #endif
 
+#include <fatal.h>
 #include <watchdog.h>
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(main);
@@ -93,6 +94,45 @@ app_assert_cb(fatal_error_info_t *err_info)
     }
 }
 
+static void
+send_reset_reason(void)
+{
+    uint32_t reset_reason = fatal_get_status_register();
+    if (reset_reason != 0) {
+        FatalError fatal_error = {0};
+        if (IS_WATCHDOG(reset_reason)) {
+            fatal_error.reason = FatalError_FatalReason_FATAL_WATCHDOG;
+            publish_new(&fatal_error, sizeof(fatal_error),
+                        SecToJetson_fatal_error_tag,
+                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+        }
+        if (IS_SOFTWARE(reset_reason)) {
+            fatal_error.reason = FatalError_FatalReason_FATAL_SOFTWARE_UNKNOWN;
+            publish_new(&fatal_error, sizeof(fatal_error),
+                        SecToJetson_fatal_error_tag,
+                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+        }
+        if (IS_BOR(reset_reason)) {
+            fatal_error.reason = FatalError_FatalReason_FATAL_BROWNOUT;
+            publish_new(&fatal_error, sizeof(fatal_error),
+                        SecToJetson_fatal_error_tag,
+                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+        }
+        if (IS_PIN(reset_reason)) {
+            fatal_error.reason = FatalError_FatalReason_FATAL_PIN_RESET;
+            publish_new(&fatal_error, sizeof(fatal_error),
+                        SecToJetson_fatal_error_tag,
+                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+        }
+        if (IS_LOW_POWER(reset_reason)) {
+            fatal_error.reason = FatalError_FatalReason_FATAL_LOW_POWER;
+            publish_new(&fatal_error, sizeof(fatal_error),
+                        SecToJetson_fatal_error_tag,
+                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+        }
+    }
+}
+
 __maybe_unused static void
 wait_jetson_up(void)
 {
@@ -109,6 +149,8 @@ wait_jetson_up(void)
                 LOG_ERR("Error count during boot: %u", error_count);
             }
 
+            send_reset_reason();
+
             jetson_up_and_running = true;
         }
     }
@@ -118,6 +160,8 @@ void
 initialize(void)
 {
     int err_code;
+
+    fatal_init();
 
     LOG_INF("🚀");
 
