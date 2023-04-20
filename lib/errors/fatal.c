@@ -4,6 +4,7 @@
 #include <zephyr/arch/arm/aarch32/exc.h>
 // clang-format on
 #include <compilers.h>
+#include <fatal.h>
 #include <zephyr/arch/cpu.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
@@ -46,12 +47,38 @@ fatal_get_status_register(void)
     return reset_reason_reg;
 }
 
+#ifdef DEBUG
+static void
+print_reset_reason()
+{
+    if (IS_WATCHDOG(reset_reason_reg)) {
+        LOG_INF("Reset reason: Watchdog");
+    }
+    if (IS_SOFTWARE(reset_reason_reg)) {
+        LOG_INF("Reset reason: Software");
+    }
+    if (IS_BOR(reset_reason_reg)) {
+        LOG_INF("Reset reason: Brownout");
+    }
+    if (IS_LOW_POWER(reset_reason_reg)) {
+        LOG_INF("Reset reason: Low Power");
+    }
+    if (IS_PIN(reset_reason_reg)) {
+        LOG_INF("Reset reason: Pin");
+    }
+}
+#endif
+
 void
 fatal_init(void)
 {
     // copy the reset flags locally before clearing them for the next reset
     reset_reason_reg = RCC->CSR;
     WRITE_BIT(RCC->CSR, RCC_CSR_RMVF_Pos, 1);
+
+#ifdef DEBUG
+    print_reset_reason();
+#endif
 
     LOG_DBG("RCC->CSR: 0x%08x", reset_reason_reg);
 }
