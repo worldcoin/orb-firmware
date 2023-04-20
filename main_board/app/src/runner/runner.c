@@ -1122,9 +1122,6 @@ runner_process_jobs_thread()
                     new.remote_addr, new.message.which_payload, new.ack_number);
         }
 
-        // remote is up
-        publish_start();
-
         if (new.message.which_payload < ARRAY_SIZE(handle_message_callbacks) &&
             handle_message_callbacks[new.message.which_payload] != NULL) {
             handle_message_callbacks[new.message.which_payload](&new);
@@ -1134,6 +1131,9 @@ runner_process_jobs_thread()
                     new.message.which_payload);
             job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, &new);
         }
+
+        // remote is up
+        publish_start();
     }
 }
 
