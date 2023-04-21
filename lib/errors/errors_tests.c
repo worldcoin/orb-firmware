@@ -7,23 +7,23 @@
 /// zephyr/tests/ztest/error_hook/README.txt
 
 /* test case type */
-enum {
-    TEST_CATCH_FATAL_ACCESS,
-    TEST_CATCH_FATAL_ILLEAGAL_INSTRUCTION,
-    TEST_CATCH_FATAL_DIVIDE_ZERO,
-    TEST_CATCH_FATAL_K_PANIC,
-    TEST_CATCH_FATAL_K_OOPS,
-    /* TEST_CATCH_FATAL_IN_ISR, not implemented */
-    TEST_CATCH_ASSERT_FAIL,
-    TEST_CATCH_ASSERT_IN_ISR,
-    TEST_CATCH_USER_ASSERT_HARD,
-    TEST_CATCH_USER_ASSERT_HARD_IN_ISR,
+enum error_case_e {
+    FATAL_ACCESS,
+    FATAL_ILLEGAL_INSTRUCTION,
+    FATAL_DIVIDE_ZERO,
+    FATAL_K_PANIC,
+    FATAL_K_OOPS,
+    /* FATAL_IN_ISR, not implemented */
+    ASSERT_FAIL,
+    ASSERT_IN_ISR,
+    USER_ASSERT_HARD,
+    USER_ASSERT_HARD_IN_ISR,
 #if defined(CONFIG_USERSPACE)
-    TEST_CATCH_USER_FATAL_Z_OOPS,
+    USER_FATAL_Z_OOPS,
 #endif
-    TEST_WATCHDOG,
-    TEST_ERROR_MAX
-} error_case_type;
+    WATCHDOG,
+    TEST_ERROR_CASE_COUNT
+};
 
 /*
  * Do not optimize to prevent GCC from generating invalid
@@ -92,44 +92,43 @@ trigger_z_oops(void)
 void
 fatal_errors_test(void)
 {
-    uint32_t sub_type = sys_rand32_get() % TEST_ERROR_MAX;
+    uint32_t sub_type = sys_rand32_get() % TEST_ERROR_CASE_COUNT;
 
-    printk("Triggering error: %u/%u\n", sub_type, TEST_ERROR_MAX);
+    printk("Triggering error: %u/%u\n", sub_type, TEST_ERROR_CASE_COUNT);
 
     switch (sub_type) {
-    case TEST_CATCH_FATAL_ACCESS:
+    case FATAL_ACCESS:
         trigger_fault_access();
         break;
-    case TEST_CATCH_FATAL_ILLEAGAL_INSTRUCTION:
+    case FATAL_ILLEGAL_INSTRUCTION:
         trigger_fault_illegal_instruction();
         break;
-    case TEST_CATCH_FATAL_DIVIDE_ZERO:
+    case FATAL_DIVIDE_ZERO:
         trigger_fault_divide_zero();
         break;
-    case TEST_CATCH_FATAL_K_PANIC:
+    case FATAL_K_PANIC:
         k_panic();
         break;
-    case TEST_CATCH_FATAL_K_OOPS:
+    case FATAL_K_OOPS:
         k_oops();
         break;
-    case TEST_CATCH_ASSERT_FAIL:
-        __ASSERT(sub_type != TEST_CATCH_ASSERT_FAIL,
-                 "Explicitly triggered assert");
+    case ASSERT_FAIL:
+        __ASSERT(sub_type != ASSERT_FAIL, "Explicitly triggered assert");
         break;
-    case TEST_CATCH_ASSERT_IN_ISR:
+    case ASSERT_IN_ISR:
         irq_offload(kernel_assert_in_isr, NULL);
         break;
-    case TEST_CATCH_USER_ASSERT_HARD:
+    case USER_ASSERT_HARD:
         ASSERT_HARD_BOOL(false);
         break;
-    case TEST_CATCH_USER_ASSERT_HARD_IN_ISR:
+    case USER_ASSERT_HARD_IN_ISR:
         irq_offload(user_assert_in_isr, NULL);
         break;
-    case TEST_WATCHDOG:
+    case WATCHDOG:
         (void)watchdog_init();
         break;
 #if defined(CONFIG_USERSPACE)
-    case ZTEST_CATCH_USER_FATAL_Z_OOPS:
+    case ZUSER_FATAL_Z_OOPS:
         trigger_z_oops();
         break;
 #endif
