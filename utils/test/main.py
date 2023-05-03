@@ -39,8 +39,8 @@ def main():
                         nargs="?", type=bool)
     parser.add_argument("--plot-current-consumption", help="plot a graph of current consumption", default=False,
                         const=True, nargs="?", type=bool)
-    parser.add_argument("--loop", help="run the test indefinitely", default=False,
-                        const=True, nargs="?", type=bool)
+    parser.add_argument("--loop", help="run the test indefinitely", default=1,
+                        const=-1, nargs="?", type=int)
     args = parser.parse_args()
 
     gpio = None
@@ -59,7 +59,8 @@ def main():
     except Exception as e:
         print(f"❌ Error connecting to FTDI: {e}")
 
-    while True:
+    count = args.loop
+    while count != 0:
         # turn on the Orb if FTDI is connected
         # otherwise, consider the Orb as powered on
         if gpio is not None and not args.skip_power_on:
@@ -158,10 +159,12 @@ def main():
 
         smu = None
 
-        if args.loop:
-            print("🔁 Looping")
-        else:
-            return 0
+        if count > 0:
+            count = count - 1
+            print("🔁 Looping {}/{}".format(count, args.loop))
+        elif count < 0:
+            print("🔁 Looping indefinitely")
+    return 0
 
 
 if __name__ == "__main__":
