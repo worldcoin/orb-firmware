@@ -153,7 +153,7 @@ static K_SEM_DEFINE(nmea_sem, 1, 1);
 static int
 send_nmea_message(const char *nmea_str)
 {
-    static uint32_t counter = UINT32_MAX;
+    static uint32_t counter = 0;
     static GNSSDataPartial msg;
     int ret;
 
@@ -161,23 +161,34 @@ send_nmea_message(const char *nmea_str)
     ret = k_sem_take(&nmea_sem, K_MSEC(5));
 
     // force counter to be the max value to test encoding max possible size
-    counter = UINT32_MAX;
+    // also needs to be even
+    counter = (UINT32_MAX - 1);
 #endif
+
+    // Counter _must_ be even to denote the first part of a partial NMEA message
+    if (counter % 2) {
+        LOG_WRN("Counter is odd!");
+        ASSERT_SOFT(RET_ERROR_INTERNAL);
+        // Make it even
+        counter++;
+    }
 
     size_t len = strlen(nmea_str);
     size_t min = MIN(len, sizeof msg.nmea_part - 1);
     memcpy(msg.nmea_part, nmea_str, min);
     msg.nmea_part[min] = '\0';
-    msg.counter = counter++;
+    msg.counter = counter;
 
     ret = publish_new(&msg, sizeof(msg), McuToJetson_gnss_partial_tag,
                       CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
     if (ret == RET_SUCCESS) {
         strncpy(msg.nmea_part, nmea_str + min, sizeof msg.nmea_part - 1);
-        msg.counter = counter++;
+        msg.counter = counter + 1;
         ret = publish_new(&msg, sizeof(msg), McuToJetson_gnss_partial_tag,
                           CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
     }
+
+    counter += 2;
 
 #if CONFIG_TEST_GNSS
     k_sem_give(&nmea_sem);
