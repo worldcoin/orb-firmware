@@ -61,7 +61,7 @@ config APP_TESTS_ALL
     select TEST_GNSS
 
 config MCU_UTIL_UART_TESTS
-	bool "Send specific string in logs when testing UART with mcu_util"
+	bool "Send specific string in logs when testing UART with mcu-util"
 	help
 	  UART communication is unidirectional and doesn't allow
 	  the MCU to respond to the Jetson. To allow the Jetson to confirm

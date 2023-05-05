@@ -20,7 +20,7 @@ def wait_loading_bar(seconds):
 # This is the test plan:
 # - Connect the main battery
 # - Press button for 2 seconds to turn on the Orb
-# - SSH into the Jetson to stress test both main and security microcontrollers with `mcu_util`
+# - SSH into the Jetson to stress test both main and security microcontrollers with `mcu-util`
 # - Check that Orb info is correct (microcontrollers are responding)
 # - Use power profiler to power on the DUT (security board)
 # - Press button for 15 seconds to turn off the Orb
