@@ -6,7 +6,7 @@ channels:
   - conda-forge
 dependencies:
   - make
-  - python=3.9
+  - python=3.11
   - cmake
   - pyserial
   - ccache
