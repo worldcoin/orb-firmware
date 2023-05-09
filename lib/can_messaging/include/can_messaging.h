@@ -50,17 +50,18 @@ can_isotp_messaging_async_tx(const can_message_t *message);
 /// \param message to be sent
 /// \return
 /// * RET_SUCCESS on success
-/// * RET_ERROR_INVALID_STATE if run from ISR
+/// * RET_ERROR_FORBIDDEN if run from ISR
+/// * RET_ERROR_INVALID_STATE if can device is not active
 /// * RET_ERROR_INVALID_PARAM if error encoding the message
 /// * RET_ERROR_INTERNAL for CAN errors
 ret_code_t
 can_messaging_blocking_tx(const can_message_t *message);
 
-/// Reset CAN TX queues, keep RX threads running
-/// Can be used in ISR context
-/// \return RET_SUCCESS on success, error code otherwise
 ret_code_t
-can_messaging_reset_async(void);
+can_messaging_suspend(void);
+
+ret_code_t
+can_messaging_resume(void);
 
 /// Init CAN message module
 /// Pass a function to handle incoming messages

@@ -74,14 +74,53 @@ can_reset_work_handler(struct k_work *work)
     ASSERT_HARD(err_code);
 }
 
-ret_code_t
+/// Reset CAN TX queues, keep RX threads running
+/// Can be used in ISR context
+/// \return RET_SUCCESS on success, error code otherwise
+static ret_code_t
 can_messaging_reset_async(void)
 {
-    // check that the job is intialized by reading the handler value
+    // check that the job is initialized by reading the handler value
     if (can_reset_work.handler != NULL && k_work_submit(&can_reset_work) < 0) {
         return RET_ERROR_INTERNAL;
     }
     return RET_SUCCESS;
+}
+
+ret_code_t
+can_messaging_suspend(void)
+{
+    int err_code = RET_SUCCESS;
+
+    if (can_dev) {
+        err_code = can_stop(can_dev);
+        if (err_code != -EALREADY) {
+            ASSERT_SOFT(err_code);
+            err_code = RET_ERROR_INTERNAL;
+        }
+    }
+
+    return err_code;
+}
+
+ret_code_t
+can_messaging_resume(void)
+{
+    int err_code = RET_SUCCESS;
+
+    // reset CAN queues
+    err_code = can_messaging_reset_async();
+    ASSERT_SOFT(err_code);
+
+    if (can_dev) {
+        err_code = can_start(can_dev);
+        if (err_code != -EALREADY) {
+            ASSERT_SOFT(err_code);
+            err_code = RET_ERROR_INTERNAL;
+        }
+    }
+
+    return err_code;
 }
 
 ret_code_t

@@ -131,6 +131,13 @@ can_messaging_async_tx(const can_message_t *message)
         return RET_ERROR_INVALID_STATE;
     }
 
+    struct can_bus_err_cnt can_err;
+    enum can_state can_state;
+    can_get_state(can_dev, &can_state, &can_err);
+    if (can_state == CAN_STATE_BUS_OFF || can_state == CAN_STATE_STOPPED) {
+        return RET_ERROR_INVALID_STATE;
+    }
+
     if (message->size > CAN_FRAME_MAX_SIZE) {
         return RET_ERROR_INVALID_PARAM;
     }
@@ -167,6 +174,14 @@ ret_code_t
 can_messaging_blocking_tx(const can_message_t *message)
 {
     if (k_is_in_isr()) {
+        return RET_ERROR_FORBIDDEN;
+    }
+
+    struct can_bus_err_cnt can_err;
+    enum can_state can_state;
+    can_get_state(can_dev, &can_state, &can_err);
+
+    if (can_state == CAN_STATE_BUS_OFF || can_state == CAN_STATE_STOPPED) {
         return RET_ERROR_INVALID_STATE;
     }
 
