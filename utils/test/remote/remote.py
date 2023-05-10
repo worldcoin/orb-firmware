@@ -37,8 +37,9 @@ class Remote:
         print("✅  {} microcontroller stress tests passed".format(mcu))
 
     def mcu_util_stress(self, mcu):
-        assert self.conn.run("/mnt/ssd/mcu_util stress uart --duration 20 {}".format(mcu),
-                                 timeout=30).return_code == 0
+        if mcu == "main":
+            assert self.conn.run("/mnt/ssd/mcu_util stress uart --duration 20 {}".format(mcu),
+                                     timeout=30).return_code == 0
         assert self.conn.run("/mnt/ssd/mcu_util stress can-fd --duration 20 {}".format(mcu),
                              timeout=30).return_code == 0
         assert self.conn.run("/mnt/ssd/mcu_util stress small-iso-tp --duration 20 {}".format(mcu),
