@@ -21,18 +21,23 @@
     model = "Worldcoin Orb Main MCU";
     compatible = "worldcoin,mcu_main";
 
-    aliases {
-        battery-can-bus = &can2;
-        die-temperature = &die_temp;
-        watchdog0 = &iwdg;
-    };
-
     chosen {
+        // app in slot0_partition by default
+        // the bootloader uses an overlay to redefine this
+        zephyr,code-partition = &slot0_partition;
+
         zephyr,console = &usart2;
         zephyr,shell-uart = &usart2;
         zephyr,sram = &sram0;
         zephyr,flash = &flash0;
         zephyr,canbus = &can1;
+    };
+
+    aliases {
+        battery-can-bus = &can2;
+        die-temperature = &die_temp;
+        watchdog0 = &iwdg;
+        secondary-slot = &slot1_partition;
     };
 
     zephyr,user {

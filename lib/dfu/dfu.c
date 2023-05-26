@@ -408,12 +408,16 @@ dfu_init(void)
 
     secondary_slot =
         (struct image_header *)(flash_base_addr +
-                                DT_REG_ADDR(DT_NODELABEL(slot1_partition)));
+                                DT_REG_ADDR(DT_ALIAS(secondary_slot)));
     img_size = secondary_slot->ih_hdr_size + secondary_slot->ih_img_size;
-    partition_size = DT_REG_SIZE(DT_NODELABEL(slot1_partition));
-    if (img_size > partition_size) {
+    partition_size = DT_REG_SIZE(DT_ALIAS(secondary_slot));
+    if (img_size > partition_size ||
+        (DT_REG_SIZE(DT_NODELABEL(slot0_partition)) !=
+         DT_REG_SIZE(DT_ALIAS(secondary_slot)))) {
         secondary_slot = NULL;
-        LOG_WRN("Invalid image in secondary slot");
+        LOG_WRN("Invalid image in secondary slot. Partition size %uB. Image "
+                "size %uB",
+                partition_size, img_size);
     } else {
         LOG_INF("Secondary slot version %u.%u.%u-0x%x",
                 secondary_slot->ih_ver.iv_major,
