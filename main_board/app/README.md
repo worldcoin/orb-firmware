@@ -47,8 +47,11 @@ To Flash: `make mcu-flash`
 Make sure you are in `"$REPO_DIR"/orb/main_board/app/` directory. Compile the app:
 
 ```shell
-# 'west build' defaults to mcu_main
-west build -b [stm32g484_eval | mcu_main]
+# 'west build' defaults to mcu_main and Debug build
+# overlays might be applied to change any device or configuration
+# below the partition table with `one_slot.overlay` and the test configuration with `tests.conf`
+# can be combined
+west build [-b mcu_main] [-- -DCMAKE_BUILD_TYPE=Release -DDTC_OVERLAY_FILE=one_slot.overlay -DOVERLAY_CONFIG="tests.conf"]
 ```
 
 Flash the app:
