@@ -1047,6 +1047,54 @@ handle_perform_ir_eye_camera_focus_sweep(job_t *job)
     }
 }
 
+static void
+handle_ir_eye_camera_mirror_sweep_values_polynomial(job_t *job)
+{
+    JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(JetsonToMcu_ir_eye_camera_mirror_sweep_values_polynomial_tag);
+
+    IREyeCameraMirrorSweepValuesPolynomial p =
+        msg->payload.ir_eye_camera_mirror_sweep_values_polynomial;
+    LOG_DBG(
+        "r_a: %f, r_b: %f, r_c: %f, a_a: %f, a_b: %f, a_c: %f, num frames: %u",
+        p.radius_coef_a, p.radius_coef_b, p.radius_coef_c, p.angle_coef_a,
+        p.angle_coef_b, p.angle_coef_c, p.number_of_frames);
+    ret_code_t err =
+        ir_camera_system_set_polynomial_coefficients_for_mirror_sweep(
+            msg->payload.ir_eye_camera_mirror_sweep_values_polynomial);
+    switch (err) {
+    case RET_SUCCESS:
+        job_ack(Ack_ErrorCode_SUCCESS, job);
+        break;
+    case RET_ERROR_BUSY:
+        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        break;
+    default:
+        job_ack(Ack_ErrorCode_FAIL, job);
+        LOG_ERR("Unhandled error (%d)!", err);
+    }
+}
+
+static void
+handle_perform_ir_eye_camera_mirror_sweep(job_t *job)
+{
+    JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(JetsonToMcu_perform_ir_eye_camera_mirror_sweep_tag);
+
+    ret_code_t ret = ir_camera_system_perform_mirror_sweep();
+
+    if (ret == RET_ERROR_BUSY) {
+        job_ack(Ack_ErrorCode_IN_PROGRESS, job);
+    } else if (ret == RET_ERROR_INVALID_STATE) {
+        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+    } else if (ret == RET_SUCCESS) {
+        job_ack(Ack_ErrorCode_SUCCESS, job);
+    } else {
+        LOG_ERR("Unexpected error code (%d)!", ret);
+        job_ack(Ack_ErrorCode_FAIL, job);
+    }
+}
+
 typedef void (*hm_callback)(job_t *job);
 
 // These functions ARE NOT allowed to block!
@@ -1099,10 +1147,14 @@ static const hm_callback handle_message_callbacks[] = {
         handle_ir_eye_camera_focus_sweep_values_polynomial,
     [JetsonToMcu_perform_ir_eye_camera_focus_sweep_tag] =
         handle_perform_ir_eye_camera_focus_sweep,
+    [JetsonToMcu_ir_eye_camera_mirror_sweep_values_polynomial_tag] =
+        handle_ir_eye_camera_mirror_sweep_values_polynomial,
+    [JetsonToMcu_perform_ir_eye_camera_mirror_sweep_tag] =
+        handle_perform_ir_eye_camera_mirror_sweep,
 };
 
 static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 41,
+    ARRAY_SIZE(handle_message_callbacks) <= 43,
     "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void

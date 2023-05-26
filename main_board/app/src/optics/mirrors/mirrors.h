@@ -20,6 +20,11 @@ typedef enum {
 #define MIRRORS_ANGLE_VERTICAL_RANGE                                           \
     (MIRRORS_ANGLE_VERTICAL_MAX - MIRRORS_ANGLE_VERTICAL_MIN)
 
+#define AUTO_HOMING_VERTICAL_ANGLE_RESULT_MILLI_DEGREES                        \
+    ((MIRRORS_ANGLE_VERTICAL_MIN + MIRRORS_ANGLE_VERTICAL_MAX) / 2)
+#define AUTO_HOMING_HORIZONTAL_ANGLE_RESULT_MILLI_DEGREES                      \
+    ((MIRRORS_ANGLE_HORIZONTAL_MIN + MIRRORS_ANGLE_HORIZONTAL_MAX) / 2)
+
 #define MOTOR_DRV_STATUS_STALLGUARD (1 << 24)
 #define MOTOR_DRV_STATUS_STANDSTILL (1 << 31)
 
@@ -37,6 +42,8 @@ typedef enum {
  */
 ret_code_t
 mirrors_angle_horizontal(int32_t angle_millidegrees);
+ret_code_t
+mirrors_angle_horizontal_async(int32_t angle_millidegrees);
 
 /**
  * Set vertical angle
@@ -50,6 +57,8 @@ mirrors_angle_horizontal(int32_t angle_millidegrees);
  */
 ret_code_t
 mirrors_angle_vertical(int32_t angle_millidegrees);
+ret_code_t
+mirrors_angle_vertical_async(int32_t angle_millidegrees);
 
 /**
  * Set horizontal angle relative to current position
@@ -117,6 +126,17 @@ mirrors_auto_homing_in_progress();
  */
 ret_code_t
 mirrors_init(void);
+
+/**
+ * @return mirror virt position in millidegrees
+ */
+int32_t
+mirrors_get_vertical_position(void);
+/**
+ * @return mirror horiz position in millidegrees
+ */
+int32_t
+mirrors_get_horizontal_position(void);
 
 bool
 mirrors_homed_successfully(void);

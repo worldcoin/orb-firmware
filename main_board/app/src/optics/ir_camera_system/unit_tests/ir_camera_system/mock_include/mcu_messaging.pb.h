@@ -9,6 +9,9 @@ typedef struct {
 typedef struct {
 } IREyeCameraFocusSweepValuesPolynomial;
 
+typedef struct {
+} IREyeCameraMirrorSweepValuesPolynomial;
+
 typedef enum {
     InfraredLEDs_Wavelength_WAVELENGTH_NONE,
     InfraredLEDs_Wavelength_WAVELENGTH_ONE,

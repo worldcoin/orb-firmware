@@ -129,7 +129,7 @@ ir_camera_system_set_polynomial_coefficients_for_focus_sweep(
 /**
  * Perform a focus sweep using the IR eye camera. Using this function has
  * several requirements.
- * 1. A focus sweep must not be already in progress.
+ * 1. A sweep must not be already in progress.
  * 2. FPS must be set to something greater than zero.
  * 3. The IR eye camera must be disabled.
  *
@@ -143,12 +143,48 @@ ir_camera_system_set_polynomial_coefficients_for_focus_sweep(
  *
  * @return error code:
  *  - RET_SUCCESS: All is good, focus sweep is initiated.
- *  - RET_ERROR_BUSY: A focus sweep is already in progress.
+ *  - RET_ERROR_BUSY: A sweep is already in progress.
  *  - RET_ERROR_INVALID_STATE: Either the FPS is zero or the IR eye camera is
  * enabled.
  */
 ret_code_t
 ir_camera_system_perform_focus_sweep(void);
+
+/**
+ * Set the mirror position values for use
+ * during a mirror sweep operation
+ * @param poly the polynomial coefficients
+ * @return error code:
+ *   - RET_SUCCESS: focus values saved
+ *   - RET_ERROR_BUSY: Some other operation (like a mirror sweep) is in progress
+ */
+ret_code_t
+ir_camera_system_set_polynomial_coefficients_for_mirror_sweep(
+    IREyeCameraMirrorSweepValuesPolynomial poly);
+
+/**
+ * Perform a mirror sweep using the IR eye camera. Using this function has
+ * several requirements.
+ * 1. A sweep must not be already in progress.
+ * 2. FPS must be set to something greater than zero.
+ * 3. The IR eye camera must be disabled.
+ *
+ * While the sweep is running, several things are not allowed:
+ * 1. The FPS may not be changed.
+ * 2. The mirror angles may not be changed.
+ * 3. Wavelengths may not be enabled/disabled.
+ * 4. The IR eye camera may not be enabled/disabled.
+ *
+ * This function is asynchronous and returns immediately.
+ *
+ * @return error code:
+ *  - RET_SUCCESS: All is good, focus sweep is initiated.
+ *  - RET_ERROR_BUSY: A sweep is already in progress.
+ *  - RET_ERROR_INVALID_STATE: Either the FPS is zero or the IR eye camera is
+ * enabled.
+ */
+ret_code_t
+ir_camera_system_perform_mirror_sweep(void);
 
 /**
  * Determine the state/status of the IR camera system.

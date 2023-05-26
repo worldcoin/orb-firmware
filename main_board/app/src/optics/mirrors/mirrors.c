@@ -23,12 +23,20 @@
 
 LOG_MODULE_REGISTER(mirrors, CONFIG_MIRRORS_LOG_LEVEL);
 
+K_THREAD_STACK_DEFINE(stack_area_mirror_work_queue, 2048);
 K_THREAD_STACK_DEFINE(stack_area_mirror_horizontal_init, 2048);
 K_THREAD_STACK_DEFINE(stack_area_mirror_vertical_init, 2048);
 
 static struct k_thread thread_data_mirror_horizontal;
 static struct k_thread thread_data_mirror_vertical;
 static struct k_sem homing_in_progress_sem[MIRRORS_COUNT];
+
+static struct k_work_q mirror_work_queue;
+
+static struct async_mirror_command {
+    struct k_work work;
+    int32_t angle_millidegrees;
+} vertical_set_work_item, horizontal_set_work_item;
 
 // To get motor driver status, we need to poll its register (interrupt pins not
 // connected)
@@ -116,6 +124,10 @@ static const uint32_t motors_full_course_minimum_steps[MIRRORS_COUNT] = {
 // a bit more than mechanical range
 static const uint32_t motors_full_course_maximum_steps[MIRRORS_COUNT] = {
     (500 * 256), (700 * 256)};
+static const int32_t motors_initial_angle[MIRRORS_COUNT] = {
+    AUTO_HOMING_VERTICAL_ANGLE_RESULT_MILLI_DEGREES,
+    AUTO_HOMING_HORIZONTAL_ANGLE_RESULT_MILLI_DEGREES};
+
 #define HARDWARE_REV_COUNT 2
 static size_t hw_rev_idx = 0;
 static const uint32_t
@@ -123,7 +135,7 @@ static const uint32_t
         {55000, 55000}, // vertical, horizontal, mainboard v3.1
         {55000, 87000}, // vertical, horizontal, mainboard v3.2
 };
-const float motors_arm_length[MIRRORS_COUNT] = {12.0, 18.71};
+const float motors_arm_length[MIRRORS_COUNT] = {12.0f, 18.71f};
 
 const uint32_t steps_per_mm = 12800; // 1mm / 0.4mm (pitch) * (360° / 18° (per
                                      // step)) * 256 micro-steps
@@ -137,6 +149,7 @@ enum mirror_autohoming_state {
     AH_SUCCESS,
     AH_FAIL,
 };
+
 typedef struct {
     int32_t x0; // step at x=0 (middle position)
     uint32_t full_course;
@@ -144,6 +157,7 @@ typedef struct {
     uint8_t stall_guard_threshold;
     enum mirror_autohoming_state auto_homing_state;
     uint32_t motor_state;
+    int32_t angle_millidegrees;
 } motors_refs_t;
 
 static motors_refs_t motors_refs[MIRRORS_COUNT] = {0};
@@ -425,12 +439,29 @@ motor_controller_spi_read(const struct device *spi_bus_controller, uint8_t reg)
     return read_value;
 }
 
+static void
+mirror_set_xtarget(int32_t xtarget, mirror_t mirror)
+{
+    motors_refs[mirror].angle_millidegrees =
+        (int32_t)roundf(
+            asinf((float)(xtarget - motors_refs[mirror].x0) /
+                  (motors_arm_length[mirror] * (float)steps_per_mm)) *
+            360000.0f / M_PI) +
+        motors_initial_angle[mirror];
+    LOG_DBG("Setting mirror %u to %d milli-degrees (xtarget=%d)", mirror,
+            motors_refs[mirror].angle_millidegrees, xtarget);
+
+    motor_controller_spi_write(spi_bus_controller,
+                               TMC5041_REGISTERS[REG_IDX_XTARGET][mirror],
+                               xtarget);
+}
+
 /// Set relative angle in millidegrees from the center position
 /// \param d_from_center millidegrees from center
-/// \param mirror motor 0 or 1
+/// \param mirror MIRROR_VERTICAL_ANGLE or MIRROR_HORIZONTAL_ANGLE
 /// \return
 static ret_code_t
-mirror_set_angle_relative(int32_t d_from_center, mirror_t mirror)
+mirror_angle_from_center(int32_t d_from_center, mirror_t mirror)
 {
     if (mirror >= MIRRORS_COUNT) {
         return RET_ERROR_INVALID_PARAM;
@@ -445,16 +476,15 @@ mirror_set_angle_relative(int32_t d_from_center, mirror_t mirror)
     int32_t steps = (int32_t)roundf(millimeters * (float)steps_per_mm);
     int32_t xtarget = motors_refs[mirror].x0 + steps;
 
-    LOG_DBG("Setting motor %u to: %d milli-degrees (%d)", mirror, d_from_center,
-            xtarget);
-
-    motor_controller_spi_write(spi_bus_controller,
-                               TMC5041_REGISTERS[REG_IDX_XTARGET][mirror],
-                               xtarget);
+    mirror_set_xtarget(xtarget, mirror);
 
     return RET_SUCCESS;
 }
 
+/// Set relative angle in millidegrees from the current position
+/// \param angle_millidegrees millidegrees from current position
+/// \param mirror MIRROR_VERTICAL_ANGLE or MIRROR_HORIZONTAL_ANGLE
+/// \return
 static ret_code_t
 mirrors_angle_relative(int32_t angle_millidegrees, mirror_t mirror)
 {
@@ -466,11 +496,7 @@ mirrors_angle_relative(int32_t angle_millidegrees, mirror_t mirror)
                         motors_arm_length[mirror] * (float)steps_per_mm);
     int32_t xtarget = x + steps;
 
-    LOG_DBG("Moving motor %u from x=%i to xtarget=%i (%i.%iº)", mirror, x,
-            xtarget, angle_millidegrees / 1000, angle_millidegrees % 1000);
-    motor_controller_spi_write(spi_bus_controller,
-                               TMC5041_REGISTERS[REG_IDX_XTARGET][mirror],
-                               xtarget);
+    mirror_set_xtarget(xtarget, mirror);
 
     return RET_SUCCESS;
 }
@@ -492,7 +518,7 @@ mirrors_angle_horizontal(int32_t angle_millidegrees)
 {
     if (angle_millidegrees > MIRRORS_ANGLE_HORIZONTAL_MAX ||
         angle_millidegrees < MIRRORS_ANGLE_HORIZONTAL_MIN) {
-        LOG_ERR("Accepted range is [%u;%u], got %d",
+        LOG_ERR("not-async: Accepted range is [%u;%u], got %d",
                 MIRRORS_ANGLE_HORIZONTAL_MIN, MIRRORS_ANGLE_HORIZONTAL_MAX,
                 angle_millidegrees);
         return RET_ERROR_INVALID_PARAM;
@@ -500,11 +526,10 @@ mirrors_angle_horizontal(int32_t angle_millidegrees)
 
     // recenter
     int32_t m_degrees_from_center =
-        angle_millidegrees -
-        (MIRRORS_ANGLE_HORIZONTAL_MAX + MIRRORS_ANGLE_HORIZONTAL_MIN) / 2;
+        angle_millidegrees - motors_initial_angle[MIRROR_HORIZONTAL_ANGLE];
 
-    return mirror_set_angle_relative(m_degrees_from_center,
-                                     MIRROR_HORIZONTAL_ANGLE);
+    return mirror_angle_from_center(m_degrees_from_center,
+                                    MIRROR_HORIZONTAL_ANGLE);
 }
 
 ret_code_t
@@ -512,12 +537,73 @@ mirrors_angle_vertical(int32_t angle_millidegrees)
 {
     if (angle_millidegrees > MIRRORS_ANGLE_VERTICAL_MAX ||
         angle_millidegrees < MIRRORS_ANGLE_VERTICAL_MIN) {
-        LOG_ERR("Accepted range is [%d;%d], got %d", MIRRORS_ANGLE_VERTICAL_MIN,
-                MIRRORS_ANGLE_VERTICAL_MAX, angle_millidegrees);
+        LOG_ERR("not-async: Accepted range is [%d;%d], got %d",
+                MIRRORS_ANGLE_VERTICAL_MIN, MIRRORS_ANGLE_VERTICAL_MAX,
+                angle_millidegrees);
         return RET_ERROR_INVALID_PARAM;
     }
 
-    return mirror_set_angle_relative(angle_millidegrees, MIRROR_VERTICAL_ANGLE);
+    return mirror_angle_from_center(angle_millidegrees, MIRROR_VERTICAL_ANGLE);
+}
+
+static void
+mirror_angle_vertical_work_wrapper(struct k_work *item)
+{
+    struct async_mirror_command *cmd =
+        CONTAINER_OF(item, struct async_mirror_command, work);
+    mirrors_angle_vertical(cmd->angle_millidegrees);
+}
+
+static void
+mirror_angle_horizontal_work_wrapper(struct k_work *item)
+{
+    struct async_mirror_command *cmd =
+        CONTAINER_OF(item, struct async_mirror_command, work);
+    mirrors_angle_horizontal(cmd->angle_millidegrees);
+}
+
+ret_code_t
+mirrors_angle_horizontal_async(int32_t angle_millidegrees)
+{
+    if (angle_millidegrees > MIRRORS_ANGLE_HORIZONTAL_MAX ||
+        angle_millidegrees < MIRRORS_ANGLE_HORIZONTAL_MIN) {
+        LOG_ERR("async: Accepted range is [%u;%u], got %d",
+                MIRRORS_ANGLE_HORIZONTAL_MIN, MIRRORS_ANGLE_HORIZONTAL_MAX,
+                angle_millidegrees);
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    if (k_work_busy_get(&horizontal_set_work_item.work)) {
+        LOG_ERR("async: Mirror horizontal set work item is busy!");
+        return RET_ERROR_BUSY;
+    }
+
+    horizontal_set_work_item.angle_millidegrees = angle_millidegrees;
+    k_work_submit_to_queue(&mirror_work_queue, &horizontal_set_work_item.work);
+
+    return RET_SUCCESS;
+}
+
+ret_code_t
+mirrors_angle_vertical_async(int32_t angle_millidegrees)
+{
+    if (angle_millidegrees > MIRRORS_ANGLE_VERTICAL_MAX ||
+        angle_millidegrees < MIRRORS_ANGLE_VERTICAL_MIN) {
+        LOG_ERR("async: Accepted range is [%d;%d], got %d",
+                MIRRORS_ANGLE_VERTICAL_MIN, MIRRORS_ANGLE_VERTICAL_MAX,
+                angle_millidegrees);
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    if (k_work_busy_get(&vertical_set_work_item.work)) {
+        LOG_ERR("async: Mirror vertical set work item is busy!");
+        return RET_ERROR_BUSY;
+    }
+
+    vertical_set_work_item.angle_millidegrees = angle_millidegrees;
+    k_work_submit_to_queue(&mirror_work_queue, &vertical_set_work_item.work);
+
+    return RET_SUCCESS;
 }
 
 static void
@@ -833,8 +919,10 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 
                 uint32_t angle_millid = microsteps_to_millidegrees(
                     motors_refs[mirror].full_course, mirror);
-                LOG_INF("Motor %u, x0: %d microsteps, range: %u millidegrees",
-                        mirror, motors_refs[mirror].x0, angle_millid);
+                LOG_INF("Motor %u: range: %u millidegrees = %u usteps; x0: %d "
+                        "usteps",
+                        mirror, angle_millid, motors_refs[mirror].full_course,
+                        motors_refs[mirror].x0);
 
                 MotorRange range = {
                     .which_motor = (mirror == MIRROR_VERTICAL_ANGLE
@@ -881,6 +969,14 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 
     if (err_code) {
         // todo raise event motor issue
+    }
+
+    if (mirror == MIRROR_VERTICAL_ANGLE) {
+        motors_refs[mirror].angle_millidegrees =
+            AUTO_HOMING_VERTICAL_ANGLE_RESULT_MILLI_DEGREES;
+    } else {
+        motors_refs[mirror].angle_millidegrees =
+            AUTO_HOMING_HORIZONTAL_ANGLE_RESULT_MILLI_DEGREES;
     }
 
     k_sem_give(homing_in_progress_sem + mirror);
@@ -1032,6 +1128,14 @@ mirrors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
         motors_refs[motor].motor_state = RET_SUCCESS;
     }
 
+    if (motor == MIRROR_VERTICAL_ANGLE) {
+        motors_refs[motor].angle_millidegrees =
+            AUTO_HOMING_VERTICAL_ANGLE_RESULT_MILLI_DEGREES;
+    } else {
+        motors_refs[motor].angle_millidegrees =
+            AUTO_HOMING_HORIZONTAL_ANGLE_RESULT_MILLI_DEGREES;
+    }
+
     k_sem_give(homing_in_progress_sem + motor);
 }
 
@@ -1084,6 +1188,18 @@ mirrors_auto_homing_in_progress()
     return (
         k_sem_count_get(&homing_in_progress_sem[MIRROR_VERTICAL_ANGLE]) == 0 ||
         k_sem_count_get(&homing_in_progress_sem[MIRROR_HORIZONTAL_ANGLE]) == 0);
+}
+
+int32_t
+mirrors_get_horizontal_position(void)
+{
+    return motors_refs[MIRROR_HORIZONTAL_ANGLE].angle_millidegrees;
+}
+
+int32_t
+mirrors_get_vertical_position(void)
+{
+    return motors_refs[MIRROR_VERTICAL_ANGLE].angle_millidegrees;
 }
 
 ret_code_t
@@ -1159,6 +1275,16 @@ mirrors_init(void)
         ASSERT_SOFT(RET_ERROR_INVALID_STATE);
         return RET_ERROR_INVALID_STATE;
     }
+
+    k_work_init(&vertical_set_work_item.work,
+                mirror_angle_vertical_work_wrapper);
+    k_work_init(&horizontal_set_work_item.work,
+                mirror_angle_horizontal_work_wrapper);
+
+    k_work_queue_init(&mirror_work_queue);
+    k_work_queue_start(&mirror_work_queue, stack_area_mirror_work_queue,
+                       K_THREAD_STACK_SIZEOF(stack_area_mirror_work_queue),
+                       THREAD_PRIORITY_MOTORS_INIT, NULL);
 
     return RET_SUCCESS;
 }

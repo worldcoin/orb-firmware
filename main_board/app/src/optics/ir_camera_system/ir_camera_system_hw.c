@@ -10,6 +10,7 @@
 #include <app_config.h>
 #include <assert.h>
 #include <math.h>
+#include <optics/mirrors/mirrors.h>
 #include <soc.h>
 #include <stm32_ll_hrtim.h>
 #include <stm32_ll_rcc.h>
@@ -226,19 +227,20 @@ static struct ir_camera_timer_settings global_timer_settings;
 static const struct gpio_dt_spec super_caps_charging_mode =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), super_caps_charging_mode_gpios);
 
+// Focus sweep stuff
 static int16_t global_focus_values[MAX_NUMBER_OF_FOCUS_VALUES];
 static size_t global_num_focus_values;
-static volatile size_t focus_sweep_index;
-static bool use_polynomial;
-static IREyeCameraFocusSweepValuesPolynomial polynomial;
+static volatile size_t sweep_index;
+static bool use_focus_sweep_polynomial;
+static IREyeCameraFocusSweepValuesPolynomial focus_sweep_polynomial;
 
 void
 ir_camera_system_set_polynomial_coefficients_for_focus_sweep_hw(
     IREyeCameraFocusSweepValuesPolynomial poly)
 {
-    use_polynomial = true;
+    use_focus_sweep_polynomial = true;
     global_num_focus_values = poly.number_of_frames;
-    polynomial = poly;
+    focus_sweep_polynomial = poly;
 }
 
 void
@@ -247,11 +249,11 @@ ir_camera_system_set_focus_values_for_focus_sweep_hw(int16_t *focus_values,
 {
     global_num_focus_values = num_focus_values;
     memcpy(global_focus_values, focus_values, sizeof(global_focus_values));
-    use_polynomial = false;
+    use_focus_sweep_polynomial = false;
 }
 
-static uint32_t
-evaluate_polynomial(uint32_t frame_no)
+static int32_t
+evaluate_focus_sweep_polynomial(uint32_t frame_no)
 {
     // We are evaluating this formula:
     // focus(n) = a + bn + cn^2 + dn^3 + en^4 + fn^5
@@ -261,13 +263,51 @@ evaluate_polynomial(uint32_t frame_no)
     //
     // Using Horner's rule reduces the number of multiplications
     return lroundf(
-        polynomial.coef_a +
-        (frame_no * (polynomial.coef_b +
-                     frame_no * (polynomial.coef_c +
-                                 frame_no * (polynomial.coef_d +
-                                             frame_no * (polynomial.coef_e +
-                                                         (polynomial.coef_f *
-                                                          frame_no)))))));
+        focus_sweep_polynomial.coef_a +
+        (frame_no *
+         (focus_sweep_polynomial.coef_b +
+          frame_no * (focus_sweep_polynomial.coef_c +
+                      frame_no * (focus_sweep_polynomial.coef_d +
+                                  frame_no * (focus_sweep_polynomial.coef_e +
+                                              (focus_sweep_polynomial.coef_f *
+                                               frame_no)))))));
+}
+
+// In milli-degrees
+struct mirror_delta {
+    int32_t delta_x;
+    int32_t delta_y;
+};
+
+// Mirror sweep stuff
+static IREyeCameraMirrorSweepValuesPolynomial mirror_sweep_polynomial;
+static int32_t initial_mirror_y_pos, initial_mirror_x_pos;
+
+void
+ir_camera_system_set_polynomial_coefficients_for_mirror_sweep_hw(
+    IREyeCameraMirrorSweepValuesPolynomial poly)
+{
+    mirror_sweep_polynomial = poly;
+}
+
+static struct mirror_delta
+evaluate_mirror_sweep_polynomials(uint32_t frame_no)
+{
+    struct mirror_delta md = {0};
+
+    float radius =
+        mirror_sweep_polynomial.radius_coef_a +
+        (frame_no * (mirror_sweep_polynomial.radius_coef_b +
+                     (frame_no * mirror_sweep_polynomial.radius_coef_c)));
+    float angle =
+        mirror_sweep_polynomial.angle_coef_a +
+        (frame_no * (mirror_sweep_polynomial.angle_coef_b +
+                     (frame_no * mirror_sweep_polynomial.angle_coef_c)));
+
+    md.delta_x = (int32_t)(radius * sinf(angle)) * 1000;
+    md.delta_y = (int32_t)(radius * cosf(angle)) * 1000;
+
+    return md;
 }
 
 #ifdef HIL_TEST
@@ -282,37 +322,57 @@ camera_sweep_isr(void *arg)
     clear_ccr_interrupt_flag[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
         CAMERA_TRIGGER_TIMER);
 
-    if (focus_sweep_index == global_num_focus_values) {
-        disable_ccr_interrupt[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
-            CAMERA_TRIGGER_TIMER);
-        LOG_DBG("Focus sweep complete!");
-        ir_camera_system_disable_ir_eye_camera_force();
-        clear_focus_sweep_in_progress();
+    if (get_focus_sweep_in_progress() == true) {
+        if (sweep_index == global_num_focus_values) {
+            disable_ccr_interrupt[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
+                CAMERA_TRIGGER_TIMER);
+            LOG_DBG("Focus sweep complete!");
+            ir_camera_system_disable_ir_eye_camera_force();
+            clear_focus_sweep_in_progress();
 #ifdef HIL_TEST
-        k_sem_give(&camera_sweep_sem);
+            k_sem_give(&camera_sweep_sem);
 #endif
-    } else {
-        if (use_polynomial) {
-            liquid_set_target_current_ma(
-                evaluate_polynomial(focus_sweep_index));
         } else {
-            liquid_set_target_current_ma(
-                global_focus_values[focus_sweep_index]);
+            if (use_focus_sweep_polynomial) {
+                liquid_set_target_current_ma(
+                    evaluate_focus_sweep_polynomial(sweep_index));
+            } else {
+                liquid_set_target_current_ma(global_focus_values[sweep_index]);
+            }
         }
+    } else if (get_mirror_sweep_in_progress() == true) {
+        if (sweep_index == mirror_sweep_polynomial.number_of_frames) {
+            disable_ccr_interrupt[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
+                CAMERA_TRIGGER_TIMER);
+            LOG_DBG("Mirror sweep complete!");
+            ir_camera_system_disable_ir_eye_camera_force();
+            clear_mirror_sweep_in_progress();
+#ifdef HIL_TEST
+            k_sem_give(&camera_sweep_sem);
+#endif
+        } else {
+            struct mirror_delta md =
+                evaluate_mirror_sweep_polynomials(sweep_index);
+            mirrors_angle_horizontal_async(md.delta_x + initial_mirror_x_pos);
+            mirrors_angle_vertical_async(md.delta_y + initial_mirror_y_pos);
+        }
+    } else {
+        LOG_ERR("Nothing is in progress, this should not be possible!");
     }
-    focus_sweep_index++;
+
+    sweep_index++;
 }
 
 static void
 initialize_focus_sweep(void)
 {
-    if (use_polynomial) {
-        liquid_set_target_current_ma(evaluate_polynomial(0));
+    if (use_focus_sweep_polynomial) {
+        liquid_set_target_current_ma(evaluate_focus_sweep_polynomial(0));
     } else {
         liquid_set_target_current_ma(global_focus_values[0]);
     }
 
-    focus_sweep_index = 1;
+    sweep_index = 1;
 
     clear_ccr_interrupt_flag[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
         CAMERA_TRIGGER_TIMER);
@@ -335,6 +395,41 @@ ir_camera_system_perform_focus_sweep_hw(void)
         initialize_focus_sweep();
     } else {
         LOG_WRN("Num focus values is 0!");
+    }
+}
+
+static void
+initialize_mirror_sweep(void)
+{
+    sweep_index = 0;
+    initial_mirror_x_pos = mirrors_get_horizontal_position();
+    initial_mirror_y_pos = mirrors_get_vertical_position();
+
+    LOG_DBG("Initial mirror x pos: %d", initial_mirror_x_pos);
+    LOG_DBG("Initial mirror y pos: %d", initial_mirror_y_pos);
+
+    clear_ccr_interrupt_flag[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
+        CAMERA_TRIGGER_TIMER);
+    enable_ccr_interrupt[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
+        CAMERA_TRIGGER_TIMER);
+
+    LOG_DBG("Starting mirror sweep!");
+
+    ir_camera_system_enable_ir_eye_camera_force();
+}
+
+void
+ir_camera_system_perform_mirror_sweep_hw(void)
+{
+    LOG_DBG("Initializing mirror sweep.");
+    LOG_DBG("Taking %zu mirror sweep frames",
+            mirror_sweep_polynomial.number_of_frames);
+    // No mirror values means we trivially succeed
+    if (mirror_sweep_polynomial.number_of_frames > 0) {
+        set_mirror_sweep_in_progress();
+        initialize_mirror_sweep();
+    } else {
+        LOG_WRN("Num mirror values is 0!");
     }
 }
 

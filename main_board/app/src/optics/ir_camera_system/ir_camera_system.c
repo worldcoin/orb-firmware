@@ -14,6 +14,7 @@ LOG_MODULE_REGISTER(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
 /* Internal */
 
 STATIC_OR_EXTERN atomic_t focus_sweep_in_progress;
+STATIC_OR_EXTERN atomic_t mirror_sweep_in_progress;
 STATIC_OR_EXTERN bool ir_camera_system_initialized;
 STATIC_OR_EXTERN InfraredLEDs_Wavelength enabled_led_wavelength =
     InfraredLEDs_Wavelength_WAVELENGTH_NONE;
@@ -78,6 +79,7 @@ STATIC_OR_EXTERN InfraredLEDs_Wavelength enabled_led_wavelength =
 
 /* Module internal */
 
+// Focus sweep
 bool
 get_focus_sweep_in_progress(void)
 {
@@ -94,6 +96,25 @@ void
 clear_focus_sweep_in_progress(void)
 {
     atomic_set(&focus_sweep_in_progress, 0);
+}
+
+// Mirror sweep
+bool
+get_mirror_sweep_in_progress(void)
+{
+    return atomic_get(&mirror_sweep_in_progress);
+}
+
+void
+set_mirror_sweep_in_progress(void)
+{
+    atomic_set(&mirror_sweep_in_progress, 1);
+}
+
+void
+clear_mirror_sweep_in_progress(void)
+{
+    atomic_set(&mirror_sweep_in_progress, 0);
 }
 
 /* Public */
@@ -253,6 +274,45 @@ ir_camera_system_perform_focus_sweep(void)
 }
 
 ret_code_t
+ir_camera_system_set_polynomial_coefficients_for_mirror_sweep(
+    IREyeCameraMirrorSweepValuesPolynomial poly)
+{
+    ret_code_t ret = RET_ERROR_NOT_INITIALIZED;
+
+    if (get_mirror_sweep_in_progress() == true) {
+        ret = RET_ERROR_BUSY;
+    } else {
+        ir_camera_system_set_polynomial_coefficients_for_mirror_sweep_hw(poly);
+        ret = RET_SUCCESS;
+    }
+
+    return ret;
+}
+
+ret_code_t
+ir_camera_system_perform_mirror_sweep(void)
+{
+    ret_code_t ret;
+
+    ret = ir_camera_system_get_status();
+
+    if (ret == RET_SUCCESS) {
+        if (ir_camera_system_get_fps_hw() == 0) {
+            LOG_ERR("FPS must be greater than 0!");
+            ret = RET_ERROR_INVALID_STATE;
+        } else if (ir_camera_system_ir_eye_camera_is_enabled()) {
+            LOG_ERR("IR eye camera must be disabled!");
+            ret = RET_ERROR_INVALID_STATE;
+        } else {
+            ir_camera_system_perform_mirror_sweep_hw();
+            ret = RET_SUCCESS;
+        }
+    }
+
+    return ret;
+}
+
+ret_code_t
 ir_camera_system_get_status(void)
 {
     ret_code_t ret;
@@ -260,6 +320,8 @@ ir_camera_system_get_status(void)
     if (!ir_camera_system_initialized) {
         ret = RET_ERROR_NOT_INITIALIZED;
     } else if (get_focus_sweep_in_progress() == true) {
+        ret = RET_ERROR_BUSY;
+    } else if (get_mirror_sweep_in_progress() == true) {
         ret = RET_ERROR_BUSY;
     } else {
         ret = RET_SUCCESS;

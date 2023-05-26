@@ -392,6 +392,108 @@ ZTEST(hil, test_ir_eye_camera_focus_sweep)
     zassert_equal(ir_camera_system_get_status(), RET_SUCCESS);
 }
 
+#define MIRROR_SWEEP_NUM_FRAMES 100
+#define MIRROR_SWEEP_FPS        30
+#define MIRROR_SWEEP_WAIT_TIME_MS                                              \
+    ((uint32_t)((((float)(MIRROR_SWEEP_NUM_FRAMES) / MIRROR_SWEEP_FPS) *       \
+                 1000) +                                                       \
+                1000))
+
+ZTEST(hil, test_ir_eye_camera_mirror_sweep)
+{
+    McuMessage msg;
+
+    // Stop triggering IR eye camera message
+    msg = (McuMessage)McuMessage_init_zero;
+    msg.version = Version_VERSION_0;
+    msg.which_message = McuMessage_j_message_tag;
+    msg.message.j_message.ack_number = 0;
+    msg.message.j_message.which_payload =
+        JetsonToMcu_stop_triggering_ir_eye_camera_tag;
+    send_msg(&msg);
+
+    // Set FPS
+    msg = (McuMessage)McuMessage_init_zero;
+    msg.version = Version_VERSION_0;
+    msg.which_message = McuMessage_j_message_tag;
+    msg.message.j_message.ack_number = 0;
+    msg.message.j_message.which_payload = JetsonToMcu_fps_tag;
+    msg.message.j_message.payload.fps.fps = MIRROR_SWEEP_FPS;
+    send_msg(&msg);
+
+    // Set on-time
+    msg = (McuMessage)McuMessage_init_zero;
+    msg.version = Version_VERSION_0;
+    msg.which_message = McuMessage_j_message_tag;
+    msg.message.j_message.ack_number = 0;
+    msg.message.j_message.which_payload = JetsonToMcu_led_on_time_tag;
+    msg.message.j_message.payload.led_on_time.on_duration_us = 2500;
+    send_msg(&msg);
+
+    // Perform auto-homing
+    msg = (McuMessage)McuMessage_init_zero;
+    msg.version = Version_VERSION_0;
+    msg.which_message = McuMessage_j_message_tag;
+    msg.message.j_message.ack_number = 0;
+    msg.message.j_message.which_payload = JetsonToMcu_do_homing_tag;
+    msg.message.j_message.payload.do_homing.homing_mode =
+        PerformMirrorHoming_Mode_ONE_BLOCKING_END;
+    msg.message.j_message.payload.do_homing.angle =
+        PerformMirrorHoming_Angle_BOTH;
+    send_msg(&msg);
+
+    k_msleep(5000);
+
+    // Set initial mirror position
+    msg = (McuMessage)McuMessage_init_zero;
+    msg.version = Version_VERSION_0;
+    msg.which_message = McuMessage_j_message_tag;
+    msg.message.j_message.ack_number = 0;
+    msg.message.j_message.which_payload = JetsonToMcu_mirror_angle_tag;
+    msg.message.j_message.payload.mirror_angle.horizontal_angle = 52000;
+    msg.message.j_message.payload.mirror_angle.vertical_angle = -9000;
+    send_msg(&msg);
+
+    k_msleep(1000);
+
+    // Set mirror sweep polynomial
+    msg = (McuMessage)McuMessage_init_zero;
+    msg.version = Version_VERSION_0;
+    msg.which_message = McuMessage_j_message_tag;
+    msg.message.j_message.ack_number = 0;
+    msg.message.j_message.which_payload =
+        JetsonToMcu_ir_eye_camera_mirror_sweep_values_polynomial_tag;
+    msg.message.j_message.payload.ir_eye_camera_mirror_sweep_values_polynomial =
+        (IREyeCameraMirrorSweepValuesPolynomial){
+            .radius_coef_a = 1.0f,
+            .radius_coef_b = 0.09f,
+            .radius_coef_c = 0.0003f,
+            .angle_coef_a = 10.0f,
+            .angle_coef_b = 0.18849556f,
+            .angle_coef_c = 0,
+            .number_of_frames = MIRROR_SWEEP_NUM_FRAMES,
+        };
+    send_msg(&msg);
+
+    // Perform mirror sweep
+    msg = (McuMessage)McuMessage_init_zero;
+    msg.version = Version_VERSION_0;
+    msg.which_message = McuMessage_j_message_tag;
+    msg.message.j_message.ack_number = 0;
+    msg.message.j_message.which_payload =
+        JetsonToMcu_perform_ir_eye_camera_mirror_sweep_tag;
+
+    extern struct k_sem camera_sweep_sem;
+
+    k_sem_reset(&camera_sweep_sem);
+
+    send_msg(&msg);
+
+    int ret = k_sem_take(&camera_sweep_sem, K_MSEC(MIRROR_SWEEP_WAIT_TIME_MS));
+    zassert_ok(ret, "Timed out! Waited for %ums", MIRROR_SWEEP_WAIT_TIME_MS);
+    zassert_equal(ir_camera_system_get_status(), RET_SUCCESS);
+}
+
 ZTEST(hil, test_ir_camera_sys_logic_analyzer)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_IR_CAMERA_SYSTEM);

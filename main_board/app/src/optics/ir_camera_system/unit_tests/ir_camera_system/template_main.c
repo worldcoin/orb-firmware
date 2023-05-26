@@ -25,6 +25,9 @@ FAKE_VOID_FUNC(ir_camera_system_set_polynomial_coefficients_for_focus_sweep_hw,
 FAKE_VOID_FUNC(ir_camera_system_set_focus_values_for_focus_sweep_hw, int16_t *,
                size_t);
 FAKE_VOID_FUNC(ir_camera_system_perform_focus_sweep_hw);
+FAKE_VOID_FUNC(ir_camera_system_set_polynomial_coefficients_for_mirror_sweep_hw,
+               IREyeCameraMirrorSweepValuesPolynomial);
+FAKE_VOID_FUNC(ir_camera_system_perform_mirror_sweep_hw);
 FAKE_VALUE_FUNC(uint16_t, ir_camera_system_get_fps_hw);
 
 extern bool ir_camera_system_initialized;

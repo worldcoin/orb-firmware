@@ -37,16 +37,22 @@ ir_camera_system_set_on_time_us_hw(uint16_t on_time_us);
 ret_code_t
 ir_camera_system_set_on_time_740nm_us_hw(uint16_t on_time_us);
 
+/* Focus sweep */
 void
 ir_camera_system_set_polynomial_coefficients_for_focus_sweep_hw(
     IREyeCameraFocusSweepValuesPolynomial poly);
-
 void
 ir_camera_system_set_focus_values_for_focus_sweep_hw(int16_t *focus_values,
                                                      size_t num_focus_values);
-
 void
 ir_camera_system_perform_focus_sweep_hw(void);
+
+/* Mirror sweep */
+void
+ir_camera_system_set_polynomial_coefficients_for_mirror_sweep_hw(
+    IREyeCameraMirrorSweepValuesPolynomial poly);
+void
+ir_camera_system_perform_mirror_sweep_hw(void);
 
 uint16_t
 ir_camera_system_get_fps_hw(void);
