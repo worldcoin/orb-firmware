@@ -26,7 +26,8 @@ static bool is_safe = false;
 #define DISTANCE_MIN_EYE_SAFETY_LOWER_LIMIT_MM 100
 #define DISTANCE_MIN_EYE_SAFETY_UPPER_LIMIT_MM 120
 
-#define DISTANCE_PUBLISH_PERIOD_MS (1000)
+#define DISTANCE_FETCH_PERIOD_MS   (CONFIG_VL53L1X_INTER_MEASUREMENT_PERIOD * 2)
+#define DISTANCE_PUBLISH_PERIOD_MS (DISTANCE_FETCH_PERIOD_MS * 2)
 
 bool
 distance_is_safe(void)
@@ -43,7 +44,7 @@ tof_1d_thread()
     uint32_t count = 0;
 
     while (1) {
-        k_msleep(CONFIG_VL53L1X_INTER_MEASUREMENT_PERIOD);
+        k_msleep(DISTANCE_FETCH_PERIOD_MS);
 
         ret = sensor_sample_fetch_chan(tof_1d_device, SENSOR_CHAN_DISTANCE);
         if (ret != 0) {
@@ -68,8 +69,7 @@ tof_1d_thread()
 
         // limit number of samples sent
         ++count;
-        if (count % (DISTANCE_PUBLISH_PERIOD_MS /
-                     CONFIG_VL53L1X_INTER_MEASUREMENT_PERIOD) ==
+        if (count % (DISTANCE_PUBLISH_PERIOD_MS / DISTANCE_FETCH_PERIOD_MS) ==
             0) {
             LOG_INF("Distance in front: %umm", tof.distance_mm);
 
