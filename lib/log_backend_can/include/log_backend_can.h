@@ -1,5 +1,4 @@
-#ifndef ORB_LIB_LOG_BACKEND_CAN_H
-#define ORB_LIB_LOG_BACKEND_CAN_H
+#pragma once
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -13,5 +12,3 @@
 void
 log_backend_can_register_print(void (*print)(const char *log, size_t size,
                                              bool blocking));
-
-#endif // ORB_LIB_LOG_BACKEND_CAN_H

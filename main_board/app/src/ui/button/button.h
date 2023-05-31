@@ -1,5 +1,4 @@
-#ifndef ORB_MCU_MAIN_APP_BUTTON_H
-#define ORB_MCU_MAIN_APP_BUTTON_H
+#pragma once
 
 #include "errors.h"
 
@@ -16,5 +15,3 @@ button_uninit(void);
  */
 int
 button_init(void);
-
-#endif // ORB_MCU_MAIN_APP_BUTTON_H

@@ -1,5 +1,4 @@
-#ifndef DISTRIBUTOR_LEDS_H
-#define DISTRIBUTOR_LEDS_H
+#pragma once
 
 #include <errors.h>
 #include <mcu_messaging.pb.h>
@@ -47,5 +46,3 @@ operator_leds_set_leds_sequence(uint8_t *bytes, uint32_t size);
 /// OPERATOR_LEDS_ALL_MASK)
 void
 operator_leds_blocking_set(const RgbColor *color, uint32_t mask);
-
-#endif // DISTRIBUTOR_LEDS_H

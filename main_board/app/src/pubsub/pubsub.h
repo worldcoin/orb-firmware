@@ -1,5 +1,4 @@
-#ifndef FIRMWARE_PUBSUB_H
-#define FIRMWARE_PUBSUB_H
+#pragma once
 
 #include <stddef.h>
 #include <stdint.h>
@@ -54,5 +53,3 @@ publish_store(void *payload, size_t size, uint32_t which_payload,
 int
 publish_new(void *payload, size_t size, uint32_t which_payload,
             uint32_t remote_addr);
-
-#endif // FIRMWARE_PUBSUB_H

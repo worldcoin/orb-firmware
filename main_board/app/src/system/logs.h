@@ -1,7 +1,4 @@
-#ifndef FIRMWARE_LOGS_H
-#define FIRMWARE_LOGS_H
+#pragma once
 
 int
 logs_init(void);
-
-#endif // FIRMWARE_LOGS_H

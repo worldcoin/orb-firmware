@@ -1,5 +1,4 @@
-#ifndef FAN_H
-#define FAN_H
+#pragma once
 
 #include <errors.h>
 #include <stdint.h>
@@ -22,5 +21,3 @@ fan_get_speed_setting(void);
 
 int
 fan_init(void);
-
-#endif // FAN_H

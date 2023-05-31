@@ -1,5 +1,4 @@
-#ifndef FIRMWARE_TOF_1D_H
-#define FIRMWARE_TOF_1D_H
+#pragma once
 
 #include <stdbool.h>
 
@@ -8,5 +7,3 @@ distance_is_safe(void);
 
 int
 tof_1d_init(void);
-
-#endif // FIRMWARE_TOF_1D_H

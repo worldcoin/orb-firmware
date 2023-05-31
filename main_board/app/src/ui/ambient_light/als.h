@@ -1,7 +1,4 @@
-#ifndef FIRMWARE_ALS_H
-#define FIRMWARE_ALS_H
+#pragma once
 
 int
 als_init(void);
-
-#endif // FIRMWARE_ALS_H

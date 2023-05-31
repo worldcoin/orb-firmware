@@ -1,5 +1,4 @@
-#ifndef TEMPERATURE_H
-#define TEMPERATURE_H
+#pragma once
 
 #include <mcu_messaging.pb.h>
 #include <stdbool.h>
@@ -17,5 +16,3 @@ temperature_report(Temperature_TemperatureSource source,
 
 bool
 temperature_is_in_overtemp(void);
-
-#endif // TEMPERATURE_H

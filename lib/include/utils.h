@@ -1,5 +1,4 @@
-#ifndef FIRMWARE_UTILS_H
-#define FIRMWARE_UTILS_H
+#pragma once
 
 #include "zephyr/sys/util.h"
 
@@ -46,5 +45,3 @@
 #endif
 
 #define STATIC_OR_EXTERN static
-
-#endif // FIRMWARE_UTILS_H

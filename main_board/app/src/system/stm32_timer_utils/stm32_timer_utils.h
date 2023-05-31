@@ -1,5 +1,4 @@
-#ifndef STM32_TIMER_UTILS_H
-#define STM32_TIMER_UTILS_H
+#pragma once
 
 #include <errors.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
@@ -39,5 +38,3 @@ enable_clocks_and_configure_pins(struct stm32_pclken **periph_clock_enables,
  */
 int
 get_tim_clk(const struct stm32_pclken *pclken, uint32_t *tim_clk);
-
-#endif // STM32_TIMER_UTILS_H

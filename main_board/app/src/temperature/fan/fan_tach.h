@@ -1,5 +1,4 @@
-#ifndef FAN_TACH
-#define FAN_TACH
+#pragma once
 
 /// Initialize the fan tach subsystem
 /// \return RET_SUCCESS if successful, otherwise RET_ERROR_INTERNAL
@@ -15,5 +14,3 @@ fan_tach_get_main_speed(void);
 /// \return speed in rotations per minute if successful, otherwise UINT32_MAX
 uint32_t
 fan_tach_get_aux_speed(void);
-
-#endif // FAN_TACH

@@ -1,5 +1,4 @@
-#ifndef ORB_FIRMWARE_APP_MAIN_SRC_DFU_DFU_H
-#define ORB_FIRMWARE_APP_MAIN_SRC_DFU_DFU_H
+#pragma once
 
 #include "bootutil/image.h"
 #include "utils.h"
@@ -86,5 +85,3 @@ dfu_version_secondary_get(struct image_version *ih_ver);
 /// Init module
 int
 dfu_init(void);
-
-#endif // ORB_FIRMWARE_APP_MAIN_SRC_DFU_DFU_H

@@ -1,5 +1,4 @@
-#ifndef IR_CAMERA_SYSTEM
-#define IR_CAMERA_SYSTEM
+#pragma once
 
 #include <errors.h>
 #include <mcu_messaging.pb.h>
@@ -199,5 +198,3 @@ ir_camera_system_perform_mirror_sweep(void);
  */
 ret_code_t
 ir_camera_system_get_status(void);
-
-#endif // IR_CAMERA_SYSTEM

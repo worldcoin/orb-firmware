@@ -1,5 +1,4 @@
-#ifndef FRONT_UNIT_RGB_LEDS_H
-#define FRONT_UNIT_RGB_LEDS_H
+#pragma once
 
 #include "mcu_messaging.pb.h"
 #include <errors.h>
@@ -26,5 +25,3 @@ front_leds_set_brightness(uint32_t brightness); // 0 - 255
 
 void
 front_leds_turn_off_final(void);
-
-#endif // FRONT_UNIT_RGB_LEDS_H

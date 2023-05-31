@@ -1,5 +1,4 @@
-#ifndef FIRMWARE_TIMER_SETTINGS_H
-#define FIRMWARE_TIMER_SETTINGS_H
+#pragma once
 
 #include <errors.h>
 #include <stdint.h>
@@ -48,5 +47,3 @@ timer_740nm_ccr_from_on_time_us(
     uint32_t on_time_us,
     const struct ir_camera_timer_settings *current_settings,
     struct ir_camera_timer_settings *new_settings);
-
-#endif // FIRMWARE_TIMER_SETTINGS_H

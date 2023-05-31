@@ -1,5 +1,4 @@
-#ifndef FIRMWARE_ERRORS_H
-#define FIRMWARE_ERRORS_H
+#pragma once
 
 typedef enum {
     RET_SUCCESS = 0x00,
@@ -17,5 +16,3 @@ typedef enum {
     RET_ERROR_ASSERT_FAILS = 0x0C,
     RET_ERROR_ALREADY_INITIALIZED = 0x0D,
 } ret_code_t;
-
-#endif // FIRMWARE_ERRORS_H

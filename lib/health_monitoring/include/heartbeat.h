@@ -1,5 +1,4 @@
-#ifndef ORB_MCU_SECURITY_APP_HEARTBEAT_H
-#define ORB_MCU_SECURITY_APP_HEARTBEAT_H
+#pragma once
 
 #include <stdint.h>
 
@@ -17,5 +16,3 @@ heartbeat_boom(uint32_t delay_s);
 /// handler.
 void
 heartbeat_register_cb(int (*timeout_cb)(void));
-
-#endif // ORB_MCU_SECURITY_APP_HEARTBEAT_H

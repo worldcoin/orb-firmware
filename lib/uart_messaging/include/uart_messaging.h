@@ -1,5 +1,4 @@
-#ifndef ORB_LIB_UART_MESSAGING_H
-#define ORB_LIB_UART_MESSAGING_H
+#pragma once
 
 #include "errors.h"
 #include <stddef.h>
@@ -46,5 +45,3 @@ uart_messaging_resume(void);
 /// \return
 int
 uart_messaging_init(void (*in_handler)(void *msg));
-
-#endif // ORB_LIB_UART_MESSAGING_H

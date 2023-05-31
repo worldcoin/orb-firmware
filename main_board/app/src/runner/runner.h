@@ -1,5 +1,4 @@
-#ifndef RUNNER_H
-#define RUNNER_H
+#pragma once
 
 #include <errors.h>
 #include <stdint.h>
@@ -24,5 +23,3 @@ runner_handle_new_uart(void *msg);
 /// Spawn runner thread
 void
 runner_init(void);
-
-#endif // RUNNER_H

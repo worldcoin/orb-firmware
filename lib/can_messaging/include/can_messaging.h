@@ -1,5 +1,4 @@
-#ifndef ORB_LIB_CAN_MESSAGING_H
-#define ORB_LIB_CAN_MESSAGING_H
+#pragma once
 
 #include "errors.h"
 #include <stddef.h>
@@ -68,5 +67,3 @@ can_messaging_resume(void);
 /// \param in_handler Function that will handle incoming messages
 /// \return
 ret_code_t can_messaging_init(ret_code_t (*in_handler)(void *message));
-
-#endif // ORB_LIB_CAN_MESSAGING_H

@@ -1,5 +1,4 @@
-#ifndef MIRRORS_H
-#define MIRRORS_H
+#pragma once
 
 #include <errors.h>
 #include <zephyr/kernel.h>
@@ -140,5 +139,3 @@ mirrors_get_horizontal_position(void);
 
 bool
 mirrors_homed_successfully(void);
-
-#endif // MIRRORS_H

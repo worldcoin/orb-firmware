@@ -2,8 +2,7 @@
 #error This file should not be included outside of the IR Camera System!
 #endif
 
-#ifndef IR_CAMERA_SYSTEM_INTERNAL_H
-#define IR_CAMERA_SYSTEM_INTERNAL_H
+#pragma once
 
 #include <stdbool.h>
 
@@ -25,5 +24,3 @@ void
 ir_camera_system_enable_ir_eye_camera_force(void);
 void
 ir_camera_system_disable_ir_eye_camera_force(void);
-
-#endif // IR_CAMERA_SYSTEM_INTERNAL_H

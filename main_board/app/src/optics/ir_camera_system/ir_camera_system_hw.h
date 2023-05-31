@@ -2,8 +2,7 @@
 #error This file should not be included outside of the IR Camera System!
 #endif
 
-#ifndef IR_CAMERA_SYSTEM_HW
-#define IR_CAMERA_SYSTEM_HW
+#pragma once
 
 ret_code_t
 ir_camera_system_hw_init(void);
@@ -56,5 +55,3 @@ ir_camera_system_perform_mirror_sweep_hw(void);
 
 uint16_t
 ir_camera_system_get_fps_hw(void);
-
-#endif // IR_CAMERA_SYSTEM_HW

@@ -1,5 +1,4 @@
-#ifndef FIRMWARE_ORB_COMMON_INCLUDE_COMPILERS_H
-#define FIRMWARE_ORB_COMMON_INCLUDE_COMPILERS_H
+#pragma once
 
 #include <stdint.h>
 
@@ -119,5 +118,3 @@ assert_pointer_value_check(char *details);
             __BKPT(1);                                                         \
         }                                                                      \
     } while (0)
-
-#endif // FIRMWARE_ORB_COMMON_INCLUDE_COMPILERS_H

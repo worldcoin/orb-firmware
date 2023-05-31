@@ -1,5 +1,4 @@
-#ifndef ORB_MCU_MAIN_APP_RGB_LEDS_H
-#define ORB_MCU_MAIN_APP_RGB_LEDS_H
+#pragma once
 
 #include <compilers.h>
 
@@ -33,5 +32,3 @@
     {                                                                          \
         20, 20, 20                                                             \
     }
-
-#endif // ORB_MCU_MAIN_APP_RGB_LEDS_H

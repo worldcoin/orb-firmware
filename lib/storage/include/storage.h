@@ -1,5 +1,4 @@
-#ifndef ORB_LIB_STORAGE_H
-#define ORB_LIB_STORAGE_H
+#pragma once
 
 #include "compilers.h"
 #include <stdbool.h>
@@ -104,5 +103,3 @@ storage_init(void);
 void
 get_storage_area(struct storage_area_s *area);
 #endif
-
-#endif // ORB_LIB_STORAGE_H

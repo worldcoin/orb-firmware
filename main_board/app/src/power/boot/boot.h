@@ -1,5 +1,4 @@
-#ifndef POWER_SEQUENCE_H
-#define POWER_SEQUENCE_H
+#pragma once
 
 #include "stdint.h"
 
@@ -14,5 +13,3 @@ boot_turn_on_jetson(void);
 
 int
 reboot(uint32_t delay_s);
-
-#endif // POWER_SEQUENCE_H

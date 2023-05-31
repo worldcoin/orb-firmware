@@ -1,7 +1,4 @@
-#ifndef SOUND_H
-#define SOUND_H
+#pragma once
 
 int
 sound_init(void);
-
-#endif // SOUND_H

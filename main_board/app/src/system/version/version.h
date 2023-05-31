@@ -1,5 +1,4 @@
-#ifndef ORB_MCU_MAIN_APP_VERSION_H
-#define ORB_MCU_MAIN_APP_VERSION_H
+#pragma once
 
 #include "mcu_messaging.pb.h"
 #include <errors.h>
@@ -15,5 +14,3 @@ version_hw_send(uint32_t remote);
 /// \return RET_SUCCESS if successful, error code otherwise
 ret_code_t
 version_get_hardware_rev(Hardware *hw_version);
-
-#endif // ORB_MCU_MAIN_APP_VERSION_H

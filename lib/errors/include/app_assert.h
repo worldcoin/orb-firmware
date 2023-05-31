@@ -1,5 +1,4 @@
-#ifndef FIRMWARE_ORB_APP_INCLUDE_ERRORS_H
-#define FIRMWARE_ORB_APP_INCLUDE_ERRORS_H
+#pragma once
 
 #include "compilers.h"
 #include "stdint.h"
@@ -108,5 +107,3 @@ void
 fatal_errors_test(void);
 
 #endif
-
-#endif // FIRMWARE_ORB_APP_INCLUDE_ERRORS_H
