@@ -1199,7 +1199,7 @@ static McuMessage mcu_message;
 ret_code_t
 runner_handle_new_can(void *msg)
 {
-    ret_code_t err_ret = RET_SUCCESS;
+    ret_code_t err_code = RET_SUCCESS;
     can_message_t *can_msg = (can_message_t *)msg;
 
     pb_istream_t stream = pb_istream_from_buffer(can_msg->bytes, can_msg->size);
@@ -1211,40 +1211,40 @@ runner_handle_new_can(void *msg)
         if (decoded) {
             if (mcu_message.which_message != McuMessage_j_message_tag) {
                 LOG_INF("Got message not intended for us. Dropping.");
-                return RET_ERROR_INVALID_ADDR;
-            }
-
-            new.remote = CAN_MESSAGING;
-            new.message = mcu_message.message.j_message;
-            new.ack_number = mcu_message.message.j_message.ack_number;
-
-            if (can_msg->destination & CAN_ADDR_IS_ISOTP) {
-                // keep flags of the received message destination
-                // & invert source and `1`
-                new.remote_addr = (can_msg->destination & ~0xFF);
-                new.remote_addr |= (can_msg->destination & 0xF) << 4;
-                new.remote_addr |= (can_msg->destination & 0xF0) >> 4;
+                err_code = RET_ERROR_INVALID_ADDR;
             } else {
-                new.remote_addr = CONFIG_CAN_ADDRESS_DEFAULT_REMOTE;
-            }
+                new.remote = CAN_MESSAGING;
+                new.message = mcu_message.message.j_message;
+                new.ack_number = mcu_message.message.j_message.ack_number;
 
-            ret = k_msgq_put(&process_queue, &new, K_MSEC(5));
-            if (ret) {
-                ASSERT_SOFT(ret);
-                err_ret = RET_ERROR_BUSY;
+                if (can_msg->destination & CAN_ADDR_IS_ISOTP) {
+                    // keep flags of the received message destination
+                    // & invert source and `1`
+                    new.remote_addr = (can_msg->destination & ~0xFF);
+                    new.remote_addr |= (can_msg->destination & 0xF) << 4;
+                    new.remote_addr |= (can_msg->destination & 0xF0) >> 4;
+                } else {
+                    new.remote_addr = CONFIG_CAN_ADDRESS_DEFAULT_REMOTE;
+                }
+
+                ret = k_msgq_put(&process_queue, &new, K_MSEC(5));
+                if (ret) {
+                    ASSERT_SOFT(ret);
+                    err_code = RET_ERROR_BUSY;
+                }
             }
         } else {
             LOG_ERR("Unable to decode");
-            err_ret = RET_ERROR_INVALID_PARAM;
+            err_code = RET_ERROR_INVALID_PARAM;
         }
 
         k_sem_give(&new_job_sem);
     } else {
         LOG_ERR("Handling busy (CAN): %d", ret);
-        err_ret = RET_ERROR_BUSY;
+        err_code = RET_ERROR_BUSY;
     }
 
-    return err_ret;
+    return err_code;
 }
 
 #if CONFIG_ORB_LIB_UART_MESSAGING
@@ -1314,15 +1314,14 @@ runner_handle_new_uart(void *msg)
         if (decoded) {
             if (mcu_message.which_message != McuMessage_j_message_tag) {
                 LOG_INF("Got message not intended for us. Dropping.");
-                return;
+            } else {
+                new.remote = UART_MESSAGING;
+                new.message = mcu_message.message.j_message;
+                new.remote_addr = 0;
+                new.ack_number = 0;
+                ret = k_msgq_put(&process_queue, &new, K_MSEC(5));
+                ASSERT_SOFT(ret);
             }
-
-            new.remote = UART_MESSAGING;
-            new.message = mcu_message.message.j_message;
-            new.remote_addr = 0;
-            new.ack_number = 0;
-            ret = k_msgq_put(&process_queue, &new, K_MSEC(5));
-            ASSERT_SOFT(ret);
         } else {
             LOG_ERR("Unable to decode: %s", stream.errmsg);
         }
