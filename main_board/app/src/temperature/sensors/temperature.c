@@ -178,7 +178,7 @@ average(const int32_t *array)
     }
     avg /= (double)TEMPERATURE_AVERAGE_SAMPLE_COUNT;
 
-    return (int32_t)roundl(avg);
+    return (int32_t)lroundl(avg);
 }
 
 static void
@@ -197,7 +197,12 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
     if (ret == RET_SUCCESS && sensor_and_channel->wr_idx == 0) {
         temp = average(sensor_and_channel->history);
         LOG_DBG("%s: %iC", sensor_and_channel->sensor->name, temp);
-        temperature_report_internal(sensor_and_channel, temp);
+
+        // TODO bug with negative temperatures, seems like a Zephyr bug to
+        // investigate
+        if (temp > 0) {
+            temperature_report_internal(sensor_and_channel, temp);
+        }
     }
 }
 
