@@ -35,7 +35,7 @@ BUILD_ASSERT(CONFIG_ORB_LIB_UART_RX_BUF_SIZE_BYTES &&
 #define UART_RX_RING_BUFFER_USED_BYTES(start, end)                             \
     ((end - start) & (sizeof(uart_rx_ring_buf) - 1))
 
-static void (*incoming_message_handler)(void *msg);
+static ret_code_t (*incoming_message_handler)(uart_message_t *msg);
 
 // thread used to process queued ready-to-process messages
 static K_THREAD_STACK_DEFINE(rx_thread_stack,
@@ -195,7 +195,7 @@ uart_messaging_resume(void)
 #endif
 
 int
-uart_messaging_init(void (*in_handler)(void *msg))
+uart_messaging_init(ret_code_t (*in_handler)(uart_message_t *msg))
 {
     if (in_handler == NULL) {
         return RET_ERROR_INVALID_PARAM;

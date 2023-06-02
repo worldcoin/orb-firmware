@@ -21,7 +21,7 @@ static const struct can_filter recv_queue_filter = {
     .flags = CAN_FILTER_IDE | CAN_FILTER_FDF | CAN_FILTER_DATA};
 CAN_MSGQ_DEFINE(can_recv_queue, 5);
 
-static ret_code_t (*incoming_message_handler)(void *message);
+static ret_code_t (*incoming_message_handler)(can_message_t *message);
 
 static void
 rx_thread()
@@ -52,7 +52,7 @@ rx_thread()
 }
 
 ret_code_t
-canbus_rx_init(ret_code_t (*in_handler)(void *message))
+canbus_rx_init(ret_code_t (*in_handler)(can_message_t *message))
 {
     if (in_handler == NULL) {
         return RET_ERROR_INVALID_PARAM;

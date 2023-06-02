@@ -105,7 +105,7 @@ tof_1d_init(void)
 {
     if (!device_is_ready(tof_1d_device)) {
         LOG_ERR("VL53L1 not ready!");
-        return RET_ERROR_INTERNAL;
+        return RET_ERROR_INVALID_STATE;
     }
 
     k_thread_create(&tof_1d_thread_data, stack_area_tof_1d,

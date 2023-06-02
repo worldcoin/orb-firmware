@@ -481,10 +481,14 @@ mirror_angle_from_center(int32_t d_from_center, mirror_t mirror)
     return RET_SUCCESS;
 }
 
-/// Set relative angle in millidegrees from the current position
-/// \param angle_millidegrees millidegrees from current position
-/// \param mirror MIRROR_VERTICAL_ANGLE or MIRROR_HORIZONTAL_ANGLE
-/// \return
+/**
+ * Set relative angle in millidegrees from the current position
+ * @param angle_millidegrees millidegrees from current position
+ * @param mirror MIRROR_VERTICAL_ANGLE or MIRROR_HORIZONTAL_ANGLE
+ * @retval RET_SUCCESS on success
+ * @retval RET_ERROR_FORBIDDEN if the mirror cannot be moved to the requested
+ * position given its current position
+ */
 static ret_code_t
 mirrors_angle_relative(int32_t angle_millidegrees, mirror_t mirror)
 {
@@ -495,6 +499,12 @@ mirrors_angle_relative(int32_t angle_millidegrees, mirror_t mirror)
         (int32_t)roundf(sinf((float)angle_millidegrees * M_PI / 360000.0f) *
                         motors_arm_length[mirror] * (float)steps_per_mm);
     int32_t xtarget = x + steps;
+    if (xtarget >
+            (motors_refs[mirror].x0 + motors_refs[mirror].full_course / 2) ||
+        xtarget <
+            (motors_refs[mirror].x0 - motors_refs[mirror].full_course / 2)) {
+        return RET_ERROR_FORBIDDEN;
+    }
 
     mirror_set_xtarget(xtarget, mirror);
 

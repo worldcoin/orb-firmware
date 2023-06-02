@@ -38,10 +38,10 @@ const struct fan_duty_cycle_specs fan_ev1_2_specs = {
 const struct fan_duty_cycle_specs fan_ev3_specs = {
     .min_duty_cycle_percent = 40, .max_duty_cycle_percent = 100};
 
-static uint32_t fan_speed_by_value = 0; // value over UINT16_MAX range
+static uint16_t fan_speed_by_value = 0; // value over UINT16_MAX range
 static struct fan_duty_cycle_specs fan_specs;
 
-uint32_t
+uint16_t
 fan_get_speed_setting(void)
 {
     return fan_speed_by_value;

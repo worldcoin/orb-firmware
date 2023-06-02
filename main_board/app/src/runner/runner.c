@@ -30,6 +30,7 @@ static k_tid_t auto_homing_tid = NULL;
 
 K_THREAD_STACK_DEFINE(runner_process_stack, THREAD_STACK_SIZE_RUNNER);
 static struct k_thread runner_process;
+static k_tid_t runner_tid = NULL;
 
 #define MAKE_ASSERTS(tag) ASSERT_SOFT_BOOL(msg->which_payload == tag)
 
@@ -931,9 +932,8 @@ handle_mirror_angle_relative_message(job_t *job)
     LOG_DBG("Got relative mirror angle message, vert: %d, horiz: %u",
             vertical_angle, horizontal_angle);
 
-    if (mirrors_angle_horizontal_relative(horizontal_angle) != RET_SUCCESS) {
-        job_ack(Ack_ErrorCode_FAIL, job);
-    } else if (mirrors_angle_vertical_relative(vertical_angle) != RET_SUCCESS) {
+    if (mirrors_angle_horizontal_relative(horizontal_angle) != RET_SUCCESS ||
+        mirrors_angle_vertical_relative(vertical_angle) != RET_SUCCESS) {
         job_ack(Ack_ErrorCode_FAIL, job);
     } else {
         job_ack(Ack_ErrorCode_SUCCESS, job);
@@ -1197,10 +1197,15 @@ static job_t new = {0};
 static McuMessage mcu_message;
 
 ret_code_t
-runner_handle_new_can(void *msg)
+runner_handle_new_can(can_message_t *msg)
 {
     ret_code_t err_code = RET_SUCCESS;
     can_message_t *can_msg = (can_message_t *)msg;
+
+    if (runner_tid == NULL) {
+        LOG_ERR("Runner thread is not running");
+        return RET_ERROR_INVALID_STATE;
+    }
 
     pb_istream_t stream = pb_istream_from_buffer(can_msg->bytes, can_msg->size);
 
@@ -1219,7 +1224,7 @@ runner_handle_new_can(void *msg)
 
                 if (can_msg->destination & CAN_ADDR_IS_ISOTP) {
                     // keep flags of the received message destination
-                    // & invert source and `1`
+                    // & invert source and destination
                     new.remote_addr = (can_msg->destination & ~0xFF);
                     new.remote_addr |= (can_msg->destination & 0xF) << 4;
                     new.remote_addr |= (can_msg->destination & 0xF0) >> 4;
@@ -1234,7 +1239,7 @@ runner_handle_new_can(void *msg)
                 }
             }
         } else {
-            LOG_ERR("Unable to decode");
+            LOG_ERR("Unable to decode %s", PB_GET_ERROR(&stream));
             err_code = RET_ERROR_INVALID_PARAM;
         }
 
@@ -1288,10 +1293,17 @@ buf_read_circular(pb_istream_t *stream, pb_byte_t *buf, size_t count)
     return true;
 }
 
-void
-runner_handle_new_uart(void *msg)
+ret_code_t
+runner_handle_new_uart(uart_message_t *msg)
 {
-    int ret = k_sem_take(&new_job_sem, K_MSEC(2));
+    ret_code_t err_code = RET_SUCCESS;
+
+    if (runner_tid == NULL) {
+        LOG_ERR("Runner thread is not running");
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    int ret = k_sem_take(&new_job_sem, K_MSEC(5));
 
 #ifdef CONFIG_MCU_UTIL_UART_TESTS
     static size_t counter = 0;
@@ -1314,30 +1326,38 @@ runner_handle_new_uart(void *msg)
         if (decoded) {
             if (mcu_message.which_message != McuMessage_j_message_tag) {
                 LOG_INF("Got message not intended for us. Dropping.");
+                err_code = RET_ERROR_INVALID_ADDR;
             } else {
                 new.remote = UART_MESSAGING;
                 new.message = mcu_message.message.j_message;
                 new.remote_addr = 0;
                 new.ack_number = 0;
                 ret = k_msgq_put(&process_queue, &new, K_MSEC(5));
-                ASSERT_SOFT(ret);
+                if (ret) {
+                    ASSERT_SOFT(ret);
+                    err_code = RET_ERROR_BUSY;
+                }
             }
         } else {
-            LOG_ERR("Unable to decode: %s", stream.errmsg);
+            LOG_ERR("Unable to decode: %s", PB_GET_ERROR(&stream));
+            err_code = RET_ERROR_INVALID_PARAM;
         }
 
         k_sem_give(&new_job_sem);
     } else {
         LOG_ERR("Handling busy (UART): %d", ret);
+        err_code = RET_ERROR_BUSY;
     }
+
+    return err_code;
 }
 #endif
 
 void
 runner_init(void)
 {
-    k_thread_create(&runner_process, runner_process_stack,
-                    K_THREAD_STACK_SIZEOF(runner_process_stack),
-                    runner_process_jobs_thread, NULL, NULL, NULL,
-                    THREAD_PRIORITY_RUNNER, 0, K_NO_WAIT);
+    runner_tid = k_thread_create(&runner_process, runner_process_stack,
+                                 K_THREAD_STACK_SIZEOF(runner_process_stack),
+                                 runner_process_jobs_thread, NULL, NULL, NULL,
+                                 THREAD_PRIORITY_RUNNER, 0, K_NO_WAIT);
 }

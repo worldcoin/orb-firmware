@@ -43,5 +43,4 @@ uart_messaging_resume(void);
 /// Pass a function to handle incoming messages
 /// \param in_handler Function that will handle incoming messages
 /// \return
-int
-uart_messaging_init(void (*in_handler)(void *msg));
+int uart_messaging_init(ret_code_t (*in_handler)(uart_message_t *msg));

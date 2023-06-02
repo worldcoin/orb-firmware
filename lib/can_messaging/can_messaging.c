@@ -124,7 +124,7 @@ can_messaging_resume(void)
 }
 
 ret_code_t
-can_messaging_init(ret_code_t (*in_handler)(void *message))
+can_messaging_init(ret_code_t (*in_handler)(can_message_t *message))
 {
     uint32_t err_code;
 

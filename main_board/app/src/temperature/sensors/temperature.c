@@ -276,7 +276,7 @@ temperature_is_in_overtemp(void)
 static void
 check_overtemp_conditions(void)
 {
-    static uint32_t fan_speed_before_overtemperature = 0;
+    static uint16_t fan_speed_before_overtemperature = 0;
 
     if (old_num_sensors_in_overtemp_conditions == 1 &&
         num_sensors_in_overtemp_conditions == 0) {

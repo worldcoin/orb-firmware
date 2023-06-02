@@ -31,46 +31,63 @@ typedef enum {
 
 /**
  * Set horizontal angle
- * @param angle_millidegrees milli-degrees, accepted range is [25000;65000]
- * @return
- *  * RET_SUCESS mirror successfully set to passed angle \c angle_millidegrees
- *  * RET_ERROR_INVALID_PARAM invalid value for \c angle_millidegrees
- *  * RET_ERROR_NOT_INITIALIZED mirror control is not fully initialized
- *  * RET_ERROR_INVALID_STATE critical error detected during auto-homing:
+ * @param angle_millidegrees milli-degrees, accepted range is [26000;64000]
+ * @retval RET_SUCCESS mirror successfully set to `angle_millidegrees`
+ * @retval RET_ERROR_INVALID_PARAM invalid value for `angle_millidegrees`
+ * @retval RET_ERROR_NOT_INITIALIZED mirror control is not fully initialized
+ * @retval RET_ERROR_INVALID_STATE critical error detected during auto-homing:
  * positioning not available
  */
 ret_code_t
 mirrors_angle_horizontal(int32_t angle_millidegrees);
+
+/**
+ * Queue job to call `mirrors_angle_horizontal` later
+ * @param angle_millidegrees
+ * @retval RET_ERROR_INVALID_PARAM invalid value for `angle_millidegrees`
+ * @retval RET_ERROR_BUSY if the queue is busy
+ */
 ret_code_t
 mirrors_angle_horizontal_async(int32_t angle_millidegrees);
 
 /**
  * Set vertical angle
  * @param angle_millidegrees milli-degrees, accepted range is [20000;40000]
- * @return
- *  * RET_SUCESS mirror successfully set to passed angle \c angle_millidegrees
- *  * RET_ERROR_INVALID_PARAM invalid value for \c angle_millidegrees
- *  * RET_ERROR_NOT_INITIALIZED mirror control is not fully initialized
- *  * RET_ERROR_INVALID_STATE critical error detected during auto-homing:
+ * @retval RET_SUCCESS mirror successfully set to passed angle
+ * angle_millidegrees
+ * @retval RET_ERROR_INVALID_PARAM invalid value for angle_millidegrees
+ * @retval RET_ERROR_NOT_INITIALIZED mirror control is not fully initialized
+ * @retval RET_ERROR_INVALID_STATE critical error detected during auto-homing:
  * positioning not available
  */
 ret_code_t
 mirrors_angle_vertical(int32_t angle_millidegrees);
+
+/**
+ * Queue job to call `mirrors_angle_vertical` later
+ * @param angle_millidegrees angle
+ * @retval RET_ERROR_INVALID_PARAM invalid value for `angle_millidegrees`
+ * @retval RET_ERROR_BUSY if the queue is busy
+ */
 ret_code_t
 mirrors_angle_vertical_async(int32_t angle_millidegrees);
 
 /**
  * Set horizontal angle relative to current position
- * @param angle_millidegrees
- * @return
+ * @param angle_millidegrees angle
+ * @retval RET_SUCCESS on success
+ * @retval RET_ERROR_FORBIDDEN if the mirror cannot be moved to the requested
+ * position given its current position
  */
 ret_code_t
 mirrors_angle_horizontal_relative(int32_t angle_millidegrees);
 
 /**
  * Set vertical angle relative to current position
- * @param angle_millidegrees
- * @return
+ * @param angle_millidegrees angle
+ * @retval RET_SUCCESS on success
+ * @retval RET_ERROR_FORBIDDEN if the mirror cannot be moved to the requested
+ * position given its current position
  */
 ret_code_t
 mirrors_angle_vertical_relative(int32_t angle_millidegrees);
@@ -82,10 +99,9 @@ mirrors_angle_vertical_relative(int32_t angle_millidegrees);
  * @param thread_ret optional, return a pointer to the thread info about thew
  * spawned auto-homing thread. This intended to be used for waiting on
  * auto-homing to finish
- * @return
- * * RET_SUCCESS auto-homing has started
- * * RET_ERROR_INTERNAL unable to spawn auto-homing thread
- * * RET_ERROR_FORBIDDEN auto-homing already in progress
+ * @retval RET_SUCCESS auto-homing has started
+ * @retval RET_ERROR_INTERNAL unable to spawn auto-homing thread
+ * @retval RET_ERROR_FORBIDDEN auto-homing already in progress
  */
 ret_code_t
 mirrors_auto_homing_stall_detection(mirror_t mirror,
@@ -99,10 +115,9 @@ mirrors_auto_homing_stall_detection(mirror_t mirror,
  * @param thread_ret optional, return a pointer to the thread info about thew
  * spawned auto-homing thread. This intended to be used for waiting on
  * auto-homing to finish
- * @return
- * * RET_SUCCESS auto-homing has started
- * * RET_ERROR_INTERNAL unable to spawn auto-homing thread
- * * RET_ERROR_FORBIDDEN auto-homing already in progress
+ * @retval RET_SUCCESS auto-homing has started
+ * @retval RET_ERROR_INTERNAL unable to spawn auto-homing thread
+ * @retval RET_ERROR_BUSY auto-homing already in progress
  */
 ret_code_t
 mirrors_auto_homing_one_end(mirror_t mirror, struct k_thread **thread_ret);
@@ -115,27 +130,32 @@ bool
 mirrors_auto_homing_in_progress();
 
 /**
- * Initiliazing mirrors controlling system
- * @return
- * * RET_SUCCESS communication with motor controller is working. Spawned threads
- * to perform auto-homing procedure.
- * * RET_ERROR_INVALID_STATE SPI peripheral not ready
- * * RET_ERROR_OFFLINE cannot communicate with motor controller
- * * RET_ERROR_INTERNAL cannot initialize semaphores needed for auto-homing
- */
-ret_code_t
-mirrors_init(void);
-
-/**
- * @return mirror virt position in millidegrees
+ * @return mirror vertical position in milli-degrees
  */
 int32_t
 mirrors_get_vertical_position(void);
+
 /**
- * @return mirror horiz position in millidegrees
+ * @return mirror horizontal position in milli-degrees
  */
 int32_t
 mirrors_get_horizontal_position(void);
 
+/**
+ * @return true if auto-homing has been performed successfully
+ */
 bool
 mirrors_homed_successfully(void);
+
+/**
+ * Initialize mirrors controlling system
+ *
+ * @retval RET_SUCCESS communication with motor controller is working. Spawned
+ * threads to perform auto-homing procedure.
+ * @retval RET_ERROR_INVALID_STATE SPI peripheral not ready
+ * @retval RET_ERROR_OFFLINE cannot communicate with motor controller
+ * @retval RET_ERROR_INTERNAL cannot initialize semaphores needed for
+ * auto-homing
+ */
+ret_code_t
+mirrors_init(void);

@@ -66,4 +66,4 @@ can_messaging_resume(void);
 /// Pass a function to handle incoming messages
 /// \param in_handler Function that will handle incoming messages
 /// \return
-ret_code_t can_messaging_init(ret_code_t (*in_handler)(void *message));
+ret_code_t can_messaging_init(ret_code_t (*in_handler)(can_message_t *message));

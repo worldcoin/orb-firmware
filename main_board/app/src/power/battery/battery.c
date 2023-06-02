@@ -326,20 +326,21 @@ battery_init(void)
 
     if (!device_is_ready(can_dev)) {
         LOG_ERR("CAN not ready");
-        return RET_ERROR_BUSY;
+        return RET_ERROR_INVALID_STATE;
     } else {
         LOG_INF("CAN ready");
     }
 
     ret = setup_filters();
     if (ret != RET_SUCCESS) {
-        return ret;
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
     }
 
     ret = can_start(can_dev);
     if (ret != RET_SUCCESS) {
         ASSERT_SOFT(ret);
-        return ret;
+        return RET_ERROR_INTERNAL;
     }
 
     uint32_t full_voltage_mv = 0;
