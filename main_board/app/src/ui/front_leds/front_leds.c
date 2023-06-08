@@ -495,9 +495,8 @@ front_leds_init(void)
 /// \param dev
 /// \return 0 on success, error code otherwise
 int
-front_leds_initial_state(const struct device *dev)
+front_leds_initial_state(void)
 {
-    ARG_UNUSED(dev);
     ASSERT_CONST_POINTER_NOT_NULL(led_strip);
 
     if (!device_is_ready(led_strip)) {

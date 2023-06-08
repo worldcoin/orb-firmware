@@ -62,7 +62,7 @@ static struct spi_config spi_cfg = {.frequency = 1000000,
                                     .operation = SPI_WORD_SET(8) |
                                                  SPI_OP_MODE_MASTER |
                                                  SPI_MODE_CPOL | SPI_MODE_CPHA,
-                                    .cs = SPI_CS_CONTROL_PTR_DT(SPI_DEVICE, 2)};
+                                    .cs = SPI_CS_CONTROL_INIT(SPI_DEVICE, 2)};
 static const struct device *spi_bus_controller =
     DEVICE_DT_GET(SPI_CONTROLLER_NODE);
 

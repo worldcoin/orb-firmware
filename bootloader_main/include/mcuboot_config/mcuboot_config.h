@@ -93,6 +93,10 @@
 #define MCUBOOT_IMAGE_NUMBER 1
 #endif
 
+#ifdef CONFIG_BOOT_VERSION_CMP_USE_BUILD_NUMBER
+#define MCUBOOT_VERSION_CMP_USE_BUILD_NUMBER
+#endif
+
 #ifdef CONFIG_BOOT_SWAP_SAVE_ENCTLV
 #define MCUBOOT_SWAP_SAVE_ENCTLV 1
 #endif
@@ -133,6 +137,14 @@
 
 #ifdef CONFIG_MCUBOOT_DOWNGRADE_PREVENTION
 #define MCUBOOT_DOWNGRADE_PREVENTION 1
+/* MCUBOOT_DOWNGRADE_PREVENTION_SECURITY_COUNTER is used later as bool value so
+ * it is always defined, (unlike MCUBOOT_DOWNGRADE_PREVENTION which is only used
+ * in preprocessor condition and my be not defined) */
+#ifdef CONFIG_MCUBOOT_DOWNGRADE_PREVENTION_SECURITY_COUNTER
+#define MCUBOOT_DOWNGRADE_PREVENTION_SECURITY_COUNTER 1
+#else
+#define MCUBOOT_DOWNGRADE_PREVENTION_SECURITY_COUNTER 0
+#endif
 #endif
 
 #ifdef CONFIG_MCUBOOT_HW_DOWNGRADE_PREVENTION
@@ -197,6 +209,14 @@
 #define MCUBOOT_SERIAL_WAIT_FOR_DFU
 #endif
 
+#ifdef CONFIG_BOOT_SERIAL_IMG_GRP_HASH
+#define MCUBOOT_SERIAL_IMG_GRP_HASH
+#endif
+
+#ifdef CONFIG_BOOT_SERIAL_IMG_GRP_IMAGE_STATE
+#define MCUBOOT_SERIAL_IMG_GRP_IMAGE_STATE
+#endif
+
 /*
  * The option enables code, currently in boot_serial, that attempts
  * to erase flash progressively, as update fragments are received,
@@ -232,6 +252,15 @@
 #define MCUBOOT_MAX_IMG_SECTORS 128
 #endif
 
+#ifdef CONFIG_BOOT_SERIAL_MAX_RECEIVE_SIZE
+#define MCUBOOT_SERIAL_MAX_RECEIVE_SIZE CONFIG_BOOT_SERIAL_MAX_RECEIVE_SIZE
+#endif
+
+#ifdef CONFIG_BOOT_SERIAL_UNALIGNED_BUFFER_SIZE
+#define MCUBOOT_SERIAL_UNALIGNED_BUFFER_SIZE                                   \
+    CONFIG_BOOT_SERIAL_UNALIGNED_BUFFER_SIZE
+#endif
+
 /* Support 32-byte aligned flash sizes */
 #if DT_HAS_CHOSEN(zephyr_flash)
 #if DT_PROP_OR(DT_CHOSEN(zephyr_flash), write_block_size, 0) > 8
@@ -265,22 +294,17 @@
 #error "No NRFX WDT instances enabled"
 #endif /* defined(CONFIG_NRFX_WDT0) && defined(CONFIG_NRFX_WDT1) */
 
-#elif CONFIG_IWDG_STM32 /* CONFIG_NRFX_WDT */
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(watchdog0), okay) /* CONFIG_NRFX_WDT */
 #include <zephyr/device.h>
 #include <zephyr/drivers/watchdog.h>
 
-#define MCUBOOT_WATCHDOG_FEED()                                                \
+#define MCUBOOT_WATCHDOG_SETUP()                                               \
     do {                                                                       \
-        const struct device *wdt =                                             \
-            DEVICE_DT_GET_OR_NULL(DT_INST(0, st_stm32_watchdog));              \
+        const struct device *wdt = DEVICE_DT_GET(DT_ALIAS(watchdog0));         \
         if (device_is_ready(wdt)) {                                            \
-            wdt_feed(wdt, 0);                                                  \
+            wdt_setup(wdt, 0);                                                 \
         }                                                                      \
     } while (0)
-
-#elif DT_NODE_HAS_STATUS(DT_ALIAS(watchdog0), okay) /* CONFIG_IWDG_STM32 */
-#include <zephyr/device.h>
-#include <zephyr/drivers/watchdog.h>
 
 #define MCUBOOT_WATCHDOG_FEED()                                                \
     do {                                                                       \
@@ -302,6 +326,10 @@
     } while (0)
 
 #endif /* CONFIG_BOOT_WATCHDOG_FEED */
+
+#ifndef MCUBOOT_WATCHDOG_SETUP
+#define MCUBOOT_WATCHDOG_SETUP()
+#endif
 
 #define MCUBOOT_CPU_IDLE()                                                     \
     if (!IS_ENABLED(CONFIG_MULTITHREADING)) {                                  \

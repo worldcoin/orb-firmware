@@ -84,7 +84,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
      .history = {0},
      .wr_idx = 0},
 
-    {.sensor = DEVICE_DT_GET(DT_ALIAS(die_temperature)),
+    {.sensor = DEVICE_DT_GET(DT_ALIAS(die_temp0)),
      .channel = SENSOR_CHAN_DIE_TEMP,
      .temperature_source = Temperature_TemperatureSource_MAIN_MCU,
      .cb = overtemp_callback,

@@ -5,7 +5,6 @@ menuconfig SENSOR
 
 if SENSOR
 
-rsource "vl53l1x/Kconfig"
 rsource "bu27030/Kconfig"
 
 endif

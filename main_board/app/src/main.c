@@ -271,11 +271,13 @@ test_main(void)
     run_tests();
 }
 #else
-void
+int
 main(void)
 {
     initialize();
     run_tests();
     wait_jetson_up();
+
+    return 0;
 }
 #endif

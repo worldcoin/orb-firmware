@@ -35,7 +35,7 @@
 
     aliases {
         battery-can-bus = &can2;
-        die-temperature = &die_temp;
+        die-temp0 = &die_temp;
         watchdog0 = &iwdg;
         secondary-slot = &slot1_partition;
     };
@@ -44,6 +44,7 @@
         super-caps-charging-mode-gpios = <&gpiof 9 GPIO_ACTIVE_LOW>;
         // This is a mux for who controls the audio amp
         // 1 == MCU
+
         // 0 == Jetson
         sound-amp-mux-gpios = <&gpioe 10 GPIO_ACTIVE_HIGH>;
         i2c_clock_gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;

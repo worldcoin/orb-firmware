@@ -111,9 +111,8 @@ power_distributor_leds_supplies_off()
 }
 
 int
-power_turn_on_power_supplies(const struct device *dev)
+power_turn_on_power_supplies(void)
 {
-    ARG_UNUSED(dev);
     const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
     const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
     const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
@@ -248,10 +247,8 @@ power_wait_for_power_button_press(void)
  * @return error code
  */
 int
-app_init_state(const struct device *dev)
+app_init_state(void)
 {
-    ARG_UNUSED(dev);
-
     int ret = 0;
 
     LOG_INF("Hello from " CONFIG_BOARD " :)");

@@ -51,15 +51,6 @@ int
 flash_area_id_from_multi_image_slot(int image_index, int slot);
 
 /**
- * Converts the specified flash area ID to an image slot index.
- *
- * Returns image slot index (0 or 1), or -1 if ID doesn't correspond to an image
- * slot.
- */
-int
-flash_area_id_to_image_slot(int area_id);
-
-/**
  * Converts the specified flash area ID and image index (in multi-image setup)
  * to an image slot index.
  *
@@ -115,6 +106,18 @@ flash_sector_get_size(const struct flash_sector *fs)
 {
     return fs->fs_size;
 }
+
+/* Retrieve the flash sector withing given flash area, at a given offset.
+ *
+ * @param fa        flash area where the sector is taken from.
+ * @param off       offset within flash area.
+ * @param sector    structure of sector information.
+ * Returns 0 on success, -ERANGE if @p off is beyond flash area size,
+ *         other negative errno code on failure.
+ */
+int
+flash_area_get_sector(const struct flash_area *fa, off_t off,
+                      struct flash_sector *fs);
 
 #ifdef __cplusplus
 }

@@ -212,10 +212,8 @@ operator_leds_blocking_set(const RgbColor *color, uint32_t mask)
 /// \param dev
 /// \return 0 on success, error code otherwise
 int
-operator_leds_initial_state(const struct device *dev)
+operator_leds_initial_state(void)
 {
-    ARG_UNUSED(dev);
-
     const struct device *led_strip =
         DEVICE_DT_GET(DT_NODELABEL(operator_rgb_leds));
 

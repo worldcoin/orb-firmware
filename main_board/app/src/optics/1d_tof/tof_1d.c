@@ -26,7 +26,7 @@ static bool is_safe = false;
 #define DISTANCE_MIN_EYE_SAFETY_LOWER_LIMIT_MM 100
 #define DISTANCE_MIN_EYE_SAFETY_UPPER_LIMIT_MM 120
 
-#define DISTANCE_FETCH_PERIOD_MS   (CONFIG_VL53L1X_INTER_MEASUREMENT_PERIOD * 2)
+#define DISTANCE_FETCH_PERIOD_MS   (500 * 2)
 #define DISTANCE_PUBLISH_PERIOD_MS (DISTANCE_FETCH_PERIOD_MS * 2)
 
 bool
@@ -64,8 +64,7 @@ tof_1d_thread()
             continue;
         }
 
-        tof.distance_mm =
-            distance_value.val1 * 1000 + distance_value.val2 / 1000;
+        tof.distance_mm = distance_value.val1;
 
         // limit number of samples sent
         ++count;
@@ -112,6 +111,11 @@ tof_1d_init(void)
     k_thread_create(&tof_1d_thread_data, stack_area_tof_1d,
                     K_THREAD_STACK_SIZEOF(stack_area_tof_1d), tof_1d_thread,
                     NULL, NULL, NULL, THREAD_PRIORITY_1DTOF, 0, K_NO_WAIT);
+
+    // set short distance mode
+    struct sensor_value distance_config = {.val1 = 1 /* short */, .val2 = 0};
+    sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
+                    SENSOR_ATTR_CONFIGURATION, &distance_config);
 
     return RET_SUCCESS;
 }

@@ -16,6 +16,6 @@
 int
 boot_handle_enc_fw();
 
-fih_int
+fih_ret
 boot_image_validate(const struct flash_area *fa_p, struct image_header *hdr);
 #endif
