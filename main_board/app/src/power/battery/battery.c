@@ -24,7 +24,7 @@ static struct k_thread rx_thread_data = {0};
 static const struct adc_dt_spec adc_vbat_sw = ADC_DT_SPEC_GET(DT_PATH(vbat_sw));
 
 // minimum voltage needed to boot the Orb during startup (in millivolts)
-#define BATTERY_MINIMUM_VOLTAGE_STARTUP_MV       13500
+#define BATTERY_MINIMUM_VOLTAGE_STARTUP_MV       13750
 #define BATTERY_MINIMUM_VOLTAGE_RUNTIME_MV       12500
 #define BATTERY_MINIMUM_CAPACITY_STARTUP_PERCENT 5
 
