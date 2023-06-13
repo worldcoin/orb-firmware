@@ -203,6 +203,8 @@
     status = "okay";
 };
 
+// used to measure battery voltage, hardware revision
+// & die temperature (channel 16)
 &adc1 {
     status = "okay";
     pinctrl-0 = <&adc1_in1_pa0>, <&adc1_in11_pb12>;
