@@ -36,7 +36,8 @@ static const struct device *supply_3v3 = DEVICE_DT_GET(DT_PATH(supply_3v3));
 static const struct device *supply_1v8 = DEVICE_DT_GET(DT_PATH(supply_1v8));
 
 K_SEM_DEFINE(sem_reboot, 0, 1);
-static uint32_t reboot_delay_s = 0;
+static atomic_t reboot_delay_s = ATOMIC_INIT(0);
+static k_tid_t reboot_tid = NULL;
 static struct gpio_callback shutdown_cb_data;
 
 #define FORMAT_STRING "Checking that %s is ready... "
@@ -339,7 +340,12 @@ shutdown_requested(const struct device *dev, struct gpio_callback *cb,
         gpio_pin_set(power_enable, POWER_ENABLE_PIN, DISABLE);
 
         // offload reboot to power management thread
-        reboot_delay_s = 1;
+        atomic_set(&reboot_delay_s, 1);
+        // wake up reboot thread in case already waiting for the reboot
+        // this will make the current event take precedence over the
+        // currently pending reboot as the reboot thread will now
+        // sleep for `reboot_delay_s` second before rebooting
+        k_wakeup(reboot_tid);
         k_sem_give(&sem_reboot);
 
         LOG_INF("Jetson shut down");
@@ -349,28 +355,10 @@ shutdown_requested(const struct device *dev, struct gpio_callback *cb,
 static void
 reboot_thread()
 {
+    uint32_t delay = 0;
+
     // wait until triggered
     k_sem_take(&sem_reboot, K_FOREVER);
-
-    // check if shutdown_pin is active, if so, it means Jetson
-    // needs proper shutdown
-    if (gpio_pin_get_dt(&shutdown_pin) == 1) {
-        // From the Jetson Datasheet DS-10184-001 § 2.6.2 Power Down:
-        //  > Once POWER_EN is deasserted, the module will assert SYS_RESET*,
-        //  and the baseboard may shut down. SoC 3.3V I/O must reach 0.5V or
-        //  lower at most 1.5ms after SYS_RESET* is asserted. SoC 1.8V I/O must
-        //  reach 0.5V or lower at most 4ms after SYS_RESET* is asserted.
-        while (gpio_pin_get(system_reset, SYSTEM_RESET_PIN) == 0)
-            ;
-
-        regulator_disable(supply_3v3);
-        regulator_disable(supply_1v8);
-
-        // the jetson has been turned off following the specs, we can now
-        // wait `reboot_delay_s` to reset
-    }
-
-    LOG_INF("Rebooting in %u seconds", reboot_delay_s);
 
     struct boot_swap_state secondary_slot = {0};
     boot_read_swap_state_by_id(FLASH_AREA_IMAGE_SECONDARY(0), &secondary_slot);
@@ -378,9 +366,29 @@ reboot_thread()
             secondary_slot.magic, secondary_slot.swap_type,
             secondary_slot.image_ok);
 
-    if (reboot_delay_s > 0) {
-        k_msleep(reboot_delay_s * 1000 - SYSTEM_RESET_UI_DELAY_MS);
-    }
+    do {
+        // check if shutdown_pin is active, if so, it means Jetson
+        // needs proper shutdown
+        if (gpio_pin_get_dt(&shutdown_pin) == 1) {
+            // From the Jetson Datasheet DS-10184-001 § 2.6.2 Power Down:
+            //  > Once POWER_EN is deasserted, the module will assert
+            //  SYS_RESET*, and the baseboard may shut down. SoC 3.3V I/O must
+            //  reach 0.5V or lower at most 1.5ms after SYS_RESET* is asserted.
+            //  SoC 1.8V I/O must reach 0.5V or lower at most 4ms after
+            //  SYS_RESET* is asserted.
+            while (gpio_pin_get(system_reset, SYSTEM_RESET_PIN) == 0)
+                ;
+
+            regulator_disable(supply_3v3);
+            regulator_disable(supply_1v8);
+
+            // the jetson has been turned off following the specs, we can now
+            // wait `reboot_delay_s` to reset
+        }
+
+        delay = atomic_get(&reboot_delay_s);
+        LOG_INF("Rebooting in %u seconds", delay);
+    } while (k_msleep(delay * 1000 - SYSTEM_RESET_UI_DELAY_MS) != 0);
 
     operator_leds_set_pattern(
         DistributorLEDsPattern_DistributorRgbLedPattern_OFF, 0, NULL);
@@ -510,11 +518,11 @@ boot_turn_on_jetson(void)
     shutdown_req_init();
 
     // Spawn reboot thread
-    k_tid_t tid = k_thread_create(
+    reboot_tid = k_thread_create(
         &reboot_thread_data, reboot_thread_stack,
         K_THREAD_STACK_SIZEOF(reboot_thread_stack), reboot_thread, NULL, NULL,
         NULL, THREAD_PRIORITY_POWER_MANAGEMENT, 0, K_NO_WAIT);
-    k_thread_name_set(tid, "reboot");
+    k_thread_name_set(reboot_tid, "reboot");
 
     return RET_SUCCESS;
 }
@@ -563,12 +571,15 @@ boot_turn_on_pvcc(void)
 int
 reboot(uint32_t delay_s)
 {
-    if (reboot_delay_s) {
-        // already in progress
-        return RET_ERROR_INVALID_STATE;
+    if (reboot_tid == NULL) {
+        return RET_ERROR_NOT_INITIALIZED;
     } else {
-        reboot_delay_s = delay_s;
-
+        atomic_set(&reboot_delay_s, delay_s);
+        // wake up reboot thread in case already waiting for the reboot
+        // this will make the current event take precedence over the
+        // currently pending reboot as the reboot thread will now
+        // sleep for `reboot_delay_s` seconds before rebooting
+        k_wakeup(reboot_tid);
         k_sem_give(&sem_reboot);
     }
 
