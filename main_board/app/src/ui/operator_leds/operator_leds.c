@@ -1,6 +1,7 @@
 #include <app_assert.h>
 #include <app_config.h>
 #include <errors.h>
+#include <math.h>
 #include <utils.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/led_strip.h>
@@ -27,6 +28,11 @@ static volatile uint32_t global_mask = 0b11111;
 static volatile struct led_rgb global_color = RGB_WHITE_OPERATOR_LEDS;
 static volatile bool use_sequence;
 
+const volatile uint32_t global_pulsing_delay_time_ms =
+    (INITIAL_PULSING_PERIOD_MS / 2) / SINE_TABLE_LENGTH;
+/// half period <=> from 0 to pi rad <=> 0 to 1 to 0
+extern const float SINE_LUT[SINE_TABLE_LENGTH];
+
 static void
 apply_pattern(uint32_t mask, struct led_rgb *color)
 {
@@ -52,9 +58,13 @@ operator_leds_thread(void *a, void *b, void *c)
     uint32_t mask;
     struct led_rgb color;
     DistributorLEDsPattern_DistributorRgbLedPattern pattern;
+    float scaler;
+    k_timeout_t wait_until = K_FOREVER;
+    uint32_t pulsing_index = 0;
 
     for (;;) {
-        k_sem_take(&sem_new_setting, K_FOREVER);
+        k_sem_take(&sem_new_setting, wait_until);
+        wait_until = K_MSEC(global_pulsing_delay_time_ms);
 
         // ⚠️ Critical section
         // create local copies in a critical section to make sure we don't
@@ -92,6 +102,14 @@ operator_leds_thread(void *a, void *b, void *c)
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_RGB:
             /* Do nothing, color already set from global_color */
+            break;
+        case DistributorLEDsPattern_DistributorRgbLedPattern_PULSING_RGB:
+            scaler = SINE_LUT[pulsing_index] * PULSING_SCALE_DEFAULT;
+            color.r = roundf(scaler * color.r);
+            color.g = roundf(scaler * color.g);
+            color.b = roundf(scaler * color.b);
+            wait_until = K_MSEC(global_pulsing_delay_time_ms);
+            pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
             break;
         default:
             LOG_ERR("Unhandled operator LED pattern: %u", pattern);

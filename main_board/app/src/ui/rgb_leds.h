@@ -2,6 +2,9 @@
 
 #include <compilers.h>
 
+#define INITIAL_PULSING_PERIOD_MS 5000
+#define PULSING_SCALE_DEFAULT     (7.0f)
+
 #define ARRAY_SIZE_ASSERT(arr)                                                 \
     (sizeof(arr) / sizeof((arr)[0]) + __must_be_array(arr))
 

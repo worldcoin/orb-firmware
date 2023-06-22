@@ -47,9 +47,6 @@ static volatile bool final_done = false;
 static volatile UserLEDsPattern_UserRgbLedPattern global_pattern =
     UserLEDsPattern_UserRgbLedPattern_OFF;
 
-#define INITIAL_PULSING_PERIOD_MS 5000
-#define PULSING_SCALE_DEFAULT     (7.0f)
-
 static volatile bool use_sequence;
 static volatile uint32_t global_start_angle_degrees = 0;
 static volatile int32_t global_angle_length_degrees = FULL_RING_DEGREES;
@@ -114,8 +111,6 @@ set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
 _Noreturn static void
 front_leds_thread()
 {
-    k_timeout_t wait_until = K_FOREVER;
-    uint32_t pulsing_index = 0;
 
     uint8_t intensity;
     struct led_rgb color;
@@ -125,6 +120,8 @@ front_leds_thread()
     float pulsing_scale;
     uint32_t pulsing_period_ms;
     float scaler;
+    k_timeout_t wait_until = K_FOREVER;
+    uint32_t pulsing_index = 0;
 
     for (;;) {
         // wait for next command

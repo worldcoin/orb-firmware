@@ -366,6 +366,18 @@ reboot_thread()
             secondary_slot.magic, secondary_slot.swap_type,
             secondary_slot.image_ok);
 
+    // wait a second to display "shutdown" mode UI
+    // to make sure Core is done sending UI commands
+    delay = atomic_get(&reboot_delay_s);
+    if (delay > 1) {
+        k_msleep(1000);
+        atomic_set(&reboot_delay_s, delay - 1);
+        RgbColor color = RGB_WHITE;
+        operator_leds_set_pattern(
+            DistributorLEDsPattern_DistributorRgbLedPattern_PULSING_RGB,
+            0b00100, &color);
+    }
+
     do {
         // check if shutdown_pin is active, if so, it means Jetson
         // needs proper shutdown

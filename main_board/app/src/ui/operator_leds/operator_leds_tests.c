@@ -20,7 +20,8 @@ ZTEST(hil, test_operator_leds_patterns)
         zassert_equal(ret_code, 0);
 
         for (int i = DistributorLEDsPattern_DistributorRgbLedPattern_OFF;
-             i <= DistributorLEDsPattern_DistributorRgbLedPattern_RGB; ++i) {
+             i <= DistributorLEDsPattern_DistributorRgbLedPattern_PULSING_RGB;
+             ++i) {
             for (uint32_t j = 1; j <= OPERATOR_LEDS_ALL_MASK; j = j * 2) {
                 ret_code = operator_leds_set_pattern(i, j, &color);
                 zassert_equal(ret_code, 0);
