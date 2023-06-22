@@ -261,6 +261,10 @@ app_init_state(void)
     LOG_DBG("Magic: %u, swap type: %u, image_ok: %u", primary_slot.magic,
             primary_slot.swap_type, primary_slot.image_ok);
 
+    // give some time for the wifi module to reset correctly
+    // without its power supply
+    k_msleep(2000);
+
     // if FW image is confirmed, gate turning on power supplies on button press
     // otherwise, application have been updated and not confirmed, boot Jetson
     if (primary_slot.image_ok != BOOT_FLAG_UNSET ||
