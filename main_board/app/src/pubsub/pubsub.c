@@ -200,6 +200,8 @@ publish(void *payload, size_t size, uint32_t which_payload,
     if (ret == 0) {
         // copy payload
         message.message.m_message.which_payload = which_payload;
+        memset(&message.message.m_message.payload, 0,
+               sizeof(message.message.m_message.payload));
         memcpy(&message.message.m_message.payload, payload, size);
 
         // encode full McuMessage
