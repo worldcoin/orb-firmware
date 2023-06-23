@@ -1,8 +1,11 @@
 #include "temperature.h"
 #include "pubsub/pubsub.h"
 #include "temperature/fan/fan.h"
+#include "utils.h"
 #include <app_config.h>
+#include <inttypes.h>
 #include <math.h>
+#include <stdlib.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
@@ -29,6 +32,8 @@ LOG_MODULE_REGISTER(temperature, CONFIG_TEMPERATURE_LOG_LEVEL);
 
 // number of samples used in a temperature measurement
 #define TEMPERATURE_AVERAGE_SAMPLE_COUNT 3
+// number of attempt to sample a valid temperature before giving up
+#define TEMPERATURE_SAMPLE_RETRY_COUNT 5
 
 BUILD_ASSERT((int)(MAIN_BOARD_OVERTEMP_C - OVERTEMP_TO_NOMINAL_DROP_C) > 0 &&
                  (int)(FRONT_UNIT_OVERTEMP_C - OVERTEMP_TO_NOMINAL_DROP_C) > 0,
@@ -58,6 +63,8 @@ struct sensor_and_channel {
     int32_t history[TEMPERATURE_AVERAGE_SAMPLE_COUNT];
     size_t wr_idx;
 };
+
+#define TEMPERATURE_HISTORY_SENTINEL_VALUE INT32_MIN
 
 static struct sensor_and_channel sensors_and_channels[] = {
     {.sensor = DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor)),
@@ -115,6 +122,15 @@ static k_tid_t thread_id = NULL;
 
 static volatile k_timeout_t global_sample_period;
 
+static void
+init_sensor_and_channel(struct sensor_and_channel *x)
+{
+    x->wr_idx = 0;
+    for (size_t i = 0; i < ARRAY_SIZE(x->history); ++i) {
+        x->history[i] = TEMPERATURE_HISTORY_SENTINEL_VALUE;
+    }
+}
+
 void
 temperature_set_sampling_period_ms(uint32_t sample_period)
 {
@@ -140,8 +156,8 @@ get_ambient_temperature(const struct device *dev, int32_t *temp,
                 ret);
         return RET_ERROR_INTERNAL;
     }
-    double temp_float =
-        (double)temp_value.val1 + (double)temp_value.val2 / 1000000.0;
+    float temp_float =
+        (float)temp_value.val1 + (float)temp_value.val2 / 1000000.0f;
     *temp = (int32_t)roundl(temp_float);
 
     return RET_SUCCESS;
@@ -185,16 +201,62 @@ static void
 sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
 {
     int ret;
+    size_t i;
+    int32_t temp;
 
-    ret = get_ambient_temperature(
-        sensor_and_channel->sensor,
-        &sensor_and_channel->history[sensor_and_channel->wr_idx],
-        sensor_and_channel->channel);
+    for (i = 0; i < TEMPERATURE_SAMPLE_RETRY_COUNT; ++i) {
+        ret = get_ambient_temperature(
+            sensor_and_channel->sensor,
+            &sensor_and_channel->history[sensor_and_channel->wr_idx],
+            sensor_and_channel->channel);
+
+        if (ret == RET_SUCCESS) {
+            // Sometimes the internal temperature sensor gives an erroneous
+            // reading. Let's compare the current sample against the last and
+            // reject the reading if it seems impossible.
+            int last_sample_index = ((int32_t)sensor_and_channel->wr_idx +
+                                     TEMPERATURE_AVERAGE_SAMPLE_COUNT - 1) %
+                                    TEMPERATURE_AVERAGE_SAMPLE_COUNT;
+            int32_t last_sample =
+                sensor_and_channel->history[last_sample_index];
+            int32_t current_sample =
+                sensor_and_channel->history[sensor_and_channel->wr_idx];
+
+            if (last_sample == TEMPERATURE_HISTORY_SENTINEL_VALUE) {
+                // This is the first sample. So instead of comparing against the
+                // last value, just check if the reading generally seems in
+                // range.
+                if (current_sample > -25 && current_sample < 120) {
+                    // Seems ok
+                    break;
+                }
+            } else if (abs(current_sample - last_sample) < 8) {
+                // Seems ok
+                break;
+            } else {
+                LOG_WRN(
+                    "Ignoring weird value for sensor '%s': last value: %" PRId32
+                    "°C, current value: %" PRId32 "°C",
+                    sensor_and_channel->sensor->name, last_sample,
+                    current_sample);
+            }
+        }
+    }
+
+    if (i == TEMPERATURE_SAMPLE_RETRY_COUNT) {
+        // We failed after many attempts. Reset the history and try again later
+        LOG_ERR("Failed to sample '%s' temperature after %d retries!",
+                sensor_and_channel->sensor->name,
+                TEMPERATURE_SAMPLE_RETRY_COUNT);
+        init_sensor_and_channel(sensor_and_channel);
+        return;
+    }
+
     sensor_and_channel->wr_idx =
         (sensor_and_channel->wr_idx + 1) % TEMPERATURE_AVERAGE_SAMPLE_COUNT;
 
-    if (ret == RET_SUCCESS && sensor_and_channel->wr_idx == 0) {
-        int32_t temp = average(sensor_and_channel->history);
+    if (sensor_and_channel->wr_idx == 0) {
+        temp = average(sensor_and_channel->history);
         LOG_DBG("%s: %iC", sensor_and_channel->sensor->name, temp);
         temperature_report_internal(sensor_and_channel, temp);
     }
@@ -236,6 +298,10 @@ temperature_init(void)
 {
     check_ready();
     global_sample_period = K_MSEC(1000 / TEMPERATURE_AVERAGE_SAMPLE_COUNT);
+
+    for (size_t i = 0; i < ARRAY_SIZE(sensors_and_channels); ++i) {
+        init_sensor_and_channel(&sensors_and_channels[i]);
+    }
 
     if (thread_id == NULL) {
         thread_id = k_thread_create(&temperature_thread_data, stack_area,
