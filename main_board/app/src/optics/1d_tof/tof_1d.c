@@ -15,24 +15,17 @@ const struct device *tof_1d_device = DEVICE_DT_GET(DT_NODELABEL(tof_sensor));
 K_THREAD_STACK_DEFINE(stack_area_tof_1d, THREAD_STACK_SIZE_1DTOF);
 static struct k_thread tof_1d_thread_data;
 
-struct distance_history {
-    uint32_t buffer[4];
-    size_t wr_idx;
-    size_t rd_idx;
-};
+static uint32_t too_close_counter = 0;
+#define TOO_CLOSE_THRESHOLD 3
 
-static struct distance_history history = {0};
-static bool is_safe = false;
-#define DISTANCE_MIN_EYE_SAFETY_LOWER_LIMIT_MM 100
-#define DISTANCE_MIN_EYE_SAFETY_UPPER_LIMIT_MM 120
-
-#define DISTANCE_FETCH_PERIOD_MS   (500 * 2)
-#define DISTANCE_PUBLISH_PERIOD_MS (DISTANCE_FETCH_PERIOD_MS * 2)
+#define INTER_MEASUREMENT_PERIOD_MS 333
+#define FETCH_PERIOD_MS             ((int32_t)(INTER_MEASUREMENT_PERIOD_MS * 1.5))
+#define DISTANCE_PUBLISH_PERIOD_MS  (FETCH_PERIOD_MS * 2)
 
 bool
 distance_is_safe(void)
 {
-    return is_safe;
+    return (too_close_counter < TOO_CLOSE_THRESHOLD);
 }
 
 void
@@ -43,24 +36,30 @@ tof_1d_thread()
     ToF_1D tof;
     uint32_t count = 0;
 
+    int tick = 0;
     while (1) {
-        k_msleep(DISTANCE_FETCH_PERIOD_MS);
+        int tock = k_uptime_get_32();
+        int task_duration = 0;
+        if (tick != 0) {
+            task_duration = tock - tick;
+        }
+        LOG_DBG("task duration: %d", task_duration);
 
-        ret = sensor_sample_fetch_chan(tof_1d_device, SENSOR_CHAN_DISTANCE);
+        k_msleep(FETCH_PERIOD_MS - task_duration);
+
+        tick = k_uptime_get_32();
+        ret = sensor_sample_fetch_chan(tof_1d_device, SENSOR_CHAN_ALL);
         if (ret != 0) {
             LOG_WRN("Error fetching %d", ret);
             continue;
         }
+
         ret = sensor_channel_get(tof_1d_device, SENSOR_CHAN_DISTANCE,
                                  &distance_value);
         if (ret != 0) {
             // print error with debug level because the range status
             // can quickly throw an error when nothing in front of the sensor
-            LOG_DBG("Error getting data %d", ret);
-
-            // invalid value, reset history
-            history.rd_idx = 0;
-            history.wr_idx = 0;
+            LOG_DBG("Error getting distance data %d", ret);
             continue;
         }
 
@@ -68,34 +67,28 @@ tof_1d_thread()
 
         // limit number of samples sent
         ++count;
-        if (count % (DISTANCE_PUBLISH_PERIOD_MS / DISTANCE_FETCH_PERIOD_MS) ==
-            0) {
+        if (count % (DISTANCE_PUBLISH_PERIOD_MS / FETCH_PERIOD_MS) == 0) {
             LOG_INF("Distance in front: %umm", tof.distance_mm);
 
             publish_new(&tof, sizeof(tof), McuToJetson_tof_1d_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
 
-        history.buffer[history.wr_idx] = tof.distance_mm;
-        history.wr_idx = (history.wr_idx + 1) % ARRAY_SIZE(history.buffer);
-        // check if history is full meaning we have a row of valid values
-        // we can use
-        if (history.wr_idx == history.rd_idx) {
-            // compute average
-            uint32_t average = 0;
-            for (size_t i = 0; i < ARRAY_SIZE(history.buffer); ++i) {
-                average += history.buffer[i] / ARRAY_SIZE(history.buffer);
-            }
+        // check proximity from sensor itself
+        memset(&distance_value, 0, sizeof(distance_value));
+        ret = sensor_channel_get(tof_1d_device, SENSOR_CHAN_PROX,
+                                 &distance_value);
+        if (ret != 0) {
+            LOG_DBG("Error getting prox data %d", ret);
+            continue;
+        }
 
-            if (average < DISTANCE_MIN_EYE_SAFETY_LOWER_LIMIT_MM && is_safe) {
-                is_safe = false;
+        if (distance_value.val1 == 0) {
+            if (too_close_counter > 0) {
+                too_close_counter--;
             }
-
-            if (average > DISTANCE_MIN_EYE_SAFETY_UPPER_LIMIT_MM && !is_safe) {
-                is_safe = true;
-            }
-
-            history.rd_idx = (history.rd_idx + 1) % ARRAY_SIZE(history.buffer);
+        } else if (too_close_counter < TOO_CLOSE_THRESHOLD) {
+            too_close_counter++;
         }
     }
 }
@@ -116,6 +109,13 @@ tof_1d_init(void)
     struct sensor_value distance_config = {.val1 = 1 /* short */, .val2 = 0};
     sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
                     SENSOR_ATTR_CONFIGURATION, &distance_config);
+
+    // set to autonomous mode by setting sampling frequency / inter measurement
+    // period
+    distance_config.val1 = 1000 / INTER_MEASUREMENT_PERIOD_MS;
+    distance_config.val2 = 0;
+    sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
+                    SENSOR_ATTR_SAMPLING_FREQUENCY, &distance_config);
 
     return RET_SUCCESS;
 }
