@@ -454,7 +454,7 @@ handle_fan_speed(job_t *job)
     uint32_t fan_speed = msg->payload.fan_speed.payload.value;
 
     if (temperature_is_in_overtemp()) {
-        LOG_WRN("Fan speed command rejected do to overtemperature condition");
+        LOG_WRN("Overtemperature: fan speed command rejected");
         job_ack(Ack_ErrorCode_OVER_TEMPERATURE, job);
     } else {
         switch (msg->payload.fan_speed.which_payload) {

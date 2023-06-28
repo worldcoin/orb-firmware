@@ -288,7 +288,7 @@ pulsing_rgb_check_range(RgbColor *color, float pulsing_scale)
     if ((roundf(color->red * (pulsing_scale + 1)) > 255) ||
         (roundf(color->green * (pulsing_scale + 1)) > 255) ||
         (roundf(color->blue * (pulsing_scale + 1)) > 255)) {
-        LOG_ERR("pulsing scale too large");
+        LOG_ERR("Pulsing scale too large");
         return RET_ERROR_INVALID_PARAM;
     } else {
         return RET_SUCCESS;

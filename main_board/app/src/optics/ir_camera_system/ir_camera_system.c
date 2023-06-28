@@ -125,8 +125,7 @@ ir_camera_system_init(void)
     ret_code_t ret;
 
     if (ir_camera_system_initialized) {
-        LOG_WRN("IR camera system is already initialized! Refusing to "
-                "re-initialize!");
+        LOG_WRN("IR camera system already initialized");
         ret = RET_ERROR_ALREADY_INITIALIZED;
     } else {
         ret = ir_camera_system_hw_init();

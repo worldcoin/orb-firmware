@@ -147,13 +147,12 @@ get_ambient_temperature(const struct device *dev, int32_t *temp,
     struct sensor_value temp_value;
     ret = sensor_sample_fetch(dev);
     if (ret) {
-        LOG_ERR("Error fetching sensor sample from %s!", dev->name);
+        LOG_ERR("Error fetching %s: %d", dev->name, ret);
         return RET_ERROR_INTERNAL;
     }
     ret = sensor_channel_get(dev, channel, &temp_value);
     if (ret) {
-        LOG_ERR("Error getting ambient temperature from %s (%d)!", dev->name,
-                ret);
+        LOG_ERR("Error getting %s: %d", dev->name, ret);
         return RET_ERROR_INTERNAL;
     }
     float temp_float =
@@ -234,18 +233,17 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
                 // Seems ok
                 break;
             } else {
-                LOG_WRN(
-                    "Ignoring weird value for sensor '%s': last value: %" PRId32
-                    "°C, current value: %" PRId32 "°C",
-                    sensor_and_channel->sensor->name, last_sample,
-                    current_sample);
+                LOG_WRN("'%s' outlier, prev: %" PRId32 ", current: %" PRId32
+                        " (°C)",
+                        sensor_and_channel->sensor->name, last_sample,
+                        current_sample);
             }
         }
     }
 
     if (i == TEMPERATURE_SAMPLE_RETRY_COUNT) {
         // We failed after many attempts. Reset the history and try again later
-        LOG_ERR("Failed to sample '%s' temperature after %d retries!",
+        LOG_ERR("Failed to sample '%s', after %d retries!",
                 sensor_and_channel->sensor->name,
                 TEMPERATURE_SAMPLE_RETRY_COUNT);
         init_sensor_and_channel(sensor_and_channel);
@@ -347,9 +345,9 @@ check_overtemp_conditions(void)
     if (old_num_sensors_in_overtemp_conditions == 1 &&
         num_sensors_in_overtemp_conditions == 0) {
         // Warning so that it's logged over CAN
-        LOG_WRN("All over-temperature conditions have abated, restoring fan "
-                "to old value of %.2f%%",
-                ((float)fan_speed_before_overtemperature / UINT16_MAX) * 100);
+        LOG_WRN(
+            "Over-temperature conditions have abated, restoring fan to %.2f%%",
+            ((float)fan_speed_before_overtemperature / UINT16_MAX) * 100);
 
         fan_set_speed_by_value(fan_speed_before_overtemperature);
     } else if (old_num_sensors_in_overtemp_conditions == 0 &&

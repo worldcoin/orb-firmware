@@ -122,21 +122,20 @@ parse_nmea(char *msg)
     msg[index++] = checksum[1];
 
     if (calculated_checksum != read_checksum) {
-        LOG_ERR(
-            "We calculated a checksum of 0x%02x, but got a checksum of 0x%02x",
-            calculated_checksum, read_checksum);
+        LOG_ERR("Calculated checksum 0x%02x, got 0x%02x", calculated_checksum,
+                read_checksum);
         return RET_ERROR_NOT_FOUND;
     }
 
     if ((ch = get_char()) != '\r') {
-        LOG_ERR("Expected a terminating '\\r' but got '0x%02x'", ch);
+        LOG_ERR("Expected a terminating '\\r', got '0x%02x'", ch);
         return RET_ERROR_NOT_FOUND;
     }
 
     msg[index++] = ch;
 
     if ((ch = get_char()) != '\n') {
-        LOG_ERR("Expected a terminating '\\n' but got '0x%02x'", ch);
+        LOG_ERR("Expected a terminating '\\n', got '0x%02x'", ch);
         return RET_ERROR_NOT_FOUND;
     }
 
