@@ -5,6 +5,7 @@
 #include "ir_camera_system_hw.h"
 #include "ir_camera_system_internal.h"
 #include "ir_camera_timer_settings.h"
+#include "optics/1d_tof/tof_1d.h"
 #include "optics/liquid_lens/liquid_lens.h"
 #include <app_assert.h>
 #include <app_config.h>
@@ -613,6 +614,12 @@ set_ccr_ir_leds(void)
 {
     int ret;
     zero_led_ccrs();
+
+    // allow usage of IR LEDs if safety conditions are met
+    // this overrides Jetson commands
+    if (!distance_is_safe()) {
+        return;
+    }
 
     // activate super caps charger for high demand when driving IR LEDs
     // from logic low to logic high

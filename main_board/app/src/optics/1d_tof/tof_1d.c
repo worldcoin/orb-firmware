@@ -1,13 +1,14 @@
 #include "tof_1d.h"
 #include "app_config.h"
+#include "logs_can.h"
 #include "mcu_messaging.pb.h"
 #include "pubsub/pubsub.h"
 #include <errors.h>
+#include <utils.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 
-#include "logs_can.h"
 LOG_MODULE_REGISTER(1d_tof, CONFIG_TOF_1D_LOG_LEVEL);
 
 const struct device *tof_1d_device = DEVICE_DT_GET(DT_NODELABEL(tof_sensor));
@@ -15,7 +16,7 @@ const struct device *tof_1d_device = DEVICE_DT_GET(DT_NODELABEL(tof_sensor));
 K_THREAD_STACK_DEFINE(stack_area_tof_1d, THREAD_STACK_SIZE_1DTOF);
 static struct k_thread tof_1d_thread_data;
 
-static uint32_t too_close_counter = 0;
+static atomic_t too_close_counter = ATOMIC_INIT(0);
 #define TOO_CLOSE_THRESHOLD 3
 
 #define INTER_MEASUREMENT_PERIOD_MS 333
@@ -25,7 +26,9 @@ static uint32_t too_close_counter = 0;
 bool
 distance_is_safe(void)
 {
-    return (too_close_counter < TOO_CLOSE_THRESHOLD);
+    long counter = atomic_get(&too_close_counter);
+    bool is_safe = counter < TOO_CLOSE_THRESHOLD;
+    return is_safe;
 }
 
 void
@@ -83,13 +86,17 @@ tof_1d_thread()
             continue;
         }
 
+        CRITICAL_SECTION_ENTER(k);
+        long counter = atomic_get(&too_close_counter);
         if (distance_value.val1 == 0) {
-            if (too_close_counter > 0) {
-                too_close_counter--;
+            if (counter > 0) {
+                counter--;
             }
-        } else if (too_close_counter < TOO_CLOSE_THRESHOLD) {
-            too_close_counter++;
+        } else if (counter < TOO_CLOSE_THRESHOLD) {
+            counter++;
         }
+        atomic_set(&too_close_counter, counter);
+        CRITICAL_SECTION_EXIT(k);
     }
 }
 
