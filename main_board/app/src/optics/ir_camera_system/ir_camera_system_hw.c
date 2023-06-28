@@ -514,7 +514,7 @@ debug_print(void)
     print_ir_camera_triggering();
 }
 
-#define IR_LED_AUTO_OFF_TIMEOUT_S (60 * 3)
+#define IR_LED_AUTO_OFF_TIMEOUT_S (60)
 
 static void
 disable_ir_leds()
