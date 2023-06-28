@@ -28,7 +28,7 @@ ir_camera_system_disable_2d_tof_camera_hw(void);
 /* Other */
 
 void
-ir_camera_system_enable_leds_hw(InfraredLEDs_Wavelength wavelength);
+ir_camera_system_enable_leds_hw(void);
 ret_code_t
 ir_camera_system_set_fps_hw(uint16_t fps);
 ret_code_t

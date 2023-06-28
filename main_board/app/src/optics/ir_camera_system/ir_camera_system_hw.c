@@ -1018,7 +1018,7 @@ ir_camera_system_set_on_time_740nm_us_hw(uint16_t on_time_us)
 }
 
 void
-ir_camera_system_enable_leds_hw(InfraredLEDs_Wavelength wavelength)
+ir_camera_system_enable_leds_hw(void)
 {
     CRITICAL_SECTION_ENTER(k);
 

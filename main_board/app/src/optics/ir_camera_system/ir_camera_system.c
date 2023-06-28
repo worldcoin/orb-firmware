@@ -150,8 +150,8 @@ ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength)
     ret = ir_camera_system_get_status();
 
     if (ret == RET_SUCCESS) {
-        ir_camera_system_enable_leds_hw(wavelength);
         enabled_led_wavelength = wavelength;
+        ir_camera_system_enable_leds_hw();
         ret = RET_SUCCESS;
     }
 
