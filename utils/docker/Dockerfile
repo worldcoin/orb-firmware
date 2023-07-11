@@ -45,6 +45,9 @@ RUN pip3 install \
     junit2html \
     junitparser \
     pre-commit \
+    pyftdi \
+    ppk2-api \
+    fabric2 \
     west
 
 ARG BASE_URL=https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/main/scripts
