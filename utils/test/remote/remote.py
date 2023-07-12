@@ -45,7 +45,11 @@ class Remote:
                              timeout=30).return_code == 0
 
     def info(self):
-        cmd = self.conn.run("mcu-util info")
-        assert cmd.return_code == 0
-        assert "Main microcontroller's firmware:" in cmd.stdout
-        assert "Security microcontroller's firmware:" in cmd.stdout
+        for i in range(3):
+            cmd = self.conn.run("mcu-util info")
+            if cmd.return_code == 0:
+                assert "Main microcontroller's firmware:" in cmd.stdout
+                assert "Security microcontroller's firmware:" in cmd.stdout
+                return
+            print("Retrying...")
+        assert False, "❌ Failed to get info from microcontrollers"
