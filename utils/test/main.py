@@ -126,37 +126,36 @@ def main():
                 print("⚠️ Skipping battery removal step")
                 time_to_discharge_seconds = 0
 
-        if args.skip_current_consumption:
-            print("⚠️ Skipping current consumption measurement step")
-            continue
+        if not args.skip_current_consumption:
+            # wait for the super caps to discharge
+            for i in range(time_to_discharge_seconds):
+                if i == 0:
+                    print("🪫 Waiting for super-caps to discharge")
+                try:
+                    gpio.button_turn_on(0.4)
+                    time.sleep(0.1)
+                    gpio.button_turn_on(0.4)
+                    time.sleep(0.1)
+                    print("\r{:.0f}%".format(i / time_to_discharge_seconds * 100), end='')
+                except Exception as e:
+                    print(f"❌ Error connecting to FTDI: {e}")
+                    break
 
-        # wait for the super caps to discharge
-        for i in range(time_to_discharge_seconds):
-            if i == 0:
-                print("🪫 Waiting for super-caps to discharge")
-            try:
-                gpio.button_turn_on(0.4)
-                time.sleep(0.1)
-                gpio.button_turn_on(0.4)
-                time.sleep(0.1)
-                print("\r{:.0f}%".format(i / time_to_discharge_seconds * 100), end='')
-            except Exception as e:
-                print(f"❌ Error connecting to FTDI: {e}")
-                break
-
-        if smu is not None:
-            print("🟢 Starting measurement of the security board current draw...")
-            smu.start_measuring()
-            wait_loading_bar(60)
-            consumption_ua = smu.stop_measuring()
-            print("📈 Security board current draw: {:.2f} μA".format(consumption_ua))
-            if args.plot_current_consumption:
-                smu.plot_power_consumption()
-            smu.reset()
-            assert consumption_ua < 250.0, "Security board current draw is too high"
+            if smu is not None:
+                print("🟢 Starting measurement of the security board current draw...")
+                smu.start_measuring()
+                wait_loading_bar(60)
+                consumption_ua = smu.stop_measuring()
+                print("📈 Security board current draw: {:.2f} μA".format(consumption_ua))
+                if args.plot_current_consumption:
+                    smu.plot_power_consumption()
+                smu.reset()
+                assert consumption_ua < 250.0, "Security board current draw is too high"
+            else:
+                print("⚠️ No SMU found, cannot measure security board current draw")
+                return 1
         else:
-            print("⚠️ No SMU found, cannot measure security board current draw")
-            return 1
+            print("⚠️ Skipping current consumption measurement step")
 
         smu = None
 
