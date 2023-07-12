@@ -4,10 +4,9 @@ import threading
 
 import fabric
 
-
 class Remote:
-    def __init__(self, ip):
-        self.conn = fabric.Connection("worldcoin@{}".format(ip), connect_timeout=10)
+    def __init__(self, ip, password=""):
+        self.conn = fabric.Connection("worldcoin@{}".format(ip), connect_timeout=10, connect_kwargs={"password": password})
         version = self.conn.run("mcu-util --version", hide=True).stdout.strip().split(" ")[-1]
         assert version >= "0.5.4", "mcu-util version is too old, please update"
 

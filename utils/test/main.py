@@ -33,6 +33,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--ftdi", help="FTDI URL", default=URL)
     parser.add_argument("-i", "--ip", help="Orb IP", default=IP)
+    parser.add_argument("-p", "--password", help="Password for worldcoin user on Orb", default="")
     parser.add_argument("--skip-power-on", help="do not power on the Orb", default=False, const=True, nargs="?",
                         type=bool)
     parser.add_argument("--skip-current-consumption", help="do not power on the Orb", default=False, const=True,
@@ -80,7 +81,7 @@ def main():
 
         try:
             print(f"Attempting to SSH into the Jetson at {args.ip}.")
-            jetson = remote.Remote(args.ip)
+            jetson = remote.Remote(args.ip, args.password)
             print("Connected successfully.")
         except Exception as e:
             print(f"❌ Error connecting to Jetson: {e}.")
