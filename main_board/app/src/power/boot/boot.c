@@ -1,4 +1,5 @@
 #include "boot.h"
+#include "optics/optics.h"
 #include "sysflash/sysflash.h"
 #include "ui/button/button.h"
 #include "ui/front_leds/front_leds.h"
@@ -59,8 +60,8 @@ check_is_ready(const struct device *dev, const char *name)
 #define I2C_CLOCK_PIN   DT_GPIO_PIN(I2C_CLOCK_NODE, i2c_clock_gpios)
 #define I2C_CLOCK_FLAGS DT_GPIO_FLAGS(I2C_CLOCK_NODE, i2c_clock_gpios)
 
-__maybe_unused static void
-power_distributor_leds_supplies_on()
+void
+power_vbat_5v_3v3_supplies_on(void)
 {
     const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
     const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
@@ -92,8 +93,8 @@ power_distributor_leds_supplies_on()
     k_msleep(20);
 }
 
-__maybe_unused static void
-power_distributor_leds_supplies_off()
+void
+power_vbat_5v_3v3_supplies_off(void)
 {
     const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
     const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
@@ -108,7 +109,9 @@ power_distributor_leds_supplies_off()
 
     regulator_disable(supply_3v3);
     LOG_INF("3.3V power supply disabled");
-    k_msleep(20);
+
+    // give some time for the wifi module to reset correctly
+    k_msleep(1000);
 }
 
 int
@@ -214,10 +217,7 @@ power_wait_for_power_button_press(void)
         if (!gpio_pin_get(power_button, POWER_BUTTON_PIN)) {
             if (i > 1) {
                 LOG_INF("Press stopped.");
-                power_distributor_leds_supplies_off();
-
-                // give some time for the wifi module to reset correctly
-                k_msleep(1000);
+                power_vbat_5v_3v3_supplies_off();
             }
 
             operator_led_mask = 0;
@@ -228,7 +228,7 @@ power_wait_for_power_button_press(void)
 
         if (i == 1) {
             LOG_INF("Press started.");
-            power_distributor_leds_supplies_on();
+            power_vbat_5v_3v3_supplies_on();
         }
 
         // update LEDs
@@ -558,6 +558,25 @@ boot_turn_on_super_cap_charger(void)
 
     LOG_INF("super cap charger enabled");
     k_msleep(1000);
+    return RET_SUCCESS;
+}
+
+int
+boot_turn_off_pvcc(void)
+{
+    int ret;
+    const struct device *supply_pvcc = DEVICE_DT_GET(DT_PATH(supply_pvcc));
+    if (check_is_ready(supply_pvcc, "pvcc supply")) {
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    ret = regulator_disable(supply_pvcc);
+    if (ret < 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    LOG_INF("pvcc supply disabled");
     return RET_SUCCESS;
 }
 

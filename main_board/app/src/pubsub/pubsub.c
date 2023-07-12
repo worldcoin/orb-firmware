@@ -76,6 +76,7 @@ struct sub_message_s sub_prios[] = {
     [McuToJetson_tof_1d_tag] = {.priority = SUB_PRIO_DISCARD},
     [McuToJetson_gnss_partial_tag] = {.priority = SUB_PRIO_DISCARD},
     [McuToJetson_front_als_tag] = {.priority = SUB_PRIO_DISCARD},
+    [McuToJetson_optics_diag_tag] = {.priority = SUB_PRIO_STORE},
 };
 
 static void

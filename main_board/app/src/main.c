@@ -1,8 +1,4 @@
 #include "gnss/gnss.h"
-#include "optics/1d_tof/tof_1d.h"
-#include "optics/ir_camera_system/ir_camera_system.h"
-#include "optics/liquid_lens/liquid_lens.h"
-#include "optics/mirrors/mirrors.h"
 #include "power/battery/battery.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
@@ -27,6 +23,7 @@
 
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
 #include "heartbeat.h"
+#include "optics/optics.h"
 #endif
 
 #include <fatal.h>
@@ -220,7 +217,7 @@ initialize(void)
     if (err_code == RET_SUCCESS) {
         err_code = boot_turn_on_pvcc();
         if (err_code == RET_SUCCESS) {
-            err_code = ir_camera_system_init();
+            err_code = optics_init();
             ASSERT_SOFT(err_code);
         } else {
             ASSERT_SOFT(err_code);
@@ -229,18 +226,9 @@ initialize(void)
         ASSERT_SOFT(err_code);
     }
 #else
-    err_code = ir_camera_system_init();
+    err_code = optics_init();
     ASSERT_SOFT(err_code);
 #endif // CONFIG_NO_SUPER_CAPS
-
-    err_code = mirrors_init();
-    ASSERT_SOFT(err_code);
-
-    err_code = liquid_lens_init();
-    ASSERT_SOFT(err_code);
-
-    err_code = tof_1d_init();
-    ASSERT_SOFT(err_code);
 
     err_code = als_init();
     ASSERT_SOFT(err_code);

@@ -60,6 +60,13 @@
         // enable opamps to allow for voltage measurements of the power supplies
         supply-voltages-meas-enable-gpios = <&gpioe 1 GPIO_ACTIVE_LOW>;
 
+        tests-ir-leds-850-940-gpios =
+            <&gpiob 14 GPIO_ACTIVE_HIGH /* 850nm left */ >,
+            <&gpiob 15 GPIO_ACTIVE_HIGH /* 850nm right */ >,
+            <&gpioe 2 GPIO_ACTIVE_HIGH /* 940nm left */ >,
+            <&gpioe 5 GPIO_ACTIVE_HIGH /* 940nm right */ >;
+        front-unit-pvcc-enabled-gpios = <&gpioc 10 GPIO_ACTIVE_LOW>;
+
         // Hardware rev ADC
         io-channels = <&adc1 11>;
     };
