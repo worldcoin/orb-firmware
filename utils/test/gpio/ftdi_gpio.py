@@ -26,14 +26,14 @@ class FtdiGpio:
         self.controller.write(self.gpio)
         time.sleep(1)
 
-    def button_turn_on(self, hold_time=2.0):
+    def button_turn_on(self, hold_time=1.5):
         self.gpio &= ~(1 << self.ButtonBit)
         self.controller.write(self.gpio)
         time.sleep(hold_time)
         self.gpio |= (1 << self.ButtonBit)
         self.controller.write(self.gpio)
 
-    def button_turn_off(self, hold_time=20.0):
+    def button_turn_off(self, hold_time=15.0):
         # press button for 15 seconds
         self.gpio &= ~(1 << self.ButtonBit)
         self.controller.write(self.gpio)

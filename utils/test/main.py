@@ -53,12 +53,13 @@ def main():
         print("Attempting to connect to the GPIO controller.")
         gpio = ftdi_gpio.FtdiGpio(args.ftdi)
         print("Connected successfully.")
-        print("* NOTE: the battery has been disconnect by connecting to the GPIO controller.")
+        print("* NOTE: the battery has been disconnected by connecting to the GPIO controller.")
         print(
             "* NOTE: although the battery was disconnected, the super caps may be charged and thus may have prevented "
             "the board from losing power.")
     except Exception as e:
         print(f"❌ Error connecting to FTDI: {e}")
+        return 1
 
     count = args.loop
     while count != 0:
@@ -67,7 +68,11 @@ def main():
         if gpio is not None and not args.skip_power_on:
             print("Connecting battery.")
             gpio.connect_battery()
-            print("Pressing button to turn on the Orb.")
+            print("Resetting the Orb.")
+            gpio.button_turn_off()
+            # starting in II, the button isn't available at the very beginning
+            # as the main microcontroller is performing some self-tests
+            time.sleep(5)
             gpio.button_turn_on()
             print(f"Waiting {JETSON_BOOT_WAIT_TIME_S} seconds for Jetson to boot.")
             wait_loading_bar(JETSON_BOOT_WAIT_TIME_S)
@@ -132,10 +137,7 @@ def main():
                 if i == 0:
                     print("🪫 Waiting for super-caps to discharge")
                 try:
-                    gpio.button_turn_on(0.4)
-                    time.sleep(0.1)
-                    gpio.button_turn_on(0.4)
-                    time.sleep(0.1)
+                    time.sleep(1)
                     print("\r{:.0f}%".format(i / time_to_discharge_seconds * 100), end='')
                 except Exception as e:
                     print(f"❌ Error connecting to FTDI: {e}")
