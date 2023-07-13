@@ -36,7 +36,7 @@ class PowerProfiler:
         self.ppk.stop_measuring()
         if read_data != b'':
             self.samples = self.ppk.get_samples(read_data)
-            avg = sum(self.samples) / len(self.samples)
+            avg = sum(self.samples[0]) / len(self.samples[0])
             return avg
         else:
             raise Exception("No data read from PPK2")
