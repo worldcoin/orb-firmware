@@ -1,7 +1,9 @@
+import time
+
 from ppk2_api.ppk2_api import PPK2_API, PPK2_MP
 
 # Constants
-VOLTAGE = 3.7
+VOLTAGE_MV = 3700  # mV
 
 
 class PowerProfiler:
@@ -12,7 +14,7 @@ class PowerProfiler:
             self.port = ppk2s_connected[0]
             self.ppk = PPK2_MP(self.port, buffer_max_size_seconds=60, timeout=1, write_timeout=1, exclusive=True)
             self.ppk.get_modifiers()
-            self.ppk.set_source_voltage(VOLTAGE * 1000)
+            self.ppk.set_source_voltage(VOLTAGE_MV)
             self.ppk.use_source_meter()
         else:
             raise Exception(f'Expected 1 PPK2 to be connected, found {len(ppk2s_connected)}: {ppk2s_connected}')
@@ -48,3 +50,22 @@ class PowerProfiler:
 
     def reset(self):
         self.samples = []
+
+
+def main():
+    import argparse
+    p = argparse.ArgumentParser(
+        description=f"Measure current consumption of the security board using the PPK2.")
+    p.add_argument("-d", "--duration", default=20,
+                   help="Duration of measurement in seconds. Defaults to 20.")
+    args = p.parse_args()
+    profiler = PowerProfiler()
+    profiler.dut_power_on()
+    profiler.start_measuring()
+    time.sleep(args.duration)
+    avg = profiler.stop_measuring()
+    print(f'Average current consumption: {avg} μA')
+
+
+if __name__ == "__main__":
+    main()
