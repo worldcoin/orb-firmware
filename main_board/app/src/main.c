@@ -212,7 +212,7 @@ initialize(void)
     err_code = operator_leds_init();
     ASSERT_SOFT(err_code);
 
-#ifndef CONFIG_NO_SUPER_CAPS
+#if !defined(CONFIG_NO_SUPER_CAPS) && !defined(CONFIG_CI_INTEGRATION_TESTS)
     err_code = boot_turn_on_super_cap_charger();
     if (err_code == RET_SUCCESS) {
         err_code = boot_turn_on_pvcc();

@@ -27,7 +27,7 @@ Connect the FTDI:
 A few consideration to take into account:
 
 - In order to test that UART messages are received, a log message is sent from the MCU to the Jetson over CAN.
-  This feature of the MCU is optional, so make sure to compile the MCU code with `CONFIG_MCU_UTIL_UART_TESTS=y`.
+  This feature of the MCU is optional, so make sure to compile the MCU code with `CONFIG_CI_INTEGRATION_TESTS=y`.
 - SSH is performed with user `worldcoin`.
 
 ```shell

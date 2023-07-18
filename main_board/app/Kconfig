@@ -60,8 +60,10 @@ config APP_TESTS_ALL
     select TEST_FAN
     select TEST_GNSS
 
-config MCU_UTIL_UART_TESTS
+config CI_INTEGRATION_TESTS
 	bool "Send specific string in logs when testing UART with mcu-util"
+	default false
+	select NO_SUPER_CAPS
 	help
 	  UART communication is unidirectional and doesn't allow
 	  the MCU to respond to the Jetson. To allow the Jetson to confirm

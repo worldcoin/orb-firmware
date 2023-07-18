@@ -1253,7 +1253,7 @@ runner_handle_new_uart(uart_message_t *msg)
 
     int ret = k_sem_take(&new_job_sem, K_MSEC(5));
 
-#ifdef CONFIG_MCU_UTIL_UART_TESTS
+#ifdef CONFIG_CI_INTEGRATION_TESTS
     static size_t counter = 0;
     counter++;
     if (counter == 500) {
