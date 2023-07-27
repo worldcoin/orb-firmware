@@ -12,8 +12,8 @@
 
 LOG_MODULE_REGISTER(optics);
 
-static OpticsDiagnostic_Status self_test_status =
-    OpticsDiagnostic_Status_OPTICS_INITIALIZATION_ERROR;
+static HardwareDiagnostic_Status self_test_status =
+    HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
 
 // pin allows us to check whether PVCC is enabled on the front unit
 // PVCC might be disabled by hardware due to an intense usage of the IR LEDs
@@ -38,9 +38,9 @@ front_unit_pvcc_update(struct k_work *work)
 {
     ARG_UNUSED(work);
 
-    OpticsDiagnostic optics_diag = {
-        .source = OpticsDiagnostic_Source_OPTICS_IR_LEDS,
-        .status = OpticsDiagnostic_Status_OPTICS_OK,
+    HardwareDiagnostic optics_diag = {
+        .source = HardwareDiagnostic_Source_OPTICS_IR_LEDS,
+        .status = HardwareDiagnostic_Status_STATUS_OK,
     };
 
     bool pvcc_available = (gpio_pin_get_dt(&front_unit_pvcc_enabled) != 0);
@@ -50,11 +50,12 @@ front_unit_pvcc_update(struct k_work *work)
     } else {
         atomic_clear_bit(fu_pvcc_enabled, ATOMIC_FU_PVCC_ENABLED_BIT);
 
-        optics_diag.status = OpticsDiagnostic_Status_OPTICS_OK;
+        optics_diag.status = HardwareDiagnostic_Status_STATUS_OK;
         LOG_WRN("Eye safety circuitry tripped");
     }
 
-    publish_new(&optics_diag, sizeof(optics_diag), McuToJetson_optics_diag_tag,
+    publish_new(&optics_diag, sizeof(optics_diag),
+                McuToJetson_hardware_diag_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 
@@ -111,11 +112,12 @@ optics_init(void)
     int err_code;
 
     // report self test status to Jetson
-    OpticsDiagnostic optics_diag = {
-        .source = OpticsDiagnostic_Source_OPTICS_EYE_SAFETY_CIRCUIT_SELF_TEST,
+    HardwareDiagnostic optics_diag = {
+        .source = HardwareDiagnostic_Source_OPTICS_EYE_SAFETY_CIRCUIT_SELF_TEST,
         .status = self_test_status,
     };
-    publish_new(&optics_diag, sizeof(optics_diag), McuToJetson_optics_diag_tag,
+    publish_new(&optics_diag, sizeof(optics_diag),
+                McuToJetson_hardware_diag_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 
     err_code = ir_camera_system_init();
@@ -174,9 +176,9 @@ optics_self_test(void)
 {
     // turn on IR LED subsets one by one, by driving GPIO pins, to check
     // that all lines are making the eye safety circuitry trip
-    self_test_status = OpticsDiagnostic_Status_OPTICS_OK;
+    self_test_status = HardwareDiagnostic_Status_STATUS_OK;
     for (size_t i = 0; i < ARRAY_SIZE(ir_leds_gpios) &&
-                       self_test_status == OpticsDiagnostic_Status_OPTICS_OK;
+                       self_test_status == HardwareDiagnostic_Status_STATUS_OK;
          i++) {
         power_vbat_5v_3v3_supplies_on();
         boot_turn_off_pvcc();
@@ -192,7 +194,7 @@ optics_self_test(void)
             // eye safety circuitry doesn't respond to self test
             LOG_ERR("%s didn't disable PVCC via eye safety circuitry",
                     ir_leds_names[i]);
-            self_test_status = OpticsDiagnostic_Status_OPTICS_SAFETY_ISSUE;
+            self_test_status = HardwareDiagnostic_Status_STATUS_SAFETY_ISSUE;
         } else {
             LOG_INF("%s tripped safety circuitry", ir_leds_names[i]);
         }
