@@ -23,6 +23,10 @@ static atomic_t too_close_counter = ATOMIC_INIT(0);
 #define FETCH_PERIOD_MS             ((int32_t)(INTER_MEASUREMENT_PERIOD_MS * 1.5))
 #define DISTANCE_PUBLISH_PERIOD_MS  (FETCH_PERIOD_MS * 2)
 
+BUILD_ASSERT(
+    DISTANCE_PUBLISH_PERIOD_MS % FETCH_PERIOD_MS == 0,
+    "DISTANCE_PUBLISH_PERIOD_MS must be a multiple of FETCH_PERIOD_MS");
+
 bool
 distance_is_safe(void)
 {
