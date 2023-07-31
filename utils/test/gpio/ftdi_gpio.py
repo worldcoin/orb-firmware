@@ -2,7 +2,7 @@
 import time
 
 from pyftdi.gpio import GpioAsyncController
-
+from pyftdi.ftdi import Ftdi
 
 # Structure to keep track of the state of the GPIO pins for the Orb
 class FtdiGpio:
@@ -44,7 +44,8 @@ class FtdiGpio:
 
 def main():
     import argparse
-    URL = 'ftdi://ftdi:232:B0001FLO/1'
+    # use the first FTDI device in the list as the default if none is specified
+    URL = 'ftdi://ftdi:232:{}/{}'.format(Ftdi.list_devices()[0][0].sn, Ftdi.list_devices()[0][1])
     p = argparse.ArgumentParser(
         description=f"Connects to the GPIO controller at {URL} by default and resets all lines, optionally followed by "
                     f"an additional action. This should diconnect the battery, though the supercaps may continue to "

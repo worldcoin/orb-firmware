@@ -4,8 +4,8 @@ import time
 import gpio.ftdi_gpio as ftdi_gpio
 import power.profiler as power
 import remote.remote as remote
+from pyftdi.ftdi import Ftdi
 
-URL = 'ftdi://ftdi:232:B0001FLO/1'
 IP = '192.168.1.143'
 JETSON_BOOT_WAIT_TIME_S = 80
 
@@ -29,6 +29,9 @@ def wait_loading_bar(seconds):
 # - optionally plot the current draw
 # - optionally repeat
 def main():
+    # use the first FTDI device in the list as the default if none is specified
+    URL = 'ftdi://ftdi:232:{}/{}'.format(Ftdi.list_devices()[0][0].sn, Ftdi.list_devices()[0][1])
+
     # get optional arguments `ftdi` and `ip`
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--ftdi", help="FTDI URL", default=URL)
