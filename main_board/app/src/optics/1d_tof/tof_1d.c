@@ -19,13 +19,16 @@ static struct k_thread tof_1d_thread_data;
 static atomic_t too_close_counter = ATOMIC_INIT(0);
 #define TOO_CLOSE_THRESHOLD 3
 
-#define INTER_MEASUREMENT_PERIOD_MS 333
+#define INTER_MEASUREMENT_FREQ_HZ   ((int32_t)3)
+#define INTER_MEASUREMENT_PERIOD_MS ((int32_t)1000 / INTER_MEASUREMENT_FREQ_HZ)
 #define FETCH_PERIOD_MS             ((int32_t)(INTER_MEASUREMENT_PERIOD_MS * 1.5))
 #define DISTANCE_PUBLISH_PERIOD_MS  (FETCH_PERIOD_MS * 2)
 
 BUILD_ASSERT(
     DISTANCE_PUBLISH_PERIOD_MS % FETCH_PERIOD_MS == 0,
     "DISTANCE_PUBLISH_PERIOD_MS must be a multiple of FETCH_PERIOD_MS");
+BUILD_ASSERT(INTER_MEASUREMENT_FREQ_HZ > 0,
+             "INTER_MEASUREMENT_FREQ_HZ must be greater than 0");
 
 bool
 distance_is_safe(void)
@@ -92,6 +95,8 @@ tof_1d_thread()
 
         CRITICAL_SECTION_ENTER(k);
         long counter = atomic_get(&too_close_counter);
+        // if val1 is 0, we are far away, so we can decrease the counter
+        // see SENSOR_CHAN_PROX documentation
         if (distance_value.val1 == 0) {
             if (counter > 0) {
                 counter--;
@@ -123,8 +128,9 @@ tof_1d_init(void)
 
     // set to autonomous mode by setting sampling frequency / inter measurement
     // period
-    distance_config.val1 = 1000 / INTER_MEASUREMENT_PERIOD_MS;
-    distance_config.val2 = 0;
+    // the driver doesn't allow for sampling frequency below 1Hz
+    distance_config.val1 = INTER_MEASUREMENT_FREQ_HZ;
+    distance_config.val2 = 0; // fractional part, not used
     sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
                     SENSOR_ATTR_SAMPLING_FREQUENCY, &distance_config);
 

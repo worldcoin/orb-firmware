@@ -2,6 +2,10 @@
 
 #include <stdbool.h>
 
+/**
+ * @brief Check if the distance in front is safe using the ToF sensor
+ * @return true if the distance is safe, false otherwise
+ */
 bool
 distance_is_safe(void);
 
