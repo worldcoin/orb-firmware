@@ -8,6 +8,9 @@
     (STRUCT_MEMBER_SIZE_BYTES(IREyeCameraFocusSweepLensValues, focus_values) / \
      (sizeof(uint16_t)))
 
+// automatically turn off IR LEDs after 60 seconds without any activity
+#define IR_LED_AUTO_OFF_TIMEOUT_S (60)
+
 ret_code_t
 ir_camera_system_init(void);
 

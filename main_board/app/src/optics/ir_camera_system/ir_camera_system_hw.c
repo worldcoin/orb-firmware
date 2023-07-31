@@ -514,8 +514,6 @@ debug_print(void)
     print_ir_camera_triggering();
 }
 
-#define IR_LED_AUTO_OFF_TIMEOUT_S (60)
-
 static void
 disable_ir_leds()
 {
@@ -679,8 +677,6 @@ set_ccr_ir_leds(void)
         break;
     }
 }
-
-#define TRIGGER_PULSE_WIDTH_US 15
 
 static inline void
 set_trigger_cc(bool enabled, int channel)
