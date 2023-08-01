@@ -228,7 +228,7 @@ timer_settings_print(const struct ir_camera_timer_settings *settings)
     LOG_DBG("ccr                 = %5u", settings->ccr);
     LOG_DBG("ccr_740nm           = %5u", settings->ccr_740nm);
     LOG_DBG("on_time_in_us       = %5u", settings->on_time_in_us);
-    LOG_DBG("on_time_in_us_740nm = %5" PRIu32, settings->on_time_in_us_740nm);
+    LOG_DBG("on_time_in_us_740nm = %5u", settings->on_time_in_us_740nm);
 }
 
 ret_code_t
