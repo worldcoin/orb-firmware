@@ -112,15 +112,12 @@ mirrors_auto_homing_stall_detection(mirror_t mirror,
  * in the available mechanical range, then to center using half the range
  * This method does not allow for blockers detection
  * @param motor MOTOR_VERTICAL or MOTOR_HORIZONTAL
- * @param thread_ret optional, return a pointer to the thread info about thew
- * spawned auto-homing thread. This intended to be used for waiting on
- * auto-homing to finish
  * @retval RET_SUCCESS auto-homing has started
  * @retval RET_ERROR_INTERNAL unable to spawn auto-homing thread
  * @retval RET_ERROR_BUSY auto-homing already in progress
  */
 ret_code_t
-mirrors_auto_homing_one_end(mirror_t mirror, struct k_thread **thread_ret);
+mirrors_auto_homing_one_end(mirror_t mirror);
 
 /**
  * Check that auto-homing is in progress for at least one mirror

@@ -4,7 +4,6 @@
 #include "system/version/version.h"
 #include <app_assert.h>
 #include <app_config.h>
-#include <compilers.h>
 #include <math.h>
 #include <stdlib.h>
 #include <zephyr/device.h>
@@ -118,9 +117,6 @@ const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][MIRRORS_COUNT] = {
     {0x6F, 0x7F}, // DRV_STATUS
 };
 
-// minimum number of microsteps for 40º range
-static const uint32_t motors_full_course_minimum_steps[MIRRORS_COUNT] = {
-    (300 * 256), (325 * 256)};
 // a bit more than mechanical range
 static const uint32_t motors_full_course_maximum_steps[MIRRORS_COUNT] = {
     (500 * 256), (700 * 256)};
@@ -161,6 +157,12 @@ typedef struct {
 } motors_refs_t;
 
 static motors_refs_t motors_refs[MIRRORS_COUNT] = {0};
+
+#if AUTO_HOMING_ENABLED
+
+// minimum number of microsteps for 40º range
+static const uint32_t motors_full_course_minimum_steps[MIRRORS_COUNT] = {
+    (300 * 256), (325 * 256)};
 
 /// One direction with stall guard detection
 /// Velocity mode
@@ -232,6 +234,8 @@ const uint64_t position_mode_initial_phase[MIRRORS_COUNT][10] = {
                                         // Ready to move
     }};
 
+#endif
+
 const uint64_t position_mode_full_speed[MIRRORS_COUNT][10] = {
     {
         0xEC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
@@ -269,94 +273,6 @@ microsteps_to_millidegrees(uint32_t microsteps, mirror_t motor)
                                                    (float)steps_per_mm)) *
                         360000.0f / M_PI;
     return mdegrees;
-}
-
-/// Decrease sensitivity in three steps
-/// First, decrease current without modifying SGT
-/// Second, increase SGT but revert current to normal
-/// Third, decrease current with SGT increased
-/// \param mirror
-static void
-decrease_stall_sensivity(mirror_t mirror)
-{
-    if (motors_refs[mirror].velocity_mode_current ==
-            motor_irun_sgt[mirror][0] &&
-        motors_refs[mirror].stall_guard_threshold ==
-            motor_irun_sgt[mirror][1]) {
-        motors_refs[mirror].velocity_mode_current =
-            motor_irun_sgt[mirror][0] - 1;
-        motors_refs[mirror].stall_guard_threshold = motor_irun_sgt[mirror][1];
-    } else if (motors_refs[mirror].velocity_mode_current ==
-                   (motor_irun_sgt[mirror][0] - 1) &&
-               motors_refs[mirror].stall_guard_threshold ==
-                   motor_irun_sgt[mirror][1]) {
-        motors_refs[mirror].velocity_mode_current = motor_irun_sgt[mirror][0];
-        motors_refs[mirror].stall_guard_threshold =
-            motor_irun_sgt[mirror][1] + 1;
-    } else if (motors_refs[mirror].velocity_mode_current ==
-                   motor_irun_sgt[mirror][0] &&
-               motors_refs[mirror].stall_guard_threshold ==
-                   motor_irun_sgt[mirror][1] + 1) {
-        motors_refs[mirror].velocity_mode_current =
-            motor_irun_sgt[mirror][0] - 1;
-        motors_refs[mirror].stall_guard_threshold =
-            motor_irun_sgt[mirror][1] + 1;
-    } else {
-        LOG_WRN("Out of options to decrease sensitivity");
-    }
-    LOG_DBG("Motor %u: IRUN: 0x%02x, SGT: %u", mirror,
-            motors_refs[mirror].velocity_mode_current,
-            motors_refs[mirror].stall_guard_threshold);
-}
-
-/// Increase sensitivity in three steps
-/// First, increase current without modifying SGT
-/// Second, decrease SGT but revert current to normal
-/// Third, increase current with SGT decreased
-/// \param mirror
-static void
-increase_stall_sensitivity(mirror_t mirror)
-{
-    if (motors_refs[mirror].velocity_mode_current ==
-            motor_irun_sgt[mirror][0] &&
-        motors_refs[mirror].stall_guard_threshold ==
-            motor_irun_sgt[mirror][1]) {
-        // default values
-        // increase current first
-        motors_refs[mirror].velocity_mode_current =
-            motor_irun_sgt[mirror][0] + 1;
-        motors_refs[mirror].stall_guard_threshold = motor_irun_sgt[mirror][1];
-    } else if (motors_refs[mirror].velocity_mode_current ==
-                   (motor_irun_sgt[mirror][0] + 1) &&
-               motors_refs[mirror].stall_guard_threshold ==
-                   motor_irun_sgt[mirror][1]) {
-        // increased current
-        // decrease stall detection threshold
-        motors_refs[mirror].velocity_mode_current = motor_irun_sgt[mirror][0];
-        motors_refs[mirror].stall_guard_threshold =
-            motor_irun_sgt[mirror][1] - 1;
-    } else if (motors_refs[mirror].velocity_mode_current ==
-                   motor_irun_sgt[mirror][0] &&
-               motors_refs[mirror].stall_guard_threshold ==
-                   motor_irun_sgt[mirror][1] - 1) {
-        // increase current once more while keeping reduced stall detection
-        // threshold
-        motors_refs[mirror].velocity_mode_current =
-            motor_irun_sgt[mirror][0] + 1;
-        motors_refs[mirror].stall_guard_threshold =
-            motor_irun_sgt[mirror][1] - 1;
-    } else {
-        LOG_WRN("Out of options to increase sensitivity");
-    }
-    LOG_DBG("Motor %u: IRUN: 0x%02x, SGT: %u", mirror,
-            motors_refs[mirror].velocity_mode_current,
-            motors_refs[mirror].stall_guard_threshold);
-}
-static void
-reset_irun_sgt(mirror_t mirror)
-{
-    motors_refs[mirror].velocity_mode_current = motor_irun_sgt[mirror][0];
-    motors_refs[mirror].stall_guard_threshold = motor_irun_sgt[mirror][1];
 }
 
 static void
@@ -614,6 +530,103 @@ mirrors_angle_vertical_async(int32_t angle_millidegrees)
     k_work_submit_to_queue(&mirror_work_queue, &vertical_set_work_item.work);
 
     return RET_SUCCESS;
+}
+
+#if AUTO_HOMING_ENABLED
+
+#include <compilers.h>
+
+/**
+ * Increase sensitivity in three steps
+ * First, increase current without modifying SGT
+ * Second, decrease SGT but revert current to normal
+ * Third, increase current with SGT decreased
+ * @param mirror
+ */
+static void
+increase_stall_sensitivity(mirror_t mirror)
+{
+    if (motors_refs[mirror].velocity_mode_current ==
+            motor_irun_sgt[mirror][0] &&
+        motors_refs[mirror].stall_guard_threshold ==
+            motor_irun_sgt[mirror][1]) {
+        // default values
+        // increase current first
+        motors_refs[mirror].velocity_mode_current =
+            motor_irun_sgt[mirror][0] + 1;
+        motors_refs[mirror].stall_guard_threshold = motor_irun_sgt[mirror][1];
+    } else if (motors_refs[mirror].velocity_mode_current ==
+                   (motor_irun_sgt[mirror][0] + 1) &&
+               motors_refs[mirror].stall_guard_threshold ==
+                   motor_irun_sgt[mirror][1]) {
+        // increased current
+        // decrease stall detection threshold
+        motors_refs[mirror].velocity_mode_current = motor_irun_sgt[mirror][0];
+        motors_refs[mirror].stall_guard_threshold =
+            motor_irun_sgt[mirror][1] - 1;
+    } else if (motors_refs[mirror].velocity_mode_current ==
+                   motor_irun_sgt[mirror][0] &&
+               motors_refs[mirror].stall_guard_threshold ==
+                   motor_irun_sgt[mirror][1] - 1) {
+        // increase current once more while keeping reduced stall detection
+        // threshold
+        motors_refs[mirror].velocity_mode_current =
+            motor_irun_sgt[mirror][0] + 1;
+        motors_refs[mirror].stall_guard_threshold =
+            motor_irun_sgt[mirror][1] - 1;
+    } else {
+        LOG_WRN("Out of options to increase sensitivity");
+    }
+    LOG_DBG("Motor %u: IRUN: 0x%02x, SGT: %u", mirror,
+            motors_refs[mirror].velocity_mode_current,
+            motors_refs[mirror].stall_guard_threshold);
+}
+
+/**
+ * Decrease sensitivity in three steps
+ * First, decrease current without modifying SGT
+ * Second, increase SGT but revert current to normal
+ * Third, decrease current with SGT increased
+ * @param mirror
+ */
+static void
+decrease_stall_sensivity(mirror_t mirror)
+{
+    if (motors_refs[mirror].velocity_mode_current ==
+            motor_irun_sgt[mirror][0] &&
+        motors_refs[mirror].stall_guard_threshold ==
+            motor_irun_sgt[mirror][1]) {
+        motors_refs[mirror].velocity_mode_current =
+            motor_irun_sgt[mirror][0] - 1;
+        motors_refs[mirror].stall_guard_threshold = motor_irun_sgt[mirror][1];
+    } else if (motors_refs[mirror].velocity_mode_current ==
+                   (motor_irun_sgt[mirror][0] - 1) &&
+               motors_refs[mirror].stall_guard_threshold ==
+                   motor_irun_sgt[mirror][1]) {
+        motors_refs[mirror].velocity_mode_current = motor_irun_sgt[mirror][0];
+        motors_refs[mirror].stall_guard_threshold =
+            motor_irun_sgt[mirror][1] + 1;
+    } else if (motors_refs[mirror].velocity_mode_current ==
+                   motor_irun_sgt[mirror][0] &&
+               motors_refs[mirror].stall_guard_threshold ==
+                   motor_irun_sgt[mirror][1] + 1) {
+        motors_refs[mirror].velocity_mode_current =
+            motor_irun_sgt[mirror][0] - 1;
+        motors_refs[mirror].stall_guard_threshold =
+            motor_irun_sgt[mirror][1] + 1;
+    } else {
+        LOG_WRN("Out of options to decrease sensitivity");
+    }
+    LOG_DBG("Motor %u: IRUN: 0x%02x, SGT: %u", mirror,
+            motors_refs[mirror].velocity_mode_current,
+            motors_refs[mirror].stall_guard_threshold);
+}
+
+static void
+reset_irun_sgt(mirror_t mirror)
+{
+    motors_refs[mirror].velocity_mode_current = motor_irun_sgt[mirror][0];
+    motors_refs[mirror].stall_guard_threshold = motor_irun_sgt[mirror][1];
 }
 
 static void
@@ -1030,6 +1043,8 @@ mirrors_auto_homing_stall_detection(mirror_t mirror,
     return RET_SUCCESS;
 }
 
+#endif
+
 bool
 mirrors_homed_successfully(void)
 {
@@ -1150,7 +1165,7 @@ mirrors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
 }
 
 ret_code_t
-mirrors_auto_homing_one_end(mirror_t mirror, struct k_thread **thread_ret)
+mirrors_auto_homing_one_end(mirror_t mirror)
 {
     if (mirror >= MIRRORS_COUNT) {
         return RET_ERROR_INVALID_PARAM;
@@ -1162,9 +1177,6 @@ mirrors_auto_homing_one_end(mirror_t mirror, struct k_thread **thread_ret)
     }
 
     if (mirror == MIRROR_HORIZONTAL_ANGLE) {
-        if (thread_ret) {
-            *thread_ret = &thread_data_mirror_horizontal;
-        }
         k_tid_t tid = k_thread_create(
             &thread_data_mirror_horizontal, stack_area_mirror_horizontal_init,
             K_THREAD_STACK_SIZEOF(stack_area_mirror_horizontal_init),
@@ -1172,10 +1184,6 @@ mirrors_auto_homing_one_end(mirror_t mirror, struct k_thread **thread_ret)
             NULL, NULL, THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
         k_thread_name_set(tid, "motors_ah_horizontal_one_end");
     } else {
-        if (thread_ret) {
-            *thread_ret = &thread_data_mirror_vertical;
-        }
-
         k_timeout_t delay = (motors_refs[MIRROR_VERTICAL_ANGLE].motor_state ==
                                      RET_ERROR_NOT_INITIALIZED
                                  ? K_MSEC(2000)
@@ -1265,9 +1273,9 @@ mirrors_init(void)
         ARRAY_SIZE(position_mode_full_speed[MIRROR_VERTICAL_ANGLE]));
 
     // auto-home after boot
-    err_code = mirrors_auto_homing_one_end(MIRROR_HORIZONTAL_ANGLE, NULL);
+    err_code = mirrors_auto_homing_one_end(MIRROR_HORIZONTAL_ANGLE);
     ASSERT_SOFT(err_code);
-    err_code = mirrors_auto_homing_one_end(MIRROR_VERTICAL_ANGLE, NULL);
+    err_code = mirrors_auto_homing_one_end(MIRROR_VERTICAL_ANGLE);
     ASSERT_SOFT(err_code);
 
     // see `motors_center_from_end` array

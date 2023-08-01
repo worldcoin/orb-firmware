@@ -24,10 +24,6 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(runner, CONFIG_RUNNER_LOG_LEVEL);
 
-static K_THREAD_STACK_DEFINE(auto_homing_stack, 600);
-static struct k_thread auto_homing_thread;
-static k_tid_t auto_homing_tid = NULL;
-
 K_THREAD_STACK_DEFINE(runner_process_stack, THREAD_STACK_SIZE_RUNNER);
 static struct k_thread runner_process;
 static k_tid_t runner_tid = NULL;
@@ -132,62 +128,6 @@ handle_err_code(void *ctx, int err)
     if (err == RET_SUCCESS) {
         ++job_counter;
     }
-}
-
-void
-auto_homing_thread_entry_point(void *a, void *b, void *c)
-{
-    ARG_UNUSED(c);
-
-    PerformMirrorHoming_Mode mode = (PerformMirrorHoming_Mode)a;
-    PerformMirrorHoming_Angle angle = (PerformMirrorHoming_Angle)b;
-
-    ret_code_t ret;
-    struct k_thread *horiz = NULL, *vert = NULL;
-
-    if (mode == PerformMirrorHoming_Mode_STALL_DETECTION) {
-        if (angle == PerformMirrorHoming_Angle_BOTH ||
-            angle == PerformMirrorHoming_Angle_HORIZONTAL) {
-            ret = mirrors_auto_homing_stall_detection(MIRROR_HORIZONTAL_ANGLE,
-                                                      &horiz);
-            if (ret == RET_ERROR_BUSY) {
-                goto leave;
-            }
-        }
-        if (angle == PerformMirrorHoming_Angle_BOTH ||
-            angle == PerformMirrorHoming_Angle_VERTICAL) {
-            ret = mirrors_auto_homing_stall_detection(MIRROR_VERTICAL_ANGLE,
-                                                      &vert);
-            if (ret == RET_ERROR_BUSY) {
-                goto leave;
-            }
-        }
-    } else if (mode == PerformMirrorHoming_Mode_ONE_BLOCKING_END) {
-        if (angle == PerformMirrorHoming_Angle_BOTH ||
-            angle == PerformMirrorHoming_Angle_HORIZONTAL) {
-            ret = mirrors_auto_homing_one_end(MIRROR_HORIZONTAL_ANGLE, &horiz);
-            if (ret == RET_ERROR_BUSY) {
-                goto leave;
-            }
-        }
-        if (angle == PerformMirrorHoming_Angle_BOTH ||
-            angle == PerformMirrorHoming_Angle_VERTICAL) {
-            ret = mirrors_auto_homing_one_end(MIRROR_VERTICAL_ANGLE, &vert);
-            if (ret == RET_ERROR_BUSY) {
-                goto leave;
-            }
-        }
-    }
-
-    if (horiz != NULL) {
-        k_thread_join(horiz, K_FOREVER);
-    }
-    if (vert != NULL) {
-        k_thread_join(vert, K_FOREVER);
-    }
-
-leave:
-    auto_homing_tid = NULL;
 }
 
 // Handlers
@@ -391,7 +331,7 @@ handle_mirror_angle_message(job_t *job)
     uint32_t horizontal_angle = msg->payload.mirror_angle.horizontal_angle;
     int32_t vertical_angle = msg->payload.mirror_angle.vertical_angle;
 
-    if (auto_homing_tid != NULL || mirrors_auto_homing_in_progress()) {
+    if (mirrors_auto_homing_in_progress()) {
         job_ack(Ack_ErrorCode_IN_PROGRESS, job);
         return;
     }
@@ -825,6 +765,7 @@ handle_dfu_block_message(job_t *job)
 static void
 handle_do_homing(job_t *job)
 {
+    ret_code_t ret = RET_SUCCESS;
     JetsonToMcu *msg = &job->message;
     MAKE_ASSERTS(JetsonToMcu_do_homing_tag);
 
@@ -832,18 +773,26 @@ handle_do_homing(job_t *job)
     PerformMirrorHoming_Angle angle = msg->payload.do_homing.angle;
     LOG_DBG("Got do autohoming message, mode = %u, angle = %u", mode, angle);
 
-    if (auto_homing_tid != NULL || mirrors_auto_homing_in_progress()) {
+    if (mirrors_auto_homing_in_progress()) {
         job_ack(Ack_ErrorCode_IN_PROGRESS, job);
+    } else if (mode == PerformMirrorHoming_Mode_STALL_DETECTION) {
+        job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
     } else {
-        auto_homing_tid =
-            k_thread_create(&auto_homing_thread, auto_homing_stack,
-                            K_THREAD_STACK_SIZEOF(auto_homing_stack),
-                            auto_homing_thread_entry_point, (void *)mode,
-                            (void *)angle, NULL, 4, 0, K_NO_WAIT);
-        k_thread_name_set(auto_homing_tid, "autohoming");
+        if (angle == PerformMirrorHoming_Angle_BOTH ||
+            angle == PerformMirrorHoming_Angle_HORIZONTAL) {
+            ret |= mirrors_auto_homing_one_end(MIRROR_HORIZONTAL_ANGLE);
+        }
+        if (angle == PerformMirrorHoming_Angle_BOTH ||
+            angle == PerformMirrorHoming_Angle_VERTICAL) {
+            ret |= mirrors_auto_homing_one_end(MIRROR_VERTICAL_ANGLE);
+        }
 
         // send ack before timeout even though auto-homing not completed
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        if (ret) {
+            job_ack(Ack_ErrorCode_FAIL, job);
+        } else {
+            job_ack(Ack_ErrorCode_SUCCESS, job);
+        }
     }
 }
 
@@ -911,7 +860,7 @@ handle_mirror_angle_relative_message(job_t *job)
         msg->payload.mirror_angle_relative.horizontal_angle;
     int32_t vertical_angle = msg->payload.mirror_angle_relative.vertical_angle;
 
-    if (auto_homing_tid != NULL || mirrors_auto_homing_in_progress()) {
+    if (mirrors_auto_homing_in_progress()) {
         job_ack(Ack_ErrorCode_IN_PROGRESS, job);
         return;
     }
