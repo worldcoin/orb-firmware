@@ -24,6 +24,8 @@ dependencies:
       - pyserial
       - pyocd
       - crc16
+      - puncover
+      - anytree==2.8.0 # rom_report fails with 2.9.0
       - -r ../test/requirements.txt
       - -r ../../../bootloader/mcuboot/scripts/requirements.txt
       - -r ../../../zephyr/scripts/requirements.txt
