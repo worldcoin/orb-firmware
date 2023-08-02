@@ -1,6 +1,10 @@
 #include "ir_camera_timer_settings.h"
-#include <utils.h>
+#ifdef CONFIG_ZTEST
 #include <zephyr/logging/log.h>
+#else
+#include "system/logs.h"
+#endif
+#include <utils.h>
 #include <zephyr/sys/util.h>
 
 LOG_MODULE_REGISTER(ir_camera_timer_settings,

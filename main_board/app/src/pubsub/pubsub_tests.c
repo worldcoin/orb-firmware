@@ -5,9 +5,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
+#include "system/logs.h"
 #include <can_messaging.h>
 #include <pb_encode.h>
-#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(pubsub_test);
 
 static uint32_t mcu_to_jetson_payloads = 0;

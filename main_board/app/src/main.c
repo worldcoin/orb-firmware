@@ -16,8 +16,10 @@
 #include <app_assert.h>
 #include <can_messaging.h>
 #include <dfu.h>
+#include <fatal.h>
 #include <pb_encode.h>
 #include <storage.h>
+#include <watchdog.h>
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
 
@@ -26,9 +28,6 @@
 #include "optics/optics.h"
 #endif
 
-#include <fatal.h>
-#include <watchdog.h>
-#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(main);
 
 static bool jetson_up_and_running = false;
@@ -265,6 +264,14 @@ main(void)
     initialize();
     run_tests();
     wait_jetson_up();
+
+    while (true) {
+        k_msleep(5000);
+
+        LOG_WRN("Main loop");
+        LOG_ERR("Error count: %u", app_assert_soft_count());
+        ASSERT_SOFT(RET_ERROR_INTERNAL);
+    }
 
     return 0;
 }

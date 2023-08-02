@@ -6,9 +6,9 @@
 #include "optics/mirrors/mirrors.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
+#include "system/logs.h"
 #include <app_assert.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(optics);
 

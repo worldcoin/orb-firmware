@@ -1,3 +1,4 @@
+#include "system/logs.h"
 #include <app_assert.h>
 #include <app_config.h>
 #include <errors.h>
@@ -6,7 +7,6 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/led_strip.h>
 #include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(operator_leds);
 

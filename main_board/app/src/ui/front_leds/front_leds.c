@@ -1,4 +1,5 @@
 #include "front_leds.h"
+#include "system/logs.h"
 #include "ui/rgb_leds.h"
 #include <app_assert.h>
 #include <app_config.h>
@@ -9,7 +10,6 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/led_strip.h>
 #include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(front_unit_rgb_leds, CONFIG_FRONT_UNIT_RGB_LEDS_LOG_LEVEL);
 

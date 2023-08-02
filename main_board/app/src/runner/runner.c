@@ -8,6 +8,7 @@
 #include "optics/mirrors/mirrors.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
+#include "system/logs.h"
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "temperature/sensors/temperature.h"
@@ -21,7 +22,6 @@
 #include <ui/front_leds/front_leds.h>
 #include <zephyr/kernel.h>
 
-#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(runner, CONFIG_RUNNER_LOG_LEVEL);
 
 K_THREAD_STACK_DEFINE(runner_process_stack, THREAD_STACK_SIZE_RUNNER);

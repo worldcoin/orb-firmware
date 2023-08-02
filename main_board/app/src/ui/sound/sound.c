@@ -1,10 +1,10 @@
+#include "system/logs.h"
 #include <app_assert.h>
 #include <errors.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(sound, CONFIG_SOUND_LOG_LEVEL);
 
 #define SOUND_AMP_MUX_NODE DT_PATH(zephyr_user)

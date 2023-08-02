@@ -1,6 +1,7 @@
 #include "mirrors.h"
 #include "mcu_messaging.pb.h"
 #include "pubsub/pubsub.h"
+#include "system/logs.h"
 #include "system/version/version.h"
 #include <app_assert.h>
 #include <app_config.h>
@@ -9,7 +10,6 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/spi.h>
 #include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
 #include <zephyr/sys/byteorder.h>
 
 // _ANSI_SOURCE is used with newlib to make sure newlib doesn't provide

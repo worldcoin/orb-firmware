@@ -1,6 +1,7 @@
 #include "boot.h"
 #include "optics/optics.h"
 #include "sysflash/sysflash.h"
+#include "system/logs.h"
 #include "ui/button/button.h"
 #include "ui/front_leds/front_leds.h"
 #include "ui/operator_leds/operator_leds.h"
@@ -17,7 +18,6 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/regulator.h>
 #include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
 
 #include <zephyr/logging/log_ctrl.h>
 LOG_MODULE_REGISTER(power_sequence, CONFIG_POWER_SEQUENCE_LOG_LEVEL);
@@ -410,7 +410,7 @@ reboot_thread()
 
     LOG_INF("Going down!");
 
-#ifdef CONFIG_LOG
+#if defined(CONFIG_LOG) && !defined(CONFIG_LOG_MODE_MINIMAL)
     uint32_t log_buffered_count = log_buffered_cnt();
     while (LOG_PROCESS() && --log_buffered_count)
         ;

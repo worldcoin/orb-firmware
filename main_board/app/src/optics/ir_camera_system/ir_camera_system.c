@@ -6,7 +6,7 @@
 #include "ir_camera_timer_settings.h"
 #include "utils.h"
 
-#include <zephyr/logging/log.h>
+#include "system/logs.h"
 #include <zephyr/sys/atomic.h>
 #include <zephyr/sys/util_macro.h>
 LOG_MODULE_REGISTER(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);

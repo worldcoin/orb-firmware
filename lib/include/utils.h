@@ -24,7 +24,7 @@
     irq_unlock(k);                                                             \
     }
 
-#ifdef CONFIG_LOG
+#if defined(CONFIG_LOG) && !defined(CONFIG_LOG_MODE_MINIMAL)
 // log immediately, i.e., log and wait for messages to flush
 #define LOG_INF_IMM(...)                                                       \
     LOG_INF(__VA_ARGS__);                                                      \

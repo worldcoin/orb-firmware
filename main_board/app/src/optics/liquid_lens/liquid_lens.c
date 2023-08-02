@@ -1,4 +1,5 @@
 #include "liquid_lens.h"
+#include "system/logs.h"
 #include <app_assert.h>
 #include <app_config.h>
 #include <stdlib.h>
@@ -11,7 +12,6 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
 #include <zephyr/sys_clock.h>
 LOG_MODULE_REGISTER(liquid_lens, CONFIG_LIQUID_LENS_LOG_LEVEL);
 

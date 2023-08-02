@@ -10,7 +10,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/byteorder.h>
 
-#include <zephyr/logging/log.h>
+#include "system/logs.h"
 LOG_MODULE_REGISTER(gnss, CONFIG_GNSS_LOG_LEVEL);
 
 #define NMEA_MAX_SIZE 82 // Includes starting '$' and '\r' '\n'

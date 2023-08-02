@@ -1,5 +1,5 @@
 #include "stm32_timer_utils.h"
-#include <zephyr/logging/log.h>
+#include "system/logs.h"
 LOG_MODULE_REGISTER(stm32_timer_utils);
 
 int

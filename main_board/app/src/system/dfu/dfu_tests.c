@@ -1,10 +1,10 @@
 #include "dfu.h"
 #include "runner/runner.h"
+#include "system/logs.h"
 #include <can_messaging.h>
 #include <flash_map_backend/flash_map_backend.h>
 #include <pb_encode.h>
 #include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
 #include <zephyr/sys/crc.h>
 #include <zephyr/ztest.h>
 

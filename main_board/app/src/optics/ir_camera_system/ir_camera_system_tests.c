@@ -6,7 +6,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
-#include <zephyr/logging/log.h>
+#include "system/logs.h"
 LOG_MODULE_REGISTER(ir_camera_system_tests_init);
 
 // These tests are intended to be observed with a logic analyzer
