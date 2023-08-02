@@ -12,7 +12,7 @@
 #include <zephyr/sys/reboot.h>
 #include <zephyr/sys_clock.h>
 
-#include "system/logs.h"
+#include "logs_can.h"
 LOG_MODULE_REGISTER(temperature, CONFIG_TEMPERATURE_LOG_LEVEL);
 
 // These values are informed by

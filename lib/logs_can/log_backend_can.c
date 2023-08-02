@@ -2,7 +2,7 @@
 #include "mcu_messaging.pb.h"
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_backend.h>
-LOG_MODULE_REGISTER(log_can, CONFIG_LOG_CAN_LOG_LEVEL);
+LOG_MODULE_REGISTER(log_can, CONFIG_LOGS_CAN_LOG_LEVEL);
 
 static int panic_count = 0;
 

@@ -1,7 +1,7 @@
 #include "boot.h"
+#include "logs_can.h"
 #include "optics/optics.h"
 #include "sysflash/sysflash.h"
-#include "system/logs.h"
 #include "ui/button/button.h"
 #include "ui/front_leds/front_leds.h"
 #include "ui/operator_leds/operator_leds.h"

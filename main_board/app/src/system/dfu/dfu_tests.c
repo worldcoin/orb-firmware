@@ -1,6 +1,6 @@
 #include "dfu.h"
+#include "logs_can.h"
 #include "runner/runner.h"
-#include "system/logs.h"
 #include <can_messaging.h>
 #include <flash_map_backend/flash_map_backend.h>
 #include <pb_encode.h>

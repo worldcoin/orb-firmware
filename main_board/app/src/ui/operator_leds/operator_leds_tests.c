@@ -3,7 +3,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
-#include "system/logs.h"
+#include "logs_can.h"
 LOG_MODULE_REGISTER(operator_leds_test);
 
 /// Test all patterns with 2 brightness levels

@@ -7,7 +7,7 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 
-#include "system/logs.h"
+#include "logs_can.h"
 LOG_MODULE_REGISTER(1d_tof, CONFIG_TOF_1D_LOG_LEVEL);
 
 const struct device *tof_1d_device = DEVICE_DT_GET(DT_NODELABEL(tof_sensor));

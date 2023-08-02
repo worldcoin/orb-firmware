@@ -1,3 +1,3 @@
-module = LOG_CAN
-module-str = LOG_CAN
+module = LOGS_CAN
+module-str = LOGS_CAN
 source "subsys/logging/Kconfig.template.log_config"

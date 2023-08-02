@@ -1,4 +1,4 @@
-#include "system/logs.h"
+#include "logs_can.h"
 #include <app_assert.h>
 #include <errors.h>
 #include <zephyr/device.h>

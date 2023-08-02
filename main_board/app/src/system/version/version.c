@@ -1,6 +1,6 @@
 #include "version.h"
+#include "logs_can.h"
 #include "pubsub/pubsub.h"
-#include "system/logs.h"
 #include <app_assert.h>
 #include <can_messaging.h>
 #include <dfu.h>

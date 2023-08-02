@@ -6,7 +6,12 @@
 #include "ir_camera_timer_settings.h"
 #include "utils.h"
 
-#include "system/logs.h"
+#if defined(CONFIG_ZTEST)
+#include <zephyr/logging/log.h>
+#else
+#include "logs_can.h"
+#endif
+
 #include <zephyr/sys/atomic.h>
 #include <zephyr/sys/util_macro.h>
 LOG_MODULE_REGISTER(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);

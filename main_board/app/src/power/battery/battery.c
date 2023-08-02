@@ -14,7 +14,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/byteorder.h>
 
-#include "system/logs.h"
+#include "logs_can.h"
 LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
 
 static const struct device *can_dev = DEVICE_DT_GET(DT_ALIAS(battery_can_bus));

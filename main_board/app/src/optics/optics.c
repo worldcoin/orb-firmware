@@ -1,12 +1,12 @@
 #include "optics.h"
 #include "app_config.h"
+#include "logs_can.h"
 #include "optics/1d_tof/tof_1d.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
 #include "optics/liquid_lens/liquid_lens.h"
 #include "optics/mirrors/mirrors.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
-#include "system/logs.h"
 #include <app_assert.h>
 #include <zephyr/drivers/gpio.h>
 

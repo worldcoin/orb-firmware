@@ -2,7 +2,7 @@
 #ifdef CONFIG_ZTEST
 #include <zephyr/logging/log.h>
 #else
-#include "system/logs.h"
+#include "logs_can.h"
 #endif
 #include <utils.h>
 #include <zephyr/sys/util.h>

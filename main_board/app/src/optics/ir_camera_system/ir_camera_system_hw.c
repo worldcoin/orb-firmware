@@ -23,7 +23,11 @@
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/kernel.h>
 
-#include "system/logs.h"
+#if defined(CONFIG_ZTEST)
+#include <zephyr/logging/log.h>
+#else
+#include "logs_can.h"
+#endif
 LOG_MODULE_DECLARE(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
 
 #define DT_INST_CLK(inst)                                                      \

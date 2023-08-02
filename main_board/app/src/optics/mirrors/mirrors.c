@@ -1,7 +1,7 @@
 #include "mirrors.h"
+#include "logs_can.h"
 #include "mcu_messaging.pb.h"
 #include "pubsub/pubsub.h"
-#include "system/logs.h"
 #include "system/version/version.h"
 #include <app_assert.h>
 #include <app_config.h>

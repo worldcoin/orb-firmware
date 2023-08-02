@@ -9,7 +9,7 @@
 #include <utils.h>
 #include <zephyr/kernel.h>
 
-#include "system/logs.h"
+#include "logs_can.h"
 LOG_MODULE_REGISTER(pubsub, CONFIG_PUBSUB_LOG_LEVEL);
 
 // Check that CONFIG_CAN_ISOTP_MAX_SIZE_BYTES is large enough

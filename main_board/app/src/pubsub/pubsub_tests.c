@@ -5,7 +5,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
-#include "system/logs.h"
+#include "logs_can.h"
 #include <can_messaging.h>
 #include <pb_encode.h>
 LOG_MODULE_REGISTER(pubsub_test);

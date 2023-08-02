@@ -1,9 +1,9 @@
 #include "gnss/gnss.h"
+#include "logs_can.h"
 #include "power/battery/battery.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "runner/runner.h"
-#include "system/logs.h"
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "temperature/fan/fan_tach.h"
@@ -26,6 +26,7 @@
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
 #include "heartbeat.h"
 #include "optics/optics.h"
+#include "system/logs.h"
 #endif
 
 LOG_MODULE_REGISTER(main);
@@ -185,7 +186,7 @@ initialize(void)
 #endif
 
     // logs over CAN must be initialized after CAN-messaging module
-    err_code = logs_init();
+    err_code = logs_init(logs_can);
     ASSERT_SOFT(err_code);
 
     // check battery state early on
@@ -264,14 +265,6 @@ main(void)
     initialize();
     run_tests();
     wait_jetson_up();
-
-    while (true) {
-        k_msleep(5000);
-
-        LOG_WRN("Main loop");
-        LOG_ERR("Error count: %u", app_assert_soft_count());
-        ASSERT_SOFT(RET_ERROR_INTERNAL);
-    }
 
     return 0;
 }

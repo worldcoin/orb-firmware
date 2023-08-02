@@ -6,7 +6,7 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 
-#include "system/logs.h"
+#include "logs_can.h"
 LOG_MODULE_REGISTER(als, CONFIG_ALS_LOG_LEVEL);
 
 const struct device *als_device = DEVICE_DT_GET(DT_NODELABEL(front_unit_als));

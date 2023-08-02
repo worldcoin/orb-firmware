@@ -6,7 +6,11 @@
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
-#include "system/logs.h"
+#if defined(CONFIG_ZTEST)
+#include <zephyr/logging/log.h>
+#else
+#include "logs_can.h"
+#endif
 LOG_MODULE_REGISTER(ir_camera_system_tests_init);
 
 // These tests are intended to be observed with a logic analyzer

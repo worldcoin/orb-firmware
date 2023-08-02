@@ -1,9 +1,12 @@
-config ORB_LIB_LOG_BACKEND_CAN
-    bool "Send logs over the CAN bus"
-    select LOG_OUTPUT
-    depends on LOG && ORB_PROTOBUF_DEFINITIONS_LIB
+config ORB_LIB_LOGS_CAN
+    bool "Send logs (ERR & WRN) over the CAN bus"
 
-if ORB_LIB_LOG_BACKEND_CAN
+if ORB_LIB_LOGS_CAN
+
+config ORB_LIB_LOG_BACKEND_CAN
+    bool "Send logs over the CAN bus with Zephyr's logging subsystem"
+    select LOG_OUTPUT
+    depends on LOG
 
 config ORB_LIB_LOG_BACKEND_LEVEL
     int "CAN backend log level"
