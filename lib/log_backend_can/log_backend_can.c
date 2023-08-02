@@ -61,8 +61,13 @@ process(const struct log_backend *const backend, union log_msg_generic *msg)
         return;
     }
 
-    if (log_msg_get_level(&msg->log) > CONFIG_ORB_LIB_LOG_BACKEND_LEVEL ||
-        log_msg_get_level(&msg->log) == LOG_LEVEL_NONE) {
+#ifndef CONFIG_LOG_PRINTK
+    if (log_msg_get_level(&msg->log) == LOG_LEVEL_NONE) {
+        return;
+    }
+#endif
+
+    if (log_msg_get_level(&msg->log) > CONFIG_ORB_LIB_LOG_BACKEND_LEVEL) {
         return;
     }
 
