@@ -1,5 +1,5 @@
 #include "logs_can.h"
-#include <pb_encode.h>
+#include <errors.h>
 
 #ifdef CONFIG_ORB_LIB_LOG_BACKEND_CAN
 #include <log_backend_can.h>
@@ -43,7 +43,7 @@ int
 logs_init(void (*print)(const char *log, size_t size, bool blocking))
 {
     if (print == NULL) {
-        return -1;
+        return RET_ERROR_INVALID_PARAM;
     }
 
     send_log_over_can = print;
@@ -54,5 +54,5 @@ logs_init(void (*print)(const char *log, size_t size, bool blocking))
     __printk_hook_install(printk_hook);
 #endif
 
-    return 0;
+    return RET_SUCCESS;
 }
