@@ -16,7 +16,8 @@ __printk_hook_install(int (*fn)(int c));
 #error                                                                         \
     "CONFIG_PRINTK_SYNC must be enabled to prevent race conditions over buffer"
 #endif
-static char buf[256] = {0};
+/// see "mcu_messaging.pb.h" for the size of the log message
+static char buf[51] = {0};
 static size_t buf_idx = 0;
 
 static int
