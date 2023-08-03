@@ -47,10 +47,14 @@ is_panic_mode(void)
     return (panic_count != 0);
 }
 
-/// Send message to physical channel
-/// Process is for LOG2
-/// \param backend
-/// \param msg
+/**
+ * Send message to physical channel,
+ * Only warnings and errors are sent, or printk in case these are forwarded
+ * to the logging module
+ * Process is for LOG2
+ * @param backend
+ * @param msg
+ */
 static void
 process(const struct log_backend *const backend, union log_msg_generic *msg)
 {
