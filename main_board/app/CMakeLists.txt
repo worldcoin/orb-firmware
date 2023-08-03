@@ -59,12 +59,12 @@ list(APPEND ZEPHYR_EXTRA_MODULES ${PROJECT_DIR})
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(orb-mcu-main-app)
 
-# SINE_TABLE_LENGTH defined for values from 0 to pi (half period)
-set(SINE_TABLE_LENGTH 300)
+# SINE_TABLE_LENGTH defined for values from 0 to pi/2 (0..1)
+set(SINE_TABLE_LENGTH 150)
 add_compile_definitions(SINE_TABLE_LENGTH=${SINE_TABLE_LENGTH})
 set(SINE_LUT_SRC_FILE ${CMAKE_BINARY_DIR}/zephyr/sine_lut.c)
 add_custom_command(OUTPUT ${SINE_LUT_SRC_FILE}
-    COMMAND python3 ${PROJECT_DIR}/utils/math/generate_sine.py ${SINE_TABLE_LENGTH} > ${SINE_LUT_SRC_FILE})
+    COMMAND python3 ${PROJECT_DIR}/utils/math/generate_half_sine.py ${SINE_TABLE_LENGTH} > ${SINE_LUT_SRC_FILE})
 
 set(SOURCES_FILES)
 # common source files

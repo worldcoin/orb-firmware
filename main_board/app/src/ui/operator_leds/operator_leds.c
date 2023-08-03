@@ -22,7 +22,7 @@ static struct led_rgb leds[OPERATOR_LEDS_COUNT];
 
 // default values
 static volatile DistributorLEDsPattern_DistributorRgbLedPattern global_pattern =
-    DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE;
+    DistributorLEDsPattern_DistributorRgbLedPattern_BOOT_ANIMATION;
 static volatile uint8_t global_intensity = 20;
 static volatile uint32_t global_mask = 0b11111;
 static volatile struct led_rgb global_color = RGB_WHITE_OPERATOR_LEDS;
@@ -57,10 +57,11 @@ operator_leds_thread(void *a, void *b, void *c)
     uint8_t intensity;
     uint32_t mask;
     struct led_rgb color;
-    DistributorLEDsPattern_DistributorRgbLedPattern pattern;
+    DistributorLEDsPattern_DistributorRgbLedPattern pattern =
+        DistributorLEDsPattern_DistributorRgbLedPattern_BOOT_ANIMATION;
     float scaler;
-    k_timeout_t wait_until = K_FOREVER;
-    uint32_t pulsing_index = 0;
+    k_timeout_t wait_until = K_MSEC(global_pulsing_delay_time_ms);
+    uint32_t pulsing_index = ARRAY_SIZE(SINE_LUT);
 
     for (;;) {
         k_sem_take(&sem_new_setting, wait_until);
@@ -70,6 +71,10 @@ operator_leds_thread(void *a, void *b, void *c)
         // create local copies in a critical section to make sure we don't
         // interfere with the values while applying LED config
         CRITICAL_SECTION_ENTER(k);
+        if (pattern != global_pattern) {
+            // start with LEDs on
+            pulsing_index = ARRAY_SIZE(SINE_LUT);
+        }
         pattern = global_pattern;
         intensity = global_intensity;
         mask = global_mask;
@@ -104,13 +109,47 @@ operator_leds_thread(void *a, void *b, void *c)
             /* Do nothing, color already set from global_color */
             break;
         case DistributorLEDsPattern_DistributorRgbLedPattern_PULSING_RGB:
-            scaler = SINE_LUT[pulsing_index] * PULSING_SCALE_DEFAULT;
+            if (pulsing_index < ARRAY_SIZE(SINE_LUT)) {
+                // from 0 to 1.0
+                scaler = SINE_LUT[pulsing_index] * PULSING_SCALE_DEFAULT;
+            } else {
+                // from 1.0 to 0
+                size_t index = (ARRAY_SIZE(SINE_LUT) - 1 -
+                                (pulsing_index - ARRAY_SIZE(SINE_LUT)));
+                LOG_INF("index: %d", index);
+                scaler = SINE_LUT[index] * PULSING_SCALE_DEFAULT;
+            }
             color.r = roundf(scaler * color.r);
             color.g = roundf(scaler * color.g);
             color.b = roundf(scaler * color.b);
             wait_until = K_MSEC(global_pulsing_delay_time_ms);
-            pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
+            pulsing_index = (pulsing_index + 1) % (ARRAY_SIZE(SINE_LUT) * 2);
             break;
+        case DistributorLEDsPattern_DistributorRgbLedPattern_BOOT_ANIMATION: {
+            size_t solid_iterations = 1000 / global_pulsing_delay_time_ms;
+            if (pulsing_index < ARRAY_SIZE(SINE_LUT)) {
+                // from 0 to 1.0
+                scaler = SINE_LUT[pulsing_index] * PULSING_SCALE_DEFAULT;
+            } else if (pulsing_index <
+                       (ARRAY_SIZE(SINE_LUT) + solid_iterations)) {
+                // solid
+                scaler = PULSING_SCALE_DEFAULT;
+            } else {
+                // [array size, 0] -> [1.0 to 0]
+                scaler = SINE_LUT[(ARRAY_SIZE(SINE_LUT) - 1 -
+                                   (pulsing_index - solid_iterations -
+                                    ARRAY_SIZE(SINE_LUT)))] *
+                         PULSING_SCALE_DEFAULT;
+            }
+            color.r = roundf(scaler * color.r);
+            color.g = roundf(scaler * color.g);
+            color.b = roundf(scaler * color.b);
+            wait_until = K_MSEC(global_pulsing_delay_time_ms);
+
+            pulsing_index = (pulsing_index + 1) %
+                            (ARRAY_SIZE(SINE_LUT) * 2 + solid_iterations);
+
+        } break;
         default:
             LOG_ERR("Unhandled operator LED pattern: %u", pattern);
             break;
