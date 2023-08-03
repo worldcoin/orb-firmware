@@ -8,7 +8,7 @@
 static void (*send_log_over_can)(const char *log, size_t size,
                                  bool blocking) = NULL;
 
-#if defined(CONFIG_PRINTK) && !defined(DEBUG)
+#if defined(CONFIG_PRINTK) && !defined(CONFIG_LOG)
 extern void
 __printk_hook_install(int (*fn)(int c));
 
@@ -49,7 +49,7 @@ logs_init(void (*print)(const char *log, size_t size, bool blocking))
 
 #ifdef CONFIG_ORB_LIB_LOG_BACKEND_CAN
     log_backend_can_register_print(send_log_over_can);
-#elif defined(CONFIG_PRINTK) && !defined(DEBUG)
+#elif defined(CONFIG_PRINTK) && !defined(CONFIG_LOG)
     __printk_hook_install(printk_hook);
 #endif
 
