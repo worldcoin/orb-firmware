@@ -70,7 +70,7 @@ static volatile int8_t prev_pwm = 0;
 static K_THREAD_STACK_DEFINE(liquid_lens_stack_area,
                              THREAD_STACK_SIZE_LIQUID_LENS);
 static struct k_thread liquid_lens_thread_data;
-static k_tid_t thread_id;
+static k_tid_t thread_id = NULL;
 
 static const struct device *dev_dma = DEVICE_DT_GET(LIQUID_LENS_DMA_NODE);
 static const struct device *liquid_lens_en = DEVICE_DT_GET(LIQUID_LENS_EN_CTLR);
@@ -130,7 +130,8 @@ liquid_lens_thread(void *a, void *b, void *c)
         k_sleep(K_USEC(LIQUID_LENS_DEFAULT_SAMPLING_PERIOD_US));
 
         if (!LL_ADC_IsEnabled(ADC)) {
-            continue;
+            // thread will be waked up when enabling liquid lens
+            k_sleep(K_FOREVER);
         }
 
         if (LL_ADC_REG_IsConversionOngoing(ADC)) {
@@ -231,7 +232,14 @@ liquid_lens_enable(void)
                       LIQUID_LENS_TIM_LS1_OUTPUT | LIQUID_LENS_TIM_HS1_OUTPUT);
     LL_HRTIM_TIM_CounterEnable(HR_TIMER, LIQUID_LENS_TIM_POS_BRIDGE |
                                              LIQUID_LENS_TIM_NEG_BRIDGE);
-    gpio_pin_set(liquid_lens_en, LIQUID_LENS_EN_PIN, 1);
+    int ret = gpio_pin_set(liquid_lens_en, LIQUID_LENS_EN_PIN, 1);
+    ASSERT_SOFT(ret);
+
+    if (thread_id != NULL) {
+        k_wakeup(thread_id);
+    } else {
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
+    }
 }
 
 void
@@ -242,7 +250,9 @@ liquid_lens_disable(void)
     }
 
     LOG_INF("Disabling liquid lens current");
-    gpio_pin_set(liquid_lens_en, LIQUID_LENS_EN_PIN, 0);
+    int ret = gpio_pin_set(liquid_lens_en, LIQUID_LENS_EN_PIN, 0);
+    ASSERT_SOFT(ret);
+
     LL_HRTIM_TIM_CounterDisable(HR_TIMER, LIQUID_LENS_TIM_POS_BRIDGE |
                                               LIQUID_LENS_TIM_NEG_BRIDGE);
     LL_HRTIM_DisableOutput(
