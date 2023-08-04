@@ -176,6 +176,13 @@ optics_self_test(void)
 {
     // turn on IR LED subsets one by one, by driving GPIO pins, to check
     // that all lines are making the eye safety circuitry trip
+    int ret = gpio_pin_configure_dt(&front_unit_pvcc_enabled, GPIO_INPUT);
+    if (ret) {
+        LOG_ERR("FU_PVCC_EN input conf");
+        ASSERT_SOFT(ret);
+        return ret;
+    }
+
     self_test_status = HardwareDiagnostic_Status_STATUS_OK;
     for (size_t i = 0; i < ARRAY_SIZE(ir_leds_gpios) &&
                        self_test_status == HardwareDiagnostic_Status_STATUS_OK;
