@@ -807,12 +807,11 @@ handle_liquid_lens(job_t *job)
 
     if (!IN_RANGE(current, LIQUID_LENS_MIN_CURRENT_MA,
                   LIQUID_LENS_MAX_CURRENT_MA)) {
-        LOG_ERR("Got liquid lens current value of %d out of range [%d,%d]",
-                current, LIQUID_LENS_MIN_CURRENT_MA,
+        LOG_ERR("%d out of range [%d,%d]", current, LIQUID_LENS_MIN_CURRENT_MA,
                 LIQUID_LENS_MAX_CURRENT_MA);
         job_ack(Ack_ErrorCode_RANGE, job);
     } else {
-        LOG_DBG("Got liquid lens current value of %d", current);
+        LOG_DBG("Value: %d", current);
         ret_code_t err = liquid_set_target_current_ma(current);
 
         switch (err) {
@@ -829,7 +828,7 @@ handle_liquid_lens(job_t *job)
             break;
         default:
             job_ack(Ack_ErrorCode_FAIL, job);
-            LOG_ERR("Unhandled error (%d)!", err);
+            LOG_ERR("Unhandled: %d!", err);
         }
     }
 }
