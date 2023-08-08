@@ -161,8 +161,8 @@ process_dfu_blocks_thread()
         k_sem_take(&sem_dfu_full, K_FOREVER);
 
         do {
-            err_code = flash_area_open(flash_area_id_from_image_slot(1),
-                                       &flash_area_p);
+            err_code = flash_area_open(
+                DT_FIXED_PARTITION_ID(DT_ALIAS(secondary_slot)), &flash_area_p);
             if (err_code) {
                 LOG_ERR("Err flash_area_open %i", err_code);
                 break;

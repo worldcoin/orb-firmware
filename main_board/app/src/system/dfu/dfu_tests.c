@@ -53,7 +53,8 @@ ZTEST(hil, test_dfu_upload_tests)
 
         zassert_true(encoded);
         if (encoded) {
-            runner_handle_new_can(&to_send);
+            int ret = runner_handle_new_can(&to_send);
+            zassert_true(ret == 0);
         } else {
             LOG_ERR("Error encoding DFU block");
             return;
@@ -77,7 +78,7 @@ ZTEST(hil, test_dfu_upload_tests)
     const struct flash_area *fap = NULL;
     int rc;
 
-    rc = flash_area_open(flash_area_id_from_image_slot(1), &fap);
+    rc = flash_area_open(DT_FIXED_PARTITION_ID(DT_ALIAS(secondary_slot)), &fap);
     zassert_equal(rc, 0);
     zassert_not_null(fap);
 
