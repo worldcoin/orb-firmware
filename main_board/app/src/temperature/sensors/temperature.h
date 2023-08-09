@@ -8,7 +8,7 @@ void
 temperature_set_sampling_period_ms(uint32_t sample_period);
 
 void
-temperature_init(void);
+temperature_init(const Hardware *hw_version);
 
 void
 temperature_report(Temperature_TemperatureSource source,

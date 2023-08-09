@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mcu_messaging.pb.h"
 #include <stdbool.h>
 
 /**
@@ -16,8 +17,8 @@ optics_usable(void);
 
 /**
  * @brief Initialize the optics components
- *
+ * @param *hw_version Mainboard hardware version
  * @return error code
  */
 int
-optics_init(void);
+optics_init(const Hardware *hw_version);

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "errors.h"
+#include "mcu_messaging.pb.h"
 #include "stdint.h"
 
 /**
@@ -71,3 +73,15 @@ power_vbat_5v_3v3_supplies_on(void);
  */
 void
 power_vbat_5v_3v3_supplies_off(void);
+
+/**
+ * Initialize main boot module
+ *
+ * @details This function initializes the 3V8 supply enable pin if the
+ *          hardware version indicates an EV1...4 Mainboard.
+ *
+ * @retval RET_SUCCESS: configuration done successfully
+ * @retval RET_ERROR_INTERNAL: configuring the 3V8 supply enable pin failed
+ */
+ret_code_t
+boot_init(const Hardware *hw_version);

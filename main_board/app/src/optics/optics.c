@@ -107,7 +107,7 @@ configure_front_unit_3v3_detection(void)
 }
 
 int
-optics_init(void)
+optics_init(const Hardware *hw_version)
 {
     int err_code;
 
@@ -132,7 +132,7 @@ optics_init(void)
         return err_code;
     }
 
-    err_code = liquid_lens_init();
+    err_code = liquid_lens_init(hw_version);
     if (err_code) {
         ASSERT_SOFT(err_code);
         return err_code;

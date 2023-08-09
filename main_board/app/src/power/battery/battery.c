@@ -21,7 +21,8 @@ static const struct device *can_dev = DEVICE_DT_GET(DT_ALIAS(battery_can_bus));
 K_THREAD_STACK_DEFINE(can_battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
 static struct k_thread rx_thread_data = {0};
 
-static const struct adc_dt_spec adc_vbat_sw = ADC_DT_SPEC_GET(DT_PATH(vbat_sw));
+static const struct adc_dt_spec adc_vbat_sw =
+    ADC_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), 0);
 
 // minimum voltage needed to boot the Orb during startup (in millivolts)
 #define BATTERY_MINIMUM_VOLTAGE_STARTUP_MV       13750
@@ -320,7 +321,7 @@ battery_rx_thread()
 }
 
 ret_code_t
-battery_init(void)
+battery_init(const Hardware *hw_version)
 {
     int ret;
 
@@ -397,7 +398,22 @@ battery_init(void)
             };
             adc_channel_setup(adc_vbat_sw.dev, &channel_cfg);
 
-            int32_t vref_mv = adc_ref_internal(adc_vbat_sw.dev);
+            int32_t vref_mv;
+            float voltage_divider_scaling_vbat_sw = 1.0f;
+
+            if (hw_version->version ==
+                Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+                vref_mv = DT_PROP(DT_PATH(zephyr_user), ev5_vref_mv);
+                voltage_divider_scaling_vbat_sw = DT_STRING_UNQUOTED(
+                    DT_PATH(zephyr_user), voltage_divider_scaling_vbat_sw_ev5);
+            } else {
+                vref_mv = adc_ref_internal(adc_vbat_sw.dev);
+                voltage_divider_scaling_vbat_sw = DT_STRING_UNQUOTED(
+                    DT_PATH(zephyr_user), voltage_divider_scaling_vbat_sw);
+            }
+
+            LOG_INF("vref_mv: %d", vref_mv);
+
             int16_t sample_buffer = 0;
             struct adc_sequence sequence = {
                 .channels = BIT(adc_vbat_sw.channel_id),
@@ -415,8 +431,9 @@ battery_init(void)
                 int32_t sample_i32 = sample_buffer;
                 ret = adc_raw_to_millivolts(vref_mv, channel_cfg.gain,
                                             sequence.resolution, &sample_i32);
-                // find voltage before divider bridge (R1=442k, R2=100k)
-                sample_i32 = (int32_t)((float)sample_i32 * 5.42f);
+                // find voltage before divider bridge
+                sample_i32 = (int32_t)((float)sample_i32 *
+                                       voltage_divider_scaling_vbat_sw);
 
                 if (ret == 0) {
                     full_voltage_mv = sample_i32;

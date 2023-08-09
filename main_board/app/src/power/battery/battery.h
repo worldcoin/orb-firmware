@@ -1,6 +1,7 @@
 #pragma once
 
 #include "errors.h"
+#include "mcu_messaging.pb.h"
 
 /**
  * Initialize main battery module
@@ -18,4 +19,4 @@
  *      cannot be configured to receive messages from the battery
  */
 ret_code_t
-battery_init(void);
+battery_init(const Hardware *hw_version);

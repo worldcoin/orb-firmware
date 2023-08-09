@@ -150,7 +150,8 @@ fan_init(void)
             hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
             fan_specs = fan_ev1_2_specs;
         } else if (hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
-                   hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4) {
+                   hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4 ||
+                   hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
             fan_specs = fan_ev3_specs;
         } else {
             LOG_ERR("Not supported main board: %u", hw_rev.version);
@@ -170,7 +171,8 @@ fan_init(void)
         // 655 (1% of 65535) *40000 (period) *0.8 (range) / 65535 = 319
         min_speed_pulse_width_ns = 319;
     } else if (hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
-               hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4) {
+               hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4 ||
+               hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         max_speed_pulse_width_ns = 40000;
 
         // min is 40% duty cycle = 0.4*40000

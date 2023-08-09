@@ -185,12 +185,20 @@ initialize(void)
     ASSERT_SOFT(err_code);
 #endif
 
+    Hardware hw;
+    err_code = version_get_hardware_rev(&hw);
+    ASSERT_SOFT(err_code);
+    LOG_INF("Hardware version: %u", hw.version);
+
+    err_code = boot_init(&hw);
+    ASSERT_SOFT(err_code);
+
     // logs over CAN must be initialized after CAN-messaging module
     err_code = logs_init(logs_can);
     ASSERT_SOFT(err_code);
 
     // check battery state early on
-    err_code = battery_init();
+    err_code = battery_init(&hw);
     ASSERT_SOFT(err_code);
 
 #ifndef CONFIG_NO_JETSON_BOOT
@@ -201,7 +209,7 @@ initialize(void)
     err_code = fan_init();
     ASSERT_SOFT(err_code);
 
-    temperature_init();
+    temperature_init(&hw);
 
     err_code = sound_init();
     ASSERT_SOFT(err_code);
@@ -217,7 +225,7 @@ initialize(void)
     if (err_code == RET_SUCCESS) {
         err_code = boot_turn_on_pvcc();
         if (err_code == RET_SUCCESS) {
-            err_code = optics_init();
+            err_code = optics_init(&hw);
             ASSERT_SOFT(err_code);
         } else {
             ASSERT_SOFT(err_code);
@@ -235,11 +243,6 @@ initialize(void)
 
     err_code = dfu_init();
     ASSERT_SOFT(err_code);
-
-    Hardware hw;
-    err_code = version_get_hardware_rev(&hw);
-    ASSERT_SOFT(err_code);
-    LOG_INF("Hardware version: %u", hw.version);
 
     err_code = button_init();
     ASSERT_SOFT(err_code);

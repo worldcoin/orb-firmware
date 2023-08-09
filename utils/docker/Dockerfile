@@ -50,7 +50,7 @@ RUN pip3 install \
     fabric2 \
     west
 
-ARG BASE_URL=https://raw.githubusercontent.com/zephyrproject-rtos/zephyr/main/scripts
+ARG BASE_URL=https://raw.githubusercontent.com/worldcoin/zephyr/develop/scripts
 RUN cd /tmp && \
     wget -nv \
         "$BASE_URL"/requirements.txt \

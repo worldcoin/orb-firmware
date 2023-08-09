@@ -2,6 +2,7 @@
 #include "logs_can.h"
 #include "optics/optics.h"
 #include "sysflash/sysflash.h"
+#include "system/version/version.h"
 #include "ui/button/button.h"
 #include "ui/front_leds/front_leds.h"
 #include "ui/operator_leds/operator_leds.h"
@@ -33,8 +34,35 @@ LOG_MODULE_REGISTER(power_sequence, CONFIG_POWER_SEQUENCE_LOG_LEVEL);
 K_THREAD_STACK_DEFINE(reboot_thread_stack, THREAD_STACK_SIZE_POWER_MANAGEMENT);
 static struct k_thread reboot_thread_data;
 
-static const struct device *supply_3v3 = DEVICE_DT_GET(DT_PATH(supply_3v3));
-static const struct device *supply_1v8 = DEVICE_DT_GET(DT_PATH(supply_1v8));
+static const struct gpio_dt_spec supply_3v8_enable_rfid_irq_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v8_enable_rfid_irq_gpios);
+
+static const struct gpio_dt_spec supply_3v3_ssd_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v3_ssd_enable_gpios);
+
+static const struct gpio_dt_spec supply_3v3_wifi_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v3_wifi_enable_gpios);
+
+static const struct gpio_dt_spec supply_12v_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_12v_enable_gpios);
+
+static const struct gpio_dt_spec supply_5v_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_5v_enable_gpios);
+
+static const struct gpio_dt_spec supply_3v3_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v3_enable_gpios);
+
+static const struct gpio_dt_spec supply_1v8_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_1v8_enable_gpios);
+
+static const struct gpio_dt_spec supply_pvcc_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_pvcc_enable_gpios);
+
+static const struct gpio_dt_spec supply_super_cap_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_super_cap_enable_gpios);
+
+static const struct gpio_dt_spec supply_vbat_sw_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_vbat_sw_enable_gpios);
 
 K_SEM_DEFINE(sem_reboot, 0, 1);
 static atomic_t reboot_delay_s = ATOMIC_INIT(0);
@@ -47,7 +75,7 @@ static int
 check_is_ready(const struct device *dev, const char *name)
 {
     if (!device_is_ready(dev)) {
-        LOG_ERR(FORMAT_STRING "no", name);
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
         return 1;
     }
 
@@ -63,8 +91,6 @@ check_is_ready(const struct device *dev, const char *name)
 void
 power_vbat_5v_3v3_supplies_on(void)
 {
-    const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
-    const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
     const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
 
     // We configure this pin here before we enable 3.3v supply
@@ -76,19 +102,38 @@ power_vbat_5v_3v3_supplies_on(void)
     // re-configure this pin as SCL.
     if (gpio_pin_configure(i2c_clock, I2C_CLOCK_PIN,
                            GPIO_OUTPUT | I2C_CLOCK_FLAGS)) {
-        LOG_ERR_IMM("Error configuring I2C clock pin!");
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
         return;
     }
 
-    regulator_enable(vbat_sw_regulator);
+    int ret =
+        gpio_pin_configure_dt(&supply_vbat_sw_enable_gpio_spec, GPIO_OUTPUT);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_5v_enable_gpio_spec, GPIO_OUTPUT);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_3v3_enable_gpio_spec, GPIO_OUTPUT);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return;
+    }
+
+    gpio_pin_set_dt(&supply_vbat_sw_enable_gpio_spec, 1);
     LOG_INF("VBAT SW enabled");
     k_msleep(20);
 
-    regulator_enable(supply_5v);
+    gpio_pin_set_dt(&supply_5v_enable_gpio_spec, 1);
     LOG_INF("5V power supply enabled");
     k_msleep(20);
 
-    regulator_enable(supply_3v3);
+    gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 1);
     LOG_INF("3.3V power supply enabled");
     k_msleep(20);
 }
@@ -96,18 +141,15 @@ power_vbat_5v_3v3_supplies_on(void)
 void
 power_vbat_5v_3v3_supplies_off(void)
 {
-    const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
-    const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
-
-    regulator_disable(vbat_sw_regulator);
+    gpio_pin_set_dt(&supply_vbat_sw_enable_gpio_spec, 0);
     LOG_INF("VBAT SW disabled");
     k_msleep(20);
 
-    regulator_disable(supply_5v);
+    gpio_pin_set_dt(&supply_5v_enable_gpio_spec, 0);
     LOG_INF("5V power supply disabled");
     k_msleep(20);
 
-    regulator_disable(supply_3v3);
+    gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 0);
     LOG_INF("3.3V power supply disabled");
 
     // give some time for the wifi module to reset correctly
@@ -117,19 +159,26 @@ power_vbat_5v_3v3_supplies_off(void)
 int
 power_turn_on_power_supplies(void)
 {
-    const struct device *vbat_sw_regulator = DEVICE_DT_GET(DT_PATH(vbat_sw));
-    const struct device *supply_5v = DEVICE_DT_GET(DT_PATH(supply_5v));
-    const struct device *supply_12v = DEVICE_DT_GET(DT_PATH(supply_12v));
-    const struct device *supply_3v8 = DEVICE_DT_GET(DT_PATH(supply_3v8));
     const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
 
-    if (check_is_ready(vbat_sw_regulator, "VBAT SW") ||
-        check_is_ready(supply_12v, "12V supply") ||
-        check_is_ready(supply_5v, "5V supply") ||
-        check_is_ready(supply_3v8, "3.8V supply") ||
-        check_is_ready(supply_3v3, "3.3V supply") ||
-        check_is_ready(supply_1v8, "1.8V supply")) {
+    Hardware hw;
+    version_get_hardware_rev(&hw);
+
+    if (!device_is_ready(supply_vbat_sw_enable_gpio_spec.port) ||
+        !device_is_ready(supply_12v_enable_gpio_spec.port) ||
+        !device_is_ready(supply_5v_enable_gpio_spec.port) ||
+        !device_is_ready(supply_3v8_enable_rfid_irq_gpio_spec.port) ||
+        !device_is_ready(supply_3v3_enable_gpio_spec.port) ||
+        !device_is_ready(supply_1v8_enable_gpio_spec.port)) {
         return 1;
+    }
+
+    // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5
+    if (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+        if (!device_is_ready(supply_3v3_ssd_enable_gpio_spec.port) ||
+            !device_is_ready(supply_3v3_wifi_enable_gpio_spec.port)) {
+            return 1;
+        }
     }
 
     // We configure this pin here before we enable 3.3v supply
@@ -141,30 +190,79 @@ power_turn_on_power_supplies(void)
     // re-configure this pin as SCL.
     if (gpio_pin_configure(i2c_clock, I2C_CLOCK_PIN,
                            GPIO_OUTPUT | I2C_CLOCK_FLAGS)) {
-        LOG_ERR_IMM("Error configuring I2C clock pin!");
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
         return 1;
     }
 
-    regulator_enable(vbat_sw_regulator);
+    int ret =
+        gpio_pin_configure_dt(&supply_vbat_sw_enable_gpio_spec, GPIO_OUTPUT);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return 1;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_5v_enable_gpio_spec, GPIO_OUTPUT);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return 1;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_3v3_enable_gpio_spec, GPIO_OUTPUT);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return 1;
+    }
+
+    gpio_pin_set_dt(&supply_vbat_sw_enable_gpio_spec, 1);
     LOG_INF("VBAT SW enabled");
     k_msleep(100);
 
-    regulator_enable(supply_5v);
-    LOG_INF("5V power supply enabled");
+    gpio_pin_set_dt(&supply_5v_enable_gpio_spec, 1);
+    LOG_INF("5V enabled");
 
     k_msleep(100);
 
-    regulator_enable(supply_3v3);
-    LOG_INF("3.3V power supply enabled");
+    gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 1);
+    LOG_INF("3.3V enabled");
+
+    // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5
+    if (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+        gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
+        LOG_INF("3.3V SSD power supply enabled");
+
+        gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
+        LOG_INF("3.3V WIFI power supply enabled");
+    }
+
     k_msleep(100);
 
-    regulator_enable(supply_12v);
-    LOG_INF("12V power supply enabled");
+    ret = gpio_pin_configure_dt(&supply_12v_enable_gpio_spec, GPIO_OUTPUT);
 
-    regulator_enable(supply_3v8);
-    LOG_INF("3.8V power supply enabled");
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return 1;
+    }
 
-    regulator_enable(supply_1v8);
+    gpio_pin_set_dt(&supply_12v_enable_gpio_spec, 1);
+    LOG_INF("12V enabled");
+
+    // 3.8V regulator only available on EV1...4
+    if ((hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
+        (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
+        (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
+        (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
+        gpio_pin_set_dt(&supply_3v8_enable_rfid_irq_gpio_spec, 1);
+        LOG_INF("3.8V enabled");
+    }
+
+    ret = gpio_pin_configure_dt(&supply_1v8_enable_gpio_spec, GPIO_OUTPUT);
+
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return 1;
+    }
+
+    gpio_pin_set_dt(&supply_1v8_enable_gpio_spec, 1);
     LOG_INF("1.8V power supply enabled");
 
     k_msleep(100);
@@ -200,13 +298,13 @@ power_wait_for_power_button_press(void)
     const struct device *power_button = DEVICE_DT_GET(POWER_BUTTON_CTLR);
 
     if (!device_is_ready(power_button)) {
-        LOG_ERR("power button is not ready!");
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
         return 1;
     }
 
     if (gpio_pin_configure(power_button, POWER_BUTTON_PIN,
                            POWER_BUTTON_FLAGS | GPIO_INPUT)) {
-        LOG_ERR("Error configuring power button!");
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
         return 1;
     }
 
@@ -357,6 +455,9 @@ reboot_thread()
 {
     uint32_t delay = 0;
 
+    Hardware hw;
+    version_get_hardware_rev(&hw);
+
     // wait until triggered
     k_sem_take(&sem_reboot, K_FOREVER);
 
@@ -391,8 +492,13 @@ reboot_thread()
             while (gpio_pin_get(system_reset, SYSTEM_RESET_PIN) == 0)
                 ;
 
-            regulator_disable(supply_3v3);
-            regulator_disable(supply_1v8);
+            gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 0);
+            // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5
+            if (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+                gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 0);
+                gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 0);
+            }
+            gpio_pin_set_dt(&supply_1v8_enable_gpio_spec, 0);
 
             // the jetson has been turned off following the specs, we can now
             // wait `reboot_delay_s` to reset
@@ -427,16 +533,14 @@ shutdown_req_init()
 
     ret = gpio_pin_configure_dt(&shutdown_pin, GPIO_INPUT);
     if (ret != 0) {
-        LOG_ERR("Error %d: failed to configure %s pin %d", ret,
-                shutdown_pin.port->name, shutdown_pin.pin);
+        ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
     }
 
     ret =
         gpio_pin_interrupt_configure_dt(&shutdown_pin, GPIO_INT_EDGE_TO_ACTIVE);
     if (ret != 0) {
-        LOG_ERR("Error %d: failed to configure interrupt on %s pin %d", ret,
-                shutdown_pin.port->name, shutdown_pin.pin);
+        ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
     }
 
@@ -444,8 +548,7 @@ shutdown_req_init()
                        BIT(shutdown_pin.pin));
     ret = gpio_add_callback(shutdown_pin.port, &shutdown_cb_data);
     if (ret != 0) {
-        LOG_ERR("Error %d: failed to add callback on %s pin %d", ret,
-                shutdown_pin.port->name, shutdown_pin.pin);
+        ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
     }
 
@@ -457,13 +560,13 @@ shutdown_req_uninit()
 {
     int ret = gpio_pin_interrupt_configure_dt(&shutdown_pin, GPIO_INT_DISABLE);
     if (ret) {
-        LOG_ERR("Error disabling shutdown req interrupt");
+        ASSERT_SOFT(ret);
         return ret;
     }
 
     ret = gpio_remove_callback(shutdown_pin.port, &shutdown_cb_data);
     if (ret) {
-        LOG_ERR("Error removing shutdown req interrupt");
+        ASSERT_SOFT(ret);
     }
     return ret;
 }
@@ -544,19 +647,22 @@ boot_turn_on_super_cap_charger(void)
 {
     int ret;
 
-    const struct device *supply_super_cap =
-        DEVICE_DT_GET(DT_PATH(supply_super_cap));
-    if (check_is_ready(supply_super_cap, "super cap charger")) {
-        return RET_ERROR_INVALID_STATE;
+    if (!device_is_ready(supply_super_cap_enable_gpio_spec.port)) {
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
+        return RET_ERROR_INTERNAL;
     }
 
-    ret = regulator_enable(supply_super_cap);
-    if (ret < 0) {
+    ret =
+        gpio_pin_configure_dt(&supply_super_cap_enable_gpio_spec, GPIO_OUTPUT);
+
+    if (ret != 0) {
         ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
     }
 
+    gpio_pin_set_dt(&supply_super_cap_enable_gpio_spec, 1);
     LOG_INF("super cap charger enabled");
+
     k_msleep(1000);
     return RET_SUCCESS;
 }
@@ -565,18 +671,22 @@ int
 boot_turn_off_pvcc(void)
 {
     int ret;
-    const struct device *supply_pvcc = DEVICE_DT_GET(DT_PATH(supply_pvcc));
-    if (check_is_ready(supply_pvcc, "pvcc supply")) {
-        return RET_ERROR_INVALID_STATE;
+
+    if (!device_is_ready(supply_pvcc_enable_gpio_spec.port)) {
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
+        return RET_ERROR_INTERNAL;
     }
 
-    ret = regulator_disable(supply_pvcc);
-    if (ret < 0) {
+    ret = gpio_pin_configure_dt(&supply_pvcc_enable_gpio_spec, GPIO_OUTPUT);
+
+    if (ret != 0) {
         ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
     }
 
-    LOG_INF("pvcc supply disabled");
+    gpio_pin_set_dt(&supply_pvcc_enable_gpio_spec, 0);
+    LOG_INF("PVCC disabled");
+
     return RET_SUCCESS;
 }
 
@@ -584,18 +694,21 @@ int
 boot_turn_on_pvcc(void)
 {
     int ret;
-    const struct device *supply_pvcc = DEVICE_DT_GET(DT_PATH(supply_pvcc));
-    if (check_is_ready(supply_pvcc, "pvcc supply")) {
-        return RET_ERROR_INVALID_STATE;
+
+    if (!device_is_ready(supply_pvcc_enable_gpio_spec.port)) {
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
+        return RET_ERROR_INTERNAL;
     }
 
-    ret = regulator_enable(supply_pvcc);
-    if (ret < 0) {
+    ret = gpio_pin_configure_dt(&supply_pvcc_enable_gpio_spec, GPIO_OUTPUT);
+
+    if (ret != 0) {
         ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
     }
 
-    LOG_INF("pvcc supply enabled");
+    gpio_pin_set_dt(&supply_pvcc_enable_gpio_spec, 1);
+    LOG_INF("PVCC enabled");
     return RET_SUCCESS;
 }
 
@@ -612,6 +725,70 @@ reboot(uint32_t delay_s)
         // sleep for `reboot_delay_s` seconds before rebooting
         k_wakeup(reboot_tid);
         k_sem_give(&sem_reboot);
+    }
+
+    return RET_SUCCESS;
+}
+
+ret_code_t
+boot_init(const Hardware *hw_version)
+{
+    // 3.8V regulator only available on EV1...4
+    // -> configure pin to output
+    // on EV5 and later this pin is an input
+    if ((hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
+        (hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
+        (hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
+        (hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
+        if (!device_is_ready(supply_3v8_enable_rfid_irq_gpio_spec.port)) {
+            ASSERT_SOFT(RET_ERROR_INVALID_STATE);
+            return RET_ERROR_INTERNAL;
+        }
+
+        int ret = gpio_pin_configure_dt(&supply_3v8_enable_rfid_irq_gpio_spec,
+                                        GPIO_OUTPUT);
+
+        if (ret != 0) {
+            ASSERT_SOFT(ret);
+            return RET_ERROR_INTERNAL;
+        }
+
+        LOG_INF("EV1...4 Mainboard detected -> SUPPLY_3V8_EN pin configured to "
+                "output.");
+    } else if (hw_version->version ==
+               Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+        // On EV5 the signal...
+        // UC_ADC_FU_EYE_SAFETY was replaced by 3V3_SSD_SUPPLY_EN_3V3
+        // UC_FU_RFID_GPO_3V3 was replaced by 3V3_WIFI_SUPPLY_EN_3V3
+        // Both pins must be configured as an output.
+        if (!device_is_ready(supply_3v3_ssd_enable_gpio_spec.port)) {
+            ASSERT_SOFT(RET_ERROR_INVALID_STATE);
+            return RET_ERROR_INTERNAL;
+        }
+
+        if (!device_is_ready(supply_3v3_wifi_enable_gpio_spec.port)) {
+            ASSERT_SOFT(RET_ERROR_INVALID_STATE);
+            return RET_ERROR_INTERNAL;
+        }
+
+        int ret = gpio_pin_configure_dt(&supply_3v3_ssd_enable_gpio_spec,
+                                        GPIO_OUTPUT);
+
+        if (ret != 0) {
+            ASSERT_SOFT(ret);
+            return RET_ERROR_INTERNAL;
+        }
+
+        ret = gpio_pin_configure_dt(&supply_3v3_wifi_enable_gpio_spec,
+                                    GPIO_OUTPUT);
+
+        if (ret != 0) {
+            ASSERT_SOFT(ret);
+            return RET_ERROR_INTERNAL;
+        }
+
+        LOG_INF("EV5 Mainboard detected -> SUPPLY_3V3_SSD_EN and "
+                "SUPPLY_3V3_WIFI_EN pins configured to output.");
     }
 
     return RET_SUCCESS;

@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
+#include <zephyr/drivers/sensor/stm32_temp.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/reboot.h>
 #include <zephyr/sys_clock.h>
@@ -292,8 +293,22 @@ check_ready(void)
 }
 
 void
-temperature_init(void)
+temperature_init(const Hardware *hw_version)
 {
+    struct sensor_value val;
+
+    if (hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+        sensors_and_channels[3].sensor =
+            DEVICE_DT_GET(DT_NODELABEL(liquid_lens_tmp_sensor_ev5));
+
+        val.val1 = DT_PROP(DT_PATH(zephyr_user), ev5_vref_mv);
+    } else {
+        val.val1 = DT_PROP(DT_PATH(zephyr_user), ev1_vref_mv);
+    }
+
+    sensor_attr_set(DEVICE_DT_GET(DT_ALIAS(die_temp0)), SENSOR_CHAN_DIE_TEMP,
+                    SENSOR_ATTR_VREF_MV, &val);
+
     check_ready();
     global_sample_period = K_MSEC(1000 / TEMPERATURE_AVERAGE_SAMPLE_COUNT);
 

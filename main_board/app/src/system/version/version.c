@@ -15,7 +15,8 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
 // - v3.2 pull up
 // GPIO logic level can then be used to get the hardware version
 
-const struct adc_dt_spec adc_dt_spec = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
+const struct adc_dt_spec adc_dt_spec =
+    ADC_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), 1);
 
 #define ADC_RESOLUTION       12
 #define ADC_GAIN             ADC_GAIN_1
@@ -65,17 +66,28 @@ version_get_hardware_rev(Hardware *hw_version)
             LOG_DBG("Hardware rev voltage: %dmV", hardware_version_mv);
 
             if (hardware_version_mv > 3200) {
-                // should be 3.3V = 3300mV
+                // should be 3.3V = 3300mV (Mainboard 3.2)
                 version = Hardware_OrbVersion_HW_VERSION_PEARL_EV2;
             } else if (hardware_version_mv > 2900) {
-                // should be 3.0V = 3000mV
+                // should be 3.0V = 3000mV (Mainboard 3.3)
                 version = Hardware_OrbVersion_HW_VERSION_PEARL_EV3;
             } else if (hardware_version_mv < 100) {
-                // should be 0.0V
+                // should be 0.0V (Mainboard 3.1)
                 version = Hardware_OrbVersion_HW_VERSION_PEARL_EV1;
             } else if (hardware_version_mv < 400) {
-                // should be 0.30V = 300mV
+                // should be 0.30V = 300mV  (Mainboard 3.4)
                 version = Hardware_OrbVersion_HW_VERSION_PEARL_EV4;
+            } else if ((hardware_version_mv > 930) &&
+                       (hardware_version_mv < 1130)) {
+                // should be 0.64 V = 640 mV (Mainboard 3.6) but referenced
+                // to 2.048 V because Mainboard 3.6 has a new 2.048 V voltage
+                // reference connected to VREF+ instead of 3V3_UC.
+                // -> Limits are adjusted to 3.3 V reference as configured in
+                // device tree
+                // -> 0.64 V * 3.3 V / 2.048 =  1.03 V
+                // -> lower limit = 1.03 V - 0.1 V = 0.93 V = 930 mV
+                // -> upper limit = 1.03 V + 0.1 V = 1.13 V = 1130 mV
+                version = Hardware_OrbVersion_HW_VERSION_PEARL_EV5;
             } else {
                 LOG_ERR("Unknown main board from voltage: %umV",
                         hardware_version_mv);

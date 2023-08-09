@@ -59,6 +59,19 @@
         fans-enable-gpios = <&gpiob 13 GPIO_ACTIVE_HIGH>;
         // enable opamps to allow for voltage measurements of the power supplies
         supply-voltages-meas-enable-gpios = <&gpioe 1 GPIO_ACTIVE_LOW>;
+        // enable pin for +3V8 converter on EV1...4, RFID_IRQ on EV5
+        supply-3v8-enable-rfid-irq-gpios = <&gpioe 15 GPIO_ACTIVE_HIGH>;
+        // enable pin for +3V3_SSD and +3V3_WIFI only on EV5
+        supply-3v3-ssd-enable-gpios = <&gpioa 2 GPIO_ACTIVE_HIGH>;
+        supply-3v3-wifi-enable-gpios = <&gpioc 11 GPIO_ACTIVE_HIGH>;
+        supply-12v-enable-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;
+        supply-5v-enable-gpios = <&gpiob 1 GPIO_ACTIVE_LOW>;
+        supply-3v3-enable-gpios = <&gpiod 15 GPIO_ACTIVE_HIGH>;
+        supply-1v8-enable-gpios = <&gpioe 8 GPIO_ACTIVE_HIGH>;
+        supply-pvcc-enable-gpios = <&gpioe 6 GPIO_ACTIVE_HIGH>;
+        supply-super-cap-enable-gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>;
+        supply-vbat-sw-enable-gpios = <&gpiof 10 GPIO_ACTIVE_HIGH>;
+
 
         tests-ir-leds-850-940-gpios =
             <&gpiob 14 GPIO_ACTIVE_HIGH /* 850nm left */ >,
@@ -67,65 +80,25 @@
             <&gpioe 5 GPIO_ACTIVE_HIGH /* 940nm right */ >;
         front-unit-pvcc-enabled-gpios = <&gpioc 10 GPIO_ACTIVE_LOW>;
 
-        // Hardware rev ADC
-        io-channels = <&adc1 11>;
-    };
+        // [0]: Battery voltage ADC, [1]: Hardware rev ADC
+        io-channels = <&adc1 1>, <&adc1 11>;
 
-    vbat_sw {
-        compatible = "regulator-fixed-sync", "regulator-fixed";
-        regulator-name = "12v_vbat_sw";
-        enable-gpios = <&gpiof 10 GPIO_ACTIVE_HIGH>;
+        // Voltage at VREF+ pin on EV5 hardware (in contrast VREF+ is connected to VDD on EV1...4)
+        ev5-vref-mv = <2048>;
 
-        // ADC channel to measure battery voltage
-        io-channels = <&adc1 1>;
+        // VREF+ is connected to VDD on EV1...4
+        ev1-vref-mv = <3300>;
 
-        // This is attached to a MOSFET to allow the battery
-        // power to be sent to the inputs of:
-        // * 12v supply
-        // * 5v supply
-        // * Supercap charger
-    };
+        // liquid lens current measurement
+        liquid-lens-shunt-resistance-ohm = "0.15f";
+        liquid-lens-current-amplifier-gain = "20.0f";  // EV1...4
+        liquid-lens-current-amplifier-gain-ev5 = "10.0f";
 
-    supply_12v {
-        compatible = "regulator-fixed-sync", "regulator-fixed";
-        regulator-name = "supply_12v";
-        enable-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;
-    };
+        // EV1...4: R1=442k, R2=100k
+        voltage-divider-scaling-vbat-sw = "5.42f";
 
-    supply_5v {
-        compatible = "regulator-fixed-sync", "regulator-fixed";
-        regulator-name = "supply_5v";
-        enable-gpios = <&gpiob 1 GPIO_ACTIVE_LOW>;
-    };
-
-    supply_3v8 {
-        compatible = "regulator-fixed-sync", "regulator-fixed";
-        regulator-name = "supply_3v8";
-        enable-gpios = <&gpioe 15 GPIO_ACTIVE_HIGH>;
-    };
-
-    supply_3v3 {
-        compatible = "regulator-fixed-sync", "regulator-fixed";
-        regulator-name = "supply_3v3";
-        enable-gpios = <&gpiod 15 GPIO_ACTIVE_HIGH>;
-    };
-
-    supply_1v8 {
-        compatible = "regulator-fixed-sync", "regulator-fixed";
-        regulator-name = "supply_1v8";
-        enable-gpios = <&gpioe 8 GPIO_ACTIVE_HIGH>;
-    };
-
-    supply_pvcc {
-        compatible = "regulator-fixed-sync", "regulator-fixed";
-        regulator-name = "supply_pvcc";
-        enable-gpios = <&gpioe 6 GPIO_ACTIVE_HIGH>;
-    };
-
-    supply_super_cap {
-        compatible = "regulator-fixed-sync", "regulator-fixed";
-        regulator-name = "supply_super_cap";
-        enable-gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>;
+        // EV5: R1=94k, R2=10k
+        voltage-divider-scaling-vbat-sw-ev5 = "10.4f";
     };
 
     buttons {
@@ -216,6 +189,7 @@
     status = "okay";
     pinctrl-0 = <&adc1_in1_pa0>, <&adc1_in11_pb12>;
     pinctrl-names = "default";
+    vref-mv = <3300>;
 };
 
 // used by liquid_lens module
@@ -223,6 +197,7 @@
     status = "disabled";
     pinctrl-0 = <&adc3_in10_pd13 &adc3_in11_pd14>;
     pinctrl-names = "default";
+    vref-mv = <3300>;
 };
 
 &hrtim1 {
@@ -444,6 +419,15 @@
     liquid_lens_tmp_sensor: maxim31875@4a {
         compatible = "maxim,max31875";
         reg = <0x4a>;
+        conversions-per-second = "1";
+        resolution = <8>;
+    };
+
+    // on EV5 the I2C address of the MAX31875R2 is translated from 0x4a to 0x5a for solving an address conflict
+    // between the I2C address of the liquid lens EEPROM and the NFC reader (both on 0x50)
+    liquid_lens_tmp_sensor_ev5: maxim31875@5a {
+        compatible = "maxim,max31875";
+        reg = <0x5a>;
         conversions-per-second = "1";
         resolution = <8>;
     };

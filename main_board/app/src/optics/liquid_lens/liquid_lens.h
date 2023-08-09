@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mcu_messaging.pb.h"
 #include <errors.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -9,13 +10,13 @@
 
 /**
  * @brief Sets the target current to maintain
- * @param target_current the target current clipped to [-400,400]
+ * @param new_target_current_ma the target current clipped to [-400,400]
  * @return error code:
  *  - RET_SUCCESS: All good
  *  - RET_ERROR_BUSY: Some other operation (like a focus sweep) is in progress
  */
 ret_code_t
-liquid_set_target_current_ma(int32_t target_current);
+liquid_set_target_current_ma(int32_t new_target_current_ma);
 
 /**
  * @brief Enable the liquid lens
@@ -44,7 +45,8 @@ liquid_lens_is_enabled(void);
  * @brief Initialize the liquid lens
  * @details This will initialize the ADC and DMA-controlled clocks
  * used to control the liquid lens
- * @return
+ * @param *hw_version Mainboard hardware version
+ * @return error code
  */
 ret_code_t
-liquid_lens_init(void);
+liquid_lens_init(const Hardware *hw_version);

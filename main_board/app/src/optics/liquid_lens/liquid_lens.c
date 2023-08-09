@@ -27,8 +27,6 @@ LOG_MODULE_REGISTER(liquid_lens, CONFIG_LIQUID_LENS_LOG_LEVEL);
 #define LIQUID_LENS_CONTROLLER_KI                                              \
     ((float)LIQUID_LENS_DEFAULT_SAMPLING_PERIOD_US / 10000.0f)
 
-#define LIQUID_LENS_SHUNT_RESISTANCE_OHM 0.15f
-
 #define LIQUID_LENS_EN_NODE  DT_PATH(liquid_lens_en)
 #define LIQUID_LENS_EN_CTLR  DT_GPIO_CTLR(LIQUID_LENS_EN_NODE, gpios)
 #define LIQUID_LENS_EN_PIN   DT_GPIO_PIN(LIQUID_LENS_EN_NODE, gpios)
@@ -55,8 +53,7 @@ LOG_MODULE_REGISTER(liquid_lens, CONFIG_LIQUID_LENS_LOG_LEVEL);
 #define LIQUID_LENS_ADC_CLOCK_PRESCALER    LL_ADC_CLOCK_SYNC_PCLK_DIV4
 #define LIQUID_LENS_ADC_RESOLUTION         LL_ADC_RESOLUTION_12B
 
-#define LIQUID_LENS_SHUNT_RESISTANCE   0.15f // Ohm
-#define LIQUID_LENS_MAX_CONTROL_OUTPUT 99    //%
+#define LIQUID_LENS_MAX_CONTROL_OUTPUT 99 //%
 
 #define DT_INST_CLK(inst)                                                      \
     {                                                                          \
@@ -64,8 +61,11 @@ LOG_MODULE_REGISTER(liquid_lens, CONFIG_LIQUID_LENS_LOG_LEVEL);
     }
 
 static volatile uint16_t samples[LIQUID_LENS_ADC_NUM_CONVERSION_SAMPLES];
-static atomic_t target_current;
+static atomic_t target_current_ma;
 static volatile int8_t prev_pwm = 0;
+static volatile float liquid_lens_current_amplifier_gain = DT_STRING_UNQUOTED(
+    DT_PATH(zephyr_user), liquid_lens_current_amplifier_gain);
+static volatile bool use_stm32_vrefint = true;
 
 static K_THREAD_STACK_DEFINE(liquid_lens_stack_area,
                              THREAD_STACK_SIZE_LIQUID_LENS);
@@ -88,20 +88,21 @@ PINCTRL_DT_DEFINE(DT_NODELABEL(liquid_lens));
 PINCTRL_DT_DEFINE(DT_NODELABEL(adc3));
 
 ret_code_t
-liquid_set_target_current_ma(int32_t new_target_current)
+liquid_set_target_current_ma(int32_t new_target_current_ma)
 {
 
-    int32_t clamped_target_current =
-        CLAMP(new_target_current, LIQUID_LENS_MIN_CURRENT_MA,
+    int32_t clamped_target_current_ma =
+        CLAMP(new_target_current_ma, LIQUID_LENS_MIN_CURRENT_MA,
               LIQUID_LENS_MAX_CURRENT_MA);
 
-    if (clamped_target_current != new_target_current) {
-        LOG_WRN("Clamp %" PRId32 "mA -> %" PRId32 "mA", new_target_current,
-                clamped_target_current);
+    if (clamped_target_current_ma != new_target_current_ma) {
+        LOG_WRN("Clamp %" PRId32 "mA -> %" PRId32 "mA", new_target_current_ma,
+                clamped_target_current_ma);
     }
 
-    LOG_DBG("Setting target current to %" PRId32 " mA", clamped_target_current);
-    atomic_set(&target_current, clamped_target_current);
+    LOG_DBG("Setting target current to %" PRId32 " mA",
+            clamped_target_current_ma);
+    atomic_set(&target_current_ma, clamped_target_current_ma);
 
     return RET_SUCCESS;
 }
@@ -188,19 +189,43 @@ dma_isr(const void *arg)
         }
 
         // Calculate the lens current.
-        uint32_t vref_voltage = __LL_ADC_CALC_VREFANALOG_VOLTAGE(
-            averages[2], LIQUID_LENS_ADC_RESOLUTION);
-        int32_t sig_voltage = ((uint64_t)averages[0] * (uint64_t)vref_voltage) /
-                              (uint64_t)(1 << 12);
-        int32_t ref_voltage = ((uint64_t)averages[1] * (uint64_t)vref_voltage) /
-                              (uint64_t)(1 << 12);
-        int32_t shunt_voltage = ref_voltage - sig_voltage;
-        int32_t lens_current =
-            ((float)shunt_voltage) / 20.0f / LIQUID_LENS_SHUNT_RESISTANCE;
-        /* LOG_INF("lens_current: %d", lens_current); */
+        uint32_t stm32_vref_mv;
+
+        if (use_stm32_vrefint) {
+            // calculate the voltage at VREF+ pin from measurement of internal
+            // reference voltage VREFINT
+            stm32_vref_mv = __LL_ADC_CALC_VREFANALOG_VOLTAGE(
+                averages[2], LIQUID_LENS_ADC_RESOLUTION);
+        } else {
+            // use fixed value for VREF+ from device tree
+            stm32_vref_mv = DT_PROP(DT_PATH(zephyr_user), ev5_vref_mv);
+        }
+
+        int32_t current_amplifier_sig_mv =
+            ((uint64_t)averages[0] * (uint64_t)stm32_vref_mv) /
+            (uint64_t)(1 << 12);
+        int32_t current_amplifier_ref_mv =
+            ((uint64_t)averages[1] * (uint64_t)stm32_vref_mv) /
+            (uint64_t)(1 << 12);
+        int32_t shunt_voltage_mv =
+            current_amplifier_ref_mv - current_amplifier_sig_mv;
+        int32_t lens_current_ma =
+            ((float)shunt_voltage_mv) / liquid_lens_current_amplifier_gain /
+            DT_STRING_UNQUOTED(DT_PATH(zephyr_user),
+                               liquid_lens_shunt_resistance_ohm);
+
+        LOG_DBG("lens_current_ma: %d; sig_mV: %d; ref_mV: %d", lens_current_ma,
+                current_amplifier_sig_mv, current_amplifier_ref_mv);
 
         // PID control (currently just I.)
-        int32_t lens_current_error = atomic_get(&target_current) - lens_current;
+        // todo: The data type of prev_pwm should be switched from int8_t to
+        // float. Otherwise the I control part can only accumulate an error if
+        // the error is quite large (9 mA right now). If the error is lower it
+        // is rounded down to zero.
+        // For more details see
+        // https://linear.app/worldcoin/issue/O-2064/liquid-lens-current-hysteresis
+        int32_t lens_current_error =
+            atomic_get(&target_current_ma) - lens_current_ma;
         int32_t ki = LIQUID_LENS_CONTROLLER_KI * 10000;
         int32_t prev_control_output = prev_pwm;
         prev_pwm += (int32_t)(lens_current_error * ki) / 10000;
@@ -268,11 +293,21 @@ liquid_lens_is_enabled(void)
 }
 
 ret_code_t
-liquid_lens_init(void)
+liquid_lens_init(const Hardware *hw_version)
 {
     const struct device *clk;
     clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
     int err_code;
+
+    if (hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+        liquid_lens_current_amplifier_gain = DT_STRING_UNQUOTED(
+            DT_PATH(zephyr_user), liquid_lens_current_amplifier_gain_ev5);
+        use_stm32_vrefint = false;
+    } else {
+        liquid_lens_current_amplifier_gain = DT_STRING_UNQUOTED(
+            DT_PATH(zephyr_user), liquid_lens_current_amplifier_gain);
+        use_stm32_vrefint = true;
+    }
 
     err_code = clock_control_on(clk, &liquid_lens_hrtim_pclken);
     if (err_code) {
