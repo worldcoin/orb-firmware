@@ -116,7 +116,6 @@ operator_leds_thread(void *a, void *b, void *c)
                 // from 1.0 to 0
                 size_t index = (ARRAY_SIZE(SINE_LUT) - 1 -
                                 (pulsing_index - ARRAY_SIZE(SINE_LUT)));
-                LOG_INF("index: %d", index);
                 scaler = SINE_LUT[index] * PULSING_SCALE_DEFAULT;
             }
             color.r = roundf(scaler * color.r);
