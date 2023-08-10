@@ -151,9 +151,6 @@ power_vbat_5v_3v3_supplies_off(void)
 
     gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 0);
     LOG_INF("3.3V power supply disabled");
-
-    // give some time for the wifi module to reset correctly
-    k_msleep(1000);
 }
 
 int
@@ -316,6 +313,8 @@ power_wait_for_power_button_press(void)
             if (i > 1) {
                 LOG_INF("Press stopped.");
                 power_vbat_5v_3v3_supplies_off();
+                // give some time for the wifi module to reset correctly
+                k_msleep(1000);
             }
 
             operator_led_mask = 0;
