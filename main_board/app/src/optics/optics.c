@@ -178,6 +178,8 @@ optics_self_test(void)
     // that all lines are making the eye safety circuitry trip
     int ret = gpio_pin_configure_dt(&front_unit_pvcc_enabled, GPIO_INPUT);
     if (ret) {
+        self_test_status =
+            HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
         ASSERT_SOFT(ret);
         return ret;
     }
