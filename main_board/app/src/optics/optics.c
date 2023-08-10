@@ -171,17 +171,24 @@ static const char *ir_leds_names[] = {
     "ir_940nm_right",
 };
 
-static int
+int
 optics_self_test(void)
 {
+    int ret;
+
+    if (self_test_status == HardwareDiagnostic_Status_STATUS_OK ||
+        self_test_status == HardwareDiagnostic_Status_STATUS_SAFETY_ISSUE) {
+        return RET_ERROR_ALREADY_INITIALIZED;
+    }
+
     // turn on IR LED subsets one by one, by driving GPIO pins, to check
     // that all lines are making the eye safety circuitry trip
-    int ret = gpio_pin_configure_dt(&front_unit_pvcc_enabled, GPIO_INPUT);
+    ret = gpio_pin_configure_dt(&front_unit_pvcc_enabled, GPIO_INPUT);
     if (ret) {
         self_test_status =
             HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
         ASSERT_SOFT(ret);
-        return ret;
+        return RET_ERROR_INTERNAL;
     }
 
     self_test_status = HardwareDiagnostic_Status_STATUS_OK;
@@ -211,8 +218,5 @@ optics_self_test(void)
         power_vbat_5v_3v3_supplies_off();
     }
 
-    return 0;
+    return RET_SUCCESS;
 }
-
-SYS_INIT(optics_self_test, POST_KERNEL,
-         SYS_INIT_EYE_SAFETY_CIRCUITRY_SELFTEST_PRIORITY);

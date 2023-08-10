@@ -281,34 +281,78 @@ SYS_INIT(power_turn_on_power_supplies, POST_KERNEL,
 #define POWER_BUTTON_PIN   DT_GPIO_PIN(POWER_BUTTON_NODE, gpios)
 #define POWER_BUTTON_FLAGS DT_GPIO_FLAGS(POWER_BUTTON_NODE, gpios)
 
-#ifdef CONFIG_INSTA_BOOT
+/**
+ * @brief Wait for a button press before continuing boot.
+ *
+ * This function also performs eye circuitry self-test as soon as PVCC
+ * is low enough. PVCC is high for a few seconds after Orb resets.
+ * We don't want to block the usage of the button so the self-test might be
+ * _skipped_ if the button is pressed while PVCC is still high as this would
+ * end up in a very bad UX (PVCC can be high for up to 25 seconds after reset).
+ * Logic level is considered low when GPIO pin goes below 1.88V, meaning
+ * PVCC is actually below 17,68V before the voltage divider:
+ *      1.88 * 442 / 47 = 17,68V
+ * @return
+ */
 static int
-power_wait_for_power_button_press(void)
+power_until_button_press(void)
 {
-    LOG_INF("INSTA_BOOT enabled -- not waiting for a button press to boot!");
-    return 0;
-}
-#else
-static int
-power_wait_for_power_button_press(void)
-{
+    int ret;
+    bool self_test_pending = true;
     const struct device *power_button = DEVICE_DT_GET(POWER_BUTTON_CTLR);
+
+    if (IS_ENABLED(CONFIG_INSTA_BOOT)) {
+        LOG_INF(
+            "INSTA_BOOT enabled -- not waiting for a button press to boot!");
+        return 0;
+    }
 
     if (!device_is_ready(power_button)) {
         ASSERT_SOFT(RET_ERROR_INVALID_STATE);
-        return 1;
+        return RET_ERROR_INVALID_STATE;
     }
 
-    if (gpio_pin_configure(power_button, POWER_BUTTON_PIN,
-                           POWER_BUTTON_FLAGS | GPIO_INPUT)) {
-        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
-        return 1;
+    ret = gpio_pin_configure(power_button, POWER_BUTTON_PIN,
+                             POWER_BUTTON_FLAGS | GPIO_INPUT);
+    if (ret) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    const struct gpio_dt_spec supply_meas_enable_spec = GPIO_DT_SPEC_GET(
+        DT_PATH(zephyr_user), supply_voltages_meas_enable_gpios);
+    ret = gpio_pin_configure_dt(&supply_meas_enable_spec, GPIO_OUTPUT);
+    ASSERT_SOFT(ret);
+    ret = gpio_pin_set_dt(&supply_meas_enable_spec, 1);
+    if (ret) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    k_msleep(1);
+
+    const struct gpio_dt_spec pvcc_in_gpio_spec =
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), pvcc_voltage_gpios);
+    ret = gpio_pin_configure_dt(&pvcc_in_gpio_spec, GPIO_INPUT);
+    if (ret) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INVALID_STATE;
     }
 
     LOG_INF("Waiting for button press of " TOSTR(BUTTON_PRESS_TIME_MS) "ms");
     uint32_t operator_led_mask = 0;
     const RgbColor white = RGB_WHITE_OPERATOR_LEDS;
     for (size_t i = 0; i <= OPERATOR_LEDS_COUNT; ++i) {
+        // check if pvcc is discharged to perform optics self test
+        // the button must not be pressed to initiate the self test
+        if (self_test_pending && operator_led_mask == 0 &&
+            gpio_pin_get_dt(&pvcc_in_gpio_spec) == 0) {
+            if (optics_self_test() == 0) {
+                self_test_pending = false;
+                gpio_pin_set_dt(&supply_meas_enable_spec, 0);
+                k_msleep(1000);
+            }
+        }
         if (!gpio_pin_get(power_button, POWER_BUTTON_PIN)) {
             if (i > 1) {
                 LOG_INF("Press stopped.");
@@ -336,7 +380,6 @@ power_wait_for_power_button_press(void)
 
     return 0;
 }
-#endif // CONFIG_INSTA_BOOT
 
 /**
  * Decide whether to wait for user to press the button to start the Orb
@@ -367,7 +410,7 @@ app_init_state(void)
     // otherwise, application have been updated and not confirmed, boot Jetson
     if (primary_slot.image_ok != BOOT_FLAG_UNSET ||
         primary_slot.magic == BOOT_MAGIC_UNSET) {
-        ret = power_wait_for_power_button_press();
+        ret = power_until_button_press();
     } else {
         LOG_INF("Firmware image not confirmed, confirming");
 

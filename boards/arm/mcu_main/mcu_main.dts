@@ -71,7 +71,7 @@
         supply-pvcc-enable-gpios = <&gpioe 6 GPIO_ACTIVE_HIGH>;
         supply-super-cap-enable-gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>;
         supply-vbat-sw-enable-gpios = <&gpiof 10 GPIO_ACTIVE_HIGH>;
-
+        pvcc-voltage-gpios = <&gpioc 1 GPIO_ACTIVE_HIGH>;
 
         tests-ir-leds-850-940-gpios =
             <&gpiob 14 GPIO_ACTIVE_HIGH /* 850nm left */ >,

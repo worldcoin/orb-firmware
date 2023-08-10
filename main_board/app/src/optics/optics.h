@@ -22,3 +22,16 @@ optics_usable(void);
  */
 int
 optics_init(const Hardware *hw_version);
+
+/**
+ * @brief Test that safety circuitry is responding
+ *
+ * Turn on IR LED subsets one by one, by driving GPIO pins, to check
+ * that all lines are making the eye safety circuitry trip
+ *
+ * @retval RET_ERROR_ALREADY_INITIALIZED if already performed
+ * @retval RET_ERROR_INTERNAL if failed to configure GPIOs
+ * @retval RET_SUCCESS if successful
+ */
+int
+optics_self_test(void);
