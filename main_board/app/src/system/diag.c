@@ -90,3 +90,41 @@ diag_init(void)
     }
     has_changed = false;
 }
+
+#ifdef CONFIG_ZTEST
+#include <zephyr/ztest.h>
+
+ZTEST(hil, diag)
+{
+    int ret;
+
+    diag_init();
+    zassert_equal(diag_has_data(), false, "diag_has_data() should be false");
+
+    ret = diag_set_status(HardwareDiagnostic_Source_UNKNOWN,
+                          HardwareDiagnostic_Status_STATUS_OK);
+    zassert_equal(ret, RET_ERROR_INVALID_PARAM,
+                  "diag_set_status() should fail");
+
+    ret = diag_set_status(HardwareDiagnostic_Source_MAIN_BOARD_SENTINEL,
+                          HardwareDiagnostic_Status_STATUS_OK);
+    zassert_equal(ret, RET_ERROR_INVALID_PARAM,
+                  "diag_set_status() should fail");
+    zassert_equal(diag_has_data(), false, "diag_has_data() should be false");
+
+    ret = diag_set_status(HardwareDiagnostic_Source_OPTICS_MIRRORS,
+                          HardwareDiagnostic_Status_STATUS_OK);
+    zassert_equal(ret, RET_SUCCESS, "diag_set_status() should succeed");
+    zassert_equal(diag_has_data(), true, "diag_has_data() should be true");
+
+    diag_sync(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+    zassert_equal(diag_has_data(), false, "diag_has_data() should be false");
+
+    ret = diag_set_status(HardwareDiagnostic_Source_OPTICS_MIRRORS,
+                          HardwareDiagnostic_Status_STATUS_OK);
+    zassert_equal(ret, RET_SUCCESS, "diag_set_status() should succeed");
+    // same status so data didn't change since sync
+    zassert_equal(diag_has_data(), false, "diag_has_data() should be false");
+}
+
+#endif /* CONFIG_ZTEST */
