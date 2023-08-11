@@ -86,6 +86,7 @@ list(APPEND SOURCES_FILES
 
     src/runner/runner.c
 
+    src/system/diag.c
     src/system/logs.c
     src/system/version/version.c
     src/system/stm32_timer_utils/stm32_timer_utils.c

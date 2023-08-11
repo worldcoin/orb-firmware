@@ -1,9 +1,9 @@
 #include "temperature.h"
+#include "logs_can.h"
 #include "pubsub/pubsub.h"
+#include "system/diag.h"
 #include "temperature/fan/fan.h"
-#include "utils.h"
 #include <app_config.h>
-#include <inttypes.h>
 #include <math.h>
 #include <stdlib.h>
 #include <zephyr/device.h>
@@ -13,7 +13,6 @@
 #include <zephyr/sys/reboot.h>
 #include <zephyr/sys_clock.h>
 
-#include "logs_can.h"
 LOG_MODULE_REGISTER(temperature, CONFIG_TEMPERATURE_LOG_LEVEL);
 
 // These values are informed by
@@ -59,6 +58,7 @@ struct sensor_and_channel {
     const struct device *sensor;
     const enum sensor_channel channel;
     const Temperature_TemperatureSource temperature_source;
+    const HardwareDiagnostic_Source hardware_diagnostic_source;
     temperature_callback cb;
     struct overtemp_info *cb_data;
     int32_t history[TEMPERATURE_AVERAGE_SAMPLE_COUNT];
@@ -71,6 +71,8 @@ static struct sensor_and_channel sensors_and_channels[] = {
     {.sensor = DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor)),
      .channel = SENSOR_CHAN_AMBIENT_TEMP,
      .temperature_source = Temperature_TemperatureSource_FRONT_UNIT,
+     .hardware_diagnostic_source =
+         HardwareDiagnostic_Source_TEMPERATURE_SENSORS_FRONT_UNIT,
      .cb = overtemp_callback,
      .cb_data =
          &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
@@ -83,6 +85,8 @@ static struct sensor_and_channel sensors_and_channels[] = {
     {.sensor = DEVICE_DT_GET(DT_NODELABEL(main_board_tmp_sensor)),
      .channel = SENSOR_CHAN_AMBIENT_TEMP,
      .temperature_source = Temperature_TemperatureSource_MAIN_BOARD,
+     .hardware_diagnostic_source =
+         HardwareDiagnostic_Source_TEMPERATURE_SENSORS_MAIN_BOARD,
      .cb = overtemp_callback,
      .cb_data =
          &(struct overtemp_info){.overtemp_c = MAIN_BOARD_OVERTEMP_C,
@@ -95,6 +99,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
     {.sensor = DEVICE_DT_GET(DT_ALIAS(die_temp0)),
      .channel = SENSOR_CHAN_DIE_TEMP,
      .temperature_source = Temperature_TemperatureSource_MAIN_MCU,
+     .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
      .cb = overtemp_callback,
      .cb_data =
          &(struct overtemp_info){.overtemp_c = MCU_DIE_OVERTEMP_C,
@@ -107,6 +112,8 @@ static struct sensor_and_channel sensors_and_channels[] = {
     {.sensor = DEVICE_DT_GET(DT_NODELABEL(liquid_lens_tmp_sensor)),
      .channel = SENSOR_CHAN_AMBIENT_TEMP,
      .temperature_source = Temperature_TemperatureSource_LIQUID_LENS,
+     .hardware_diagnostic_source =
+         HardwareDiagnostic_Source_TEMPERATURE_SENSORS_LIQUID_LENS,
      .cb = overtemp_callback,
      .cb_data =
          &(struct overtemp_info){.overtemp_c = LIQUID_LENS_OVERTEMP_C,
@@ -284,9 +291,14 @@ check_ready(void)
         if (!device_is_ready(sensors_and_channels[i].sensor)) {
             LOG_ERR("Could not initialize temperature sensor '%s'",
                     sensors_and_channels[i].sensor->name);
+            diag_set_status(
+                sensors_and_channels[i].hardware_diagnostic_source,
+                HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR);
             ret = RET_ERROR_INVALID_STATE;
         } else {
             LOG_INF("Initialized %s", sensors_and_channels[i].sensor->name);
+            diag_set_status(sensors_and_channels[i].hardware_diagnostic_source,
+                            HardwareDiagnostic_Status_STATUS_OK);
         }
     }
     return ret;

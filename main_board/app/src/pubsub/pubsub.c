@@ -1,15 +1,15 @@
 #include "pubsub.h"
 #include "app_config.h"
+#include "logs_can.h"
 #include "mcu_messaging.pb.h"
+#include "system/diag.h"
 #include <app_assert.h>
-#include <assert.h>
 #include <can_messaging.h>
 #include <pb_encode.h>
 #include <storage.h>
 #include <utils.h>
 #include <zephyr/kernel.h>
 
-#include "logs_can.h"
 LOG_MODULE_REGISTER(pubsub, CONFIG_PUBSUB_LOG_LEVEL);
 
 // Check that CONFIG_CAN_ISOTP_MAX_SIZE_BYTES is large enough
@@ -76,7 +76,7 @@ struct sub_message_s sub_prios[] = {
     [McuToJetson_tof_1d_tag] = {.priority = SUB_PRIO_DISCARD},
     [McuToJetson_gnss_partial_tag] = {.priority = SUB_PRIO_DISCARD},
     [McuToJetson_front_als_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_hardware_diag_tag] = {.priority = SUB_PRIO_STORE},
+    [McuToJetson_hardware_diag_tag] = {.priority = SUB_PRIO_DISCARD},
 };
 
 static void
@@ -85,7 +85,9 @@ pub_stored_thread()
     int err_code;
     struct pub_entry_s record;
 
-    LOG_INF("Flushing stored messages");
+    diag_sync(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+
+    LOG_INF("Sending stored messages");
 
     while (true) {
         size_t size = sizeof(record);
@@ -147,6 +149,10 @@ pub_stored_thread()
             LOG_WRN("Unhandled %d", err_code);
             break;
         }
+
+        // throttle the sending of statuses to avoid flooding the CAN bus
+        // and CAN controller
+        k_msleep(10);
     }
 }
 
@@ -160,7 +166,7 @@ publish_start(void)
 
     if ((started_once == false ||
          (k_thread_join(&pub_stored_thread_data, K_NO_WAIT) == 0)) &&
-        storage_has_data()) {
+        (storage_has_data() || diag_has_data())) {
         k_thread_create(&pub_stored_thread_data, pub_stored_stack_area,
                         K_THREAD_STACK_SIZEOF(pub_stored_stack_area),
                         pub_stored_thread, NULL, NULL, NULL,

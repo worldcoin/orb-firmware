@@ -1,12 +1,13 @@
 #include "als.h"
 #include "app_config.h"
+#include "logs_can.h"
 #include "mcu_messaging.pb.h"
 #include "pubsub/pubsub.h"
+#include "system/diag.h"
 #include <errors.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 
-#include "logs_can.h"
 LOG_MODULE_REGISTER(als, CONFIG_ALS_LOG_LEVEL);
 
 const struct device *als_device = DEVICE_DT_GET(DT_NODELABEL(front_unit_als));
@@ -55,8 +56,13 @@ int
 als_init(void)
 {
     if (!device_is_ready(als_device)) {
-        LOG_ERR("Ambient Light Sensor not ready!");
+        LOG_ERR("ALS not ready");
+        diag_set_status(HardwareDiagnostic_Source_UI_ALS,
+                        HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR);
         return RET_ERROR_INTERNAL;
+    } else {
+        diag_set_status(HardwareDiagnostic_Source_UI_ALS,
+                        HardwareDiagnostic_Status_STATUS_OK);
     }
 
     k_thread_create(&als_thread_data, stack_area_als,

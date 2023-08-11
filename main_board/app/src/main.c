@@ -1,9 +1,12 @@
 #include "gnss/gnss.h"
 #include "logs_can.h"
+#include "optics/optics.h"
 #include "power/battery/battery.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "runner/runner.h"
+#include "system/diag.h"
+#include "system/logs.h"
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "temperature/fan/fan_tach.h"
@@ -25,8 +28,6 @@
 
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
 #include "heartbeat.h"
-#include "optics/optics.h"
-#include "system/logs.h"
 #endif
 
 LOG_MODULE_REGISTER(main);
@@ -159,6 +160,7 @@ initialize(void)
     int err_code;
 
     fatal_init();
+    diag_init();
 
     LOG_INF("🚀");
 

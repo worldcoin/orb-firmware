@@ -7,13 +7,14 @@
 #include "optics/mirrors/mirrors.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
+#include "system/diag.h"
 #include <app_assert.h>
 #include <zephyr/drivers/gpio.h>
 
 LOG_MODULE_REGISTER(optics);
 
 static HardwareDiagnostic_Status self_test_status =
-    HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
+    HardwareDiagnostic_Status_STATUS_UNKNOWN;
 
 // pin allows us to check whether PVCC is enabled on the front unit
 // PVCC might be disabled by hardware due to an intense usage of the IR LEDs
@@ -38,10 +39,7 @@ front_unit_pvcc_update(struct k_work *work)
 {
     ARG_UNUSED(work);
 
-    HardwareDiagnostic optics_diag = {
-        .source = HardwareDiagnostic_Source_OPTICS_IR_LEDS,
-        .status = HardwareDiagnostic_Status_STATUS_OK,
-    };
+    HardwareDiagnostic_Status status = HardwareDiagnostic_Status_STATUS_OK;
 
     bool pvcc_available = (gpio_pin_get_dt(&front_unit_pvcc_enabled) != 0);
     if (pvcc_available) {
@@ -50,13 +48,11 @@ front_unit_pvcc_update(struct k_work *work)
     } else {
         atomic_clear_bit(fu_pvcc_enabled, ATOMIC_FU_PVCC_ENABLED_BIT);
 
-        optics_diag.status = HardwareDiagnostic_Status_STATUS_OK;
+        status = HardwareDiagnostic_Status_STATUS_OK;
         LOG_WRN("Eye safety circuitry tripped");
     }
 
-    publish_new(&optics_diag, sizeof(optics_diag),
-                McuToJetson_hardware_diag_tag,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+    diag_set_status(HardwareDiagnostic_Source_OPTICS_IR_LEDS, status);
 }
 
 static void
@@ -111,14 +107,9 @@ optics_init(const Hardware *hw_version)
 {
     int err_code;
 
-    // report self test status to Jetson
-    HardwareDiagnostic optics_diag = {
-        .source = HardwareDiagnostic_Source_OPTICS_EYE_SAFETY_CIRCUIT_SELF_TEST,
-        .status = self_test_status,
-    };
-    publish_new(&optics_diag, sizeof(optics_diag),
-                McuToJetson_hardware_diag_tag,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+    diag_set_status(
+        HardwareDiagnostic_Source_OPTICS_EYE_SAFETY_CIRCUIT_SELF_TEST,
+        self_test_status);
 
     err_code = ir_camera_system_init();
     if (err_code) {

@@ -191,11 +191,10 @@ bu27030_init(const struct device *dev)
     uint8_t part_id = 0;
     err_code = bu27030_reg_read(dev, BU27030_SYSTEM_CONTROL, &part_id);
 
-    if (err_code == 0 && part_id == BU27030_PART_ID) {
-        LOG_INF("BU27030 initialized");
-    } else {
+    if (err_code != 0 || part_id != BU27030_PART_ID) {
         LOG_ERR("Error initializing BU27030, ret %d, part ID: 0x%x", err_code,
                 part_id);
+        return -EIO;
     }
 
     // set sensor gain
