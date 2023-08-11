@@ -7,7 +7,7 @@
 
 LOG_MODULE_REGISTER(storage_tests, CONFIG_STORAGE_LOG_LEVEL);
 
-ZTEST(runtime_tests_1, storage)
+ZTEST(hil, storage)
 {
     int ret;
     const struct flash_area *fa;
