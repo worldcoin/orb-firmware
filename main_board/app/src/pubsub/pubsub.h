@@ -15,20 +15,23 @@
 #endif
 
 /**
- * @brief Starts the publisher
+ * @brief Starts publishing messages addressed to `remote_addr`
  *
- * @details This function starts the publisher thread which is responsible for
- *    sending messages to the Jetson.
+ * @details In case some buffered messages are ready, a thread is spawned
+ *     to send them to the remote address.
+ * @param remote_addr Active remote address
+ * @retval RET_SUCCESS publisher thread started
+ * @retval RET_ERROR_NO_MEM too many remote addresses
  */
-void
-publish_start(void);
+int
+subscribe_add(uint32_t remote_addr);
 
 /**
  * @brief Store message to send later
  *
  * @details Stored messages are sent when receiving a new message
  *      from remote to increase the chance of successfully transmitting
- *      the message, see `publish_start()` for more details.
+ *      the message, see `subscribe_add()` for more details.
  *
  * @param payload McuToJetson's payload
  * @param size Size of payload

@@ -13,10 +13,11 @@ LOG_MODULE_REGISTER(pubsub_test);
 static uint32_t mcu_to_jetson_payloads = 0;
 K_SEM_DEFINE(pub_buffers_sem, 1, 1);
 
-void
-publish_start(void)
+int
+subscribe_add(uint32_t remote_addr)
 {
     // nothing, Jetson not started in test mode
+    return RET_SUCCESS;
 }
 
 // redefinition of publish_new for tests

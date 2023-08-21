@@ -1108,10 +1108,11 @@ static_assert(
 _Noreturn static void
 runner_process_jobs_thread()
 {
-    job_t new;
+    job_t new = {0};
     int ret;
 
     while (1) {
+        memset(&new, 0, sizeof(new));
         ret = k_msgq_get(&process_queue, &new, K_FOREVER);
         if (ret != 0) {
             ASSERT_SOFT(ret);
@@ -1123,11 +1124,9 @@ runner_process_jobs_thread()
             LOG_DBG("⬇️ Received message from remote 0x%03x with payload ID "
                     "%02d, ack #%u",
                     new.remote_addr, new.message.which_payload, new.ack_number);
-        }
 
-        if (new.remote_addr == CONFIG_CAN_ADDRESS_DEFAULT_REMOTE) {
-            // remote is up
-            publish_start();
+            // allow response to this remote
+            subscribe_add(new.remote_addr);
         }
 
         if (new.message.which_payload < ARRAY_SIZE(handle_message_callbacks) &&

@@ -55,7 +55,7 @@ diag_sync(uint32_t remote)
         k_msleep(10);
     }
 
-    LOG_DBG("Sent: %u, errors: %u", counter, error_counter);
+    LOG_INF("Sent: %u, errors: %u", counter, error_counter);
 
     if (error_counter == 0) {
         has_changed = false;

@@ -27,8 +27,6 @@ BUILD_ASSERT(
 
 K_SEM_DEFINE(pub_buffers_sem, 1, 1);
 
-static bool sending = false;
-
 static K_THREAD_STACK_DEFINE(pub_stored_stack_area,
                              THREAD_STACK_SIZE_PUB_STORED);
 static struct k_thread pub_stored_thread_data;
@@ -79,6 +77,19 @@ const struct sub_message_s sub_prios[] = {
     [McuToJetson_hardware_diag_tag] = {.priority = SUB_PRIO_DISCARD},
 };
 
+static uint32_t active_remotes[0x10] = {0};
+
+static bool
+is_active(uint32_t remote)
+{
+    for (int i = 0; i < ARRAY_SIZE(active_remotes); i++) {
+        if (active_remotes[i] == remote) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void
 pub_stored_thread()
 {
@@ -86,8 +97,6 @@ pub_stored_thread()
     struct pub_entry_s record;
 
     diag_sync(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-
-    LOG_INF("Sending stored messages");
 
     while (true) {
         size_t size = sizeof(record);
@@ -106,6 +115,11 @@ pub_stored_thread()
             LOG_ERR("Discarding stored record, err %u", err_code);
             storage_free();
             continue;
+        }
+
+        if (!is_active(record.destination)) {
+            // storage is a fifo so come back later
+            return;
         }
 
         can_message_t to_send = {
@@ -157,12 +171,26 @@ pub_stored_thread()
 }
 
 // This function may only be called from one thread
-void
-publish_start(void)
+int
+subscribe_add(uint32_t remote_addr)
 {
     static bool started_once = false;
 
-    sending = true;
+    bool added = false;
+    for (int i = 0; i < ARRAY_SIZE(active_remotes); i++) {
+        if (active_remotes[i] == 0 || active_remotes[i] == remote_addr) {
+            if (active_remotes[i] == 0) {
+                LOG_INF("Added subscriber 0x%03x", remote_addr);
+            }
+            active_remotes[i] = remote_addr;
+            added = true;
+            break;
+        }
+    }
+    if (!added) {
+        ASSERT_SOFT(RET_ERROR_NO_MEM);
+        return RET_ERROR_NO_MEM;
+    }
 
     if ((started_once == false ||
          (k_thread_join(&pub_stored_thread_data, K_NO_WAIT) == 0)) &&
@@ -174,6 +202,8 @@ publish_start(void)
         k_thread_name_set(&pub_stored_thread_data, "pub_stored");
         started_once = true;
     }
+
+    return RET_SUCCESS;
 }
 
 static int
@@ -190,7 +220,7 @@ publish(void *payload, size_t size, uint32_t which_payload,
         return RET_ERROR_INVALID_PARAM;
     }
 
-    if (!store && !sending &&
+    if (!store && !is_active(remote_addr) &&
         sub_prios[which_payload].priority == SUB_PRIO_DISCARD) {
         return RET_ERROR_OFFLINE;
     }
@@ -218,8 +248,9 @@ publish(void *payload, size_t size, uint32_t which_payload,
                                     PB_ENCODE_DELIMITED);
 
         if (encoded) {
-            if (store || (!sending && sub_prios[which_payload].priority ==
-                                          SUB_PRIO_STORE)) {
+            if (store ||
+                (!is_active(remote_addr) &&
+                 sub_prios[which_payload].priority == SUB_PRIO_STORE)) {
                 entry.destination = remote_addr;
 
                 // store message to be sent later
