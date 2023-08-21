@@ -57,7 +57,7 @@ struct sub_message_s {
     enum sub_priority_e priority;
 };
 
-struct sub_message_s sub_prios[] = {
+const struct sub_message_s sub_prios[] = {
     [McuToJetson_ack_tag] = {.priority = SUB_PRIO_TRY_SENDING},
     [McuToJetson_power_button_tag] = {.priority = SUB_PRIO_TRY_SENDING},
     [McuToJetson_battery_voltage_tag] = {.priority = SUB_PRIO_DISCARD},
@@ -185,7 +185,7 @@ publish(void *payload, size_t size, uint32_t which_payload,
     // ensure:
     // - payload is smaller than McuToJetson payload size
     // - which_payload is supported
-    if (which_payload > ARRAY_SIZE(sub_prios) ||
+    if (which_payload >= ARRAY_SIZE(sub_prios) ||
         size > STRUCT_MEMBER_SIZE_BYTES(McuToJetson, payload)) {
         return RET_ERROR_INVALID_PARAM;
     }
