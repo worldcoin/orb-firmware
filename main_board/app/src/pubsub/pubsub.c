@@ -77,12 +77,14 @@ const struct sub_message_s sub_prios[] = {
     [McuToJetson_hardware_diag_tag] = {.priority = SUB_PRIO_DISCARD},
 };
 
-static uint32_t active_remotes[0x10] = {0};
+/* ISO-TP addresses + one CAN-FD address */
+static uint32_t active_remotes[(CONFIG_CAN_ISOTP_REMOTE_APP_COUNT + 1) + 1] = {
+    0};
 
 static bool
 is_active(uint32_t remote)
 {
-    for (int i = 0; i < ARRAY_SIZE(active_remotes); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(active_remotes); i++) {
         if (active_remotes[i] == remote) {
             return true;
         }
@@ -177,7 +179,7 @@ subscribe_add(uint32_t remote_addr)
     static bool started_once = false;
 
     bool added = false;
-    for (int i = 0; i < ARRAY_SIZE(active_remotes); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(active_remotes); i++) {
         if (active_remotes[i] == 0 || active_remotes[i] == remote_addr) {
             if (active_remotes[i] == 0) {
                 LOG_INF("Added subscriber 0x%03x", remote_addr);
