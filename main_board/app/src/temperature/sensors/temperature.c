@@ -241,7 +241,7 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
                 // Seems ok
                 break;
             } else {
-                LOG_WRN("'%s' outlier, prev: %" PRId32 ", current: %" PRId32
+                LOG_DBG("'%s' outlier, prev: %" PRId32 ", current: %" PRId32
                         " (°C)",
                         sensor_and_channel->sensor->name, last_sample,
                         current_sample);
