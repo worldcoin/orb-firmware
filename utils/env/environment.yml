@@ -1,6 +1,5 @@
 name: worldcoin
 channels:
-  - fouge # for openocd on macos-arm64
   - litex-hub
   - memfault
   - conda-forge
@@ -17,7 +16,6 @@ dependencies:
   - clang-format
   - pre-commit
   - libusb
-  - openocd
   - pip
   - pip:
       - west

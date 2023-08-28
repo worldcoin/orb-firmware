@@ -56,7 +56,8 @@ enumerated in the [west.yml](west.yml) file.
 
 #### Docker-specific Steps
 
-5. Enter the Docker container to perform your work. (Note: you need to first configure Github to read the [container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry))
+5. Enter the Docker container to perform your work. (Note: you need to first configure Github to read
+   the [container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry))
 
    ```shell
    cd "$REPO_DIR"/orb/utils/docker
@@ -210,6 +211,18 @@ See the board-specific docs:
 
 - ☀️ [Main board](main_board/app/README.md)
 - 🚨 [Security board](sec_board/app/README.md)
+
+#### Debugging
+
+Use [openOCD with Zephyr patches](https://github.com/zephyrproject-rtos/openocd) to get the most out of your
+debugging experience, either from the [Zephyr SDK](https://github.com/zephyrproject-rtos/sdk-ng) (in Host Tools) or
+compiled manually using [this script](utils/env/compile_openocd.sh).
+
+To fully use the thread-aware debugging, make sure to use:
+
+```conf
+CONFIG_DEBUG_THREAD_INFO=y
+```
 
 #### Logging
 
