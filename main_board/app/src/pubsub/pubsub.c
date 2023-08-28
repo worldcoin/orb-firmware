@@ -70,19 +70,28 @@ const struct sub_message_s sub_prios[] = {
     [McuToJetson_motor_range_tag] = {.priority = SUB_PRIO_DISCARD},
     [McuToJetson_fatal_error_tag] = {.priority = SUB_PRIO_STORE},
     [McuToJetson_battery_is_charging_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_battery_diag_tag] = {.priority = SUB_PRIO_DISCARD},
+    [McuToJetson_battery_diag_common_tag] = {.priority = SUB_PRIO_DISCARD},
     [McuToJetson_tof_1d_tag] = {.priority = SUB_PRIO_DISCARD},
     [McuToJetson_gnss_partial_tag] = {.priority = SUB_PRIO_DISCARD},
     [McuToJetson_front_als_tag] = {.priority = SUB_PRIO_DISCARD},
+    [McuToJetson_hardware_tag] = {.priority = SUB_PRIO_DISCARD},
     [McuToJetson_hardware_diag_tag] = {.priority = SUB_PRIO_DISCARD},
+    [McuToJetson_battery_reset_reason_tag] = {.priority = SUB_PRIO_STORE},
+    [McuToJetson_battery_diag_safety_tag] = {.priority = SUB_PRIO_DISCARD},
+    [McuToJetson_battery_diag_permanent_fail_tag] = {.priority =
+                                                         SUB_PRIO_DISCARD},
+    [McuToJetson_battery_info_hw_fw_tag] = {.priority = SUB_PRIO_STORE},
+    [McuToJetson_battery_info_max_values_tag] = {.priority = SUB_PRIO_STORE},
+    [McuToJetson_battery_info_soc_and_statistics_tag] = {.priority =
+                                                             SUB_PRIO_STORE},
 };
 
 /* ISO-TP addresses + one CAN-FD address */
 static uint32_t active_remotes[(CONFIG_CAN_ISOTP_REMOTE_APP_COUNT + 1) + 1] = {
     0};
 
-static bool
-is_active(uint32_t remote)
+bool
+publish_is_started(uint32_t remote)
 {
     for (size_t i = 0; i < ARRAY_SIZE(active_remotes); i++) {
         if (active_remotes[i] == remote) {
@@ -119,7 +128,7 @@ pub_stored_thread()
             continue;
         }
 
-        if (!is_active(record.destination)) {
+        if (!publish_is_started(record.destination)) {
             // storage is a fifo so come back later
             return;
         }
@@ -222,7 +231,7 @@ publish(void *payload, size_t size, uint32_t which_payload,
         return RET_ERROR_INVALID_PARAM;
     }
 
-    if (!store && !is_active(remote_addr) &&
+    if (!store && !publish_is_started(remote_addr) &&
         sub_prios[which_payload].priority == SUB_PRIO_DISCARD) {
         return RET_ERROR_OFFLINE;
     }
@@ -251,7 +260,7 @@ publish(void *payload, size_t size, uint32_t which_payload,
 
         if (encoded) {
             if (store ||
-                (!is_active(remote_addr) &&
+                (!publish_is_started(remote_addr) &&
                  sub_prios[which_payload].priority == SUB_PRIO_STORE)) {
                 entry.destination = remote_addr;
 

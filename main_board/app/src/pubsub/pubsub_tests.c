@@ -20,6 +20,13 @@ subscribe_add(uint32_t remote_addr)
     return RET_SUCCESS;
 }
 
+bool
+publish_is_started(uint32_t remote)
+{
+    // allow to publish to any remote address
+    return true;
+}
+
 // redefinition of publish_new for tests
 int
 publish_new(void *payload, size_t size, uint32_t which_payload,
@@ -27,7 +34,7 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
 {
     int err_code;
 
-    if (which_payload > 19) {
+    if (which_payload > 26) {
         err_code = RET_ERROR_INVALID_PARAM;
         return err_code;
     }
@@ -102,11 +109,27 @@ ZTEST(hil, test_pubsub_sent_messages)
     zassert_not_equal(
         mcu_to_jetson_payloads & (1 << McuToJetson_motor_range_tag), 0);
     zassert_not_equal(
-        mcu_to_jetson_payloads & (1 << McuToJetson_battery_diag_tag), 0);
+        mcu_to_jetson_payloads & (1 << McuToJetson_battery_diag_common_tag), 0);
     zassert_not_equal(mcu_to_jetson_payloads & (1 << McuToJetson_tof_1d_tag),
                       0);
     zassert_not_equal(
         mcu_to_jetson_payloads & (1 << McuToJetson_gnss_partial_tag), 0);
     zassert_not_equal(mcu_to_jetson_payloads & (1 << McuToJetson_front_als_tag),
                       0);
+    zassert_not_equal(
+        mcu_to_jetson_payloads & (1 << McuToJetson_hardware_diag_tag), 0);
+    zassert_not_equal(
+        mcu_to_jetson_payloads & (1 << McuToJetson_battery_diag_safety_tag), 0);
+    zassert_not_equal(mcu_to_jetson_payloads &
+                          (1 << McuToJetson_battery_diag_permanent_fail_tag),
+                      0);
+    zassert_not_equal(
+        mcu_to_jetson_payloads & (1 << McuToJetson_battery_info_hw_fw_tag), 0);
+    zassert_not_equal(mcu_to_jetson_payloads &
+                          (1 << McuToJetson_battery_info_max_values_tag),
+                      0);
+    zassert_not_equal(
+        mcu_to_jetson_payloads &
+            (1 << McuToJetson_battery_info_soc_and_statistics_tag),
+        0);
 }

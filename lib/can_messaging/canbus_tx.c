@@ -139,6 +139,7 @@ can_messaging_async_tx(const can_message_t *message)
     }
 
     if (message->size > CAN_FRAME_MAX_SIZE) {
+        ASSERT_SOFT(message->size);
         return RET_ERROR_INVALID_PARAM;
     }
 

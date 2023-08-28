@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -25,6 +26,16 @@
  */
 int
 subscribe_add(uint32_t remote_addr);
+
+/**
+ * @brief Can be used to check if CAN communication to the Jetson is active
+ *
+ * @param remote Remote address
+ * @retval true if the Jetson is ready to receive CAN messages
+ * @retval false if not
+ */
+bool
+publish_is_started(uint32_t remote);
 
 /**
  * @brief Store message to send later
