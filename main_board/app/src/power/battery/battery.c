@@ -318,10 +318,12 @@ publish_battery_info(void)
     info_hw_fw.mcu_id.bytes[11] = state_525.battery_mcu_id_bit_95_64 >> 24;
     info_hw_fw.mcu_id.size = 12;
 
-    if (state_522.hardware_version > 0) {
+    info_hw_fw.hw_version =
+        BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_UNDETECTED;
+    if (can_message_522_received) {
         // Message 0x522 is only available on EV3 and later
         info_hw_fw.hw_version = state_522.hardware_version;
-    } else {
+    } else if (can_message_491_received) {
         // On EV2 the hardware version is stored in message 0x491
         info_hw_fw.hw_version = state_491.detected_hardware_revision;
     }
@@ -331,8 +333,17 @@ publish_battery_info(void)
     info_hw_fw.fw_version.patch = state_522.firmware_version_minor;
     info_hw_fw.fw_version.commit_hash = commit_hash;
 
-    info_soc_and_statistics.soc_state = state_492.soc_state;
-    info_soc_and_statistics.soc_calibration = state_492.soc_calibration_state;
+    if (can_message_492_received) {
+        info_soc_and_statistics.soc_state = state_492.soc_state;
+        info_soc_and_statistics.soc_calibration =
+            state_492.soc_calibration_state;
+    } else {
+        info_soc_and_statistics.soc_state =
+            BatteryInfoSocAndStatistics_SocState_STATE_SOC_UNKNOWN;
+        info_soc_and_statistics.soc_calibration =
+            BatteryInfoSocAndStatistics_SocCalibration_STATE_SOC_CAL_UNKNOWN;
+    }
+
     info_soc_and_statistics.number_of_charges = state_490.number_of_charges;
     info_soc_and_statistics.number_of_written_flash_variables =
         state_491.number_of_written_flash_variables_15_0 |
