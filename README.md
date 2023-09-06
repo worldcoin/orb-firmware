@@ -1,4 +1,4 @@
-# proto2-firmware
+# orb-mcu-firmware
 
 West workspace for microcontrollers' firmware.
 
@@ -11,16 +11,10 @@ This repo contains Firmware for the several microcontrollers present in the Orb:
 
 ## Setting Up Development Environment
 
-You can set up your development environment directly on your machine, or you may
-use the provided Docker image.
-The [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting_started/index.html)
-only has instructions for Ubuntu, macOS, and Windows. For this guide's
-description of setting up a native build environment (i.e., not using a
-Docker container), we assume your host machine is running Ubuntu 20.04/22.04
-or macOS. If you are not using one of those, your mileage may vary. Note that
-we expect [`brew`](https://brew.sh/) to be available on macOS. Note also that
-all of these steps assume that you have an SSH key set up properly with Github
-and that you have access to all of the MCU repos. These repositories are
+You can set up your development environment directly on your machine (preferred for Windows users), or you may
+use the provided Docker image. A step-by-step guide is available below.
+Note that all of these steps assume that you have an SSH key set up properly with Github
+and that you have access to all the MCU repos. These repositories are
 enumerated in the [west.yml](west.yml) file.
 
 ### Generic Steps
@@ -54,7 +48,7 @@ enumerated in the [west.yml](west.yml) file.
    west update
    ```
 
-#### Docker-specific Steps
+#### Docker-specific Steps (Linux-based OS)
 
 5. Enter the Docker container to perform your work. (Note: you need to first configure Github to read
    the [container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry))
@@ -64,32 +58,31 @@ enumerated in the [west.yml](west.yml) file.
    make shell
    ```
 
-   You may also build the Docker image locally.
-   NOTE: when you build locally, you will get a image with the tag `local`,
-   but when you run `make *-build`, Make will use the SHA of the known good
-   Docker image used by CI, _unless_ you set the make variable
-   `DOCKER_TAG` to something. For instance, do
-   `make main_board-build DOCKER_TAG=local` to use the Docker image you built
-   locally.
-   This locally-built image may not work since Ubuntu-based containers
-   are not strictly reproducible.
+You may also build the Docker image locally.
+NOTE: when you build locally, you will get a image with the tag `local`,
+but when you run `make *-build`, Make will use the SHA of the known good
+Docker image used by CI, _unless_ you set the make variable
+`DOCKER_TAG` to something. For instance, do
+`make main_board-build DOCKER_TAG=local` to use the Docker image you built
+locally.
+This locally-built image may not work since Ubuntu-based containers
+are not strictly reproducible.
 
-   ```shell
-   cd "$REPO_DIR"/orb/utils/docker
-   make build
-   ```
+```shell
+cd "$REPO_DIR"/orb/utils/docker
+make build
+```
 
 #### Native-specific Steps
 
-A reminder that these steps assume your host machine is running Ubuntu 20.04. These instructions are mainly just an
-adaptation of the instructions in the
-[Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting_started/index.html).
+These instructions are mainly just an adaptation of the instructions in
+the [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting_started/index.html).
 
-5. Install the dependencies
+5. Install the dependencies. Two ways:
 
-   - Follow these instructions
+   - Follow instructions in this section
      for [installing dependencies](https://docs.zephyrproject.org/latest/getting_started/index.html#install-dependencies)
-     .
+     , and only this section (don't install Zephyr & Python deps yet). Preferred method for Windows/WSL2.
    - Or install the Conda environment provided [here](utils/env/environment.yml). Make sure to set the variables.
      ```shell
      conda env create -f orb/utils/env/environement.yml
@@ -113,6 +106,7 @@ adaptation of the instructions in the
 
    You may change `INSTALL_LOC` to choose an installation location.
    You may also change `SDK_VER` to choose a specific toolchain version.
+   We removed the toolchain from the Conda environment due to the many architectures and dependencies.
 
    ```shell
    tmp=$(mktemp)
@@ -155,14 +149,6 @@ adaptation of the instructions in the
    EOF
    chmod +x "$tmp"
    "$tmp"
-   ```
-
-   For the Conda environment:
-
-   ```shell
-    # Set the environment variable to point towards the installed toolchain
-    # Do no include the trailing `/bin` in GNUARMEMB_TOOLCHAIN_PATH
-    conda env config vars set GNUARMEMB_TOOLCHAIN_PATH=/path/to/your/toolchain/
    ```
 
 9. Install udev rules to allow for flashing as a non-root user (For Linux only).
