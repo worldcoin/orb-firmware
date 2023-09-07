@@ -85,7 +85,7 @@ the [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting
      , and only this section (don't install Zephyr & Python deps yet). Preferred method for Windows/WSL2.
    - Or install the Conda environment provided [here](utils/env/environment.yml). Make sure to set the variables.
      ```shell
-     conda env create -f orb/utils/env/environement.yml
+     conda env create -f orb/utils/env/environment.yml
      conda activate worldcoin
      ```
 
@@ -129,7 +129,7 @@ the [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting
         fi
     fi
     echo "SDK_VER is '\$SDK_VER'"
-    TAR_NAME=zephyr-sdk-\${SDK_VER}_\${KERNEL}-\${ARCH}_minimal.tar.gz
+    TAR_NAME=zephyr-sdk-\${SDK_VER}_\${KERNEL}-\${ARCH}_minimal.tar.xz
     echo "TAR_NAME is \$TAR_NAME"
     URL=https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v\${SDK_VER}/\${TAR_NAME}
     if [ ! -e "\$INSTALL_LOC/zephyr-sdk-\${SDK_VER}/.__finished" ]; then
