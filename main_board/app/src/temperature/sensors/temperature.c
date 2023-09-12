@@ -319,7 +319,7 @@ temperature_init(const Hardware *hw_version)
     }
 
     sensor_attr_set(DEVICE_DT_GET(DT_ALIAS(die_temp0)), SENSOR_CHAN_DIE_TEMP,
-                    SENSOR_ATTR_VREF_MV, &val);
+                    (enum sensor_attribute)SENSOR_ATTR_VREF_MV, &val);
 
     check_ready();
     global_sample_period = K_MSEC(1000 / TEMPERATURE_AVERAGE_SAMPLE_COUNT);

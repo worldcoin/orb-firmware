@@ -15,7 +15,7 @@ ZTEST(hil, test_operator_leds_patterns)
     RgbColor color = RGB_ORANGE;
     int ret_code;
 
-    for (int b = 0; b < ARRAY_SIZE(brightness); ++b) {
+    for (size_t b = 0; b < ARRAY_SIZE(brightness); ++b) {
         ret_code = operator_leds_set_brightness(brightness[b]);
         zassert_equal(ret_code, 0);
 

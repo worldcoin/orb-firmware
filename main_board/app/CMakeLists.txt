@@ -4,6 +4,7 @@ set(TARGET app)
 get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../ ABSOLUTE)
 get_filename_component(WORKSPACE_DIR ${PROJECT_DIR} DIRECTORY)
 
+set(APP_FILES_COMPILE_OPTIONS -Wextra)
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
     message(STATUS "Building ${CMAKE_BUILD_TYPE}: optimized ⚡️")
 

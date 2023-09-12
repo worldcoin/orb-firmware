@@ -16,13 +16,17 @@ K_SEM_DEFINE(pub_buffers_sem, 1, 1);
 int
 subscribe_add(uint32_t remote_addr)
 {
+    ARG_UNUSED(remote_addr);
+
     // nothing, Jetson not started in test mode
     return RET_SUCCESS;
 }
 
 bool
-publish_is_started(uint32_t remote)
+publish_is_started(uint32_t remote_addr)
 {
+    ARG_UNUSED(remote_addr);
+
     // allow to publish to any remote address
     return true;
 }

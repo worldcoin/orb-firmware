@@ -120,8 +120,8 @@ ZTEST(hil, test_crc_over_flash)
     crc32_ieee(sec_slot, 224 * 1024);
     uint32_t tock = k_cycle_get_32();
 
-    uint32_t crc_computation_us =
-        (tock - tick) / (sys_clock_hw_cycles_per_sec() / 1000 / 1000);
+    int32_t crc_computation_us =
+        (int32_t)(tock - tick) / (sys_clock_hw_cycles_per_sec() / 1000 / 1000);
     LOG_INF("CRC over entire slot took %uus, %u cycles (%u cycle/sec)",
             crc_computation_us, tock - tick, sys_clock_hw_cycles_per_sec());
     // check within 50ms

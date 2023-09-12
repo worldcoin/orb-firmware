@@ -50,11 +50,11 @@ volatile bool current_can_controller_state_changed = false;
 static struct can_filter battery_can_filter = {
     .id = 0, .mask = CAN_STD_ID_MASK, .flags = CAN_FILTER_DATA};
 
-volatile static bool transmission_completed = true;
+static volatile bool transmission_completed = true;
 
 #define CAN_MESSAGE_HANDLER(id)                                                \
     static struct battery_##id##_s state_##id = {0};                           \
-    volatile static bool can_message_##id##_received = false;                  \
+    static volatile bool can_message_##id##_received = false;                  \
     static void handle_##id(struct can_frame *frame)                           \
     {                                                                          \
         CRITICAL_SECTION_ENTER(k);                                             \
@@ -90,7 +90,7 @@ struct battery_can_msg {
         .handler = handle_##id                                                 \
     }
 
-const static struct battery_can_msg messages[] = {
+static const struct battery_can_msg messages[] = {
     BATTERY_CAN_MESSAGE(400), BATTERY_CAN_MESSAGE(410),
     BATTERY_CAN_MESSAGE(411), BATTERY_CAN_MESSAGE(412),
     BATTERY_CAN_MESSAGE(414), BATTERY_CAN_MESSAGE(415),
@@ -756,6 +756,9 @@ static void
 can_state_change_callback(const struct device *dev, enum can_state state,
                           struct can_bus_err_cnt err_cnt, void *user_data)
 {
+    ARG_UNUSED(dev);
+    ARG_UNUSED(err_cnt);
+    ARG_UNUSED(user_data);
     current_can_controller_state_changed = true;
     current_can_controller_state = state;
 }

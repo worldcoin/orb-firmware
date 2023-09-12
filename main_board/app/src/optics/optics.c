@@ -59,6 +59,9 @@ static void
 interrupt_fu_pvcc_handler(const struct device *dev, struct gpio_callback *cb,
                           uint32_t pins)
 {
+    ARG_UNUSED(dev);
+    ARG_UNUSED(cb);
+
     if (pins & BIT(front_unit_pvcc_enabled.pin)) {
         k_work_submit(&front_unit_pvcc_event_work);
     }
