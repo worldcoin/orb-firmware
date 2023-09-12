@@ -18,11 +18,13 @@
 // and re-enable interrupts
 #define CRITICAL_SECTION_ENTER(k)                                              \
     {                                                                          \
-        int k = irq_lock();
+        int k = irq_lock()
 
 #define CRITICAL_SECTION_EXIT(k)                                               \
     irq_unlock(k);                                                             \
-    }
+    }                                                                          \
+    do {                                                                       \
+    } while (0) // remove empty statement warning
 
 #if defined(CONFIG_LOG) && !defined(CONFIG_LOG_MODE_MINIMAL)
 // log immediately, i.e., log and wait for messages to flush
