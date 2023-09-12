@@ -1,5 +1,4 @@
 #include "optics.h"
-#include "app_config.h"
 #include "logs_can.h"
 #include "optics/1d_tof/tof_1d.h"
 #include "optics/ir_camera_system/ir_camera_system.h"

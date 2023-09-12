@@ -13,8 +13,6 @@
 #include <math.h>
 #include <optics/mirrors/mirrors.h>
 #include <soc.h>
-#include <stm32_ll_hrtim.h>
-#include <stm32_ll_rcc.h>
 #include <stm32_ll_tim.h>
 #include <system/stm32_timer_utils/stm32_timer_utils.h>
 #include <utils.h>
@@ -267,15 +265,18 @@ evaluate_focus_sweep_polynomial(uint32_t frame_no)
     // f(x0) = a + x0(b + x0(c + x0(d + x0(e + fx0))))
     //
     // Using Horner's rule reduces the number of multiplications
+    float frame_no_float = (float)frame_no;
     return lroundf(
         focus_sweep_polynomial.coef_a +
-        (frame_no *
+        (frame_no_float *
          (focus_sweep_polynomial.coef_b +
-          frame_no * (focus_sweep_polynomial.coef_c +
-                      frame_no * (focus_sweep_polynomial.coef_d +
-                                  frame_no * (focus_sweep_polynomial.coef_e +
-                                              (focus_sweep_polynomial.coef_f *
-                                               frame_no)))))));
+          frame_no_float *
+              (focus_sweep_polynomial.coef_c +
+               frame_no_float *
+                   (focus_sweep_polynomial.coef_d +
+                    frame_no_float *
+                        (focus_sweep_polynomial.coef_e +
+                         (focus_sweep_polynomial.coef_f * frame_no_float)))))));
 }
 
 // In milli-degrees
@@ -300,14 +301,15 @@ evaluate_mirror_sweep_polynomials(uint32_t frame_no)
 {
     struct mirror_delta md = {0};
 
-    float radius =
-        mirror_sweep_polynomial.radius_coef_a +
-        (frame_no * (mirror_sweep_polynomial.radius_coef_b +
-                     (frame_no * mirror_sweep_polynomial.radius_coef_c)));
-    float angle =
-        mirror_sweep_polynomial.angle_coef_a +
-        (frame_no * (mirror_sweep_polynomial.angle_coef_b +
-                     (frame_no * mirror_sweep_polynomial.angle_coef_c)));
+    float frame_no_float = (float)frame_no;
+    float radius = mirror_sweep_polynomial.radius_coef_a +
+                   (frame_no_float *
+                    (mirror_sweep_polynomial.radius_coef_b +
+                     (frame_no_float * mirror_sweep_polynomial.radius_coef_c)));
+    float angle = mirror_sweep_polynomial.angle_coef_a +
+                  (frame_no_float *
+                   (mirror_sweep_polynomial.angle_coef_b +
+                    (frame_no_float * mirror_sweep_polynomial.angle_coef_c)));
 
     md.delta_x = (int32_t)(radius * sinf(angle)) * 1000;
     md.delta_y = (int32_t)(radius * cosf(angle)) * 1000;
@@ -457,35 +459,37 @@ ir_leds_are_on(void)
 static void
 print_wavelength(void)
 {
+#ifdef CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL_DBG
     const char *s = "";
     switch (ir_camera_system_get_enabled_leds()) {
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:
         s = "940nm R";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
         s = "940nm L";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM:;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM:
         s = "940nm LR";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:;
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
         s = "850nm R";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:;
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
         s = "850nm L";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM:;
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
         s = "850nm LR";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_740NM:;
+    case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
         s = "740nm";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_NONE:;
+    case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
         s = "None";
         break;
     }
 
     LOG_DBG("%s", s);
+#endif
 }
 
 static void

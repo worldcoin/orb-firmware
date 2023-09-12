@@ -145,7 +145,7 @@ ir_camera_system_init(void)
 
 MAKE_CAMERA_ENABLE_DISABLE_GET_FUNCTIONS(ir_eye)
 MAKE_CAMERA_ENABLE_DISABLE_GET_FUNCTIONS(ir_face)
-MAKE_CAMERA_ENABLE_DISABLE_GET_FUNCTIONS(2d_tof);
+MAKE_CAMERA_ENABLE_DISABLE_GET_FUNCTIONS(2d_tof)
 
 ret_code_t
 ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength)
@@ -173,7 +173,7 @@ ir_camera_system_get_enabled_leds(void)
 ret_code_t
 ir_camera_system_set_fps(uint16_t fps)
 {
-    ret_code_t ret = RET_ERROR_NOT_INITIALIZED;
+    ret_code_t ret;
 
     if (!ir_camera_system_initialized) {
         ret = RET_ERROR_NOT_INITIALIZED;
@@ -193,7 +193,7 @@ ir_camera_system_set_fps(uint16_t fps)
 ret_code_t
 ir_camera_system_set_on_time_us(uint16_t on_time_us)
 {
-    ret_code_t ret = RET_ERROR_NOT_INITIALIZED;
+    ret_code_t ret;
 
     if (!ir_camera_system_initialized) {
         ret = RET_ERROR_NOT_INITIALIZED;
@@ -222,7 +222,7 @@ ret_code_t
 ir_camera_system_set_polynomial_coefficients_for_focus_sweep(
     IREyeCameraFocusSweepValuesPolynomial poly)
 {
-    ret_code_t ret = RET_ERROR_NOT_INITIALIZED;
+    ret_code_t ret;
 
     if (get_focus_sweep_in_progress() == true) {
         ret = RET_ERROR_BUSY;
@@ -238,7 +238,7 @@ ret_code_t
 ir_camera_system_set_focus_values_for_focus_sweep(int16_t *focus_values,
                                                   size_t num_focus_values)
 {
-    ret_code_t ret = RET_ERROR_NOT_INITIALIZED;
+    ret_code_t ret;
 
     if (num_focus_values > MAX_NUMBER_OF_FOCUS_VALUES) {
         LOG_ERR("Too many focus values!");
@@ -281,7 +281,7 @@ ret_code_t
 ir_camera_system_set_polynomial_coefficients_for_mirror_sweep(
     IREyeCameraMirrorSweepValuesPolynomial poly)
 {
-    ret_code_t ret = RET_ERROR_NOT_INITIALIZED;
+    ret_code_t ret;
 
     if (get_mirror_sweep_in_progress() == true) {
         ret = RET_ERROR_BUSY;
@@ -323,9 +323,8 @@ ir_camera_system_get_status(void)
 
     if (!ir_camera_system_initialized) {
         ret = RET_ERROR_NOT_INITIALIZED;
-    } else if (get_focus_sweep_in_progress() == true) {
-        ret = RET_ERROR_BUSY;
-    } else if (get_mirror_sweep_in_progress() == true) {
+    } else if (get_focus_sweep_in_progress() ||
+               get_mirror_sweep_in_progress()) {
         ret = RET_ERROR_BUSY;
     } else {
         ret = RET_SUCCESS;

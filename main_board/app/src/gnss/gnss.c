@@ -65,7 +65,7 @@ uart_receive_callback(const struct device *dev, struct uart_event *evt,
     case UART_TX_ABORTED:
     default:
         break;
-    };
+    }
 }
 
 static char
@@ -196,7 +196,7 @@ send_nmea_message(const char *nmea_str)
     return ret;
 }
 
-static void
+_Noreturn static void
 gnss_thread_entry_point()
 {
     ret_code_t ret;

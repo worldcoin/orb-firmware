@@ -63,6 +63,7 @@ static volatile bool transmission_completed = true;
         CRITICAL_SECTION_EXIT(k);                                              \
     }
 
+// NOLINTBEGIN - ignore clang-tidy warnings about empty statements
 CAN_MESSAGE_HANDLER(400);
 CAN_MESSAGE_HANDLER(410);
 CAN_MESSAGE_HANDLER(411);
@@ -77,6 +78,7 @@ CAN_MESSAGE_HANDLER(522);
 CAN_MESSAGE_HANDLER(523);
 CAN_MESSAGE_HANDLER(524);
 CAN_MESSAGE_HANDLER(525);
+// NOLINTEND
 
 struct battery_can_msg {
     uint32_t can_id;
@@ -624,7 +626,7 @@ clear_can_message_buffers(void)
     can_message_525_received = false;
 }
 
-static void
+_Noreturn static void
 battery_rx_thread()
 {
     bool got_battery_voltage_can_message_local = false;
@@ -844,7 +846,7 @@ battery_init(const Hardware *hw_version)
             adc_channel_setup(adc_vbat_sw.dev, &channel_cfg);
 
             int32_t vref_mv;
-            float voltage_divider_scaling_vbat_sw = 1.0f;
+            float voltage_divider_scaling_vbat_sw;
 
             if (hw_version->version ==
                 Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {

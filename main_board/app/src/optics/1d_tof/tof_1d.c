@@ -38,7 +38,7 @@ distance_is_safe(void)
     return is_safe;
 }
 
-void
+_Noreturn void
 tof_1d_thread()
 {
     int ret;
@@ -46,10 +46,10 @@ tof_1d_thread()
     ToF_1D tof;
     uint32_t count = 0;
 
-    int tick = 0;
+    uint32_t tick = 0;
     while (1) {
-        int tock = k_uptime_get_32();
-        int task_duration = 0;
+        uint32_t tock = k_uptime_get_32();
+        uint32_t task_duration = 0;
         if (tick != 0) {
             task_duration = tock - tick;
         }

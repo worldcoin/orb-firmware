@@ -44,8 +44,12 @@
             ;                                                                  \
     } while (0)
 #else
-#define LOG_INF_IMM(...)
-#define LOG_ERR_IMM(...)
+#define LOG_INF_IMM(...)                                                       \
+    do {                                                                       \
+    } while (0)
+#define LOG_ERR_IMM(...)                                                       \
+    do {                                                                       \
+    } while (0)
 #endif
 
 #define STATIC_OR_EXTERN static
