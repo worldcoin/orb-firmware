@@ -1,4 +1,4 @@
-FROM ubuntu:kinetic
+FROM ubuntu:latest
 
 # Set default shell during Docker image build to bash
 SHELL ["/bin/bash", "-c"]
