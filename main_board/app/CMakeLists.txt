@@ -96,6 +96,8 @@ list(APPEND SOURCES_FILES
     src/temperature/fan/fan.c
     src/temperature/fan/fan_tach.c
 
+    src/voltage_measurement/voltage_measurement.c
+
     ${SINE_LUT_SRC_FILE}
     src/ui/ambient_light/als.c
     src/ui/button/button.c
@@ -107,6 +109,7 @@ list(APPEND SOURCES_FILES
 if (CONFIG_ZTEST)
     add_compile_definitions(HIL_TEST=y)
     list(APPEND SOURCES_FILES
+        src/voltage_measurement/voltage_measurement_tests.c
         src/optics/ir_camera_system/ir_camera_system_tests.c
         src/optics/mirrors/mirrors_tests.c
         src/system/dfu/dfu_tests.c

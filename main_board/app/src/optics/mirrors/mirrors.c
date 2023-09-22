@@ -1279,16 +1279,13 @@ mirrors_init(void)
     ASSERT_SOFT(err_code);
 
     // see `motors_center_from_end` array
-    Hardware hw;
-    err_code = version_get_hardware_rev(&hw);
-    ASSERT_SOFT(err_code);
-
-    if (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1) {
+    Hardware_OrbVersion version = version_get_hardware_rev();
+    if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1) {
         hw_rev_idx = 0;
-    } else if (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2 ||
-               hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
-               hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4 ||
-               hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+    } else if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2 ||
+               version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
+               version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4 ||
+               version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         hw_rev_idx = 1;
     } else {
         ASSERT_SOFT(RET_ERROR_INVALID_STATE);

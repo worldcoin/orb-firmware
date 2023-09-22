@@ -16,6 +16,7 @@
 #include "ui/front_leds/front_leds.h"
 #include "ui/operator_leds/operator_leds.h"
 #include "ui/sound/sound.h"
+#include "voltage_measurement/voltage_measurement.h"
 #include <app_assert.h>
 #include <can_messaging.h>
 #include <dfu.h>
@@ -47,6 +48,10 @@ static void
 run_tests()
 {
 #if defined(CONFIG_ZTEST_NEW_API)
+    // Per default publishing of voltages is disabled
+    // -> enable it for testing if voltage messages are published
+    voltage_measurement_set_publish_period(1000);
+
     ztest_run_all(NULL);
     ztest_verify_all_test_suites_ran();
 #endif
@@ -187,10 +192,16 @@ initialize(void)
     ASSERT_SOFT(err_code);
 #endif
 
-    Hardware hw;
-    err_code = version_get_hardware_rev(&hw);
+    err_code = version_init();
     ASSERT_SOFT(err_code);
+
+    Hardware hw = {.version = version_get_hardware_rev()};
     LOG_INF("Hardware version: %u", hw.version);
+
+    // voltage_measurement module is used by battery.c and boot.c -> must be
+    // initialized before
+    err_code = voltage_measurement_init(&hw);
+    ASSERT_SOFT(err_code);
 
     err_code = boot_init(&hw);
     ASSERT_SOFT(err_code);
@@ -200,7 +211,7 @@ initialize(void)
     ASSERT_SOFT(err_code);
 
     // check battery state early on
-    err_code = battery_init(&hw);
+    err_code = battery_init();
     ASSERT_SOFT(err_code);
 
 #ifndef CONFIG_NO_JETSON_BOOT

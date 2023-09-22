@@ -65,3 +65,7 @@ source "subsys/logging/Kconfig.template.log_config"
 module = ALS
 module-str = ALS
 source "subsys/logging/Kconfig.template.log_config"
+
+module = VOLTAGE_MEASUREMENT
+module-str = VOLTAGE_MEASUREMENT
+source "subsys/logging/Kconfig.template.log_config"

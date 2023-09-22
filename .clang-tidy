@@ -203,3 +203,5 @@ CheckOptions:
     value:           '3'
   - key:             readability-identifier-naming.FunctionCase
     value:           'lower_case'
+  - key:             readability-identifier-naming.LocalVariableCase
+    value:           'lower_case'

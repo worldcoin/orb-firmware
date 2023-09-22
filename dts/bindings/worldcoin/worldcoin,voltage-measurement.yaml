@@ -1,0 +1,71 @@
+# Copyright (c) 2023 Tools for Humanity GmbH
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Description for voltage measurement circuits.
+
+compatible: "worldcoin,voltage-measurement"
+
+properties:
+  io-channels:
+    type: phandle-array
+    required: true
+    description: |
+      Channels to use to read the voltages.
+  io-channel-names:
+    type: string-array
+    description: |
+      Channel names.
+  supply-voltages-meas-enable-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      GPIO for enabling the measurement circuits.
+  voltage-divider-scaling-vbat-sw:
+    type: string-array
+    required: true
+    description: |
+      Factor for calculating the VBAT_SW voltage from the voltage at the ADC pin.
+      First item is the value for EV1...4. Second item for EV5 and later.
+  voltage-divider-scaling-3v3:
+    type: string-array
+    required: true
+    description: |
+      Factor for calculating the 3V3 voltage from the voltage at the ADC pin.
+      First item is the value for EV1...4. Second item for EV5 and later.
+  voltage-divider-scaling-5v:
+    type: string-array
+    required: true
+    description: |
+      Factor for calculating the 5V voltage from the voltage at the ADC pin.
+      First item is the value for EV1...4. Second item for EV5 and later.
+  voltage-divider-scaling-3v8-3v3-ssd:
+    type: string-array
+    required: true
+    description: |
+      Factor for calculating the 3V8 (EV1...4) / 3V3_SSD (EV5) voltage from the voltage at the ADC pin.
+      First item is the value for EV1...4. Second item for EV5 and later.
+  voltage-divider-scaling-1v8:
+    type: string-array
+    required: true
+    description: |
+      Factor for calculating the 1V8 voltage from the voltage at the ADC pin.
+      First item is the value for EV1...4. Second item for EV5 and later.
+  voltage-divider-scaling-12v:
+    type: string-array
+    required: true
+    description: |
+      Factor for calculating the 12V voltage from the voltage at the ADC pin.
+      First item is the value for EV1...4. Second item for EV5 and later.
+  voltage-divider-scaling-12v-caps:
+    type: string-array
+    required: true
+    description: |
+      Factor for calculating the 12V_CAPS voltage from the voltage at the ADC pin.
+      First item is the value for EV1...4. Second item for EV5 and later.
+  voltage-divider-scaling-pvcc:
+    type: string-array
+    required: true
+    description: |
+      Factor for calculating the PVCC voltage from the voltage at the ADC pin.
+      First item is the value for EV1...4. Second item for EV5 and later.

@@ -14,6 +14,7 @@
 #include "temperature/sensors/temperature.h"
 #include "ui/operator_leds/operator_leds.h"
 #include "ui/rgb_leds.h"
+#include "voltage_measurement/voltage_measurement.h"
 #include <app_assert.h>
 #include <heartbeat.h>
 #include <pb_decode.h>
@@ -834,6 +835,20 @@ handle_liquid_lens(job_t *job)
 }
 
 static void
+handle_voltage_request(job_t *job)
+{
+    JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(JetsonToMcu_voltage_request_tag);
+
+    uint32_t transmit_period_ms =
+        msg->payload.voltage_request.transmit_period_ms;
+
+    voltage_measurement_set_publish_period(transmit_period_ms);
+
+    job_ack(Ack_ErrorCode_SUCCESS, job);
+}
+
+static void
 handle_heartbeat(job_t *job)
 {
     JetsonToMcu *msg = &job->message;
@@ -1077,6 +1092,7 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_fan_speed_tag] = handle_fan_speed,
     [JetsonToMcu_fps_tag] = handle_fps,
     [JetsonToMcu_liquid_lens_tag] = handle_liquid_lens,
+    [JetsonToMcu_voltage_request_tag] = handle_voltage_request,
     [JetsonToMcu_fw_image_check_tag] = handle_fw_img_crc,
     [JetsonToMcu_fw_image_secondary_activate_tag] = handle_fw_img_sec_activate,
     [JetsonToMcu_heartbeat_tag] = handle_heartbeat,

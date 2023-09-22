@@ -7,10 +7,10 @@
 #include "temperature/sensors/temperature.h"
 #include "ui/operator_leds/operator_leds.h"
 #include "utils.h"
+#include "voltage_measurement/voltage_measurement.h"
 #include <app_assert.h>
 #include <stdlib.h>
 #include <zephyr/device.h>
-#include <zephyr/drivers/adc.h>
 #include <zephyr/drivers/can.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
@@ -22,9 +22,6 @@ LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
 static const struct device *can_dev = DEVICE_DT_GET(DT_ALIAS(battery_can_bus));
 K_THREAD_STACK_DEFINE(can_battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
 static struct k_thread rx_thread_data = {0};
-
-static const struct adc_dt_spec adc_vbat_sw =
-    ADC_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), 0);
 
 // minimum voltage needed to boot the Orb during startup (in millivolts)
 #define BATTERY_MINIMUM_VOLTAGE_STARTUP_MV       13750
@@ -766,7 +763,7 @@ can_state_change_callback(const struct device *dev, enum can_state state,
 }
 
 ret_code_t
-battery_init(const Hardware *hw_version)
+battery_init(void)
 {
     int ret;
 
@@ -817,98 +814,26 @@ battery_init(const Hardware *hw_version)
     LOG_INF("Capacity from battery: %u%%", battery_cap_percentage);
 
     if (!got_battery_voltage_can_message_local) {
-        if (!device_is_ready(adc_vbat_sw.dev)) {
-            LOG_ERR("ADC device not found");
-        } else {
-            // provide power to operational amplifiers to enable power supply
-            // measurement circuitry
-            struct gpio_dt_spec supply_meas_enable_spec = GPIO_DT_SPEC_GET(
-                DT_PATH(zephyr_user), supply_voltages_meas_enable_gpios);
-            ret = gpio_pin_configure_dt(&supply_meas_enable_spec, GPIO_OUTPUT);
-            ASSERT_SOFT(ret);
-            ret |= gpio_pin_set_dt(&supply_meas_enable_spec, 1);
-            if (ret) {
-                LOG_ERR("IO error %d", ret);
-                return RET_ERROR_INVALID_STATE;
-            }
+        ret = voltage_measurement_get(CHANNEL_VBAT_SW, &full_voltage_mv);
+        ASSERT_SOFT(ret);
 
-            // give some time to obtain battery voltage at the MCU pin
-            k_msleep(1);
+        LOG_INF("Voltage from power supply / super caps: %umV",
+                full_voltage_mv);
 
-            // let's configure the ADC and ADC measurement
-            struct adc_channel_cfg channel_cfg = {
-                .channel_id = adc_vbat_sw.channel_id,
-                .gain = ADC_GAIN_1,
-                .reference = ADC_REF_INTERNAL,
-                .acquisition_time = ADC_ACQ_TIME_DEFAULT,
-                .differential = false,
-            };
-            adc_channel_setup(adc_vbat_sw.dev, &channel_cfg);
+        if (full_voltage_mv >= BATTERY_MINIMUM_VOLTAGE_STARTUP_MV) {
+            LOG_WRN("🧑‍💻 Power supply mode [dev mode]");
+            dev_mode = true;
 
-            int32_t vref_mv;
-            float voltage_divider_scaling_vbat_sw;
+            // insert some fake values to keep orb-core happy
+            state_414.voltage_group_1 = 4000;
+            state_414.voltage_group_2 = 4000;
+            state_414.voltage_group_3 = 4000;
+            state_414.voltage_group_4 = 4000;
+            state_499.state_of_charge = 100;
+            can_message_414_received = true;
+            can_message_499_received = true;
 
-            if (hw_version->version ==
-                Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
-                vref_mv = DT_PROP(DT_PATH(zephyr_user), ev5_vref_mv);
-                voltage_divider_scaling_vbat_sw = DT_STRING_UNQUOTED(
-                    DT_PATH(zephyr_user), voltage_divider_scaling_vbat_sw_ev5);
-            } else {
-                vref_mv = adc_ref_internal(adc_vbat_sw.dev);
-                voltage_divider_scaling_vbat_sw = DT_STRING_UNQUOTED(
-                    DT_PATH(zephyr_user), voltage_divider_scaling_vbat_sw);
-            }
-
-            LOG_INF("vref_mv: %d", vref_mv);
-
-            int16_t sample_buffer = 0;
-            struct adc_sequence sequence = {
-                .channels = BIT(adc_vbat_sw.channel_id),
-                .resolution = 12,
-                .oversampling = 0,
-                .buffer = &sample_buffer,
-                .buffer_size = sizeof(sample_buffer),
-            };
-
-            // read sample
-            ret = adc_read(adc_vbat_sw.dev, &sequence);
-            if (ret != 0) {
-                LOG_ERR("ADC ret %d", ret);
-            } else {
-                int32_t sample_i32 = sample_buffer;
-                ret = adc_raw_to_millivolts(vref_mv, channel_cfg.gain,
-                                            sequence.resolution, &sample_i32);
-                // find voltage before divider bridge
-                sample_i32 = (int32_t)((float)sample_i32 *
-                                       voltage_divider_scaling_vbat_sw);
-
-                if (ret == 0) {
-                    full_voltage_mv = sample_i32;
-                    LOG_INF("Voltage from power supply / super caps: %umV",
-                            full_voltage_mv);
-
-                    if (full_voltage_mv >= BATTERY_MINIMUM_VOLTAGE_STARTUP_MV) {
-                        LOG_WRN("🧑‍💻 Power supply mode [dev mode]");
-                        dev_mode = true;
-
-                        // insert some fake values to keep orb-core happy
-                        state_414.voltage_group_1 = 4000;
-                        state_414.voltage_group_2 = 4000;
-                        state_414.voltage_group_3 = 4000;
-                        state_414.voltage_group_4 = 4000;
-                        state_499.state_of_charge = 100;
-                        can_message_414_received = true;
-                        can_message_499_received = true;
-
-                        battery_cap_percentage = 100;
-                    }
-                }
-            }
-
-            // disable measurement circuitry
-            ret = gpio_pin_configure_dt(&supply_meas_enable_spec,
-                                        GPIO_DISCONNECTED);
-            ASSERT_SOFT(ret);
+            battery_cap_percentage = 100;
         }
     }
 

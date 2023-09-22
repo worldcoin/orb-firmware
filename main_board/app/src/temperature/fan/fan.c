@@ -144,18 +144,16 @@ fan_init(void)
     }
 
     // set specs depending on current hardware
-    Hardware hw_rev;
-    if (version_get_hardware_rev(&hw_rev) == RET_SUCCESS) {
-        if (hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1 ||
-            hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
-            fan_specs = fan_ev1_2_specs;
-        } else if (hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
-                   hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4 ||
-                   hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
-            fan_specs = fan_ev3_specs;
-        } else {
-            LOG_ERR("Not supported main board: %u", hw_rev.version);
-        }
+    Hardware_OrbVersion version = version_get_hardware_rev();
+    if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1 ||
+        version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
+        fan_specs = fan_ev1_2_specs;
+    } else if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
+               version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4 ||
+               version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+        fan_specs = fan_ev3_specs;
+    } else {
+        LOG_ERR("Not supported main board: %u", version);
     }
 
 #ifdef CONFIG_TEST_FAN
@@ -164,15 +162,15 @@ fan_init(void)
     uint32_t value;
     uint32_t pulse_width_ns;
 
-    if (hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1 ||
-        hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
+    if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1 ||
+        version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
         max_speed_pulse_width_ns = 32000;
 
         // 655 (1% of 65535) *40000 (period) *0.8 (range) / 65535 = 319
         min_speed_pulse_width_ns = 319;
-    } else if (hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
-               hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4 ||
-               hw_rev.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+    } else if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
+               version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4 ||
+               version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         max_speed_pulse_width_ns = 40000;
 
         // min is 40% duty cycle = 0.4*40000

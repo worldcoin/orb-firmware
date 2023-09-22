@@ -1,0 +1,34 @@
+# Copyright (c) 2023 Tools for Humanity GmbH
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Description for the liquid lens
+
+compatible: "worldcoin,liquid-lens"
+
+properties:
+  io-channels:
+    type: phandle-array
+    required: true
+    description: |
+      Channels for reading the current going through the liquid lens
+  io-channel-names:
+    type: string-array
+    required: true
+    description: |
+      Names of the channels for reading the current going through the liquid lens
+  enable-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      GPIO pin to enable liquid lens gate drivers
+  amplifier-gains:
+    type: array
+    required: true
+    description: |
+      Gain of the amplifier in the current measurement circuit
+  shunt-resistor-ohms:
+    type: string-array
+    required: true
+    description: |
+      Shunt resistor value in Ohms

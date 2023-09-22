@@ -23,6 +23,9 @@ config MCU_DEVEL
 
 comment "Integration tests"
 
+config TEST_VOLTAGE_MEASUREMENT
+    bool "Test the supply voltages"
+
 config TEST_MIRRORS
     bool "Test the mirrors control"
 
@@ -52,6 +55,7 @@ config TEST_GNSS
 
 config APP_TESTS_ALL
     bool "Enable all integration tests"
+    select TEST_VOLTAGE_MEASUREMENT
     select TEST_MIRRORS
     select TEST_DFU
     select TEST_OPERATOR_LEDS

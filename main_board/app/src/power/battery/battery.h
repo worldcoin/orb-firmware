@@ -19,4 +19,4 @@
  *      cannot be configured to receive messages from the battery
  */
 ret_code_t
-battery_init(const Hardware *hw_version);
+battery_init(void);

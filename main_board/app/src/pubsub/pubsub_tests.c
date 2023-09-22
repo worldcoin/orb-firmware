@@ -110,6 +110,8 @@ ZTEST(hil, test_pubsub_sent_messages)
         mcu_to_jetson_payloads & (1 << McuToJetson_temperature_tag), 0);
     zassert_not_equal(
         mcu_to_jetson_payloads & (1 << McuToJetson_fan_status_tag), 0);
+    zassert_not_equal(mcu_to_jetson_payloads & (1 << McuToJetson_voltage_tag),
+                      0);
     zassert_not_equal(
         mcu_to_jetson_payloads & (1 << McuToJetson_motor_range_tag), 0);
     zassert_not_equal(

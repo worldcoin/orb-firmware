@@ -35,7 +35,6 @@
 
     aliases {
         battery-can-bus = &can2;
-        die-temp0 = &die_temp;
         watchdog0 = &iwdg;
         secondary-slot = &slot1_partition;
     };
@@ -57,8 +56,6 @@
         // on mainboard versions 3.2+, but this pin is unused on
         // mainboard 3.1, so no harm no foul
         fans-enable-gpios = <&gpiob 13 GPIO_ACTIVE_HIGH>;
-        // enable opamps to allow for voltage measurements of the power supplies
-        supply-voltages-meas-enable-gpios = <&gpioe 1 GPIO_ACTIVE_LOW>;
         // enable pin for +3V8 converter on EV1...4, RFID_IRQ on EV5
         supply-3v8-enable-rfid-irq-gpios = <&gpioe 15 GPIO_ACTIVE_HIGH>;
         // enable pin for +3V3_SSD and +3V3_WIFI only on EV5
@@ -71,6 +68,8 @@
         supply-pvcc-enable-gpios = <&gpioe 6 GPIO_ACTIVE_HIGH>;
         supply-super-cap-enable-gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>;
         supply-vbat-sw-enable-gpios = <&gpiof 10 GPIO_ACTIVE_HIGH>;
+
+        // used by boot.c when voltage measurements module is not available yet
         pvcc-voltage-gpios = <&gpioc 1 GPIO_ACTIVE_HIGH>;
 
         tests-ir-leds-850-940-gpios =
@@ -80,25 +79,13 @@
             <&gpioe 5 GPIO_ACTIVE_HIGH /* 940nm right */ >;
         front-unit-pvcc-enabled-gpios = <&gpioc 10 GPIO_ACTIVE_LOW>;
 
-        // [0]: Battery voltage ADC, [1]: Hardware rev ADC
-        io-channels = <&adc1 1>, <&adc1 11>;
+        debug-led-gpios = <&gpiob 4 GPIO_ACTIVE_LOW>;
 
         // Voltage at VREF+ pin on EV5 hardware (in contrast VREF+ is connected to VDD on EV1...4)
         ev5-vref-mv = <2048>;
 
         // VREF+ is connected to VDD on EV1...4
         ev1-vref-mv = <3300>;
-
-        // liquid lens current measurement
-        liquid-lens-shunt-resistance-ohm = "0.15f";
-        liquid-lens-current-amplifier-gain = "20.0f";  // EV1...4
-        liquid-lens-current-amplifier-gain-ev5 = "10.0f";
-
-        // EV1...4: R1=442k, R2=100k
-        voltage-divider-scaling-vbat-sw = "5.42f";
-
-        // EV5: R1=94k, R2=10k
-        voltage-divider-scaling-vbat-sw-ev5 = "10.4f";
     };
 
     buttons {
@@ -151,11 +138,6 @@
         gpios = <&gpiod 3 GPIO_ACTIVE_LOW>;
     };
 
-    liquid_lens_en {
-        compatible = "gpio-liquid-lens-en";
-        gpios = <&gpiod 2 GPIO_ACTIVE_HIGH>;
-    };
-
     hrtim1: hrtim1@40016800 {
         compatible = "st,stm32-hr-timers";
         reg = <0x40016800 0xc00>;
@@ -171,10 +153,80 @@
         compatible = "pwm-fan";
         pwms = <&fan_main_and_aux_pwm 2 40000 PWM_POLARITY_NORMAL>;
     };
-};
 
-&die_temp {
-    status = "okay";
+    board_version {
+        compatible = "worldcoin,board-version";
+        io-channels = <&adc1 11>;
+    };
+
+    liquid_lens {
+        compatible = "worldcoin,liquid-lens";
+
+        io-channels = <&adc3 10>, <&adc3 11>, <&adc3 18>;
+        io-channel-names = "ina240_ref", "ina240_sig", "vrefint";
+
+        enable-gpios = <&gpiod 2 GPIO_ACTIVE_HIGH>;
+
+        // array: EV1..4, EV5
+        amplifier-gains = <20>, <10>;
+        shunt-resistor-ohms = "0.15f", "0.15f";
+    };
+
+    voltage_measurement {
+        compatible = "worldcoin,voltage-measurement";
+
+        // enable opamps to allow for voltage measurements of the power supplies
+        supply-voltages-meas-enable-gpios = <&gpioe 1 GPIO_ACTIVE_LOW>;
+
+        // io-channels = <adc-device channel-number>, ...
+        // adc1:
+        // [0]: VBAT_SW
+        // [1]: PVCC
+        // [2]: 12V
+        // [3]: 12V_CAPS
+        // [4]: Die Temperature
+        // [5]: Vbat / 3
+        // adc5:
+        // [6]: 1V8
+        // [7]: 3V3
+        // [8]: 5V
+        // [9]: 3V3_SSD (EV5) / 3V8 (EV1…EV4)
+        // [10]: VREFINT (typ. 1.212 V)
+        io-channels = <&adc1 1>, <&adc1 7>, <&adc1 8>, <&adc1 9>, <&adc1 16>, <&adc1 17>, <&adc5 7>, <&adc5 8>, <&adc5 9>, <&adc5 13>, <&adc5 18>;
+        io-channel-names = "vbat_sw", "pvcc", "12v", "12v_caps", "die_temp", "3v3_uc", "1v8", "3v3", "5v", "3v3_ssd_3v8", "vrefint";
+
+        // [0]: EV1...4: R1=442k, R2=100k
+        // [1]: EV5: R1=94k, R2=10k
+        voltage-divider-scaling-vbat-sw = "5.42f", "10.4f";
+
+        // [0]: EV1...4: R1=10k, R2=47k
+        // [1]: EV5: R1=10k, R2=10k
+        voltage-divider-scaling-3v3 = "1.213f", "2.0f";
+
+        // [0]: EV1...4: R1=10k, R2=10k
+        // [1]: EV5: R1=20k, R2=10k
+        voltage-divider-scaling-5v = "2.0f", "3.0f";
+
+        // [0]: EV1...4: R1=10k, R2=47k
+        // [1]: EV5: R1=10k, R2=10k
+        voltage-divider-scaling-3v8-3v3-ssd = "1.213f", "2.0f";
+
+        // [0]: EV1...4: R1=27R, R2=inf
+        // [1]: EV5: R1=27R, R2=inf
+        voltage-divider-scaling-1v8 = "1.0f", "1.0f";
+
+        // [0]: EV1...4: R1=47k, R2=10k
+        // [1]: EV5: R1=57k, R2=10k
+        voltage-divider-scaling-12v = "5.7f", "6.7f";
+
+        // [0]: EV1...4: R1=47k, R2=10k
+        // [1]: EV5: R1=57k, R2=10k
+        voltage-divider-scaling-12v-caps = "5.7f", "6.7f";
+
+        // [0]: EV1...4: R1=442k, R2=47k
+        // [1]: EV5: R1=442k, R2=23.5k
+        voltage-divider-scaling-pvcc = "10.40f", "19.81f";
+    };
 };
 
 &rng {
@@ -186,18 +238,179 @@
 // used to measure battery voltage, hardware revision
 // & die temperature (channel 16)
 &adc1 {
+    // dmamux1: 7 = dma-channel 8; 5 = DMA request MUX input (ADC1) from reference manual RM0440
+    dmas = < &dmamux1 7 5 (STM32_DMA_PERIPH_TO_MEMORY |
+    STM32_DMA_MEM_INC |  STM32_DMA_MEM_16BITS | STM32_DMA_PERIPH_16BITS) >;
+    dma-names = "dmamux";
+
     status = "okay";
-    pinctrl-0 = <&adc1_in1_pa0>, <&adc1_in11_pb12>;
+    pinctrl-0 = <&adc1_in1_pa0 &adc1_in7_pc1 &adc1_in8_pc2 &adc1_in9_pc3 &adc1_in11_pb12>;
     pinctrl-names = "default";
     vref-mv = <3300>;
+    vbat-channel = < 0x11 >;
+
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    channel@1 {		// VBAT_SW
+        reg = <1>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@7 {		// PVCC
+        reg = <7>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@8 {		// 12V
+        reg = <8>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@9 {		// 12V_CAPS
+        reg = <9>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@b {	        // HW_VERSION
+        reg = <11>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@10 {	// die temperature
+        reg = <16>;
+        // Minimum required sampling time is 5 µs according to the datasheet
+        // Our ADC is running with 42.5 MHz (AHB = 170 MHz / 4)
+        // This means we need to set the sampling time to at least 5 µs * 42.5 MHz = 212.5 ADC Ticks
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 248)>;	// ~5.8 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@11 {	// VBAT / 3 = 3V3_UC / 3
+        reg = <17>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 248)>;	// ~5.8 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
 };
 
 // used by liquid_lens module
 &adc3 {
-    status = "disabled";
+    // dmamux1: 10 = dma-channel 11; 37 = DMA request MUX input (ADC3) from reference manual RM0440
+    dmas = < &dmamux1 10 37 (STM32_DMA_PERIPH_TO_MEMORY |STM32_DMA_MEM_INC |
+                           STM32_DMA_MEM_16BITS | STM32_DMA_PERIPH_16BITS) >;
+    dma-names = "dmamux";
+    status = "okay";
     pinctrl-0 = <&adc3_in10_pd13 &adc3_in11_pd14>;
     pinctrl-names = "default";
     vref-mv = <3300>;
+    vref-channel = < 0x12 >;
+
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    channel@a {		// INA240 REF
+        reg = <10>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@b {		// INA240 SIG
+        reg = <11>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@12 {	// VREFINT (typ. 1.212 V)
+        reg = <18>;
+        // Minimum required sampling time is 4 µs according to the datasheet
+        // Our ADC is running with 42.5 MHz (AHB = 170 MHz / 4)
+        // This means we need to set the sampling time to at least 4 µs * 42.5 MHz = 170 ADC Ticks
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 248)>;	// ~5.8 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+};
+
+&adc5 {
+    // dmamux1: 9 = dma-channel 10; 39 = DMA request MUX input (ADC5) from reference manual RM0440
+    dmas = < &dmamux1 9 39 (STM32_DMA_PERIPH_TO_MEMORY |
+	STM32_DMA_MEM_INC |  STM32_DMA_MEM_16BITS | STM32_DMA_PERIPH_16BITS) >;
+    dma-names = "dmamux";
+    status = "okay";
+    pinctrl-0 = <&adc5_in7_pd10 &adc5_in8_pd11 &adc5_in9_pd12 &adc5_in13_pd9>;
+    pinctrl-names = "default";
+    vref-mv = <3300>;
+    vref-channel = < 0x12 >;
+
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    channel@7 {		// 1V8
+        reg = <7>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@8 {		// 3V3
+        reg = <8>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@9 {		// 5V
+        reg = <9>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@d {	        // 3V3_SSD (EV5) / 3V8 (EV1…EV4)
+        reg = <13>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@12 {	// VREFINT (typ. 1.212 V)
+        reg = <18>;
+        // Minimum required sampling time is 4 µs according to the datasheet
+	// Our ADC is running with 42.5 MHz (AHB = 170 MHz / 4)
+	// This means we need to set the sampling time to at least 4 µs * 42.5 MHz = 170 ADC Ticks
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 248)>;	// ~5.8 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
 };
 
 &hrtim1 {

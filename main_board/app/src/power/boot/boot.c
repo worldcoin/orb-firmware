@@ -158,8 +158,7 @@ power_turn_on_power_supplies(void)
 {
     const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
 
-    Hardware hw;
-    version_get_hardware_rev(&hw);
+    Hardware_OrbVersion version = version_get_hardware_rev();
 
     if (!device_is_ready(supply_vbat_sw_enable_gpio_spec.port) ||
         !device_is_ready(supply_12v_enable_gpio_spec.port) ||
@@ -171,7 +170,7 @@ power_turn_on_power_supplies(void)
     }
 
     // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5
-    if (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+    if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         if (!device_is_ready(supply_3v3_ssd_enable_gpio_spec.port) ||
             !device_is_ready(supply_3v3_wifi_enable_gpio_spec.port)) {
             return 1;
@@ -223,7 +222,7 @@ power_turn_on_power_supplies(void)
     LOG_INF("3.3V enabled");
 
     // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5
-    if (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+    if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
         LOG_INF("3.3V SSD power supply enabled");
 
@@ -244,10 +243,10 @@ power_turn_on_power_supplies(void)
     LOG_INF("12V enabled");
 
     // 3.8V regulator only available on EV1...4
-    if ((hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
-        (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
-        (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
-        (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
+    if ((version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
+        (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
+        (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
+        (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
         gpio_pin_set_dt(&supply_3v8_enable_rfid_irq_gpio_spec, 1);
         LOG_INF("3.8V enabled");
     }
@@ -320,7 +319,7 @@ power_until_button_press(void)
     }
 
     const struct gpio_dt_spec supply_meas_enable_spec = GPIO_DT_SPEC_GET(
-        DT_PATH(zephyr_user), supply_voltages_meas_enable_gpios);
+        DT_PATH(voltage_measurement), supply_voltages_meas_enable_gpios);
     ret = gpio_pin_configure_dt(&supply_meas_enable_spec, GPIO_OUTPUT);
     ASSERT_SOFT(ret);
     ret = gpio_pin_set_dt(&supply_meas_enable_spec, 1);
@@ -378,7 +377,15 @@ power_until_button_press(void)
         k_msleep(BUTTON_PRESS_TIME_MS / OPERATOR_LEDS_COUNT);
     }
 
-    return 0;
+    // Disconnect PVCC pin from GPIO so that it can be used by the ADC in other
+    // modules
+    ret = gpio_pin_configure_dt(&pvcc_in_gpio_spec, GPIO_DISCONNECTED);
+    if (ret) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    return RET_SUCCESS;
 }
 
 /**
@@ -497,8 +504,7 @@ reboot_thread()
 {
     uint32_t delay = 0;
 
-    Hardware hw;
-    version_get_hardware_rev(&hw);
+    Hardware_OrbVersion version = version_get_hardware_rev();
 
     // wait until triggered
     k_sem_take(&sem_reboot, K_FOREVER);
@@ -536,7 +542,7 @@ reboot_thread()
 
             gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 0);
             // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5
-            if (hw.version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+            if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
                 gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 0);
                 gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 0);
             }
