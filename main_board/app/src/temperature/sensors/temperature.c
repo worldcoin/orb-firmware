@@ -277,12 +277,19 @@ average(const int32_t *array)
     return (int32_t)lroundl(avg);
 }
 
-static void
+/**
+ * @brief Sample the temperature sensor and report the average
+ *
+ * @param sensor_and_channel the sensor to sample along with its metadata
+ * @return int64_t time in ticks it took to sample and report
+ */
+static int64_t
 sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
 {
     int ret;
     size_t i;
 
+    int64_t start = k_uptime_ticks();
     for (i = 0; i < TEMPERATURE_SAMPLE_RETRY_COUNT; ++i) {
         ret = get_ambient_temperature(
             sensor_and_channel->sensor,
@@ -312,6 +319,7 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
                         " (°C)",
                         sensor_and_channel->sensor->name,
                         sensor_and_channel->average, current_sample);
+                k_msleep(1);
             }
         }
     }
@@ -322,7 +330,7 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
                 sensor_and_channel->sensor->name,
                 TEMPERATURE_SAMPLE_RETRY_COUNT);
         init_sensor_and_channel(sensor_and_channel);
-        return;
+        return k_uptime_ticks() - start;
     }
 
     sensor_and_channel->wr_idx =
@@ -334,16 +342,21 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
                 sensor_and_channel->average);
         temperature_report_internal(sensor_and_channel);
     }
+
+    return (k_uptime_ticks() - start);
 }
 
 _Noreturn static void
 temperature_thread()
 {
+    int64_t elapsed = 0;
     for (;;) {
-        k_sleep(global_sample_period);
+        k_timeout_t sleep_duration = {.ticks =
+                                          global_sample_period.ticks - elapsed};
+        k_sleep(sleep_duration);
 
         for (size_t i = 0; i < ARRAY_SIZE(sensors_and_channels); ++i) {
-            sample_and_report_temperature(&sensors_and_channels[i]);
+            elapsed = sample_and_report_temperature(&sensors_and_channels[i]);
         }
     }
 }
