@@ -54,10 +54,9 @@ static const uint16_t cal_vref_mv =
 struct sensor_and_channel; // forward declaration
 
 typedef void (*temperature_callback)(
-    struct sensor_and_channel *sensor_and_channel, int32_t temperature);
+    struct sensor_and_channel *sensor_and_channel);
 static void
-overtemp_callback(struct sensor_and_channel *sensor_and_channel,
-                  int32_t temperature);
+overtemp_callback(struct sensor_and_channel *sensor_and_channel);
 
 struct overtemp_info {
     int32_t overtemp_c;
@@ -75,9 +74,10 @@ struct sensor_and_channel {
     struct overtemp_info *cb_data;
     int32_t history[TEMPERATURE_AVERAGE_SAMPLE_COUNT];
     size_t wr_idx;
+    int32_t average;
 };
 
-#define TEMPERATURE_HISTORY_SENTINEL_VALUE INT32_MIN
+#define TEMPERATURE_SENTINEL_VALUE INT32_MIN
 
 enum temperature_sensors {
     TEMPERATURE_SENSOR_FRONT_UNIT = 0,
@@ -101,7 +101,8 @@ static struct sensor_and_channel sensors_and_channels[] = {
                                             .in_overtemp = false,
                                             .critical_timer = 0},
          .history = {0},
-         .wr_idx = 0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
 
     [TEMPERATURE_SENSOR_MAIN_BOARD] =
         {.sensor = DEVICE_DT_GET(DT_NODELABEL(main_board_tmp_sensor)),
@@ -116,7 +117,8 @@ static struct sensor_and_channel sensors_and_channels[] = {
                                             .in_overtemp = false,
                                             .critical_timer = 0},
          .history = {0},
-         .wr_idx = 0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
 
     [TEMPERATURE_SENSOR_LIQUID_LENS] =
         {.sensor = DEVICE_DT_GET(DT_NODELABEL(liquid_lens_tmp_sensor)),
@@ -132,7 +134,8 @@ static struct sensor_and_channel sensors_and_channels[] = {
                                      .in_overtemp = false,
                                      .critical_timer = 0},
          .history = {0},
-         .wr_idx = 0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
     [TEMPERATURE_SENSOR_DIE] = {
         .sensor = &(struct device){.name = "die_temp"},
         .channel = SENSOR_CHAN_DIE_TEMP,
@@ -145,7 +148,8 @@ static struct sensor_and_channel sensors_and_channels[] = {
                                            .in_overtemp = false,
                                            .critical_timer = 0},
         .history = {0},
-        .wr_idx = 0}};
+        .wr_idx = 0,
+        .average = TEMPERATURE_SENTINEL_VALUE}};
 
 BUILD_ASSERT(TEMPERATURE_SENSOR_COUNT == ARRAY_SIZE(sensors_and_channels),
              "Count must match sensors_and_channels size");
@@ -161,7 +165,7 @@ init_sensor_and_channel(struct sensor_and_channel *x)
 {
     x->wr_idx = 0;
     for (size_t i = 0; i < ARRAY_SIZE(x->history); ++i) {
-        x->history[i] = TEMPERATURE_HISTORY_SENTINEL_VALUE;
+        x->history[i] = TEMPERATURE_SENTINEL_VALUE;
     }
 }
 
@@ -241,14 +245,13 @@ get_ambient_temperature(const struct device *dev, int32_t *temp,
 }
 
 static void
-temperature_report_internal(struct sensor_and_channel *sensor_and_channel,
-                            int32_t temperature_in_c)
+temperature_report_internal(struct sensor_and_channel *sensor_and_channel)
 {
     temperature_report(sensor_and_channel->temperature_source,
-                       temperature_in_c);
+                       sensor_and_channel->average);
 
     if (sensor_and_channel->cb) {
-        sensor_and_channel->cb(sensor_and_channel, temperature_in_c);
+        sensor_and_channel->cb(sensor_and_channel);
     }
 }
 
@@ -279,7 +282,6 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
 {
     int ret;
     size_t i;
-    int32_t temp;
 
     for (i = 0; i < TEMPERATURE_SAMPLE_RETRY_COUNT; ++i) {
         ret = get_ambient_temperature(
@@ -289,17 +291,12 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
 
         if (ret == RET_SUCCESS) {
             // Sometimes the internal temperature sensor gives an erroneous
-            // reading. Let's compare the current sample against the last and
-            // reject the reading if it seems impossible.
-            int last_sample_index = ((int32_t)sensor_and_channel->wr_idx +
-                                     TEMPERATURE_AVERAGE_SAMPLE_COUNT - 1) %
-                                    TEMPERATURE_AVERAGE_SAMPLE_COUNT;
-            int32_t last_sample =
-                sensor_and_channel->history[last_sample_index];
+            // reading. Let's compare the current sample against the last known
+            // average
             int32_t current_sample =
                 sensor_and_channel->history[sensor_and_channel->wr_idx];
 
-            if (last_sample == TEMPERATURE_HISTORY_SENTINEL_VALUE) {
+            if (sensor_and_channel->average == TEMPERATURE_SENTINEL_VALUE) {
                 // This is the first sample. So instead of comparing against the
                 // last value, just check if the reading generally seems in
                 // range.
@@ -307,14 +304,14 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
                     // Seems ok
                     break;
                 }
-            } else if (abs(current_sample - last_sample) < 8) {
+            } else if (abs(current_sample - sensor_and_channel->average) < 8) {
                 // Seems ok
                 break;
             } else {
-                LOG_DBG("'%s' outlier, prev: %" PRId32 ", current: %" PRId32
+                LOG_DBG("'%s' outlier, avg: %" PRId32 ", current: %" PRId32
                         " (°C)",
-                        sensor_and_channel->sensor->name, last_sample,
-                        current_sample);
+                        sensor_and_channel->sensor->name,
+                        sensor_and_channel->average, current_sample);
             }
         }
     }
@@ -332,9 +329,10 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
         (sensor_and_channel->wr_idx + 1) % TEMPERATURE_AVERAGE_SAMPLE_COUNT;
 
     if (sensor_and_channel->wr_idx == 0) {
-        temp = average(sensor_and_channel->history);
-        LOG_DBG("%s: %iC", sensor_and_channel->sensor->name, temp);
-        temperature_report_internal(sensor_and_channel, temp);
+        sensor_and_channel->average = average(sensor_and_channel->history);
+        LOG_DBG("%s: %iC", sensor_and_channel->sensor->name,
+                sensor_and_channel->average);
+        temperature_report_internal(sensor_and_channel);
     }
 }
 
@@ -471,8 +469,7 @@ dec_overtemp_condition(void)
 }
 
 static void
-overtemp_callback(struct sensor_and_channel *sensor_and_channel,
-                  int32_t temperature)
+overtemp_callback(struct sensor_and_channel *sensor_and_channel)
 {
     struct overtemp_info *overtemp_info =
         (struct overtemp_info *)sensor_and_channel->cb_data;
@@ -482,7 +479,8 @@ overtemp_callback(struct sensor_and_channel *sensor_and_channel,
         return;
     }
 
-    if (temperature > overtemp_info->overtemp_c + OVERTEMP_TO_CRITICAL_RISE_C) {
+    if (sensor_and_channel->average >
+        overtemp_info->overtemp_c + OVERTEMP_TO_CRITICAL_RISE_C) {
         overtemp_info->critical_timer +=
             (global_sample_period.ticks * TEMPERATURE_AVERAGE_SAMPLE_COUNT *
              1000 / CONFIG_SYS_CLOCK_TICKS_PER_SEC);
@@ -505,17 +503,17 @@ overtemp_callback(struct sensor_and_channel *sensor_and_channel,
     }
 
     if (!overtemp_info->in_overtemp &&
-        temperature > overtemp_info->overtemp_c) {
+        sensor_and_channel->average > overtemp_info->overtemp_c) {
         LOG_WRN("%s temperature exceeds %u°C", sensor_and_channel->sensor->name,
                 overtemp_info->overtemp_c);
         overtemp_info->in_overtemp = true;
         inc_overtemp_condition();
     } else if (overtemp_info->in_overtemp &&
-               temperature < (overtemp_info->overtemp_c -
-                              overtemp_info->overtemp_drop_c)) {
+               sensor_and_channel->average < (overtemp_info->overtemp_c -
+                                              overtemp_info->overtemp_drop_c)) {
         LOG_INF("Over-temperature alert -- %s temperature has decreased to "
                 "safe value of %u°C",
-                sensor_and_channel->sensor->name, temperature);
+                sensor_and_channel->sensor->name, sensor_and_channel->average);
         overtemp_info->in_overtemp = false;
         dec_overtemp_condition();
     }
