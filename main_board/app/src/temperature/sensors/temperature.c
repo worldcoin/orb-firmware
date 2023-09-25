@@ -199,12 +199,18 @@ get_die_temperature_degree(struct sensor_value *value)
     return ret;
 }
 
-void
+ret_code_t
 temperature_set_sampling_period_ms(uint32_t sample_period)
 {
+    if (sample_period < 100 || sample_period > 15000) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
     global_sample_period =
         K_MSEC(sample_period / TEMPERATURE_AVERAGE_SAMPLE_COUNT);
     k_wakeup(thread_id);
+
+    return RET_SUCCESS;
 }
 
 static ret_code_t

@@ -376,11 +376,10 @@ handle_temperature_sample_period_message(job_t *job)
 
     LOG_DBG("Got new temperature sampling period: %ums", sample_period_ms);
 
-    if (sample_period_ms > 15000) {
-        job_ack(Ack_ErrorCode_RANGE, job);
-    } else {
-        temperature_set_sampling_period_ms(sample_period_ms);
+    if (temperature_set_sampling_period_ms(sample_period_ms) == RET_SUCCESS) {
         job_ack(Ack_ErrorCode_SUCCESS, job);
+    } else {
+        job_ack(Ack_ErrorCode_RANGE, job);
     }
 }
 
