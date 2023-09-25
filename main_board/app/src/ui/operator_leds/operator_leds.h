@@ -3,7 +3,12 @@
 #include <errors.h>
 #include <mcu_messaging.pb.h>
 
-#define OPERATOR_LEDS_COUNT    DT_PROP(DT_NODELABEL(operator_rgb_leds), num_leds)
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+// todo read from device tree
+#define OPERATOR_LEDS_COUNT 5
+#else
+#define OPERATOR_LEDS_COUNT DT_PROP(DT_NODELABEL(operator_rgb_leds), num_leds)
+#endif
 #define OPERATOR_LEDS_ALL_MASK BIT_MASK(OPERATOR_LEDS_COUNT)
 
 /// Set brightness

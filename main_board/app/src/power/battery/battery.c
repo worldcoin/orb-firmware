@@ -19,6 +19,16 @@
 #include "logs_can.h"
 LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+// todo: implement for Diamond
+
+ret_code_t
+battery_init(void)
+{
+    return RET_SUCCESS;
+}
+
+#else
 static const struct device *can_dev = DEVICE_DT_GET(DT_ALIAS(battery_can_bus));
 K_THREAD_STACK_DEFINE(can_battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
 static struct k_thread rx_thread_data = {0};
@@ -32,8 +42,8 @@ static struct k_thread rx_thread_data = {0};
 // We selected 1100 ms because the battery publishes its data with 1000 ms
 // Consequently we can be sure that at least one update was sent by the battery
 // and the firmware doesn't assume falsely that the battery got removed.
-#define BATTERY_INFO_SEND_PERIOD_MS 1100
-#define BATTERY_MESSAGES_TIMEOUT_MS (BATTERY_INFO_SEND_PERIOD_MS * 8)
+#define BATTERY_INFO_SEND_PERIOD_MS              1100
+#define BATTERY_MESSAGES_TIMEOUT_MS              (BATTERY_INFO_SEND_PERIOD_MS * 8)
 static_assert(
     BATTERY_MESSAGES_TIMEOUT_MS > BATTERY_INFO_SEND_PERIOD_MS * 3,
     "Coarse timing resolution to check if battery is still sending messages");
@@ -859,3 +869,4 @@ battery_init(void)
 
     return RET_SUCCESS;
 }
+#endif

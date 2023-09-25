@@ -34,8 +34,10 @@ LOG_MODULE_REGISTER(power_sequence, CONFIG_POWER_SEQUENCE_LOG_LEVEL);
 K_THREAD_STACK_DEFINE(reboot_thread_stack, THREAD_STACK_SIZE_POWER_MANAGEMENT);
 static struct k_thread reboot_thread_data;
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 static const struct gpio_dt_spec supply_3v8_enable_rfid_irq_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v8_enable_rfid_irq_gpios);
+#endif
 
 static const struct gpio_dt_spec supply_3v3_ssd_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v3_ssd_enable_gpios);
@@ -163,7 +165,9 @@ power_turn_on_power_supplies(void)
     if (!device_is_ready(supply_vbat_sw_enable_gpio_spec.port) ||
         !device_is_ready(supply_12v_enable_gpio_spec.port) ||
         !device_is_ready(supply_5v_enable_gpio_spec.port) ||
+#if defined(CONFIG_BOARD_PEARL_MAIN)
         !device_is_ready(supply_3v8_enable_rfid_irq_gpio_spec.port) ||
+#endif
         !device_is_ready(supply_3v3_enable_gpio_spec.port) ||
         !device_is_ready(supply_1v8_enable_gpio_spec.port)) {
         return 1;
@@ -242,6 +246,7 @@ power_turn_on_power_supplies(void)
     gpio_pin_set_dt(&supply_12v_enable_gpio_spec, 1);
     LOG_INF("12V enabled");
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     // 3.8V regulator only available on EV1...4
     if ((version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
         (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
@@ -250,6 +255,7 @@ power_turn_on_power_supplies(void)
         gpio_pin_set_dt(&supply_3v8_enable_rfid_irq_gpio_spec, 1);
         LOG_INF("3.8V enabled");
     }
+#endif
 
     ret = gpio_pin_configure_dt(&supply_1v8_enable_gpio_spec, GPIO_OUTPUT);
 
@@ -268,7 +274,26 @@ power_turn_on_power_supplies(void)
 
 BUILD_ASSERT(CONFIG_I2C_INIT_PRIORITY > SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
              "I2C must be initialized _after_ the power supplies so that the "
-             "safety circuit does't get tripped");
+             "safety circuit doesn't get tripped");
+#ifdef CONFIG_GPIO_PCA95XX_INIT_PRIORITY
+BUILD_ASSERT(
+    CONFIG_GPIO_PCA95XX_INIT_PRIORITY < SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
+    "GPIO expanders need to be initialized for enabling the power supplies");
+BUILD_ASSERT(
+    CONFIG_GPIO_PCA95XX_INIT_PRIORITY < SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY,
+    "GPIO expanders need to be initialized for the button state to be polled.");
+#ifdef CONFIG_I2C_INIT_PRIO_INST_1
+BUILD_ASSERT(
+    CONFIG_GPIO_PCA95XX_INIT_PRIORITY > CONFIG_I2C_INIT_PRIO_INST_1,
+    "GPIO expanders need to be initialized after I2C3 because they are "
+    "connected to the I2C bus.");
+BUILD_ASSERT(DEVICE_DT_GET(DT_INST(1, st_stm32_i2c_v2)) ==
+                 DEVICE_DT_GET(DT_PARENT(DT_NODELABEL(gpio_exp_pwr_brd))),
+             "GPIO expander to power board must be the one connected to I2C "
+             "instance 1 (i2c3)\nif not, make sure to correctly define "
+             "CONFIG_I2C_INIT_PRIO_INST_x");
+#endif
+#endif
 
 SYS_INIT(power_turn_on_power_supplies, POST_KERNEL,
          SYS_INIT_POWER_SUPPLY_INIT_PRIORITY);
@@ -467,7 +492,7 @@ SYS_INIT(app_init_state, POST_KERNEL, SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY);
 
 static const struct gpio_dt_spec shutdown_pin =
     GPIO_DT_SPEC_GET_OR(SHUTDOWN_REQUEST_NODE, gpios, {0});
-static const struct device *power_enable = DEVICE_DT_GET(SLEEP_WAKE_CTLR);
+static const struct device *power_enable = DEVICE_DT_GET(POWER_ENABLE_CTLR);
 static const struct device *system_reset = DEVICE_DT_GET(SYSTEM_RESET_CTLR);
 
 #define SYSTEM_RESET_UI_DELAY_MS 200
@@ -625,8 +650,10 @@ boot_turn_on_jetson(void)
     const struct device *sleep_wake = DEVICE_DT_GET(SLEEP_WAKE_CTLR);
     const struct device *shutdown_request =
         DEVICE_DT_GET(SHUTDOWN_REQUEST_CTLR);
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     const struct device *lte_gps_usb_reset =
         DEVICE_DT_GET(LTE_GPS_USB_RESET_CTLR);
+#endif
     int ret = 0;
 
     if (check_is_ready(sleep_wake, "sleep wake pin") ||
@@ -667,6 +694,7 @@ boot_turn_on_jetson(void)
         ASSERT_SOFT(ret);
     }
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     ret = gpio_pin_configure(lte_gps_usb_reset, LTE_GPS_USB_RESET_PIN,
                              LTE_GPS_USB_RESET_FLAGS | GPIO_OUTPUT);
     if (ret) {
@@ -677,6 +705,7 @@ boot_turn_on_jetson(void)
                            LTE_GPS_USB_ON);
         ASSERT_SOFT(ret);
     }
+#endif
 
     shutdown_req_init();
 
@@ -788,6 +817,7 @@ boot_init(const Hardware *hw_version)
         (hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
         (hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
         (hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
+#if defined(CONFIG_BOARD_PEARL_MAIN)
         if (!device_is_ready(supply_3v8_enable_rfid_irq_gpio_spec.port)) {
             ASSERT_SOFT(RET_ERROR_INVALID_STATE);
             return RET_ERROR_INTERNAL;
@@ -800,7 +830,7 @@ boot_init(const Hardware *hw_version)
             ASSERT_SOFT(ret);
             return RET_ERROR_INTERNAL;
         }
-
+#endif
         LOG_INF("EV1...4 Mainboard detected -> SUPPLY_3V8_EN pin configured to "
                 "output.");
     } else if (hw_version->version ==

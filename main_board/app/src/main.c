@@ -1,4 +1,6 @@
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 #include "gnss/gnss.h"
+#endif
 #include "logs_can.h"
 #include "optics/optics.h"
 #include "power/battery/battery.h"
@@ -263,8 +265,10 @@ initialize(void)
     err_code = button_init();
     ASSERT_SOFT(err_code);
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     err_code = gnss_init();
     ASSERT_SOFT(err_code);
+#endif
 
     err_code = fan_tach_init();
     ASSERT_SOFT(err_code);

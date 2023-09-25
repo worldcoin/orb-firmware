@@ -1,0 +1,3 @@
+config BOARD_PEARL_MAIN
+	bool "Main board on Pearl Orb"
+	depends on SOC_STM32G474XX

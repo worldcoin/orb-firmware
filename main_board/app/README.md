@@ -47,11 +47,11 @@ To Flash: `make mcu-flash`
 Make sure you are in `"$REPO_DIR"/orb/main_board/app/` directory. Compile the app:
 
 ```shell
-# 'west build' defaults to mcu_main and Debug build
+# 'west build' defaults to pearl_main and Debug build
 # overlays might be applied to change any device or configuration
 # below the partition table with `one_slot.overlay` and the test configuration with `tests.conf`
 # can be combined
-west build [-b mcu_main] [-- -DCMAKE_BUILD_TYPE=Release -DDTC_OVERLAY_FILE=one_slot.overlay -DOVERLAY_CONFIG="tests.conf"]
+west build [-b pearl_main | diamond_main] [-- -DCMAKE_BUILD_TYPE=Release -DDTC_OVERLAY_FILE=one_slot.overlay -DOVERLAY_CONFIG="tests.conf"]
 ```
 
 Flash the app:
@@ -72,7 +72,7 @@ su-exec root west flash
 To flash a pre-built bootloader + app hex file:
 
 ```
-su-exec root pyocd flash combined_mcu_main_<board_version>_<version>.hex --target stm32g474vetx -e chip
+su-exec root pyocd flash combined_pearl_main_<board_version>_<version>.hex --target stm32g474vetx -e chip
 ```
 
 ## Misc Documentation
@@ -101,8 +101,8 @@ with `pyocd` runner:
 # From the `main_board/app` directory
 # Load path to twister
 source ../../../zephyr/zephyr-env.sh
-# Run the test suites available in the current directory for board `mcu_main`:
-twister -vv --testsuite-root . --board-root ../../boards/ --platform mcu_main \
+# Run the test suites available in the current directory for board `pearl_main`:
+twister -vv --testsuite-root . --board-root ../../boards/ --platform pearl_main \
  --clobber-output --device-serial=/dev/ttyXXX --device-testing --west-flash
 ```
 
@@ -115,7 +115,7 @@ Twister can be used to compile and flash test configurations defined in `testcas
 with `pyocd` runner:
 
 ```shell
-twister -vv -T . -A ./../../boards/ -p mcu_main -c --test orb/main_board/app/orb.hil \
+twister -vv -T . -A ./../../boards/ -p pearl_main -c --test orb/main_board/app/orb.hil \
 --device-serial /dev/ttyXXX --device-testing --west-flash="-i=<UNIQUE_ID>"
 ```
 
@@ -128,7 +128,7 @@ twister -vv -T . -A ./../../boards/ -p mcu_main -c --test orb/main_board/app/orb
 # From the `main_board/app` directory
 # Load path to twister
 source ../../../zephyr/zephyr-env.sh
-# Run the test suites available in the current directory for board `mcu_main`:
+# Run the test suites available in the current directory for board `pearl_main`:
 twister -vv --testsuite-root . --platform native_posix_64 --platform unit_testing \
 --clobber-output
 ```

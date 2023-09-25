@@ -1285,7 +1285,8 @@ mirrors_init(void)
     } else if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2 ||
                version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
                version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4 ||
-               version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+               version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
+               version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
         hw_rev_idx = 1;
     } else {
         ASSERT_SOFT(RET_ERROR_INVALID_STATE);

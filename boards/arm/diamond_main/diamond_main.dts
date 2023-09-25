@@ -1,12 +1,11 @@
 /dts-v1/;
 #include <st/g4/stm32g474Xe.dtsi>
 #include <st/g4/stm32g474v(b-c-e)tx-pinctrl.dtsi>
+#include "../stm32g474-hrtim.dtsi"
 
 // see stm32g4xx_ll_dmamux.h
 #define DMAMUX_REQ_USART1_RX 0x18
 #define DMAMUX_REQ_USART1_TX 0x19
-#define DMAMUX_REQ_USART3_RX 0x1C
-#define DMAMUX_REQ_USART3_TX 0x1D
 
 #define DMA_CONFIG_DIR_SHIFT 6
 #define DMA_DIR_MEM_TO_PERIPH 1
@@ -19,7 +18,7 @@
 
 / {
     model = "Worldcoin Orb Main MCU";
-    compatible = "worldcoin,mcu_main";
+    compatible = "worldcoin,diamond_main";
 
     chosen {
         // app in slot0_partition by default
@@ -40,123 +39,96 @@
     };
 
     zephyr,user {
-        super-caps-charging-mode-gpios = <&gpiof 9 GPIO_ACTIVE_LOW>;
-        // This is a mux for who controls the audio amp
-        // 1 == MCU
-
-        // 0 == Jetson
-        sound-amp-mux-gpios = <&gpioe 10 GPIO_ACTIVE_HIGH>;
-        i2c_clock_gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
-        // GPIO used to get hardware version dynamically
-        hw-version-gpios = <&gpiob 12 GPIO_ACTIVE_HIGH>;
         jetson_serial = <&usart1>;
-        gnss = <&usart3>;
+        // GPIO used to get hardware version dynamically
+        hw-version-gpios = <&gpio_exp2 8 GPIO_ACTIVE_HIGH>, <&gpio_exp2 9 GPIO_ACTIVE_HIGH>, <&gpio_exp2 10 GPIO_ACTIVE_HIGH>, <&gpio_exp2 11 GPIO_ACTIVE_HIGH>; // todo: replaced by digital configuration at IO expander; also add hw versions of Front Unit and Power Board
+        sound-amp-mux-gpios = <&gpio_exp1 5 GPIO_ACTIVE_HIGH>;
+        i2c_clock_gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
+        super-caps-charging-mode-gpios = <&gpio_exp_pwr_brd 3 GPIO_ACTIVE_LOW>;
         level-shifter-enable-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
-        // To be clear, the enable/disable signal only does something
-        // on mainboard versions 3.2+, but this pin is unused on
-        // mainboard 3.1, so no harm no foul
-        fans-enable-gpios = <&gpiob 13 GPIO_ACTIVE_HIGH>;
-        // enable pin for +3V8 converter on EV1...4, RFID_IRQ on EV5
-        supply-3v8-enable-rfid-irq-gpios = <&gpioe 15 GPIO_ACTIVE_HIGH>;
-        // enable pin for +3V3_SSD and +3V3_WIFI only on EV5
-        supply-3v3-ssd-enable-gpios = <&gpioa 2 GPIO_ACTIVE_HIGH>;
-        supply-3v3-wifi-enable-gpios = <&gpioc 11 GPIO_ACTIVE_HIGH>;
-        supply-12v-enable-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;
-        supply-5v-enable-gpios = <&gpiob 1 GPIO_ACTIVE_LOW>;
-        supply-3v3-enable-gpios = <&gpiod 15 GPIO_ACTIVE_HIGH>;
-        supply-1v8-enable-gpios = <&gpioe 8 GPIO_ACTIVE_HIGH>;
-        supply-pvcc-enable-gpios = <&gpioe 6 GPIO_ACTIVE_HIGH>;
-        supply-super-cap-enable-gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>;
-        supply-vbat-sw-enable-gpios = <&gpiof 10 GPIO_ACTIVE_HIGH>;
+
+        supply-3v3-ssd-enable-gpios = <&gpio_exp_pwr_brd 2 GPIO_ACTIVE_HIGH>;
+        supply-3v3-wifi-enable-gpios = <&gpio_exp1 10 GPIO_ACTIVE_HIGH>;
+        supply-12v-enable-gpios = <&gpio_exp_pwr_brd 7 GPIO_ACTIVE_HIGH>;
+        supply-5v-enable-gpios = <&gpio_exp_pwr_brd 1 GPIO_ACTIVE_LOW>;
+        supply-3v3-enable-gpios = <&gpio_exp1 9 GPIO_ACTIVE_HIGH>;
+        supply-1v8-enable-gpios = <&gpio_exp2 3 GPIO_ACTIVE_HIGH>;
+        supply-pvcc-enable-gpios = <&gpio_exp_pwr_brd 5 GPIO_ACTIVE_HIGH>;
+        supply-super-cap-enable-gpios = <&gpio_exp_pwr_brd 6 GPIO_ACTIVE_HIGH>;
+        supply-vbat-sw-enable-gpios = <&gpio_exp_pwr_brd 12 GPIO_ACTIVE_HIGH>;
+        front-unit-pvcc-enabled-gpios = <&gpio_exp_front_unit 0 GPIO_ACTIVE_HIGH>; // TODO is it connected?
 
         // used by boot.c when voltage measurements module is not available yet
         pvcc-voltage-gpios = <&gpioc 1 GPIO_ACTIVE_HIGH>;
 
         tests-ir-leds-850-940-gpios =
-            <&gpiob 14 GPIO_ACTIVE_HIGH /* 850nm left */ >,
-            <&gpiob 15 GPIO_ACTIVE_HIGH /* 850nm right */ >,
-            <&gpioe 2 GPIO_ACTIVE_HIGH /* 940nm left */ >,
-            <&gpioe 5 GPIO_ACTIVE_HIGH /* 940nm right */ >;
-        front-unit-pvcc-enabled-gpios = <&gpioc 10 GPIO_ACTIVE_LOW>;
+            <&gpiof 9 GPIO_ACTIVE_HIGH /* 850nm left */ >,
+            <&gpiof 10 GPIO_ACTIVE_HIGH /* 850nm right */ >,
+            <&gpioe 2 GPIO_ACTIVE_HIGH /* 940nm center */ >,
+            <&gpioe 5 GPIO_ACTIVE_HIGH /* 940nm side */ >;
 
         debug-led-gpios = <&gpiob 4 GPIO_ACTIVE_LOW>;
-
-        // Voltage at VREF+ pin on EV5 hardware (in contrast VREF+ is connected to VDD on EV1...4)
-        ev5-vref-mv = <2048>;
-
-        // VREF+ is connected to VDD on EV1...4
-        ev1-vref-mv = <3300>;
     };
 
     buttons {
         compatible = "gpio-keys";
-
         power_button {
             gpios = <&gpioc 13 GPIO_ACTIVE_LOW>;
             label = "Power button";
         };
     };
 
-    jetson_power_pins {
+    jetson_power_pins
+    {
         compatible = "gpio-jetson-power";
 
-        shutdown_request {
+        shutdown_request
+        {
             // input
             // Jetson module uses this to request a shutdown sequence
-            gpios = <&gpiob 7 GPIO_ACTIVE_LOW>;
+            gpios = <&gpioe 4 GPIO_ACTIVE_LOW>;
         };
 
-        power_enable {
+        power_enable
+        {
             // output
             // this signals the Jetson module to turn on an off
-            gpios = <&gpioe 12 GPIO_ACTIVE_HIGH>;
+            gpios = <&gpio_exp2 4 GPIO_ACTIVE_HIGH>;
         };
 
-        system_reset {
+        system_reset
+        {
             // bidirectional
             // drive low to reset
             // driven by Jetson to indicate power sequence is complete
-            gpios = <&gpioe 11 GPIO_ACTIVE_LOW>;
-
+            gpios = <&gpioe 8 GPIO_ACTIVE_LOW>;
         };
 
-        module_sleep {
+        module_sleep
+        {
             // input
             // when driven low indicates that the module has gone to sleep
-            gpios = <&gpiof 2 GPIO_ACTIVE_LOW>;
+            gpios = <&gpioe 0 GPIO_ACTIVE_LOW>;
         };
 
-        sleep_wake {
+        sleep_wake
+        {
             // output
             // drive high to indicate that the Jetson should enter sleep mode
             gpios = <&gpioe 9 GPIO_ACTIVE_LOW>;
         };
     };
 
-    lte_gps_usb_reset {
+    // todo LTE module supply enable
+    lte_reset {
         compatible = "gpio-lte-gps-usb";
-        gpios = <&gpiod 3 GPIO_ACTIVE_LOW>;
-    };
-
-    hrtim1: hrtim1@40016800 {
-        compatible = "st,stm32-hr-timers";
-        reg = <0x40016800 0xc00>;
-        clocks = <&rcc STM32_CLOCK_BUS_APB2 0x04000000>;
+        gpios = <&gpio_exp2 14 GPIO_ACTIVE_LOW>, <&gpio_exp2 15 GPIO_ACTIVE_LOW>;
     };
 
     fan_main {
         compatible = "pwm-fan";
-        pwms = <&fan_main_and_aux_pwm 1 40000 PWM_POLARITY_NORMAL>;
-    };
-
-    fan_aux {
-        compatible = "pwm-fan";
-        pwms = <&fan_main_and_aux_pwm 2 40000 PWM_POLARITY_NORMAL>;
-    };
-
-    board_version {
-        compatible = "worldcoin,board-version";
-        io-channels = <&adc1 11>;
+        pwms = <&fan_pwm 1 40000 PWM_POLARITY_NORMAL>;
+        enable-gpios = <&gpio_exp1 6 GPIO_ACTIVE_HIGH>;
     };
 
     liquid_lens {
@@ -165,7 +137,7 @@
         io-channels = <&adc3 10>, <&adc3 11>, <&adc3 18>;
         io-channel-names = "ina240_ref", "ina240_sig", "vrefint";
 
-        enable-gpios = <&gpiod 2 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&gpio_exp1 7 GPIO_ACTIVE_HIGH>;
 
         // array: EV1..4, EV5
         amplifier-gains = <20>, <10>;
@@ -174,96 +146,69 @@
 
     voltage_measurement {
         compatible = "worldcoin,voltage-measurement";
-
         // enable opamps to allow for voltage measurements of the power supplies
-        supply-voltages-meas-enable-gpios = <&gpioe 1 GPIO_ACTIVE_LOW>;
+        supply-voltages-meas-enable-gpios = <&gpio_exp1 8 GPIO_ACTIVE_LOW>;
 
         // io-channels = <adc-device channel-number>, ...
         // adc1:
         // [0]: VBAT_SW
-        //      EV1...4: R1=442k, R2=100k
+        //      Diamond PoC2: R1=94k, R2=10k
         // [1]: PVCC
-        //      EV1...4: R1=442k, R2=47k
+        //      Diamond PoC2: R1=442k, R2=23.5k
         // [2]: 12V
-        //      EV1...4: R1=47k, R2=10k
+        //      Diamond PoC2: R1=57k, R2=10k
         // [3]: 12V_CAPS
-        //      EV1...4: R1=47k, R2=10k
+        //      Diamond PoC2: R1=57k, R2=10k
         // [4]: Die Temperature
         // [5]: Vbat / 3
         // adc5:
         // [6]: 1V8
-        //      EV1...4: R1=27R, R2=inf
+        //      Diamond PoC2: R1=27R, R2=inf
         // [7]: 3V3
-        //      EV1...4: R1=10k, R2=47k
+        //      Diamond PoC2: R1=10k, R2=10k
         // [8]: 5V
-        //      EV1...4: R1=10k, R2=10k
+        //      Diamond PoC2: R1=20k, R2=10k
         // [9]: 3V3_SSD (EV5) / 3V8 (EV1…EV4)
-        //      EV1...4: R1=10k, R2=47k
+        //      Diamond PoC2: R1=10k, R2=10k
         // [10]: VREFINT (typ. 1.212 V)
-        io-channels = <&adc1 1>, <&adc1 7>, <&adc1 8>, <&adc1 9>, <&adc1 16>, <&adc1 17>, <&adc5 7>, <&adc5 8>, <&adc5 9>, <&adc5 13>, <&adc5 18>;
-        io-channel-names = "vbat_sw", "pvcc", "12v", "12v_caps", "die_temp", "3v3_uc", "1v8", "3v3", "5v", "3v3_ssd_3v8", "vrefint";
-        voltage-divider-scalings = "5.42f", "10.40f", "5.7f", "5.7f", "1.0f", "3.0f", "1.0f", "1.213f", "2.0f", "1.213f", "1.0f";
-    };
-
-    voltage_measurement_ev5 {
-        compatible = "worldcoin,voltage-measurement";
-
-        // enable opamps to allow for voltage measurements of the power supplies
-        supply-voltages-meas-enable-gpios = <&gpioe 1 GPIO_ACTIVE_LOW>;
-
-        // io-channels = <adc-device channel-number>, ...
-        // adc1:
-        // [0]: VBAT_SW
-        //      EV5: R1=94k, R2=10k
-        // [1]: PVCC
-        //      EV5: R1=442k, R2=23.5k
-        // [2]: 12V
-        //      EV5: R1=57k, R2=10k
-        // [3]: 12V_CAPS
-        //      EV5: R1=57k, R2=10k
-        // [4]: Die Temperature
-        // [5]: Vbat / 3
-        // adc5:
-        // [6]: 1V8
-        //      EV5: R1=27R, R2=inf
-        // [7]: 3V3
-        //      EV5: R1=10k, R2=10k
-        // [8]: 5V
-        //      EV5: R1=20k, R2=10k
-        // [9]: 3V3_SSD (EV5) / 3V8 (EV1…EV4)
-        //      EV5: R1=10k, R2=10k
-        // [10]: VREFINT (typ. 1.212 V)
-        io-channels = <&adc1 1>, <&adc1 7>, <&adc1 8>, <&adc1 9>, <&adc1 16>, <&adc1 17>, <&adc5 7>, <&adc5 8>, <&adc5 9>, <&adc5 13>, <&adc5 18>;
-        io-channel-names = "vbat_sw", "pvcc", "12v", "12v_caps", "die_temp", "3v3_uc", "1v8", "3v3", "5v", "3v3_ssd_3v8", "vrefint";
-        voltage-divider-scalings = "10.4f", "19.81f", "6.7f", "6.7f", "1.0f", "3.0f", "1.0f", "2.0f", "3.0f", "2.0f", "1.0f";
+        // [11]: 3V3_LTE
+        //       Diamond PoC2: R1=10k, R2=10k
+        //
+        // todo: add other Diamond ADC channels like V_SCAP_MUX_LOW/HIGH and change README.md accordingly
+        io-channels = <&adc1 1>, <&adc1 7>, <&adc1 8>, <&adc1 9>, <&adc1 16>, <&adc1 17>, <&adc5 7>, <&adc5 8>, <&adc5 9>, <&adc1 2>, <&adc5 18>, <&adc5 13>;
+        io-channel-names = "vbat_sw", "pvcc", "12v", "12v_caps", "die_temp", "3v3_uc", "1v8", "3v3", "5v", "3v3_ssd", "vrefint", "3v3_lte";
+        voltage-divider-scalings = "10.4f", "19.81f", "6.7f", "6.7f", "1.0f", "3.0f", "1.0f", "2.0f", "3.0f", "2.0f", "1.0f", "2.0f";
     };
 };
 
-&rng {
-    clocks = <&rcc STM32_CLOCK_BUS_AHB2 0x04000000>,
-             <&rcc STM32_SRC_HSI48 CLK48_SEL(0)>; // domain clock
-    status = "okay";
-};
-
-// used to measure battery voltage, hardware revision
-// & die temperature (channel 16)
 &adc1 {
+    // used to measure battery voltage, hardware revision
+    // & die temperature (channel 16)
+
     // dmamux1: 7 = dma-channel 8; 5 = DMA request MUX input (ADC1) from reference manual RM0440
     dmas = < &dmamux1 7 5 (STM32_DMA_PERIPH_TO_MEMORY |
     STM32_DMA_MEM_INC |  STM32_DMA_MEM_16BITS | STM32_DMA_PERIPH_16BITS) >;
     dma-names = "dmamux";
 
     status = "okay";
-    pinctrl-0 = <&adc1_in1_pa0 &adc1_in7_pc1 &adc1_in8_pc2 &adc1_in9_pc3 &adc1_in11_pb12>;
+    pinctrl-0 = <&adc1_in1_pa0 &adc1_in2_pa1 &adc1_in7_pc1 &adc1_in8_pc2 &adc1_in9_pc3>;
     pinctrl-names = "default";
-    vref-mv = <3300>;
-    vbat-channel = < 0x11 >;
+    vref-mv = <2048>;
+    vbat-channel = <0x11>;
 
     #address-cells = <1>;
     #size-cells = <0>;
 
     channel@1 {		// VBAT_SW
         reg = <1>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@2 {		// 3V3_SSD
+        reg = <2>;
         zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
         zephyr,gain = "ADC_GAIN_1";
         zephyr,reference = "ADC_REF_INTERNAL";
@@ -294,14 +239,6 @@
         zephyr,resolution = <12>;
     };
 
-    channel@b {	        // HW_VERSION
-        reg = <11>;
-        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
-        zephyr,gain = "ADC_GAIN_1";
-        zephyr,reference = "ADC_REF_INTERNAL";
-        zephyr,resolution = <12>;
-    };
-
     channel@10 {	// die temperature
         reg = <16>;
         // Minimum required sampling time is 5 µs according to the datasheet
@@ -322,8 +259,8 @@
     };
 };
 
-// used by liquid_lens module
 &adc3 {
+    // used by liquid_lens module
     // dmamux1: 10 = dma-channel 11; 37 = DMA request MUX input (ADC3) from reference manual RM0440
     dmas = < &dmamux1 10 37 (STM32_DMA_PERIPH_TO_MEMORY |STM32_DMA_MEM_INC |
                            STM32_DMA_MEM_16BITS | STM32_DMA_PERIPH_16BITS) >;
@@ -331,7 +268,7 @@
     status = "okay";
     pinctrl-0 = <&adc3_in10_pd13 &adc3_in11_pd14>;
     pinctrl-names = "default";
-    vref-mv = <3300>;
+    vref-mv = <2048>;
     vref-channel = < 0x12 >;
 
     #address-cells = <1>;
@@ -373,7 +310,7 @@
     status = "okay";
     pinctrl-0 = <&adc5_in7_pd10 &adc5_in8_pd11 &adc5_in9_pd12 &adc5_in13_pd9>;
     pinctrl-names = "default";
-    vref-mv = <3300>;
+    vref-mv = <2048>;
     vref-channel = < 0x12 >;
 
     #address-cells = <1>;
@@ -403,7 +340,7 @@
         zephyr,resolution = <12>;
     };
 
-    channel@d {	        // 3V3_SSD (EV5) / 3V8 (EV1…EV4)
+    channel@d {	        // 3V3_LTE
         reg = <13>;
         zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
         zephyr,gain = "ADC_GAIN_1";
@@ -423,6 +360,12 @@
     };
 };
 
+&rng {
+    clocks = <&rcc STM32_CLOCK_BUS_AHB2 0x04000000>,
+             <&rcc STM32_SRC_HSI48 CLK48_SEL(0)>; // domain clock
+    status = "okay";
+};
+
 &hrtim1 {
     status = "okay";
 
@@ -433,19 +376,19 @@
     };
 };
 
-&timers1 {
-    status = "okay";
-
-    operator_rgb_leds: operator_rgb_leds {
-        compatible = "worldsemi,ws2812-pwm-stm32";
-        pinctrl-0 = <&tim1_ch1_pc0>;
-        pinctrl-names = "default";
-        timer-channel = <1>;
-        timer-number = <1>;
-        dma-channel = <1>;
-        num-leds = <5>;
-    };
-};
+//&timers1 {
+//    status = "okay";
+//
+//    operator_rgb_leds: operator_rgb_leds {
+//        compatible = "worldsemi,ws2812-pwm-stm32";
+//        pinctrl-0 = <&tim1_ch1_pc0>;
+//        pinctrl-names = "default";
+//        timer-channel = <1>;
+//        timer-number = <1>;
+//        dma-channel = <1>;
+//        num-leds = <5>;
+//    };
+//};
 
 &timers2 {
     status = "okay";
@@ -479,38 +422,10 @@
 &timers5 {
     status = "okay";
 
-    fan_main_and_aux_pwm: pwm {
+    fan_pwm: pwm {
         status = "okay";
-        pinctrl-0 = <&tim5_ch1_pb2 &tim5_ch2_pa1>;
+        pinctrl-0 = <&tim5_ch1_pb2>;
         pinctrl-names = "default";
-    };
-};
-
-&timers8 {
-    status = "okay";
-
-    // AKA CAM0
-    ir_eye_camera_trigger: ir_eye_camera_trigger {
-        compatible = "worldcoin,stm32-pwm";
-        pinctrl-0 = <&tim8_ch3_pc8>;
-        pinctrl-names = "default";
-        channels = <3>;
-    };
-
-    // AKA CAM2
-    ir_face_camera_trigger: ir_face_camera_trigger {
-        compatible = "worldcoin,stm32-pwm";
-        pinctrl-0 = <&tim8_ch4_pc9>;
-        pinctrl-names = "default";
-        channels = <4>;
-    };
-
-    // AKA CAM3
-    tof_2d_camera_trigger: tof_2d_camera_trigger {
-        compatible = "worldcoin,stm32-pwm";
-        pinctrl-0 = <&tim8_ch1_pc6>;
-        pinctrl-names = "default";
-        channels = <1>;
     };
 };
 
@@ -519,38 +434,41 @@
 
     led_850nm: led_850nm {
         compatible = "worldcoin,stm32-pwm";
-        pinctrl-0 = <&tim15_ch1_pb14 &tim15_ch2_pb15>;
+        pinctrl-0 = <&tim15_ch1_pf9 &tim15_ch2_pf10>;
         pinctrl-names = "default";
         channels = <1 2>;
-    };
-};
-
-&timers16 {
-    status = "okay";
-
-    fan_aux_tach: fan_aux_tach {
-        compatible = "worldcoin,stm32-pwm";
-        pinctrl-0 = <&tim16_ch1_pa12>;
-        pinctrl-names = "default";
-        channels = <1>;
     };
 };
 
 &timers20 {
     status = "okay";
 
-    front_unit_rgb_leds: front_unit_rgb_leds {
-        compatible = "worldsemi,ws2812-pwm-stm32";
+    // AKA CAM0_IREYE
+    ir_eye_camera_trigger: ir_eye_camera_trigger {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&tim20_ch3_pf2>;
+        pinctrl-names = "default";
+        channels = <3>;
+    };
+
+    // AKA CAM2_IRFACE
+    ir_face_camera_trigger: ir_face_camera_trigger {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&tim20_ch4_pe1>;
+        pinctrl-names = "default";
+        channels = <4>;
+    };
+
+    // AKA CAM3_TOF
+    tof_2d_camera_trigger: tof_2d_camera_trigger {
+        compatible = "worldcoin,stm32-pwm";
         pinctrl-0 = <&tim20_ch2_pe3>;
         pinctrl-names = "default";
-        timer-channel = <2>;
-        timer-number = <20>;
-        dma-channel = <2>;
-        num-leds = <233>;
+        channels = <1>;
     };
 };
 
-// needed for ws2812, user & operator LEDs, USART
+// needed for USART
 &dma1 {
     status = "okay";
 };
@@ -559,7 +477,7 @@
     status = "okay";
 };
 
-// needed for ws2812 LEDs
+// needed for ws2812 LEDs   // todo: not used any more
 &dmamux1 {
     status = "okay";
 };
@@ -598,7 +516,7 @@
     current-speed = <1000000>;
     status = "okay";
 
-    // DMA1 channels 3 and 4 (1 and 2 used by front and operator LEDs (PWM), 5 and 6 used by GNSS (usart3)).
+    // DMA1 channels 3 and 4 (1 and 2 used by front and operator LEDs (PWM)
     dmas = <&dma1 3 DMAMUX_REQ_USART1_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT) | (DMA_CONFIG_CIRCULAR_MODE << DMA_CONFIG_CYCLIC_SHIFT))>,
            <&dma1 4 DMAMUX_REQ_USART1_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT) | (DMA_CONFIG_CIRCULAR_MODE << DMA_CONFIG_CYCLIC_SHIFT))>;
     dma-names = "rx", "tx";
@@ -612,19 +530,6 @@
     status = "okay";
 };
 
-// GNSS module
-&usart3 {
-    pinctrl-0 = <&usart3_tx_pb10 &usart3_rx_pb11>;
-    pinctrl-names = "default";
-    current-speed = <9600>;
-    status = "okay";
-
-    // DMA1 channels 5 and 6 (1 and 2 used by front and operator LEDs (PWM), 3 and 4 by usart1).
-    dmas = <&dma1 5 DMAMUX_REQ_USART3_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>,
-           <&dma1 6 DMAMUX_REQ_USART3_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>;
-    dma-names = "rx", "tx";
-};
-
 &rtc {
     status = "okay";
 };
@@ -634,6 +539,7 @@
     pinctrl-names = "default";
     status = "okay";
 
+    // todo: control of multiplexers needed
     front_unit_tmp_sensor: tmp112@48 {
         compatible = "ti,tmp112";
         reg = <0x48>;
@@ -669,6 +575,15 @@
         compatible = "rohm,bu27030";
         reg = <0x38>;
     };
+
+    // io-expander on the front unit 0x23
+    gpio_exp_front_unit: pca95xx@23 {
+        compatible = "nxp,pca95xx";
+        reg = <0x23>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        ngpios = <16>;
+    };
 };
 
 &can1 {
@@ -695,14 +610,15 @@
     status = "okay";
 };
 
-// For battery communications
-&can2 {
-    pinctrl-0 = <&fdcan2_rx_pb5 &fdcan2_tx_pb6>;
-    pinctrl-names = "default";
-    bus-speed = <1000000>;
-    bus-speed-data = <1000000>;
-    status = "okay";
-};
+//// For battery communications
+// todo: replace by SMBus interface as soon as new Diamond Battery is ready
+//&can2 {
+//    pinctrl-0 = <&fdcan2_rx_pb5 &fdcan2_tx_pb6>;
+//    pinctrl-names = "default";
+//    bus-speed = <1000000>;
+//    bus-speed-data = <1000000>;
+//    status = "okay";
+//};
 
 &spi1 {
     pinctrl-0 = <&spi1_sck_pa5 &spi1_miso_pa6 &spi1_mosi_pa7>;
@@ -769,5 +685,40 @@
             label = "config";
             reg = <0x0007F000 0x00001000>;
         };
+    };
+};
+
+&i2c3 {
+    pinctrl-0 = <&i2c3_scl_pc8 &i2c3_sda_pc9>;
+    pinctrl-names = "default";
+    status = "okay";
+
+    // io-expander on the power board
+    gpio_exp_pwr_brd: pca95xx@20 {
+        compatible = "nxp,pca95xx";
+        reg = <0x20>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        ngpios = <16>;
+        status = "okay";
+    };
+
+    // io-expander 0x21
+    // PCA9535 registers are the same as one TCA9535
+    gpio_exp1: pca95xx@21 {
+        compatible = "nxp,pca95xx";
+        reg = <0x21>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        ngpios = <16>;
+    };
+
+    // io-expander 0x22
+    gpio_exp2: pca95xx@22 {
+        compatible = "nxp,pca95xx";
+        reg = <0x22>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        ngpios = <16>;
     };
 };

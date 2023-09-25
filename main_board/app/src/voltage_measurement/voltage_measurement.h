@@ -22,6 +22,9 @@ typedef enum {
     CHANNEL_5V,
     CHANNEL_3V3_SSD_3V8, // 3V3_SSD on EV5; 3V8 on EV1...4
     CHANNEL_VREFINT,
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    CHANNEL_3V3_LTE,
+#endif
     CHANNEL_COUNT
 } voltage_measurement_channel_t;
 
@@ -31,7 +34,7 @@ voltage_measurement_get_vref_mv_from_raw(Hardware_OrbVersion hardware_version,
 {
     return (uint16_t)(hardware_version ==
                               Hardware_OrbVersion_HW_VERSION_PEARL_EV5
-                          ? DT_PROP(DT_PATH(zephyr_user), ev5_vref_mv)
+                          ? DT_PROP_OR(DT_PATH(zephyr_user), ev5_vref_mv, 0)
                           : __LL_ADC_CALC_VREFANALOG_VOLTAGE(
                                 vrefint_raw == 0 ? 1 : vrefint_raw,
                                 LL_ADC_RESOLUTION_12B));

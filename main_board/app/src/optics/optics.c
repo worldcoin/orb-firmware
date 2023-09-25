@@ -131,11 +131,14 @@ optics_init(const Hardware *hw_version)
         return err_code;
     }
 
+    // todo: fix for Diamond hardware
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     err_code = tof_1d_init();
     if (err_code) {
         ASSERT_SOFT(err_code);
         return err_code;
     }
+#endif
 
     err_code = configure_front_unit_3v3_detection();
     if (err_code) {
@@ -146,27 +149,28 @@ optics_init(const Hardware *hw_version)
     return err_code;
 }
 
-static struct gpio_dt_spec ir_leds_gpios[] = {
-    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), tests_ir_leds_850_940_gpios,
-                            0),
-    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), tests_ir_leds_850_940_gpios,
-                            1),
-    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), tests_ir_leds_850_940_gpios,
-                            2),
-    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), tests_ir_leds_850_940_gpios,
-                            3),
-};
-
-static const char *ir_leds_names[] = {
-    "ir_850nm_left",
-    "ir_850nm_right",
-    "ir_940nm_left",
-    "ir_940nm_right",
-};
-
 int
 optics_self_test(void)
 {
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    static const struct gpio_dt_spec ir_leds_gpios[] = {
+        GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user),
+                                tests_ir_leds_850_940_gpios, 0),
+        GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user),
+                                tests_ir_leds_850_940_gpios, 1),
+        GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user),
+                                tests_ir_leds_850_940_gpios, 2),
+        GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user),
+                                tests_ir_leds_850_940_gpios, 3),
+    };
+
+    static const char *ir_leds_names[] = {
+        "ir_850nm_left",
+        "ir_850nm_right",
+        "ir_940nm_left",
+        "ir_940nm_right",
+    };
+
     int ret;
 
     if (self_test_status == HardwareDiagnostic_Status_STATUS_OK ||
@@ -176,7 +180,10 @@ optics_self_test(void)
 
     // turn on IR LED subsets one by one, by driving GPIO pins, to check
     // that all lines are making the eye safety circuitry trip
-    ret = gpio_pin_configure_dt(&front_unit_pvcc_enabled, GPIO_INPUT);
+    ret = gpio_pin_configure_dt(
+        &front_unit_pvcc_enabled,
+        GPIO_INPUT); // todo: on Diamond we need to enable +3V3 before reading
+                     // the Front Unit IO expander
     if (ret) {
         self_test_status =
             HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
@@ -212,4 +219,8 @@ optics_self_test(void)
     }
 
     return RET_SUCCESS;
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    // todo: implement for Diamond hardware
+    return RET_SUCCESS;
+#endif
 }

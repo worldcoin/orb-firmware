@@ -2,6 +2,7 @@
 
 #include <zephyr/kernel.h>
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 // Definition of CAN messages from battery.
 // For details see
 // https://www.notion.so/worldcoin/EVT-Battery-CAN-Interface-1ca6c18055034532b509df32f385be6f
@@ -116,3 +117,4 @@ __PACKED_STRUCT __may_alias battery_525_s
     uint32_t battery_mcu_id_bit_63_32;
     uint32_t battery_mcu_id_bit_95_64;
 };
+#endif

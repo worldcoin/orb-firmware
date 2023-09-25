@@ -13,6 +13,51 @@ LOG_MODULE_REGISTER(operator_leds);
 #include "operator_leds.h"
 #include "ui/rgb_leds.h"
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+// todo: implement for Diamond
+
+int
+operator_leds_set_brightness(uint8_t brightness)
+{
+    UNUSED_PARAMETER(brightness);
+
+    return RET_SUCCESS;
+}
+
+int
+operator_leds_set_pattern(
+    DistributorLEDsPattern_DistributorRgbLedPattern pattern, uint32_t mask,
+    const RgbColor *color)
+{
+    UNUSED_PARAMETER(pattern);
+    UNUSED_PARAMETER(mask);
+    UNUSED_PARAMETER(color);
+    return RET_SUCCESS;
+}
+
+int
+operator_leds_init(void)
+{
+    return RET_SUCCESS;
+}
+
+ret_code_t
+operator_leds_set_leds_sequence(uint8_t *bytes, uint32_t size)
+{
+    UNUSED_PARAMETER(bytes);
+    UNUSED_PARAMETER(size);
+
+    return RET_SUCCESS;
+}
+
+void
+operator_leds_blocking_set(const RgbColor *color, uint32_t mask)
+{
+    UNUSED_PARAMETER(color);
+    UNUSED_PARAMETER(mask);
+}
+
+#else
 static K_THREAD_STACK_DEFINE(operator_leds_stack_area,
                              THREAD_STACK_SIZE_OPERATOR_RGB_LEDS);
 static struct k_thread operator_leds_thread_data;
@@ -286,3 +331,4 @@ operator_leds_initial_state(void)
 }
 
 SYS_INIT(operator_leds_initial_state, POST_KERNEL, SYS_INIT_UI_LEDS_PRIORITY);
+#endif

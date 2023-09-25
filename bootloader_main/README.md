@@ -14,11 +14,12 @@ Compile the bootloader:
 
 ```shell
 # Passing the board is mandatory to build the bootloader
-west build -b [mcu_main | mcu_sec]
+west build -b [pearl_main | pearl_security | diamond_main]
 ```
 
-- `mcu_main`: mainboard MCU v3.1+, used on EVT Orbs
-- `mcu_sec`: security MCU, any version
+- `pearl_main`: main board v3.1+, used on Pearl Orbs
+- `pearl_security`: security MCU, any version
+- `diamond_main`: main board v4.0, used on Diamond Orbs
 
 Flash the bootloader, before the application:
 

@@ -9,18 +9,37 @@
 
 LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
 
-// Hardware version can be fetched using UC_ADC_HW_VERSION on the main board:
-// - 3.0 firmware is specific, so we can provide an hardcoded implementation
-// - v3.1 pull down
-// - v3.2 pull up
-// GPIO logic level can then be used to get the hardware version
+/**
+ * # Pearl Orbs
+ * Hardware version can be fetched using UC_ADC_HW_VERSION on the main board:
+ * - 3.0 firmware is specific, so we can provide an hardcoded implementation
+ * - v3.1 pull down
+ * - v3.2 pull up
+ * GPIO logic level can then be used to get the hardware version
+ *
+ * # Diamond Orbs
+ * Hardware version can be fetched using IO expander on the main board:
+ * - v4.0 p10 = 0
+ * - v4.1 p10 = 1
+ **/
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 const struct adc_dt_spec adc_dt_spec = ADC_DT_SPEC_GET(DT_PATH(board_version));
 
 #define ADC_RESOLUTION_BITS  12
 #define ADC_GAIN             ADC_GAIN_1
 #define ADC_REFERENCE        ADC_REF_INTERNAL
 #define ADC_ACQUISITION_TIME ADC_ACQ_TIME_DEFAULT
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+static const struct gpio_dt_spec hw_bit0 =
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_gpios, 0);
+static const struct gpio_dt_spec hw_bit1 =
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_gpios, 1);
+static const struct gpio_dt_spec hw_bit2 =
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_gpios, 2);
+static const struct gpio_dt_spec hw_bit3 =
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_gpios, 3);
+#endif
 
 static Hardware_OrbVersion version = Hardware_OrbVersion_HW_VERSION_UNKNOWN;
 
@@ -57,6 +76,7 @@ version_fetch_hardware_rev(Hardware *hw_version)
 {
     // read only once and keep hardware version into `version`
     if (version == Hardware_OrbVersion_HW_VERSION_UNKNOWN) {
+#if defined(CONFIG_BOARD_PEARL_MAIN)
         if (!device_is_ready(adc_dt_spec.dev)) {
             ASSERT_SOFT(RET_ERROR_INVALID_STATE);
             return RET_ERROR_INVALID_STATE;
@@ -121,6 +141,24 @@ version_fetch_hardware_rev(Hardware *hw_version)
                         hardware_version_mv);
             }
         }
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+        gpio_pin_configure_dt(&hw_bit0, GPIO_INPUT);
+        int hw_bits =
+            gpio_pin_get_dt(&hw_bit3) << 3 | gpio_pin_get_dt(&hw_bit2) << 2 |
+            gpio_pin_get_dt(&hw_bit1) << 1 | gpio_pin_get_dt(&hw_bit0);
+
+        switch (hw_bits) {
+        case 0:
+            version = Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1;
+            break;
+        case 1:
+            version = Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2;
+            break;
+        default:
+            LOG_ERR("Unknown main board from IO expander: %d", hw_bits);
+            break;
+        }
+#endif
     }
 
     if (hw_version != NULL) {

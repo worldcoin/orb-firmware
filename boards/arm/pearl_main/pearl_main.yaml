@@ -1,5 +1,5 @@
-identifier: mcu_main
-name: Worldcoin Orb Main MCU
+identifier: pearl_main
+name: Worldcoin Pearl Orb, Main MCU
 type: mcu
 arch: arm
 toolchain:

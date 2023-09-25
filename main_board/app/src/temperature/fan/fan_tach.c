@@ -69,6 +69,7 @@ BUILD_ASSERT(DT_PROP_LEN(FAN_MAIN_TACH_NODE, channels) == 1,
 static struct timer_info fan_main_timer_info = {
     .timer = FAN_MAIN_TIMER, .channel = FAN_MAIN_CHANNEL, .irq = FAN_MAIN_IRQn};
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 #define FAN_AUX_TACH_NODE DT_NODELABEL(fan_aux_tach)
 PINCTRL_DT_DEFINE(FAN_AUX_TACH_NODE);
 static struct stm32_pclken fan_aux_tach_pclken = DT_INST_CLK(FAN_AUX_TACH_NODE);
@@ -79,15 +80,21 @@ BUILD_ASSERT(DT_PROP_LEN(FAN_AUX_TACH_NODE, channels) == 1,
 #define FAN_AUX_IRQn    DT_IRQ_BY_NAME(DT_PARENT(FAN_AUX_TACH_NODE), global, irq)
 static struct timer_info fan_aux_timer_info = {
     .timer = FAN_AUX_TIMER, .channel = FAN_AUX_CHANNEL, .irq = FAN_AUX_IRQn};
+#endif
 
 static struct stm32_pclken *all_pclken[] = {
     &fan_main_tach_pclken,
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     &fan_aux_tach_pclken,
+#endif
 };
 
 static const struct pinctrl_dev_config *pin_controls[] = {
     PINCTRL_DT_DEV_CONFIG_GET(FAN_MAIN_TACH_NODE),
-    PINCTRL_DT_DEV_CONFIG_GET(FAN_AUX_TACH_NODE)};
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    PINCTRL_DT_DEV_CONFIG_GET(FAN_AUX_TACH_NODE)
+#endif
+};
 
 #define TIMER_MAX_CH 4
 
@@ -208,7 +215,11 @@ fan_tach_get_main_speed(void)
 uint32_t
 fan_tach_get_aux_speed(void)
 {
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     return atomic_get(&fan_aux_timer_info.rpm);
+#else
+    return 0;
+#endif
 }
 
 static ret_code_t
@@ -319,17 +330,21 @@ fan_tach_init(void)
     }
 
     IRQ_CONNECT(FAN_MAIN_IRQn, 0, fan_tachometer_isr, &fan_main_timer_info, 0);
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     IRQ_CONNECT(FAN_AUX_IRQn, 0, fan_tachometer_isr, &fan_aux_timer_info, 0);
+#endif
 
     ret = config_timer(&fan_main_timer_info);
     if (ret != RET_SUCCESS) {
         return ret;
     }
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     ret = config_timer(&fan_aux_timer_info);
     if (ret != RET_SUCCESS) {
         return ret;
     }
+#endif
 
     thread_id = k_thread_create(&thread_data, stack_area,
                                 K_THREAD_STACK_SIZEOF(stack_area),

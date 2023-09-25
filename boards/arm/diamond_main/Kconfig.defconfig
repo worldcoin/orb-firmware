@@ -1,0 +1,16 @@
+# STM32G474RE main MCU board configuration for Diamond Orb
+
+config BOARD
+	default "diamond_main"
+
+config SPI_STM32_INTERRUPT
+	default y
+	depends on SPI
+
+config USE_STM32_LL_ADC
+	default y
+
+config I2C_INIT_PRIO_INST_1
+    int "I2C init priority instance 1 (i2c3) - always-on I2C"
+    default I2C_INIT_PRIORITY
+    depends on I2C

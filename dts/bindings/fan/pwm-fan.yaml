@@ -7,3 +7,8 @@ properties:
   pwms:
     required: true
     type: phandle-array
+  enable-gpios:
+    type: phandle-array
+    description: |
+      GPIO pin to enable/disable the fan.  If not specified, the fan is
+      always enabled.

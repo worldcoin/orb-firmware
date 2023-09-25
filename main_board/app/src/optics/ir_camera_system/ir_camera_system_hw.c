@@ -789,6 +789,9 @@ setup_850nm_led_timer(void)
     LL_TIM_SetSlaveMode(LED_850NM_TIMER,
                         LL_TIM_SLAVEMODE_COMBINED_RESETTRIGGER);
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    // todo: different timer on diamond Mainboard
+#else
     static_assert(CAMERA_TRIGGER_TIMER == TIM8,
                   "The slave mode trigger input source needs to be changed "
                   "here if CAMERA_TRIGGER_TIMER is not longer timer 8");
@@ -800,6 +803,7 @@ setup_850nm_led_timer(void)
                             ch2ll[LED_850NM_TIMER_LEFT_CHANNEL - 1]);
     LL_TIM_OC_EnablePreload(LED_850NM_TIMER,
                             ch2ll[LED_850NM_TIMER_RIGHT_CHANNEL - 1]);
+#endif
 
     return 0;
 }
@@ -865,6 +869,9 @@ setup_740nm_940nm_led_timer(void)
     LL_TIM_SetSlaveMode(LED_740NM_940NM_COMMON_TIMER,
                         LL_TIM_SLAVEMODE_COMBINED_RESETTRIGGER);
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    // todo: different timer on diamond Mainboard
+#else
     static_assert(CAMERA_TRIGGER_TIMER == TIM8,
                   "The slave mode trigger input source needs to be changed "
                   "here if CAMERA_TRIGGER_TIMER is not longer timer 8");
@@ -879,6 +886,7 @@ setup_740nm_940nm_led_timer(void)
                             ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
     LL_TIM_OC_EnablePreload(LED_740NM_940NM_COMMON_TIMER,
                             ch2ll[LED_740NM_TIMER_CHANNEL - 1]);
+#endif
 
     return 0;
 }

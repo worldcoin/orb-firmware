@@ -34,7 +34,7 @@ set_property(GLOBAL PROPERTY CSTD gnu11)
 if (DEFINED ENV{BOARD})
     set(BOARD $ENV{BOARD})
 else ()
-    set(BOARD mcu_main)
+    set(BOARD pearl_main)
 endif ()
 
 # Get our custom boards definitions before loading Zephyr
@@ -72,8 +72,6 @@ set(SOURCES_FILES)
 list(APPEND SOURCES_FILES
     src/main.c
 
-    src/gnss/gnss.c
-
     src/optics/optics.c
     src/optics/1d_tof/tof_1d.c
     src/optics/ir_camera_system/ir_camera_timer_settings.c
@@ -105,6 +103,10 @@ list(APPEND SOURCES_FILES
     src/ui/operator_leds/operator_leds.c
     src/ui/sound/sound.c
     )
+
+if (BOARD STREQUAL "pearl_main")
+    list(APPEND SOURCES_FILES src/gnss/gnss.c)
+endif()
 
 if (CONFIG_ZTEST)
     add_compile_definitions(HIL_TEST=y)
@@ -157,7 +159,7 @@ set(SIGNED_ENCRYPTED_BINARY ${CMAKE_BINARY_DIR}/zephyr/zephyr.signed.encrypted.b
 add_custom_target(
     openocd_load_encrypted_sec_slot
     DEPENDS zephyr_final
-    COMMAND openocd -f ${WORKSPACE_DIR}/orb/boards/arm/mcu_main/support/openocd.cfg -c "tcl_port disabled" -c "gdb_port disabled" -c "tcl_port disabled" -c "program \"${SIGNED_ENCRYPTED_BINARY}\" 0x8044000" -c reset -c shutdown
+    COMMAND openocd -f ${WORKSPACE_DIR}/orb/boards/arm/pearl_main/support/openocd.cfg -c "tcl_port disabled" -c "gdb_port disabled" -c "tcl_port disabled" -c "program \"${SIGNED_ENCRYPTED_BINARY}\" 0x8044000" -c reset -c shutdown
     # TODO flash "image OK" flags at the end of the secondary slot to mark image as pending
     COMMENT "Loading signed+encrypted binary into secondary slot"
 )

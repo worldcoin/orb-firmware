@@ -1,0 +1,7 @@
+/ {
+	hrtim1: hrtim1@40016800 {
+		compatible = "st,stm32-hr-timers";
+		reg = <0x40016800 0xc00>;
+		clocks = <&rcc STM32_CLOCK_BUS_APB2 0x04000000>;
+	};
+};

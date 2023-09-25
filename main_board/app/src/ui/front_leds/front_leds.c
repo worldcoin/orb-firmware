@@ -13,6 +13,59 @@
 
 LOG_MODULE_REGISTER(front_unit_rgb_leds, CONFIG_FRONT_UNIT_RGB_LEDS_LOG_LEVEL);
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+// todo: implement for Diamond
+
+ret_code_t
+front_leds_init(void)
+{
+    return RET_SUCCESS;
+}
+
+ret_code_t
+front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
+                       uint32_t start_angle, int32_t angle_length,
+                       RgbColor *color, uint32_t pulsing_period_ms,
+                       float pulsing_scale)
+{
+    UNUSED_PARAMETER(pattern);
+    UNUSED_PARAMETER(start_angle);
+    UNUSED_PARAMETER(angle_length);
+    UNUSED_PARAMETER(color);
+    UNUSED_PARAMETER(pulsing_period_ms);
+    UNUSED_PARAMETER(pulsing_scale);
+
+    return RET_SUCCESS;
+}
+
+ret_code_t
+front_leds_set_center_leds_sequence(uint8_t *bytes, uint32_t size)
+{
+    UNUSED_PARAMETER(bytes);
+    UNUSED_PARAMETER(size);
+
+    return RET_SUCCESS;
+}
+
+ret_code_t
+front_leds_set_ring_leds_sequence(uint8_t *bytes, uint32_t size)
+{
+    UNUSED_PARAMETER(bytes);
+    UNUSED_PARAMETER(size);
+    return RET_SUCCESS;
+}
+
+void
+front_leds_set_brightness(uint32_t brightness)
+{
+    UNUSED_PARAMETER(brightness);
+}
+
+void
+front_leds_turn_off_final(void)
+{
+}
+#else
 static K_THREAD_STACK_DEFINE(front_leds_stack_area,
                              THREAD_STACK_SIZE_FRONT_UNIT_RGB_LEDS);
 static struct k_thread front_led_thread_data;
@@ -509,3 +562,4 @@ front_leds_initial_state(void)
 }
 
 SYS_INIT(front_leds_initial_state, POST_KERNEL, SYS_INIT_UI_LEDS_PRIORITY);
+#endif

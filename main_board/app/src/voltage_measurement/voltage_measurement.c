@@ -54,9 +54,11 @@ static const struct adc_dt_spec adc_channels[] = {DT_FOREACH_PROP_ELEM(
 static const float voltage_divider_scalings[] = {
     DT_FOREACH_PROP_ELEM(DT_PATH(voltage_measurement), voltage_divider_scalings,
                          DT_STRING_UNQUOTED_AND_COMMA)};
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 static const float voltage_divider_scalings_ev5[] = {DT_FOREACH_PROP_ELEM(
     DT_PATH(voltage_measurement_ev5), voltage_divider_scalings,
     DT_STRING_UNQUOTED_AND_COMMA)};
+#endif
 static const char voltage_measurement_channel_names[][11] = {
     DT_FOREACH_PROP_ELEM(DT_PATH(voltage_measurement), io_channel_names,
                          DT_PROP_AND_COMMA)};
@@ -80,7 +82,11 @@ static volatile const struct device *const adc5_dev =
 // value is requested by the Jetson.
 #define MAX_VOLTAGE_TRANSMIT_PERIOD_MS 60000
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#define NUMBER_OF_CHANNELS_ADC_1 7
+#else
 #define NUMBER_OF_CHANNELS_ADC_1 6
+#endif
 #define NUMBER_OF_CHANNELS_ADC_5 5
 #define NUMBER_OF_CHANNELS       (NUMBER_OF_CHANNELS_ADC_1 + NUMBER_OF_CHANNELS_ADC_5)
 BUILD_ASSERT(CHANNEL_COUNT == NUMBER_OF_CHANNELS,
@@ -182,11 +188,15 @@ voltage_measurement_get_stats(adc_samples_buffers_t *samples_buffers,
 
     float voltage_divider_scaling;
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     if (hardware_version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         voltage_divider_scaling = voltage_divider_scalings_ev5[channel];
     } else {
+#endif
         voltage_divider_scaling = voltage_divider_scalings[channel];
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     }
+#endif
 
     if (voltage_mv != NULL) {
         *voltage_mv = (int32_t)((float)raw_value * voltage_divider_scaling);
@@ -232,14 +242,17 @@ voltage_measurement_get(const voltage_measurement_channel_t channel,
 
     float voltage_divider_scaling;
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     if (hardware_version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         voltage_divider_scaling = voltage_divider_scalings_ev5[channel];
     } else {
+#endif
         voltage_divider_scaling = voltage_divider_scalings[channel];
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     }
+#endif
 
     *voltage_mv = (int32_t)((float)raw_value * voltage_divider_scaling);
-
     return RET_SUCCESS;
 }
 
