@@ -23,9 +23,12 @@
 #include <fatal.h>
 #include <pb_encode.h>
 #include <storage.h>
-#include <watchdog.h>
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
+
+#if CONFIG_ORB_LIB_WATCHDOG
+#include <watchdog.h>
+#endif
 
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
 #include "heartbeat.h"
@@ -177,7 +180,7 @@ initialize(void)
 
     app_assert_init(app_assert_cb);
 
-#ifndef CONFIG_ORB_LIB_ERRORS_TESTS
+#if CONFIG_ORB_LIB_WATCHDOG
     err_code = watchdog_init();
     ASSERT_SOFT(err_code);
 #endif
