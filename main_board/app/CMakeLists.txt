@@ -143,7 +143,12 @@ if (CONFIG_ORB_PROTOBUF_DEFINITIONS_LIB)
     # to build zephyr_final
     add_dependencies(app generate_proto_files)
 endif ()
-zephyr_link_libraries_ifdef(CONFIG_MCUBOOT_BOOTUTIL_LIB MCUBOOT_BOOTUTIL)
+if (CONFIG_MCUBOOT_BOOTUTIL_LIB)
+    if (NOT EXISTS "${PROJECT_DIR}/utils/ota/enc-ec256-priv.pem" OR NOT EXISTS "${PROJECT_DIR}/utils/ota/enc-ec256-pub.pem" OR NOT EXISTS "${PROJECT_DIR}/utils/ota/root-ec-p256.pem")
+        message(FATAL_ERROR "Missing signature files, go to ${PROJECT_DIR}/utils/ota/ and run ./generate_dev_keys")
+    endif ()
+    zephyr_link_libraries(MCUBOOT_BOOTUTIL)
+endif ()
 
 # specific target to test firmware update
 # this target loads the new image in secondary slot and resets the target
