@@ -1,12 +1,7 @@
 name: worldcoin
-channels:
-  - litex-hub
-  - memfault
-  - conda-forge
 dependencies:
   - make
-  - python=3.11
-  - cmake
+  - python=3.9
   - pyserial
   - ccache
   - protobuf
@@ -15,7 +10,7 @@ dependencies:
   - gperf
   - clang-format
   - pre-commit
-  - libusb
+  - conda-forge::libusb
   - pip
   - pip:
       - west
