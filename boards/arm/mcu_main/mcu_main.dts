@@ -181,51 +181,61 @@
         // io-channels = <adc-device channel-number>, ...
         // adc1:
         // [0]: VBAT_SW
+        //      EV1...4: R1=442k, R2=100k
         // [1]: PVCC
+        //      EV1...4: R1=442k, R2=47k
         // [2]: 12V
+        //      EV1...4: R1=47k, R2=10k
         // [3]: 12V_CAPS
+        //      EV1...4: R1=47k, R2=10k
         // [4]: Die Temperature
         // [5]: Vbat / 3
         // adc5:
         // [6]: 1V8
+        //      EV1...4: R1=27R, R2=inf
         // [7]: 3V3
+        //      EV1...4: R1=10k, R2=47k
         // [8]: 5V
+        //      EV1...4: R1=10k, R2=10k
         // [9]: 3V3_SSD (EV5) / 3V8 (EV1…EV4)
+        //      EV1...4: R1=10k, R2=47k
         // [10]: VREFINT (typ. 1.212 V)
         io-channels = <&adc1 1>, <&adc1 7>, <&adc1 8>, <&adc1 9>, <&adc1 16>, <&adc1 17>, <&adc5 7>, <&adc5 8>, <&adc5 9>, <&adc5 13>, <&adc5 18>;
         io-channel-names = "vbat_sw", "pvcc", "12v", "12v_caps", "die_temp", "3v3_uc", "1v8", "3v3", "5v", "3v3_ssd_3v8", "vrefint";
+        voltage-divider-scalings = "5.42f", "10.40f", "5.7f", "5.7f", "1.0f", "3.0f", "1.0f", "1.213f", "2.0f", "1.213f", "1.0f";
+    };
 
-        // [0]: EV1...4: R1=442k, R2=100k
-        // [1]: EV5: R1=94k, R2=10k
-        voltage-divider-scaling-vbat-sw = "5.42f", "10.4f";
+    voltage_measurement_ev5 {
+        compatible = "worldcoin,voltage-measurement";
 
-        // [0]: EV1...4: R1=10k, R2=47k
-        // [1]: EV5: R1=10k, R2=10k
-        voltage-divider-scaling-3v3 = "1.213f", "2.0f";
+        // enable opamps to allow for voltage measurements of the power supplies
+        supply-voltages-meas-enable-gpios = <&gpioe 1 GPIO_ACTIVE_LOW>;
 
-        // [0]: EV1...4: R1=10k, R2=10k
-        // [1]: EV5: R1=20k, R2=10k
-        voltage-divider-scaling-5v = "2.0f", "3.0f";
-
-        // [0]: EV1...4: R1=10k, R2=47k
-        // [1]: EV5: R1=10k, R2=10k
-        voltage-divider-scaling-3v8-3v3-ssd = "1.213f", "2.0f";
-
-        // [0]: EV1...4: R1=27R, R2=inf
-        // [1]: EV5: R1=27R, R2=inf
-        voltage-divider-scaling-1v8 = "1.0f", "1.0f";
-
-        // [0]: EV1...4: R1=47k, R2=10k
-        // [1]: EV5: R1=57k, R2=10k
-        voltage-divider-scaling-12v = "5.7f", "6.7f";
-
-        // [0]: EV1...4: R1=47k, R2=10k
-        // [1]: EV5: R1=57k, R2=10k
-        voltage-divider-scaling-12v-caps = "5.7f", "6.7f";
-
-        // [0]: EV1...4: R1=442k, R2=47k
-        // [1]: EV5: R1=442k, R2=23.5k
-        voltage-divider-scaling-pvcc = "10.40f", "19.81f";
+        // io-channels = <adc-device channel-number>, ...
+        // adc1:
+        // [0]: VBAT_SW
+        //      EV5: R1=94k, R2=10k
+        // [1]: PVCC
+        //      EV5: R1=442k, R2=23.5k
+        // [2]: 12V
+        //      EV5: R1=57k, R2=10k
+        // [3]: 12V_CAPS
+        //      EV5: R1=57k, R2=10k
+        // [4]: Die Temperature
+        // [5]: Vbat / 3
+        // adc5:
+        // [6]: 1V8
+        //      EV5: R1=27R, R2=inf
+        // [7]: 3V3
+        //      EV5: R1=10k, R2=10k
+        // [8]: 5V
+        //      EV5: R1=20k, R2=10k
+        // [9]: 3V3_SSD (EV5) / 3V8 (EV1…EV4)
+        //      EV5: R1=10k, R2=10k
+        // [10]: VREFINT (typ. 1.212 V)
+        io-channels = <&adc1 1>, <&adc1 7>, <&adc1 8>, <&adc1 9>, <&adc1 16>, <&adc1 17>, <&adc5 7>, <&adc5 8>, <&adc5 9>, <&adc5 13>, <&adc5 18>;
+        io-channel-names = "vbat_sw", "pvcc", "12v", "12v_caps", "die_temp", "3v3_uc", "1v8", "3v3", "5v", "3v3_ssd_3v8", "vrefint";
+        voltage-divider-scalings = "10.4f", "19.81f", "6.7f", "6.7f", "1.0f", "3.0f", "1.0f", "2.0f", "3.0f", "2.0f", "1.0f";
     };
 };
 

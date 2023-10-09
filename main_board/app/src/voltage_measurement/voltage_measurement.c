@@ -40,6 +40,9 @@ static struct k_thread voltage_measurement_debug_thread_data = {0};
 #define DT_PROP_AND_COMMA(node_id, prop, idx)                                  \
     DT_PROP_BY_IDX(node_id, prop, idx),
 
+#define DT_STRING_UNQUOTED_AND_COMMA(node_id, prop, idx)                       \
+    DT_STRING_UNQUOTED_BY_IDX(node_id, prop, idx),
+
 #ifdef CONFIG_VOLTAGE_MEASUREMENT_LOG_LEVEL_DBG
 static const struct gpio_dt_spec debug_led_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), debug_led_gpios);
@@ -48,6 +51,12 @@ static const struct gpio_dt_spec debug_led_gpio_spec =
 /* Data of ADC io-channels specified in devicetree. */
 static const struct adc_dt_spec adc_channels[] = {DT_FOREACH_PROP_ELEM(
     DT_PATH(voltage_measurement), io_channels, DT_SPEC_AND_COMMA)};
+static const float voltage_divider_scalings[] = {
+    DT_FOREACH_PROP_ELEM(DT_PATH(voltage_measurement), voltage_divider_scalings,
+                         DT_STRING_UNQUOTED_AND_COMMA)};
+static const float voltage_divider_scalings_ev5[] = {DT_FOREACH_PROP_ELEM(
+    DT_PATH(voltage_measurement_ev5), voltage_divider_scalings,
+    DT_STRING_UNQUOTED_AND_COMMA)};
 static const char voltage_measurement_channel_names[][11] = {
     DT_FOREACH_PROP_ELEM(DT_PATH(voltage_measurement), io_channel_names,
                          DT_PROP_AND_COMMA)};
@@ -115,82 +124,6 @@ k_tid_t tid_publish = NULL;
 
 static atomic_t voltages_publish_period_ms = ATOMIC_INIT(0);
 
-/**
- * Voltage divider scaling factors for each channel, per hardware architecture.
- * 2 hardware architectures in the 2 indexes: EV1..4, EV5
- */
-static float voltage_divider_scaling_lut[CHANNEL_COUNT][2] = {
-    [CHANNEL_VBAT_SW] =
-        {
-            DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                      voltage_divider_scaling_vbat_sw, 0),
-            DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                      voltage_divider_scaling_vbat_sw, 1),
-        },
-    [CHANNEL_PVCC] =
-        {
-            DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                      voltage_divider_scaling_pvcc, 0),
-            DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                      voltage_divider_scaling_pvcc, 1),
-        },
-    [CHANNEL_12V] =
-        {
-            DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                      voltage_divider_scaling_12v, 0),
-            DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                      voltage_divider_scaling_12v, 1),
-        },
-    [CHANNEL_12V_CAPS] =
-        {
-            DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                      voltage_divider_scaling_12v_caps, 0),
-            DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                      voltage_divider_scaling_12v_caps, 1),
-        },
-    [CHANNEL_DIE_TEMP] =
-        {
-            1.0f,
-            1.0f,
-        },
-    [CHANNEL_3V3_UC] =
-        {
-            3.0f, // from STM32 datasheet
-            3.0f,
-        },
-    [CHANNEL_1V8] =
-        {
-            DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                      voltage_divider_scaling_1v8, 0),
-            DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                      voltage_divider_scaling_1v8, 1),
-        },
-    [CHANNEL_3V3] =
-        {
-            DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                      voltage_divider_scaling_3v3, 0),
-            DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                      voltage_divider_scaling_3v3, 1),
-        },
-    [CHANNEL_5V] =
-        {
-            DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                      voltage_divider_scaling_5v, 0),
-            DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                      voltage_divider_scaling_5v, 1),
-        },
-    [CHANNEL_3V3_SSD_3V8] =
-        {DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                   voltage_divider_scaling_3v8_3v3_ssd, 0),
-         DT_STRING_UNQUOTED_BY_IDX(DT_PATH(voltage_measurement),
-                                   voltage_divider_scaling_3v8_3v3_ssd, 1)},
-    [CHANNEL_VREFINT] =
-        {
-            1.0f,
-            1.0f,
-        },
-};
-
 uint16_t
 voltage_measurement_get_vref_mv(void)
 {
@@ -247,26 +180,24 @@ voltage_measurement_get_stats(adc_samples_buffers_t *samples_buffers,
     adc_raw_to_millivolts(vref_mv, ADC_GAIN, ADC_RESOLUTION_BITS,
                           &raw_value_max);
 
+    float voltage_divider_scaling;
+
+    if (hardware_version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+        voltage_divider_scaling = voltage_divider_scalings_ev5[channel];
+    } else {
+        voltage_divider_scaling = voltage_divider_scalings[channel];
+    }
+
     if (voltage_mv != NULL) {
-        *voltage_mv =
-            (int32_t)((float)raw_value *
-                      voltage_divider_scaling_lut
-                          [channel][hardware_version ==
-                                    Hardware_OrbVersion_HW_VERSION_PEARL_EV5]);
+        *voltage_mv = (int32_t)((float)raw_value * voltage_divider_scaling);
     }
     if (min_voltage_mv != NULL) {
         *min_voltage_mv =
-            (int32_t)((float)raw_value_min *
-                      voltage_divider_scaling_lut
-                          [channel][hardware_version ==
-                                    Hardware_OrbVersion_HW_VERSION_PEARL_EV5]);
+            (int32_t)((float)raw_value_min * voltage_divider_scaling);
     }
     if (max_voltage_mv != NULL) {
         *max_voltage_mv =
-            (int32_t)((float)raw_value_max *
-                      voltage_divider_scaling_lut
-                          [channel][hardware_version ==
-                                    Hardware_OrbVersion_HW_VERSION_PEARL_EV5]);
+            (int32_t)((float)raw_value_max * voltage_divider_scaling);
     }
 
     return RET_SUCCESS;
@@ -299,11 +230,15 @@ voltage_measurement_get(const voltage_measurement_channel_t channel,
 
     adc_raw_to_millivolts(vref_mv, ADC_GAIN, ADC_RESOLUTION_BITS, &raw_value);
 
-    *voltage_mv =
-        (int32_t)((float)raw_value *
-                  voltage_divider_scaling_lut
-                      [channel][hardware_version ==
-                                Hardware_OrbVersion_HW_VERSION_PEARL_EV5]);
+    float voltage_divider_scaling;
+
+    if (hardware_version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+        voltage_divider_scaling = voltage_divider_scalings_ev5[channel];
+    } else {
+        voltage_divider_scaling = voltage_divider_scalings[channel];
+    }
+
+    *voltage_mv = (int32_t)((float)raw_value * voltage_divider_scaling);
 
     return RET_SUCCESS;
 }
