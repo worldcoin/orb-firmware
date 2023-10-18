@@ -56,7 +56,14 @@
         supply-pvcc-enable-gpios = <&gpio_exp_pwr_brd 5 GPIO_ACTIVE_HIGH>;
         supply-super-cap-enable-gpios = <&gpio_exp_pwr_brd 6 GPIO_ACTIVE_HIGH>;
         supply-vbat-sw-enable-gpios = <&gpio_exp_pwr_brd 12 GPIO_ACTIVE_HIGH>;
-        front-unit-pvcc-enabled-gpios = <&gpio_exp_front_unit 0 GPIO_ACTIVE_HIGH>; // TODO is it connected?
+        front-unit-pvcc-enabled-gpios = <&gpio_exp_front_unit 0 GPIO_ACTIVE_HIGH>;
+
+        supply-12v-caps-enable-gpios = <&gpio_exp_pwr_brd 4 GPIO_ACTIVE_LOW>;
+        supply-5v-rgb-enable-gpios = <&gpio_exp1 2 GPIO_ACTIVE_HIGH>;
+        supply-3v6-enable-gpios = <&gpio_exp2 5 GPIO_ACTIVE_HIGH>;
+        supply-3v3-lte-enable-gpios = <&gpio_exp2 15 GPIO_ACTIVE_HIGH>;
+        supply-2v8-enable-gpios = <&gpio_exp2 7 GPIO_ACTIVE_HIGH>;
+        supply-1v2-enable-gpios = <&gpio_exp2 6 GPIO_ACTIVE_HIGH>;
 
         // used by boot.c when voltage measurements module is not available yet
         pvcc-voltage-gpios = <&gpioc 1 GPIO_ACTIVE_HIGH>;

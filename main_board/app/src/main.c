@@ -208,9 +208,6 @@ initialize(void)
     err_code = voltage_measurement_init(&hw);
     ASSERT_SOFT(err_code);
 
-    err_code = boot_init(&hw);
-    ASSERT_SOFT(err_code);
-
     // logs over CAN must be initialized after CAN-messaging module
     err_code = logs_init(logs_can);
     ASSERT_SOFT(err_code);
@@ -252,7 +249,7 @@ initialize(void)
         ASSERT_SOFT(err_code);
     }
 #else
-    err_code = optics_init();
+    err_code = optics_init(&hw);
     ASSERT_SOFT(err_code);
 #endif // CONFIG_NO_SUPER_CAPS
 

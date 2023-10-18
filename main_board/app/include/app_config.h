@@ -83,6 +83,7 @@
 #define SYS_INIT_UI_LEDS_PRIORITY               55
 #define SYS_INIT_POWER_SUPPLY_INIT_PRIORITY     54
 #define SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY 53
+#define SYS_INIT_GPIO_CONFIG_PRIORITY           52
 
 ///////////////////////////////////////
 /// CAN bus config                  ///

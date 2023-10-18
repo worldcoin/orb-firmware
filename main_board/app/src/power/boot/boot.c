@@ -24,12 +24,10 @@
 LOG_MODULE_REGISTER(power_sequence, CONFIG_POWER_SEQUENCE_LOG_LEVEL);
 
 // Power supplies turned on in two phases:
-// - Phase 1 initializes just enough power supplies for us to use the Operator
-// LEDs. It consumes power (150mA), but if the operator places the power switch
-// in the off position, then no power is given to the Orb at all, and this is
-// preferably what the operators should be doing when not using the Orb.
+// - Phase 1 initializes just enough power supplies to use the button and
+//   operator LEDs
 // - Phase 2 is for turning on all the power supplies. It is gated on the button
-// press unless we are booting after a reboot was commanded during an update.
+//   press unless we are booting after a reboot was commanded during an update.
 
 K_THREAD_STACK_DEFINE(reboot_thread_stack, THREAD_STACK_SIZE_POWER_MANAGEMENT);
 static struct k_thread reboot_thread_data;
@@ -37,58 +35,289 @@ static struct k_thread reboot_thread_data;
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 static const struct gpio_dt_spec supply_3v8_enable_rfid_irq_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v8_enable_rfid_irq_gpios);
+static const struct gpio_dt_spec lte_gps_usb_reset_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(lte_gps_usb_reset), gpios);
 #endif
 
 static const struct gpio_dt_spec supply_3v3_ssd_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v3_ssd_enable_gpios);
-
 static const struct gpio_dt_spec supply_3v3_wifi_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v3_wifi_enable_gpios);
-
 static const struct gpio_dt_spec supply_12v_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_12v_enable_gpios);
-
 static const struct gpio_dt_spec supply_5v_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_5v_enable_gpios);
-
 static const struct gpio_dt_spec supply_3v3_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v3_enable_gpios);
-
 static const struct gpio_dt_spec supply_1v8_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_1v8_enable_gpios);
-
 static const struct gpio_dt_spec supply_pvcc_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_pvcc_enable_gpios);
-
 static const struct gpio_dt_spec supply_super_cap_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_super_cap_enable_gpios);
-
 static const struct gpio_dt_spec supply_vbat_sw_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_vbat_sw_enable_gpios);
+static const struct gpio_dt_spec power_button_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(buttons, power_button), gpios);
+static const struct gpio_dt_spec jetson_sleep_wake_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(jetson_power_pins, sleep_wake), gpios);
+static const struct gpio_dt_spec jetson_power_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(jetson_power_pins, power_enable), gpios);
+static const struct gpio_dt_spec jetson_system_reset_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(jetson_power_pins, system_reset), gpios);
+static const struct gpio_dt_spec jetson_shutdown_request_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(jetson_power_pins, shutdown_request), gpios);
+static const struct gpio_dt_spec supply_meas_enable_spec = GPIO_DT_SPEC_GET(
+    DT_PATH(voltage_measurement), supply_voltages_meas_enable_gpios);
+static const struct gpio_dt_spec pvcc_in_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), pvcc_voltage_gpios);
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+static const struct gpio_dt_spec supply_3v3_lte_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v3_lte_enable_gpios);
+static const struct gpio_dt_spec supply_12v_caps_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_12v_caps_enable_gpios);
+static const struct gpio_dt_spec supply_1v2_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_1v2_enable_gpios);
+static const struct gpio_dt_spec supply_2v8_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_2v8_enable_gpios);
+static const struct gpio_dt_spec supply_3v6_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v6_enable_gpios);
+static const struct gpio_dt_spec supply_5v_rgb_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_5v_rgb_enable_gpios);
+#endif
 
 K_SEM_DEFINE(sem_reboot, 0, 1);
 static atomic_t reboot_delay_s = ATOMIC_INIT(0);
 static k_tid_t reboot_tid = NULL;
 static struct gpio_callback shutdown_cb_data;
 
-#define FORMAT_STRING "Checking that %s is ready... "
-
-static int
-check_is_ready(const struct device *dev, const char *name)
-{
-    if (!device_is_ready(dev)) {
-        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
-        return 1;
-    }
-
-    LOG_INF(FORMAT_STRING "yes", name);
-    return 0;
-}
-
 #define I2C_CLOCK_NODE  DT_PATH(zephyr_user)
 #define I2C_CLOCK_CTLR  DT_GPIO_CTLR(I2C_CLOCK_NODE, i2c_clock_gpios)
 #define I2C_CLOCK_PIN   DT_GPIO_PIN(I2C_CLOCK_NODE, i2c_clock_gpios)
 #define I2C_CLOCK_FLAGS DT_GPIO_FLAGS(I2C_CLOCK_NODE, i2c_clock_gpios)
+
+int
+power_configure_gpios(void)
+{
+    Hardware_OrbVersion version = version_get_hardware_rev();
+    int ret;
+
+    if (!device_is_ready(supply_vbat_sw_enable_gpio_spec.port) ||
+        !device_is_ready(supply_12v_enable_gpio_spec.port) ||
+        !device_is_ready(supply_5v_enable_gpio_spec.port) ||
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+        !device_is_ready(supply_3v8_enable_rfid_irq_gpio_spec.port) ||
+#endif
+        !device_is_ready(supply_3v3_enable_gpio_spec.port) ||
+        !device_is_ready(supply_1v8_enable_gpio_spec.port) ||
+        !device_is_ready(supply_super_cap_enable_gpio_spec.port) ||
+        !device_is_ready(supply_pvcc_enable_gpio_spec.port) ||
+        !device_is_ready(power_button_gpio_spec.port) ||
+        !device_is_ready(jetson_sleep_wake_gpio_spec.port) ||
+        !device_is_ready(jetson_power_enable_gpio_spec.port) ||
+        !device_is_ready(jetson_system_reset_gpio_spec.port) ||
+        !device_is_ready(jetson_shutdown_request_gpio_spec.port) ||
+        !device_is_ready(supply_meas_enable_spec.port)) {
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_vbat_sw_enable_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_12v_enable_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_5v_enable_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    // 3.8V regulator only available on EV1...4
+    if ((version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
+        (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
+        (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
+        (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
+        ret = gpio_pin_configure_dt(&supply_3v8_enable_rfid_irq_gpio_spec,
+                                    GPIO_OUTPUT_INACTIVE);
+        if (ret != 0) {
+            ASSERT_SOFT(ret);
+            return RET_ERROR_INTERNAL;
+        }
+    }
+
+    ret = gpio_pin_configure_dt(&lte_gps_usb_reset_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+#endif
+
+    ret = gpio_pin_configure_dt(&supply_3v3_enable_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+    ret = gpio_pin_configure_dt(&supply_1v8_enable_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_super_cap_enable_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_pvcc_enable_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&power_button_gpio_spec, GPIO_INPUT);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&jetson_sleep_wake_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&jetson_power_enable_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&jetson_system_reset_gpio_spec, GPIO_INPUT);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&jetson_shutdown_request_gpio_spec, GPIO_INPUT);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_meas_enable_spec, GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
+    if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
+        version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
+        if (!device_is_ready(supply_3v3_ssd_enable_gpio_spec.port) ||
+            !device_is_ready(supply_3v3_wifi_enable_gpio_spec.port)) {
+            return RET_ERROR_INTERNAL;
+        }
+
+        ret = gpio_pin_configure_dt(&supply_3v3_ssd_enable_gpio_spec,
+                                    GPIO_OUTPUT_INACTIVE);
+        if (ret != 0) {
+            ASSERT_SOFT(ret);
+            return RET_ERROR_INTERNAL;
+        }
+
+        ret = gpio_pin_configure_dt(&supply_3v3_wifi_enable_gpio_spec,
+                                    GPIO_OUTPUT_INACTIVE);
+        if (ret != 0) {
+            ASSERT_SOFT(ret);
+            return RET_ERROR_INTERNAL;
+        }
+    }
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    if (!device_is_ready(supply_3v3_lte_enable_gpio_spec.port) ||
+        !device_is_ready(supply_12v_caps_enable_gpio_spec.port) ||
+        !device_is_ready(supply_1v2_enable_gpio_spec.port) ||
+        !device_is_ready(supply_2v8_enable_gpio_spec.port) ||
+        !device_is_ready(supply_3v6_enable_gpio_spec.port) ||
+        !device_is_ready(supply_5v_rgb_enable_gpio_spec.port)) {
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_3v3_lte_enable_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_12v_caps_enable_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_1v2_enable_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_2v8_enable_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_3v6_enable_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&supply_5v_rgb_enable_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+#endif
+
+    return RET_SUCCESS;
+}
+
+BUILD_ASSERT(SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY >
+                 SYS_INIT_GPIO_CONFIG_PRIORITY,
+             "GPIOs must be configured before using them.");
+
+BUILD_ASSERT(SYS_INIT_POWER_SUPPLY_INIT_PRIORITY >
+                 SYS_INIT_GPIO_CONFIG_PRIORITY,
+             "GPIOs must be configured before using them.");
+
+SYS_INIT(power_configure_gpios, POST_KERNEL, SYS_INIT_GPIO_CONFIG_PRIORITY);
 
 void
 power_vbat_5v_3v3_supplies_on(void)
@@ -105,25 +334,6 @@ power_vbat_5v_3v3_supplies_on(void)
     if (gpio_pin_configure(i2c_clock, I2C_CLOCK_PIN,
                            GPIO_OUTPUT | I2C_CLOCK_FLAGS)) {
         ASSERT_SOFT(RET_ERROR_INVALID_STATE);
-        return;
-    }
-
-    int ret =
-        gpio_pin_configure_dt(&supply_vbat_sw_enable_gpio_spec, GPIO_OUTPUT);
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return;
-    }
-
-    ret = gpio_pin_configure_dt(&supply_5v_enable_gpio_spec, GPIO_OUTPUT);
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return;
-    }
-
-    ret = gpio_pin_configure_dt(&supply_3v3_enable_gpio_spec, GPIO_OUTPUT);
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
         return;
     }
 
@@ -158,75 +368,11 @@ power_vbat_5v_3v3_supplies_off(void)
 int
 power_turn_on_power_supplies(void)
 {
-    const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
-
     Hardware_OrbVersion version = version_get_hardware_rev();
 
-    if (!device_is_ready(supply_vbat_sw_enable_gpio_spec.port) ||
-        !device_is_ready(supply_12v_enable_gpio_spec.port) ||
-        !device_is_ready(supply_5v_enable_gpio_spec.port) ||
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-        !device_is_ready(supply_3v8_enable_rfid_irq_gpio_spec.port) ||
-#endif
-        !device_is_ready(supply_3v3_enable_gpio_spec.port) ||
-        !device_is_ready(supply_1v8_enable_gpio_spec.port)) {
-        return 1;
-    }
-
-    // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5
-    if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
-        if (!device_is_ready(supply_3v3_ssd_enable_gpio_spec.port) ||
-            !device_is_ready(supply_3v3_wifi_enable_gpio_spec.port)) {
-            return 1;
-        }
-    }
-
-    // We configure this pin here before we enable 3.3v supply
-    // just so that we can disable the automatically-enabled pull-up.
-    // We must do this because providing a voltage to the 3.3v power supply
-    // output before it is online can trigger the safety circuit.
-    //
-    // After this is configured, the I2C initialization will run and
-    // re-configure this pin as SCL.
-    if (gpio_pin_configure(i2c_clock, I2C_CLOCK_PIN,
-                           GPIO_OUTPUT | I2C_CLOCK_FLAGS)) {
-        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
-        return 1;
-    }
-
-    int ret =
-        gpio_pin_configure_dt(&supply_vbat_sw_enable_gpio_spec, GPIO_OUTPUT);
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return 1;
-    }
-
-    ret = gpio_pin_configure_dt(&supply_5v_enable_gpio_spec, GPIO_OUTPUT);
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return 1;
-    }
-
-    ret = gpio_pin_configure_dt(&supply_3v3_enable_gpio_spec, GPIO_OUTPUT);
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return 1;
-    }
-
-    gpio_pin_set_dt(&supply_vbat_sw_enable_gpio_spec, 1);
-    LOG_INF("VBAT SW enabled");
-    k_msleep(100);
-
-    gpio_pin_set_dt(&supply_5v_enable_gpio_spec, 1);
-    LOG_INF("5V enabled");
-
-    k_msleep(100);
-
-    gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 1);
-    LOG_INF("3.3V enabled");
-
-    // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5
-    if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+    // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
+    if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
+        version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
         gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
         LOG_INF("3.3V SSD power supply enabled");
 
@@ -234,14 +380,24 @@ power_turn_on_power_supplies(void)
         LOG_INF("3.3V WIFI power supply enabled");
     }
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    gpio_pin_set_dt(&supply_12v_caps_enable_gpio_spec, 1);
+    LOG_INF("12V_CAPS enabled");
+
+    gpio_pin_set_dt(&supply_5v_rgb_enable_gpio_spec, 1);
+    LOG_INF("5V_RGB enabled");
+
+    gpio_pin_set_dt(&supply_3v6_enable_gpio_spec, 1);
+    LOG_INF("3V6 enabled");
+
+    gpio_pin_set_dt(&supply_3v3_lte_enable_gpio_spec, 1);
+    LOG_INF("3V3_LTE enabled");
+
+    gpio_pin_set_dt(&supply_2v8_enable_gpio_spec, 1);
+    LOG_INF("2V8 enabled");
+#endif
+
     k_msleep(100);
-
-    ret = gpio_pin_configure_dt(&supply_12v_enable_gpio_spec, GPIO_OUTPUT);
-
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return 1;
-    }
 
     gpio_pin_set_dt(&supply_12v_enable_gpio_spec, 1);
     LOG_INF("12V enabled");
@@ -252,20 +408,19 @@ power_turn_on_power_supplies(void)
         (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
         (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
         (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
+
         gpio_pin_set_dt(&supply_3v8_enable_rfid_irq_gpio_spec, 1);
         LOG_INF("3.8V enabled");
     }
 #endif
 
-    ret = gpio_pin_configure_dt(&supply_1v8_enable_gpio_spec, GPIO_OUTPUT);
-
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return 1;
-    }
-
     gpio_pin_set_dt(&supply_1v8_enable_gpio_spec, 1);
     LOG_INF("1.8V power supply enabled");
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    gpio_pin_set_dt(&supply_1v2_enable_gpio_spec, 1);
+    LOG_INF("1V2 enabled");
+#endif
 
     k_msleep(100);
 
@@ -275,6 +430,7 @@ power_turn_on_power_supplies(void)
 BUILD_ASSERT(CONFIG_I2C_INIT_PRIORITY > SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
              "I2C must be initialized _after_ the power supplies so that the "
              "safety circuit doesn't get tripped");
+
 #ifdef CONFIG_GPIO_PCA95XX_INIT_PRIORITY
 BUILD_ASSERT(
     CONFIG_GPIO_PCA95XX_INIT_PRIORITY < SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
@@ -282,11 +438,13 @@ BUILD_ASSERT(
 BUILD_ASSERT(
     CONFIG_GPIO_PCA95XX_INIT_PRIORITY < SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY,
     "GPIO expanders need to be initialized for the button state to be polled.");
+
 #ifdef CONFIG_I2C_INIT_PRIO_INST_1
 BUILD_ASSERT(
     CONFIG_GPIO_PCA95XX_INIT_PRIORITY > CONFIG_I2C_INIT_PRIO_INST_1,
     "GPIO expanders need to be initialized after I2C3 because they are "
     "connected to the I2C bus.");
+
 BUILD_ASSERT(DEVICE_DT_GET(DT_INST(1, st_stm32_i2c_v2)) ==
                  DEVICE_DT_GET(DT_PARENT(DT_NODELABEL(gpio_exp_pwr_brd))),
              "GPIO expander to power board must be the one connected to I2C "
@@ -299,11 +457,6 @@ SYS_INIT(power_turn_on_power_supplies, POST_KERNEL,
          SYS_INIT_POWER_SUPPLY_INIT_PRIORITY);
 
 #define BUTTON_PRESS_TIME_MS 600
-
-#define POWER_BUTTON_NODE  DT_PATH(buttons, power_button)
-#define POWER_BUTTON_CTLR  DT_GPIO_CTLR(POWER_BUTTON_NODE, gpios)
-#define POWER_BUTTON_PIN   DT_GPIO_PIN(POWER_BUTTON_NODE, gpios)
-#define POWER_BUTTON_FLAGS DT_GPIO_FLAGS(POWER_BUTTON_NODE, gpios)
 
 /**
  * @brief Wait for a button press before continuing boot.
@@ -323,40 +476,11 @@ power_until_button_press(void)
 {
     int ret;
     bool self_test_pending = true;
-    const struct device *power_button = DEVICE_DT_GET(POWER_BUTTON_CTLR);
 
-    if (IS_ENABLED(CONFIG_INSTA_BOOT)) {
-        LOG_INF(
-            "INSTA_BOOT enabled -- not waiting for a button press to boot!");
-        return 0;
-    }
-
-    if (!device_is_ready(power_button)) {
-        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
-        return RET_ERROR_INVALID_STATE;
-    }
-
-    ret = gpio_pin_configure(power_button, POWER_BUTTON_PIN,
-                             POWER_BUTTON_FLAGS | GPIO_INPUT);
-    if (ret) {
-        ASSERT_SOFT(ret);
-        return RET_ERROR_INVALID_STATE;
-    }
-
-    const struct gpio_dt_spec supply_meas_enable_spec = GPIO_DT_SPEC_GET(
-        DT_PATH(voltage_measurement), supply_voltages_meas_enable_gpios);
-    ret = gpio_pin_configure_dt(&supply_meas_enable_spec, GPIO_OUTPUT);
-    ASSERT_SOFT(ret);
-    ret = gpio_pin_set_dt(&supply_meas_enable_spec, 1);
-    if (ret) {
-        ASSERT_SOFT(ret);
-        return RET_ERROR_INVALID_STATE;
-    }
+    gpio_pin_set_dt(&supply_meas_enable_spec, 1);
 
     k_msleep(1);
 
-    const struct gpio_dt_spec pvcc_in_gpio_spec =
-        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), pvcc_voltage_gpios);
     ret = gpio_pin_configure_dt(&pvcc_in_gpio_spec, GPIO_INPUT);
     if (ret) {
         ASSERT_SOFT(ret);
@@ -377,7 +501,16 @@ power_until_button_press(void)
                 k_msleep(1000);
             }
         }
-        if (!gpio_pin_get(power_button, POWER_BUTTON_PIN)) {
+
+        if (IS_ENABLED(CONFIG_INSTA_BOOT)) {
+            power_vbat_5v_3v3_supplies_on();
+            operator_led_mask = BIT_MASK(OPERATOR_LEDS_COUNT);
+            operator_leds_blocking_set(&white, operator_led_mask);
+            i = OPERATOR_LEDS_COUNT;
+            break;
+        }
+
+        if (gpio_pin_get_dt(&power_button_gpio_spec) == 0) {
             if (i > 1) {
                 LOG_INF("Press stopped.");
                 power_vbat_5v_3v3_supplies_off();
@@ -424,7 +557,7 @@ app_init_state(void)
 {
     int ret = 0;
 
-    LOG_INF("Hello from " CONFIG_BOARD " :)");
+    LOG_INF_IMM("Hello from " CONFIG_BOARD " :)");
 
     // read image status to know whether we are waiting for user to press
     // the button
@@ -444,7 +577,7 @@ app_init_state(void)
         primary_slot.magic == BOOT_MAGIC_UNSET) {
         ret = power_until_button_press();
     } else {
-        LOG_INF("Firmware image not confirmed, confirming");
+        LOG_INF_IMM("Firmware image not confirmed, confirming");
 
         // FIXME image to be confirmed once MCU fully booted
         // Image is confirmed before we actually reboot the Orb
@@ -460,41 +593,6 @@ app_init_state(void)
 
 SYS_INIT(app_init_state, POST_KERNEL, SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY);
 
-#define SLEEP_WAKE_NODE  DT_PATH(jetson_power_pins, sleep_wake)
-#define SLEEP_WAKE_CTLR  DT_GPIO_CTLR(SLEEP_WAKE_NODE, gpios)
-#define SLEEP_WAKE_PIN   DT_GPIO_PIN(SLEEP_WAKE_NODE, gpios)
-#define SLEEP_WAKE_FLAGS DT_GPIO_FLAGS(SLEEP_WAKE_NODE, gpios)
-#define SLEEP            0
-#define WAKE             1
-
-#define POWER_ENABLE_NODE  DT_PATH(jetson_power_pins, power_enable)
-#define POWER_ENABLE_CTLR  DT_GPIO_CTLR(POWER_ENABLE_NODE, gpios)
-#define POWER_ENABLE_PIN   DT_GPIO_PIN(POWER_ENABLE_NODE, gpios)
-#define POWER_ENABLE_FLAGS DT_GPIO_FLAGS(POWER_ENABLE_NODE, gpios)
-#define ENABLE             1
-#define DISABLE            0
-
-#define SYSTEM_RESET_NODE  DT_PATH(jetson_power_pins, system_reset)
-#define SYSTEM_RESET_CTLR  DT_GPIO_CTLR(SYSTEM_RESET_NODE, gpios)
-#define SYSTEM_RESET_PIN   DT_GPIO_PIN(SYSTEM_RESET_NODE, gpios)
-#define SYSTEM_RESET_FLAGS DT_GPIO_FLAGS(SYSTEM_RESET_NODE, gpios)
-#define RESET              1
-#define OUT_OF_RESET       0
-
-#define SHUTDOWN_REQUEST_NODE DT_PATH(jetson_power_pins, shutdown_request)
-#define SHUTDOWN_REQUEST_CTLR DT_GPIO_CTLR(SHUTDOWN_REQUEST_NODE, gpios)
-
-#define LTE_GPS_USB_RESET_NODE  DT_PATH(lte_gps_usb_reset)
-#define LTE_GPS_USB_RESET_CTLR  DT_GPIO_CTLR(LTE_GPS_USB_RESET_NODE, gpios)
-#define LTE_GPS_USB_RESET_PIN   DT_GPIO_PIN(LTE_GPS_USB_RESET_NODE, gpios)
-#define LTE_GPS_USB_RESET_FLAGS DT_GPIO_FLAGS(LTE_GPS_USB_RESET_NODE, gpios)
-#define LTE_GPS_USB_ON          0
-
-static const struct gpio_dt_spec shutdown_pin =
-    GPIO_DT_SPEC_GET_OR(SHUTDOWN_REQUEST_NODE, gpios, {0});
-static const struct device *power_enable = DEVICE_DT_GET(POWER_ENABLE_CTLR);
-static const struct device *system_reset = DEVICE_DT_GET(SYSTEM_RESET_CTLR);
-
 #define SYSTEM_RESET_UI_DELAY_MS 200
 
 /// SHUTDOWN_REQ interrupt callback
@@ -508,8 +606,8 @@ shutdown_requested(const struct device *dev, struct gpio_callback *cb,
     ARG_UNUSED(dev);
     ARG_UNUSED(cb);
 
-    if (pins & BIT(shutdown_pin.pin)) {
-        gpio_pin_set(power_enable, POWER_ENABLE_PIN, DISABLE);
+    if (pins & BIT(jetson_shutdown_request_gpio_spec.pin)) {
+        gpio_pin_set_dt(&jetson_power_enable_gpio_spec, 0);
 
         // offload reboot to power management thread
         atomic_set(&reboot_delay_s, 1);
@@ -555,19 +653,21 @@ reboot_thread()
     do {
         // check if shutdown_pin is active, if so, it means Jetson
         // needs proper shutdown
-        if (gpio_pin_get_dt(&shutdown_pin) == 1) {
+        if (gpio_pin_get_dt(&jetson_shutdown_request_gpio_spec) == 1) {
             // From the Jetson Datasheet DS-10184-001 § 2.6.2 Power Down:
             //  > Once POWER_EN is deasserted, the module will assert
             //  SYS_RESET*, and the baseboard may shut down. SoC 3.3V I/O must
             //  reach 0.5V or lower at most 1.5ms after SYS_RESET* is asserted.
             //  SoC 1.8V I/O must reach 0.5V or lower at most 4ms after
             //  SYS_RESET* is asserted.
-            while (gpio_pin_get(system_reset, SYSTEM_RESET_PIN) == 0)
+            while (gpio_pin_get_dt(&jetson_system_reset_gpio_spec) == 0)
                 ;
 
             gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 0);
-            // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5
-            if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+            // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and
+            // Diamond
+            if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
+                version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
                 gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 0);
                 gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 0);
             }
@@ -599,27 +699,22 @@ reboot_thread()
 }
 
 static int
-shutdown_req_init()
+shutdown_req_init(void)
 {
     // Jetson is launched, we can now activate shutdown detection
     int ret;
 
-    ret = gpio_pin_configure_dt(&shutdown_pin, GPIO_INPUT);
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return RET_ERROR_INTERNAL;
-    }
-
-    ret =
-        gpio_pin_interrupt_configure_dt(&shutdown_pin, GPIO_INT_EDGE_TO_ACTIVE);
+    ret = gpio_pin_interrupt_configure_dt(&jetson_shutdown_request_gpio_spec,
+                                          GPIO_INT_EDGE_TO_ACTIVE);
     if (ret != 0) {
         ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
     }
 
     gpio_init_callback(&shutdown_cb_data, shutdown_requested,
-                       BIT(shutdown_pin.pin));
-    ret = gpio_add_callback(shutdown_pin.port, &shutdown_cb_data);
+                       BIT(jetson_shutdown_request_gpio_spec.pin));
+    ret = gpio_add_callback_dt(&jetson_shutdown_request_gpio_spec,
+                               &shutdown_cb_data);
     if (ret != 0) {
         ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
@@ -629,15 +724,17 @@ shutdown_req_init()
 }
 
 __unused static int
-shutdown_req_uninit()
+shutdown_req_uninit(void)
 {
-    int ret = gpio_pin_interrupt_configure_dt(&shutdown_pin, GPIO_INT_DISABLE);
+    int ret = gpio_pin_interrupt_configure_dt(
+        &jetson_shutdown_request_gpio_spec, GPIO_INT_DISABLE);
     if (ret) {
         ASSERT_SOFT(ret);
         return ret;
     }
 
-    ret = gpio_remove_callback(shutdown_pin.port, &shutdown_cb_data);
+    ret = gpio_remove_callback_dt(&jetson_shutdown_request_gpio_spec,
+                                  &shutdown_cb_data);
     if (ret) {
         ASSERT_SOFT(ret);
     }
@@ -647,64 +744,20 @@ shutdown_req_uninit()
 int
 boot_turn_on_jetson(void)
 {
-    const struct device *sleep_wake = DEVICE_DT_GET(SLEEP_WAKE_CTLR);
-    const struct device *shutdown_request =
-        DEVICE_DT_GET(SHUTDOWN_REQUEST_CTLR);
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-    const struct device *lte_gps_usb_reset =
-        DEVICE_DT_GET(LTE_GPS_USB_RESET_CTLR);
-#endif
-    int ret = 0;
+    LOG_INF("Enabling Jetson power");
+    gpio_pin_set_dt(&jetson_power_enable_gpio_spec, 1);
 
-    if (check_is_ready(sleep_wake, "sleep wake pin") ||
-        check_is_ready(power_enable, "power enable pin") ||
-        check_is_ready(system_reset, "system reset pin") ||
-        check_is_ready(shutdown_request, "Shutdown request pin")) {
-        return RET_ERROR_INVALID_STATE;
-    }
+    LOG_INF("Waiting for reset done signal from Jetson");
+    while (gpio_pin_get_dt(&jetson_system_reset_gpio_spec) != 0)
+        ;
+    LOG_INF("Reset done");
 
-    ret = gpio_pin_configure(power_enable, POWER_ENABLE_PIN,
-                             POWER_ENABLE_FLAGS | GPIO_OUTPUT);
-    if (ret) {
-        ASSERT_SOFT(ret);
-    } else {
-        LOG_INF("Enabling Jetson power");
-        ret = gpio_pin_set(power_enable, POWER_ENABLE_PIN, ENABLE);
-        ASSERT_SOFT(ret);
-
-        ret = gpio_pin_configure(system_reset, SYSTEM_RESET_PIN,
-                                 SYSTEM_RESET_FLAGS | GPIO_INPUT);
-        if (ret) {
-            ASSERT_SOFT(ret);
-        } else {
-            LOG_INF_IMM("Waiting for reset done signal from Jetson");
-            while (gpio_pin_get(system_reset, SYSTEM_RESET_PIN) != OUT_OF_RESET)
-                ;
-            LOG_INF("Reset done");
-        }
-    }
-
-    ret = gpio_pin_configure(sleep_wake, SLEEP_WAKE_PIN,
-                             SLEEP_WAKE_FLAGS | GPIO_OUTPUT);
-    if (ret) {
-        ASSERT_SOFT(ret);
-    } else {
-        LOG_INF_IMM("Setting Jetson to WAKE mode");
-        ret = gpio_pin_set(sleep_wake, SLEEP_WAKE_PIN, WAKE);
-        ASSERT_SOFT(ret);
-    }
+    LOG_INF("Setting Jetson to WAKE mode");
+    gpio_pin_set_dt(&jetson_sleep_wake_gpio_spec, 1);
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-    ret = gpio_pin_configure(lte_gps_usb_reset, LTE_GPS_USB_RESET_PIN,
-                             LTE_GPS_USB_RESET_FLAGS | GPIO_OUTPUT);
-    if (ret) {
-        ASSERT_SOFT(ret);
-    } else {
-        LOG_INF("Enabling LTE, GPS, and USB");
-        ret = gpio_pin_set(lte_gps_usb_reset, LTE_GPS_USB_RESET_PIN,
-                           LTE_GPS_USB_ON);
-        ASSERT_SOFT(ret);
-    }
+    LOG_INF("Enabling LTE, GPS, and USB");
+    gpio_pin_set_dt(&lte_gps_usb_reset_gpio_spec, 0);
 #endif
 
     shutdown_req_init();
@@ -722,21 +775,6 @@ boot_turn_on_jetson(void)
 int
 boot_turn_on_super_cap_charger(void)
 {
-    int ret;
-
-    if (!device_is_ready(supply_super_cap_enable_gpio_spec.port)) {
-        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
-        return RET_ERROR_INTERNAL;
-    }
-
-    ret =
-        gpio_pin_configure_dt(&supply_super_cap_enable_gpio_spec, GPIO_OUTPUT);
-
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return RET_ERROR_INTERNAL;
-    }
-
     gpio_pin_set_dt(&supply_super_cap_enable_gpio_spec, 1);
     LOG_INF("super cap charger enabled");
 
@@ -747,20 +785,6 @@ boot_turn_on_super_cap_charger(void)
 int
 boot_turn_off_pvcc(void)
 {
-    int ret;
-
-    if (!device_is_ready(supply_pvcc_enable_gpio_spec.port)) {
-        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
-        return RET_ERROR_INTERNAL;
-    }
-
-    ret = gpio_pin_configure_dt(&supply_pvcc_enable_gpio_spec, GPIO_OUTPUT);
-
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return RET_ERROR_INTERNAL;
-    }
-
     gpio_pin_set_dt(&supply_pvcc_enable_gpio_spec, 0);
     LOG_INF("PVCC disabled");
 
@@ -770,20 +794,6 @@ boot_turn_off_pvcc(void)
 int
 boot_turn_on_pvcc(void)
 {
-    int ret;
-
-    if (!device_is_ready(supply_pvcc_enable_gpio_spec.port)) {
-        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
-        return RET_ERROR_INTERNAL;
-    }
-
-    ret = gpio_pin_configure_dt(&supply_pvcc_enable_gpio_spec, GPIO_OUTPUT);
-
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return RET_ERROR_INTERNAL;
-    }
-
     gpio_pin_set_dt(&supply_pvcc_enable_gpio_spec, 1);
     LOG_INF("PVCC enabled");
     return RET_SUCCESS;
@@ -802,71 +812,6 @@ reboot(uint32_t delay_s)
         // sleep for `reboot_delay_s` seconds before rebooting
         k_wakeup(reboot_tid);
         k_sem_give(&sem_reboot);
-    }
-
-    return RET_SUCCESS;
-}
-
-ret_code_t
-boot_init(const Hardware *hw_version)
-{
-    // 3.8V regulator only available on EV1...4
-    // -> configure pin to output
-    // on EV5 and later this pin is an input
-    if ((hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
-        (hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
-        (hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
-        (hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-        if (!device_is_ready(supply_3v8_enable_rfid_irq_gpio_spec.port)) {
-            ASSERT_SOFT(RET_ERROR_INVALID_STATE);
-            return RET_ERROR_INTERNAL;
-        }
-
-        int ret = gpio_pin_configure_dt(&supply_3v8_enable_rfid_irq_gpio_spec,
-                                        GPIO_OUTPUT);
-
-        if (ret != 0) {
-            ASSERT_SOFT(ret);
-            return RET_ERROR_INTERNAL;
-        }
-#endif
-        LOG_INF("EV1...4 Mainboard detected -> SUPPLY_3V8_EN pin configured to "
-                "output.");
-    } else if (hw_version->version ==
-               Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
-        // On EV5 the signal...
-        // UC_ADC_FU_EYE_SAFETY was replaced by 3V3_SSD_SUPPLY_EN_3V3
-        // UC_FU_RFID_GPO_3V3 was replaced by 3V3_WIFI_SUPPLY_EN_3V3
-        // Both pins must be configured as an output.
-        if (!device_is_ready(supply_3v3_ssd_enable_gpio_spec.port)) {
-            ASSERT_SOFT(RET_ERROR_INVALID_STATE);
-            return RET_ERROR_INTERNAL;
-        }
-
-        if (!device_is_ready(supply_3v3_wifi_enable_gpio_spec.port)) {
-            ASSERT_SOFT(RET_ERROR_INVALID_STATE);
-            return RET_ERROR_INTERNAL;
-        }
-
-        int ret = gpio_pin_configure_dt(&supply_3v3_ssd_enable_gpio_spec,
-                                        GPIO_OUTPUT);
-
-        if (ret != 0) {
-            ASSERT_SOFT(ret);
-            return RET_ERROR_INTERNAL;
-        }
-
-        ret = gpio_pin_configure_dt(&supply_3v3_wifi_enable_gpio_spec,
-                                    GPIO_OUTPUT);
-
-        if (ret != 0) {
-            ASSERT_SOFT(ret);
-            return RET_ERROR_INTERNAL;
-        }
-
-        LOG_INF("EV5 Mainboard detected -> SUPPLY_3V3_SSD_EN and "
-                "SUPPLY_3V3_WIFI_EN pins configured to output.");
     }
 
     return RET_SUCCESS;
