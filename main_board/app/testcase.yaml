@@ -1,5 +1,7 @@
 tests:
   orb.hil:
     extra_args: OVERLAY_CONFIG=tests.conf
-    platform_allow: mcu_main
+    platform_allow:
+      - pearl_main
+      - diamond_main
     timeout: 480
