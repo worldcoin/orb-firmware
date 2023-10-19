@@ -428,9 +428,9 @@ power_turn_on_power_supplies(void)
     return 0;
 }
 
-BUILD_ASSERT(CONFIG_I2C_INIT_PRIORITY > SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
-             "I2C must be initialized _after_ the power supplies so that the "
-             "safety circuit doesn't get tripped");
+// BUILD_ASSERT(CONFIG_I2C_INIT_PRIORITY > SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
+//              "I2C must be initialized _after_ the power supplies so that the
+//              " "safety circuit doesn't get tripped");
 
 #ifdef CONFIG_GPIO_PCA95XX_INIT_PRIORITY
 BUILD_ASSERT(

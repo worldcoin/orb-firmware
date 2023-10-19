@@ -173,8 +173,8 @@ static const struct pinctrl_dev_config *pin_controls[] = {
     PINCTRL_DT_DEV_CONFIG_GET(IR_FACE_CAMERA_NODE),
 };
 
-static_assert(ARRAY_SIZE(pin_controls) == ARRAY_SIZE(all_pclken),
-              "Each array must be the same length");
+BUILD_ASSERT(ARRAY_SIZE(pin_controls) == ARRAY_SIZE(all_pclken),
+             "Each array must be the same length");
 // END --- combined
 
 #define TIMER_MAX_CH 4
@@ -789,13 +789,22 @@ setup_850nm_led_timer(void)
     LL_TIM_SetSlaveMode(LED_850NM_TIMER,
                         LL_TIM_SLAVEMODE_COMBINED_RESETTRIGGER);
 
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    // todo: different timer on diamond Mainboard
-#else
-    static_assert(CAMERA_TRIGGER_TIMER == TIM8,
-                  "The slave mode trigger input source needs to be changed "
-                  "here if CAMERA_TRIGGER_TIMER is not longer timer 8");
+    // see reference manual RM0440
+    // 11.3 Interconnection details
+    //    11.3.1 From timer (TIMx, HRTIM) to timer (TIMx)
+    //      - from TIM 15 to 8: ITR5
+    //      - from TIM 15 to 20: ITR9
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    BUILD_ASSERT(LED_850NM_TIMER == TIM15 && CAMERA_TRIGGER_TIMER == TIM8,
+                 "The slave mode trigger input source needs to be changed "
+                 "here if CAMERA_TRIGGER_TIMER is not longer timer 8");
     LL_TIM_SetTriggerInput(LED_850NM_TIMER, LL_TIM_TS_ITR5); // timer 8
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    BUILD_ASSERT(LED_850NM_TIMER == TIM15 && CAMERA_TRIGGER_TIMER == TIM20,
+                 "The slave mode trigger input source needs to be changed "
+                 "here if CAMERA_TRIGGER_TIMER is not longer timer 20");
+    LL_TIM_SetTriggerInput(LED_850NM_TIMER, LL_TIM_TS_ITR9); // timer 20
+#endif
 
     LL_TIM_EnableARRPreload(LED_850NM_TIMER);
 
@@ -803,7 +812,6 @@ setup_850nm_led_timer(void)
                             ch2ll[LED_850NM_TIMER_LEFT_CHANNEL - 1]);
     LL_TIM_OC_EnablePreload(LED_850NM_TIMER,
                             ch2ll[LED_850NM_TIMER_RIGHT_CHANNEL - 1]);
-#endif
 
     return 0;
 }
@@ -869,14 +877,26 @@ setup_740nm_940nm_led_timer(void)
     LL_TIM_SetSlaveMode(LED_740NM_940NM_COMMON_TIMER,
                         LL_TIM_SLAVEMODE_COMBINED_RESETTRIGGER);
 
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    // todo: different timer on diamond Mainboard
-#else
-    static_assert(CAMERA_TRIGGER_TIMER == TIM8,
-                  "The slave mode trigger input source needs to be changed "
-                  "here if CAMERA_TRIGGER_TIMER is not longer timer 8");
+    // see reference manual RM0440
+    // 11.3 Interconnection details
+    //    11.3.1 From timer (TIMx, HRTIM) to timer (TIMx)
+    //      - from TIM 3 to 8: ITR5
+    //      - from TIM 3 to 20: ITR9
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    BUILD_ASSERT(LED_740NM_940NM_COMMON_TIMER == TIM3 &&
+                     CAMERA_TRIGGER_TIMER == TIM8,
+                 "The slave mode trigger input source needs to be changed "
+                 "here if CAMERA_TRIGGER_TIMER is not longer timer 8");
     LL_TIM_SetTriggerInput(LED_740NM_940NM_COMMON_TIMER,
                            LL_TIM_TS_ITR5); // timer 8
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    BUILD_ASSERT(LED_740NM_940NM_COMMON_TIMER == TIM3 &&
+                     CAMERA_TRIGGER_TIMER == TIM20,
+                 "The slave mode trigger input source needs to be changed "
+                 "here if CAMERA_TRIGGER_TIMER is not longer timer 8");
+    LL_TIM_SetTriggerInput(LED_740NM_940NM_COMMON_TIMER,
+                           LL_TIM_TS_ITR9); // timer 20
+#endif
 
     LL_TIM_EnableARRPreload(LED_740NM_940NM_COMMON_TIMER);
 
@@ -886,7 +906,6 @@ setup_740nm_940nm_led_timer(void)
                             ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
     LL_TIM_OC_EnablePreload(LED_740NM_940NM_COMMON_TIMER,
                             ch2ll[LED_740NM_TIMER_CHANNEL - 1]);
-#endif
 
     return 0;
 }
@@ -933,6 +952,50 @@ ir_camera_system_disable_2d_tof_camera_hw(void)
     debug_print();
 }
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+static ret_code_t
+reset_fuse(void)
+{
+    int err_code;
+
+    const struct gpio_dt_spec fuse_reset =
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_fuse_reset_gpios);
+    const struct gpio_dt_spec fuse_active =
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_fuse_active_gpios);
+
+    err_code = gpio_pin_configure_dt(&fuse_active, GPIO_INPUT);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+
+    if (gpio_pin_get_dt(&fuse_active) == 0) {
+        LOG_WRN("Resetting blown fuse");
+
+        err_code = gpio_pin_configure_dt(&fuse_reset, GPIO_OUTPUT_INACTIVE);
+        if (err_code) {
+            ASSERT_SOFT(err_code);
+            return RET_ERROR_INTERNAL;
+        }
+
+        err_code = gpio_pin_set_dt(&fuse_reset, 1);
+        if (err_code) {
+            ASSERT_SOFT(err_code);
+            return RET_ERROR_INTERNAL;
+        }
+
+        k_msleep(100);
+        err_code = gpio_pin_set_dt(&fuse_reset, 0);
+        if (err_code) {
+            ASSERT_SOFT(err_code);
+            return RET_ERROR_INTERNAL;
+        }
+    }
+
+    return RET_SUCCESS;
+}
+#endif
+
 ret_code_t
 ir_camera_system_hw_init(void)
 {
@@ -945,10 +1008,10 @@ ir_camera_system_hw_init(void)
 
     // super caps charger to draw less current than default
     // this mode is enabled when IR LEDs are not used
-    int ret =
+    err_code =
         gpio_pin_configure_dt(&super_caps_charging_mode, GPIO_OUTPUT_INACTIVE);
-    if (ret) {
-        ASSERT_SOFT(ret);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
 
@@ -978,6 +1041,10 @@ ir_camera_system_hw_init(void)
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    reset_fuse();
+#endif
 
     return RET_SUCCESS;
 }
