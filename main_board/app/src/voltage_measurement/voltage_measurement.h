@@ -11,6 +11,7 @@
  * DTS file.
  */
 typedef enum {
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     CHANNEL_VBAT_SW = 0,
     CHANNEL_PVCC,
     CHANNEL_12V,
@@ -22,8 +23,19 @@ typedef enum {
     CHANNEL_5V,
     CHANNEL_3V3_SSD_3V8, // 3V3_SSD on EV5; 3V8 on EV1...4
     CHANNEL_VREFINT,
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    CHANNEL_VBAT_SW = 0,
+    CHANNEL_3V3_SSD_3V8,
+    CHANNEL_PVCC,
+    CHANNEL_12V,
+    CHANNEL_12V_CAPS,
+    CHANNEL_DIE_TEMP,
+    CHANNEL_3V3_UC,
+    CHANNEL_1V8,
+    CHANNEL_3V3,
+    CHANNEL_5V,
     CHANNEL_3V3_LTE,
+    CHANNEL_VREFINT,
 #endif
     CHANNEL_COUNT
 } voltage_measurement_channel_t;
@@ -32,12 +44,19 @@ static inline uint16_t
 voltage_measurement_get_vref_mv_from_raw(Hardware_OrbVersion hardware_version,
                                          uint16_t vrefint_raw)
 {
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     return (uint16_t)(hardware_version ==
                               Hardware_OrbVersion_HW_VERSION_PEARL_EV5
                           ? DT_PROP_OR(DT_PATH(zephyr_user), ev5_vref_mv, 0)
                           : __LL_ADC_CALC_VREFANALOG_VOLTAGE(
                                 vrefint_raw == 0 ? 1 : vrefint_raw,
                                 LL_ADC_RESOLUTION_12B));
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    UNUSED_PARAMETER(hardware_version);
+    UNUSED_PARAMETER(vrefint_raw);
+
+    return DT_PROP(DT_PATH(zephyr_user), vref_mv);
+#endif
 }
 
 /**

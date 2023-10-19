@@ -77,6 +77,9 @@
             <&gpioe 5 GPIO_ACTIVE_HIGH /* 940nm side */ >;
 
         debug-led-gpios = <&gpiob 4 GPIO_ACTIVE_LOW>;
+
+        // Voltage at VREF+ pin of STM32
+        vref-mv = <2048>;
     };
 
     buttons {
@@ -162,31 +165,31 @@
         // adc1:
         // [0]: VBAT_SW
         //      Diamond PoC2: R1=94k, R2=10k
-        // [1]: PVCC
+        // [1]: 3V3_SSD
+        //      Diamond PoC2: R1=10k, R2=10k
+        // [2]: PVCC
         //      Diamond PoC2: R1=442k, R2=23.5k
-        // [2]: 12V
+        // [3]: 12V
         //      Diamond PoC2: R1=57k, R2=10k
-        // [3]: 12V_CAPS
+        // [4]: 12V_CAPS
         //      Diamond PoC2: R1=57k, R2=10k
-        // [4]: Die Temperature
-        // [5]: Vbat / 3
+        // [5]: Die Temperature
+        // [6]: Vbat / 3
         // adc5:
-        // [6]: 1V8
+        // [7]: 1V8
         //      Diamond PoC2: R1=27R, R2=inf
-        // [7]: 3V3
+        // [8]: 3V3
         //      Diamond PoC2: R1=10k, R2=10k
-        // [8]: 5V
+        // [9]: 5V
         //      Diamond PoC2: R1=20k, R2=10k
-        // [9]: 3V3_SSD (EV5) / 3V8 (EV1…EV4)
-        //      Diamond PoC2: R1=10k, R2=10k
-        // [10]: VREFINT (typ. 1.212 V)
-        // [11]: 3V3_LTE
+        // [10]: 3V3_LTE
         //       Diamond PoC2: R1=10k, R2=10k
+        // [11]: VREFINT (typ. 1.212 V)
         //
         // todo: add other Diamond ADC channels like V_SCAP_MUX_LOW/HIGH and change README.md accordingly
-        io-channels = <&adc1 1>, <&adc1 7>, <&adc1 8>, <&adc1 9>, <&adc1 16>, <&adc1 17>, <&adc5 7>, <&adc5 8>, <&adc5 9>, <&adc1 2>, <&adc5 18>, <&adc5 13>;
-        io-channel-names = "vbat_sw", "pvcc", "12v", "12v_caps", "die_temp", "3v3_uc", "1v8", "3v3", "5v", "3v3_ssd", "vrefint", "3v3_lte";
-        voltage-divider-scalings = "10.4f", "19.81f", "6.7f", "6.7f", "1.0f", "3.0f", "1.0f", "2.0f", "3.0f", "2.0f", "1.0f", "2.0f";
+        io-channels = <&adc1 1>, <&adc1 2>, <&adc1 7>, <&adc1 8>, <&adc1 9>, <&adc1 16>, <&adc1 17>, <&adc5 7>, <&adc5 8>, <&adc5 9>, <&adc5 13>, <&adc5 18>;
+        io-channel-names = "vbat_sw", "3v3_ssd", "pvcc", "12v", "12v_caps", "die_temp", "3v3_uc", "1v8", "3v3", "5v", "3v3_lte", "vrefint";
+        voltage-divider-scalings = "10.4f", "2.0f", "19.81f", "6.7f", "6.7f", "1.0f", "3.0f", "1.0f", "2.0f", "3.0f", "2.0f", "1.0f";
     };
 
     i2c-mux-gpio-mainboard {
