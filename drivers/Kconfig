@@ -1,2 +1,3 @@
 rsource "led_strip/Kconfig"
 rsource "sensor/Kconfig"
+rsource "i2c_mux_gpio/Kconfig"

@@ -1,0 +1,82 @@
+description: |
+  GPIO-based I2C bus multiplexer
+                                    +-----+  +-----+
+                                    | dev |  | dev |
+   +---------------+                +-----+  +-----+
+   | SoC           |                   |        |
+   |               |          /--------+--------+
+   |   +---------+ |  +------+    child bus @ 0x0, on GPIO values set to 0b00
+   |   | I2C root|-|--| Mux  |
+   |   +---------+ |  +--+---+    child bus @ 0x3, on GPIO values set to 0b11
+   |               |     |    \----------+--------+--------+
+   |     +-------+ |     |               |        |        |
+   |     | GPIOs |-|-----+            +-----+  +-----+  +-----+
+   |     +-------+ |  @ channel       | dev |  | dev |  | dev |
+   +---------------+                  +-----+  +-----+  +-----+
+
+  An example IC for realising the Mux in hardware is the TMUX1209 from Texas Instruments.
+
+  Required properties:
+  - compatible: "tfh,i2c-mux-gpio"
+  - i2c-parent: The phandle of the I2C bus that this multiplexer's master-side port is connected to.
+  - mux-gpios: List of gpios used to control the muxer. The first gpio in this list corresponds to the least
+               significant bit in the child bus address.
+  * I2C child bus nodes.
+
+  Example:
+    i2c-mux-gpio {
+      compatible = "tfh,i2c-mux-gpio";
+      status = "okay";
+      #address-cells = <1>;
+      #size-cells = <0>;
+      mux-gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>, <&gpioe 5 GPIO_ACTIVE_HIGH>;
+      enable-gpios = <&gpiob 1 GPIO_ACTIVE_HIGH>;
+      i2c-parent = <&i2c1>;
+
+      mux_i2c@0 {
+          compatible = "tfh,i2c-mux-gpio-channel";
+          status = "okay";
+          reg = <0>;
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          temp_sensor_1: tmp112@49 {
+            compatible = "ti,tmp112";
+            status = "okay";
+            reg = <0x49>;
+          };
+
+      };
+
+      mux_i2c@3 {
+        compatible = "tfh,i2c-mux-gpio-channel";
+        status = "okay";
+        reg = <3>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        temp_sensor_2: tmp112@49 {
+          compatible = "ti,tmp112";
+          status = "okay";
+          reg = <0x49>;
+        };
+      };
+    };
+
+compatible: "tfh,i2c-mux-gpio"
+
+properties:
+  mux-gpios:
+    type: phandle-array
+    required: true
+  enable-gpios:
+    type: phandle-array
+    required: false
+  i2c-parent:
+    type: phandle
+    required: true
+
+child-binding:
+  description: I2C switch channel node
+  compatible: "tfh,i2c-mux-gpio-channel"
+  include: [i2c-controller.yaml]

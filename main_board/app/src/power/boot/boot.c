@@ -171,6 +171,7 @@ power_configure_gpios(void)
         ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
     }
+
     ret = gpio_pin_configure_dt(&supply_1v8_enable_gpio_spec,
                                 GPIO_OUTPUT_INACTIVE);
     if (ret != 0) {

@@ -186,6 +186,103 @@
         io-channel-names = "vbat_sw", "pvcc", "12v", "12v_caps", "die_temp", "3v3_uc", "1v8", "3v3", "5v", "3v3_ssd", "vrefint", "3v3_lte";
         voltage-divider-scalings = "10.4f", "19.81f", "6.7f", "6.7f", "1.0f", "3.0f", "1.0f", "2.0f", "3.0f", "2.0f", "1.0f", "2.0f";
     };
+
+    i2c-mux-gpio-mainboard {
+        compatible = "tfh,i2c-mux-gpio";
+        status = "okay";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        mux-gpios = <&gpio_exp1 14 GPIO_ACTIVE_HIGH>, <&gpio_exp1 15 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&gpio_exp1 13 GPIO_ACTIVE_HIGH>;
+        i2c-parent = <&i2c1>;
+
+        mux_i2c@0 {
+            compatible = "tfh,i2c-mux-gpio-channel";
+            status = "okay";
+            reg = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            main_board_tmp_sensor: tmp112@49 {
+                compatible = "ti,tmp112";
+                status = "okay";
+                reg = <0x49>;
+            };
+        };
+
+        mux_i2c@1 {
+            compatible = "tfh,i2c-mux-gpio-channel";
+            status = "okay";
+            reg = <1>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            liquid_lens_tmp_sensor: maxim31875@4a {
+                compatible = "maxim,max31875";
+                status = "okay";
+                reg = <0x4a>;
+                conversions-per-second = "1";
+                resolution = <8>;
+            };
+        };
+    };
+
+    i2c-mux-gpio-front-unit {
+        compatible = "tfh,i2c-mux-gpio";
+        status = "okay";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        mux-gpios = <&gpio_exp_front_unit 3 GPIO_ACTIVE_HIGH>, <&gpio_exp_front_unit 4 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&gpio_exp_front_unit 5 GPIO_ACTIVE_HIGH>;
+        i2c-parent = <&i2c1>;
+
+        mux_i2c@0 {
+            compatible = "tfh,i2c-mux-gpio-channel";
+            status = "okay";
+            reg = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            front_unit_tmp_sensor: tmp112@48 {
+                compatible = "ti,tmp112";
+                status = "okay";
+                reg = <0x48>;
+            };
+        };
+
+        mux_i2c@3 {
+            compatible = "tfh,i2c-mux-gpio-channel";
+            status = "okay";
+            reg = <3>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            front_unit_als: bu27030@38 {
+                compatible = "rohm,bu27030";
+                status = "okay";
+                reg = <0x38>;
+            };
+        };
+    };
+
+    i2c-mux-gpio-power-board {
+        compatible = "tfh,i2c-mux-gpio";
+        status = "okay";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        mux-gpios = <&gpio_exp_pwr_brd 14 GPIO_ACTIVE_HIGH>, <&gpio_exp_pwr_brd 15 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&gpio_exp_pwr_brd 13 GPIO_ACTIVE_HIGH>;
+        i2c-parent = <&i2c1>;
+
+        mux_i2c@0 {
+            compatible = "tfh,i2c-mux-gpio-channel";
+            status = "okay";
+            reg = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+        };
+    };
 };
 
 &adc1 {
@@ -546,41 +643,9 @@
     pinctrl-names = "default";
     status = "okay";
 
-    // todo: control of multiplexers needed
-    front_unit_tmp_sensor: tmp112@48 {
-        compatible = "ti,tmp112";
-        reg = <0x48>;
-    };
-
-    liquid_lens_tmp_sensor: maxim31875@4a {
-        compatible = "maxim,max31875";
-        reg = <0x4a>;
-        conversions-per-second = "1";
-        resolution = <8>;
-    };
-
-    // on EV5 the I2C address of the MAX31875R2 is translated from 0x4a to 0x5a for solving an address conflict
-    // between the I2C address of the liquid lens EEPROM and the NFC reader (both on 0x50)
-    liquid_lens_tmp_sensor_ev5: maxim31875@5a {
-        compatible = "maxim,max31875";
-        reg = <0x5a>;
-        conversions-per-second = "1";
-        resolution = <8>;
-    };
-
-    main_board_tmp_sensor: tmp112@49 {
-        compatible = "ti,tmp112";
-        reg = <0x49>;
-    };
-
     tof_sensor: vl53l1x@29 {
         compatible = "st,vl53l1x";
         reg = <0x29>;
-    };
-
-    front_unit_als: bu27030@38 {
-        compatible = "rohm,bu27030";
-        reg = <0x38>;
     };
 
     // io-expander on the front unit 0x23

@@ -14,3 +14,8 @@ config I2C_INIT_PRIO_INST_1
     int "I2C init priority instance 1 (i2c3) - always-on I2C"
     default I2C_INIT_PRIORITY
     depends on I2C
+
+config PCA95XX_INIT_PRIO_INST_0
+    int "PCA95xx init priority instance 0 (on i2c1)"
+    default GPIO_PCA95XX_INIT_PRIORITY
+    depends on GPIO_PCA95XX

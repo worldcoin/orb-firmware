@@ -1,2 +1,3 @@
 worldcoin	Worldcoin
 tmc	Trinamic
+tfh	Tools For Humanity

@@ -15,16 +15,18 @@ LOG_MODULE_REGISTER(optics);
 static HardwareDiagnostic_Status self_test_status =
     HardwareDiagnostic_Status_STATUS_UNKNOWN;
 
+static ATOMIC_DEFINE(fu_pvcc_enabled, 1);
+#define ATOMIC_FU_PVCC_ENABLED_BIT 0
+
 // pin allows us to check whether PVCC is enabled on the front unit
 // PVCC might be disabled by hardware due to an intense usage of the IR LEDs
 // that doesn't respect the eye safety constraints
 static struct gpio_dt_spec front_unit_pvcc_enabled = GPIO_DT_SPEC_GET_BY_IDX(
     DT_PATH(zephyr_user), front_unit_pvcc_enabled_gpios, 0);
 
-static struct gpio_callback fu_pvcc_enabled_cb_data;
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 
-static ATOMIC_DEFINE(fu_pvcc_enabled, 1);
-#define ATOMIC_FU_PVCC_ENABLED_BIT 0
+static struct gpio_callback fu_pvcc_enabled_cb_data;
 
 static void
 front_unit_pvcc_update(struct k_work *work);
@@ -66,14 +68,6 @@ interrupt_fu_pvcc_handler(const struct device *dev, struct gpio_callback *cb,
     }
 }
 
-bool
-optics_usable(void)
-{
-    atomic_val_t pvcc_enabled = atomic_get(fu_pvcc_enabled);
-    return ((pvcc_enabled & BIT(ATOMIC_FU_PVCC_ENABLED_BIT)) != 0) &&
-           distance_is_safe();
-}
-
 static int
 configure_front_unit_3v3_detection(void)
 {
@@ -103,6 +97,15 @@ configure_front_unit_3v3_detection(void)
 
     return ret;
 }
+#endif
+
+bool
+optics_usable(void)
+{
+    atomic_val_t pvcc_enabled = atomic_get(fu_pvcc_enabled);
+    return ((pvcc_enabled & BIT(ATOMIC_FU_PVCC_ENABLED_BIT)) != 0) &&
+           distance_is_safe();
+}
 
 int
 optics_init(const Hardware *hw_version)
@@ -119,6 +122,8 @@ optics_init(const Hardware *hw_version)
         return err_code;
     }
 
+    // todo: fix for Diamond hardware
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     err_code = mirrors_init();
     if (err_code) {
         ASSERT_SOFT(err_code);
@@ -131,20 +136,33 @@ optics_init(const Hardware *hw_version)
         return err_code;
     }
 
-    // todo: fix for Diamond hardware
-#if defined(CONFIG_BOARD_PEARL_MAIN)
     err_code = tof_1d_init();
     if (err_code) {
         ASSERT_SOFT(err_code);
         return err_code;
     }
-#endif
 
+    // TODO poll pvcc-enable pin on Diamond
     err_code = configure_front_unit_3v3_detection();
     if (err_code) {
         ASSERT_SOFT(err_code);
         return err_code;
     }
+#else
+    int ret = gpio_pin_configure_dt(&front_unit_pvcc_enabled, GPIO_INPUT);
+    if (ret) {
+        ASSERT_SOFT(ret);
+        return ret;
+    }
+
+    if (gpio_pin_get_dt(&front_unit_pvcc_enabled) != 0) {
+        LOG_INF("Circuitry allows usage of IR LEDs");
+    } else {
+        LOG_WRN("Eye safety circuitry tripped");
+    }
+
+    UNUSED_PARAMETER(hw_version);
+#endif
 
     return err_code;
 }

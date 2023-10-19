@@ -399,13 +399,21 @@ check_ready(void)
 void
 temperature_init(const Hardware *hw_version)
 {
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    ARG_UNUSED(hw_version);
+#endif
+
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     if (hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         sensors_and_channels[TEMPERATURE_SENSOR_LIQUID_LENS].sensor =
             DEVICE_DT_GET(DT_NODELABEL(liquid_lens_tmp_sensor_ev5));
     } else {
+#endif
         sensors_and_channels[TEMPERATURE_SENSOR_LIQUID_LENS].sensor =
             DEVICE_DT_GET(DT_NODELABEL(liquid_lens_tmp_sensor));
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     }
+#endif
 
     check_ready();
     global_sample_period = K_MSEC(1000 / TEMPERATURE_AVERAGE_SAMPLE_COUNT);
