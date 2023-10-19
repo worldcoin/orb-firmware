@@ -35,10 +35,15 @@ struct fan_duty_cycle_specs {
     uint8_t max_duty_cycle_percent; // maximum duty cycle with active fan
 };
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 const struct fan_duty_cycle_specs fan_ev1_2_specs = {
     .min_duty_cycle_percent = 0, .max_duty_cycle_percent = 80};
 const struct fan_duty_cycle_specs fan_ev3_specs = {
     .min_duty_cycle_percent = 40, .max_duty_cycle_percent = 100};
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+const struct fan_duty_cycle_specs fan_diamond_specs = {
+    .min_duty_cycle_percent = 30, .max_duty_cycle_percent = 100};
+#endif
 
 static uint16_t fan_speed_by_value = 0; // value over UINT16_MAX range
 static struct fan_duty_cycle_specs fan_specs;
@@ -173,6 +178,7 @@ fan_init(void)
 #endif
     // set specs depending on current hardware
     Hardware_OrbVersion version = version_get_hardware_rev();
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1 ||
         version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
         fan_specs = fan_ev1_2_specs;
@@ -180,6 +186,10 @@ fan_init(void)
                version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4 ||
                version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         fan_specs = fan_ev3_specs;
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    if (version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
+        fan_specs = fan_diamond_specs;
+#endif
     } else {
         LOG_ERR("Not supported main board: %u", version);
     }
@@ -204,6 +214,13 @@ fan_init(void)
         // min is 40% duty cycle = 0.4*40000
         // + 239 (1% of available range of 60%)
         min_speed_pulse_width_ns = 16239;
+
+    } else if (version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
+        max_speed_pulse_width_ns = 40000;
+
+        // min is 30% duty cycle = 0.3*40000
+        // + 279 (1% of available range of 70%)
+        min_speed_pulse_width_ns = 12279;
     }
 
     fan_set_speed_by_percentage(100);
