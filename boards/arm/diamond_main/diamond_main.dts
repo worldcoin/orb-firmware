@@ -2,19 +2,28 @@
 #include <st/g4/stm32g474Xe.dtsi>
 #include <st/g4/stm32g474v(b-c-e)tx-pinctrl.dtsi>
 #include "../stm32g474-hrtim.dtsi"
+#include <zephyr/dt-bindings/spi/spi.h>
+#include <zephyr/dt-bindings/dma/stm32_dma.h>
 
-// see stm32g4xx_ll_dmamux.h
-#define DMAMUX_REQ_USART1_RX 0x18
-#define DMAMUX_REQ_USART1_TX 0x19
+/// see @file modules/hal/stm32/stm32cube/stm32g4xx/drivers/include/stm32g4xx_ll_dmamux.h
+#define LL_DMAMUX_REQ_ADC1            0x00000005U  /*!< DMAMUX ADC1 request        */
+#define LL_DMAMUX_REQ_ADC3            0x00000025U  /*!< DMAMUX ADC3 request        */
+#define LL_DMAMUX_REQ_ADC5            0x00000027U  /*!< DMAMUX ADC5 request        */
+#define LL_DMAMUX_REQ_USART1_RX       0x00000018U  /*!< DMAMUX USART1 RX request   */
+#define LL_DMAMUX_REQ_USART1_TX       0x00000019U  /*!< DMAMUX USART1 TX request   */
+#define LL_DMAMUX_REQ_SPI4_TX         0x0000006BU  /*!< DMAMUX SPI4 TX request     */
 
-#define DMA_CONFIG_DIR_SHIFT 6
-#define DMA_DIR_MEM_TO_PERIPH 1
-#define DMA_DIR_PERIPH_TO_MEM 2
-#define DMA_MEM_INC_ADDR_SHIFT 10
+#define LL_DMAMUX_CHANNEL_8           0x00000008U  /*!< DMAMUX Channel 8 connected to DMA2 Channel 1  */
+#define LL_DMAMUX_CHANNEL_9           0x00000009U  /*!< DMAMUX Channel 9 connected to DMA2 Channel 2  */
+#define LL_DMAMUX_CHANNEL_10          0x0000000AU  /*!< DMAMUX Channel 10 connected to DMA2 Channel 3 */
 
-#define DMA_CONFIG_CYCLIC_SHIFT  5
-#define DMA_CONFIG_CIRCULAR_MODE  1
+/// see @file zephyr/dts/bindings/dma/st,stm32-dma-v2.yaml
+#define DMA_CONFIG_CYCLIC_SHIFT     5
+#define DMA_CONFIG_DIR_SHIFT        6
+#define DMA_MEM_INC_ADDR_SHIFT      10
 
+#define DMA_DIR_MEM_TO_PERIPH       1
+#define DMA_DIR_PERIPH_TO_MEM       2
 
 / {
     model = "Worldcoin Orb Main MCU";
@@ -285,7 +294,56 @@
             reg = <0>;
             #address-cells = <1>;
             #size-cells = <0>;
+        };
+    };
 
+    spi-mux-rgb-led {
+        compatible = "tfh,spi-mux-gpio";
+        status = "okay";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        mux-gpios = <&gpio_exp1 3 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&gpio_exp1 4 GPIO_ACTIVE_HIGH>;
+        spi-parent = <&spi4>;
+
+        mux_spi_op: spi@0 {
+            compatible = "tfh,spi-mux-gpio-channel";
+            status = "okay";
+            reg = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            front_unit_rgb_leds:front_unit_rgb_leds@0
+            {
+                compatible = "we,spi-rgb-led";
+                reg = <0>;
+                spi-max-frequency = <1600000>;
+                // 'duplex' option exists but
+                // not actually used by the SPI driver
+                duplex = <SPI_HALF_DUPLEX>;
+
+                num-leds = <99>;
+            };
+        };
+
+        mux_spi_fu: spi@1 {
+            compatible = "tfh,spi-mux-gpio-channel";
+            status = "okay";
+            reg = <1>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            operator_rgb_leds: operator_rgb_leds@1
+            {
+                compatible = "we,spi-rgb-led";
+                reg = <1>;
+                spi-max-frequency = <1600000>;
+                // 'duplex' option exists but
+                // not actually used by the SPI driver
+                duplex = <SPI_HALF_DUPLEX>;
+
+                num-leds = <5>;
+            };
         };
     };
 };
@@ -294,8 +352,8 @@
     // used to measure battery voltage, hardware revision
     // & die temperature (channel 16)
 
-    // dmamux1: 7 = dma-channel 8; 5 = DMA request MUX input (ADC1) from reference manual RM0440
-    dmas = < &dmamux1 7 5 (STM32_DMA_PERIPH_TO_MEMORY |
+    // dmamux1: 8 = dma2,channel 1
+    dmas = < &dmamux1 LL_DMAMUX_CHANNEL_8 LL_DMAMUX_REQ_ADC1 (STM32_DMA_PERIPH_TO_MEMORY |
     STM32_DMA_MEM_INC |  STM32_DMA_MEM_16BITS | STM32_DMA_PERIPH_16BITS) >;
     dma-names = "dmamux";
 
@@ -370,8 +428,8 @@
 
 &adc3 {
     // used by liquid_lens module
-    // dmamux1: 10 = dma-channel 11; 37 = DMA request MUX input (ADC3) from reference manual RM0440
-    dmas = < &dmamux1 10 37 (STM32_DMA_PERIPH_TO_MEMORY |STM32_DMA_MEM_INC |
+    // dmamux1: 10 = dma2,channel 3
+    dmas = < &dmamux1 LL_DMAMUX_CHANNEL_10 LL_DMAMUX_REQ_ADC3 (STM32_DMA_PERIPH_TO_MEMORY |STM32_DMA_MEM_INC |
                            STM32_DMA_MEM_16BITS | STM32_DMA_PERIPH_16BITS) >;
     dma-names = "dmamux";
     status = "okay";
@@ -412,9 +470,9 @@
 };
 
 &adc5 {
-    // dmamux1: 9 = dma-channel 10; 39 = DMA request MUX input (ADC5) from reference manual RM0440
-    dmas = < &dmamux1 9 39 (STM32_DMA_PERIPH_TO_MEMORY |
-	STM32_DMA_MEM_INC |  STM32_DMA_MEM_16BITS | STM32_DMA_PERIPH_16BITS) >;
+    // dmamux1: 9 = dma2,ch2
+    dmas = < &dmamux1 LL_DMAMUX_CHANNEL_9 LL_DMAMUX_REQ_ADC5 (STM32_DMA_PERIPH_TO_MEMORY |
+	STM32_DMA_MEM_INC | STM32_DMA_MEM_16BITS | STM32_DMA_PERIPH_16BITS) >;
     dma-names = "dmamux";
     status = "okay";
     pinctrl-0 = <&adc5_in7_pd10 &adc5_in8_pd11 &adc5_in9_pd12 &adc5_in13_pd9>;
@@ -484,20 +542,6 @@
         pinctrl-names = "default";
     };
 };
-
-//&timers1 {
-//    status = "okay";
-//
-//    operator_rgb_leds: operator_rgb_leds {
-//        compatible = "worldsemi,ws2812-pwm-stm32";
-//        pinctrl-0 = <&tim1_ch1_pc0>;
-//        pinctrl-names = "default";
-//        timer-channel = <1>;
-//        timer-number = <1>;
-//        dma-channel = <1>;
-//        num-leds = <5>;
-//    };
-//};
 
 &timers2 {
     status = "okay";
@@ -577,17 +621,18 @@
     };
 };
 
-// needed for USART
 &dma1 {
+    // usart1 & spi4
     status = "okay";
 };
 
 &dma2 {
+    // ADC sampling (through dmamux)
     status = "okay";
 };
 
-// needed for ws2812 LEDs   // todo: not used any more
 &dmamux1 {
+    // ADC sampling
     status = "okay";
 };
 
@@ -625,9 +670,8 @@
     current-speed = <1000000>;
     status = "okay";
 
-    // DMA1 channels 3 and 4 (1 and 2 used by front and operator LEDs (PWM)
-    dmas = <&dma1 3 DMAMUX_REQ_USART1_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT) | (DMA_CONFIG_CIRCULAR_MODE << DMA_CONFIG_CYCLIC_SHIFT))>,
-           <&dma1 4 DMAMUX_REQ_USART1_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT) | (DMA_CONFIG_CIRCULAR_MODE << DMA_CONFIG_CYCLIC_SHIFT))>;
+    dmas = <&dma1 3 LL_DMAMUX_REQ_USART1_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT) | (1 << DMA_CONFIG_CYCLIC_SHIFT))>,
+           <&dma1 4 LL_DMAMUX_REQ_USART1_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT) | (1 << DMA_CONFIG_CYCLIC_SHIFT))>;
     dma-names = "rx", "tx";
 };
 
@@ -709,6 +753,16 @@
         spi-max-frequency = <4000000>;
         status = "okay";
     };
+};
+
+&spi4 {
+    pinctrl-0 = <&spi4_sck_pe12 &spi4_mosi_pe6>;
+    pinctrl-names = "default";
+
+    dmas = <&dma1 1 LL_DMAMUX_REQ_SPI4_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT))>;
+    dma-names = "tx";
+
+    status = "okay";
 };
 
 &iwdg {

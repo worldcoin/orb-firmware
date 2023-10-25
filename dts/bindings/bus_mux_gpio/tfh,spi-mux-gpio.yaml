@@ -1,0 +1,87 @@
+description: |
+  GPIO-based SPI bus multiplexer
+                                    +-----+  +-----+
+                                    | dev |  | dev |
+   +---------------+                +-----+  +-----+
+   | SoC           |                   |        |
+   |               |          /--------+--------+
+   |   +---------+ |  +------+    child bus @ 0x0, on GPIO values set to 0b00
+   |   | SPI root|-|--| Mux  |
+   |   +---------+ |  +--+---+    child bus @ 0x3, on GPIO values set to 0b11
+   |               |     |    \----------+--------+--------+
+   |     +-------+ |     |               |        |        |
+   |     | GPIOs |-|-----+            +-----+  +-----+  +-----+
+   |     +-------+ |  @ channel       | dev |  | dev |  | dev |
+   +---------------+                  +-----+  +-----+  +-----+
+
+  An example IC for realising the Mux in hardware is the TMUX1209 from Texas Instruments.
+
+  Required properties:
+  - compatible: "tfh,spi-mux-gpio"
+  - mux-gpios: List of gpios used to control the muxer. The first gpio in this list corresponds to the least
+               significant bit in the child bus address.
+  - spi-parent: Phandle to the SPI controller that is the parent of the muxer.
+  * SPI child bus nodes.
+
+  spi-mux-rgb-led {
+        compatible = "tfh,spi-mux-gpio";
+        status = "okay";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        mux-gpios = <&gpioa 3 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&gpioa 4 GPIO_ACTIVE_HIGH>;
+        spi-parent = <&spi4>;
+
+        mux_spi_op: spi@0 {
+            compatible = "tfh,spi-mux-gpio-channel";
+            status = "okay";
+            reg = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            leds_01:leds_01@0
+            {
+                compatible = "we,spi-rgb-led";
+                reg = <0>;
+                spi-max-frequency = <1600000>;
+                duplex = <SPI_HALF_DUPLEX>;
+
+                num-leds = <99>;
+            };
+        };
+
+        mux_spi_fu: spi@1 {
+            compatible = "tfh,spi-mux-gpio-channel";
+            status = "okay";
+            reg = <1>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            leds_02: leds_02@1
+            {
+                compatible = "we,spi-rgb-led";
+                reg = <1>;
+                spi-max-frequency = <1600000>;
+                duplex = <SPI_HALF_DUPLEX>;
+
+                num-leds = <5>;
+            };
+        };
+
+compatible: "tfh,spi-mux-gpio"
+
+properties:
+  mux-gpios:
+    type: phandle-array
+    required: true
+  enable-gpios:
+    type: phandle-array
+    required: false
+  spi-parent:
+    type: phandle
+    required: true
+
+child-binding:
+  description: SPI switch channel node
+  compatible: "tfh,spi-mux-gpio-channel"
+  include: [spi-controller.yaml]

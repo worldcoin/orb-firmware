@@ -15,9 +15,8 @@
 #include "temperature/sensors/temperature.h"
 #include "ui/ambient_light/als.h"
 #include "ui/button/button.h"
-#include "ui/front_leds/front_leds.h"
-#include "ui/operator_leds/operator_leds.h"
 #include "ui/sound/sound.h"
+#include "ui/ui.h"
 #include "voltage_measurement/voltage_measurement.h"
 #include <app_assert.h>
 #include <can_messaging.h>
@@ -229,10 +228,7 @@ initialize(void)
     err_code = sound_init();
     ASSERT_SOFT(err_code);
 
-    err_code = front_leds_init();
-    ASSERT_SOFT(err_code);
-
-    err_code = operator_leds_init();
+    err_code = ui_init();
     ASSERT_SOFT(err_code);
 
 #if !defined(CONFIG_NO_SUPER_CAPS) && !defined(CONFIG_CI_INTEGRATION_TESTS)

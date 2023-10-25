@@ -1,10 +1,14 @@
 #include "operator_leds.h"
-#include "ui/rgb_leds.h"
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
 #include "logs_can.h"
 LOG_MODULE_REGISTER(operator_leds_test);
+
+#define RGB_ORANGE_TEST                                                        \
+    {                                                                          \
+        255, 255 / 2, 0                                                        \
+    }
 
 /// Test all patterns with 2 brightness levels
 ZTEST(hil, test_operator_leds_patterns)
@@ -12,7 +16,7 @@ ZTEST(hil, test_operator_leds_patterns)
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_OPERATOR_LEDS);
 
     uint8_t brightness[2] = {0x08, 0x10};
-    RgbColor color = RGB_ORANGE;
+    RgbColor color = RGB_ORANGE_TEST;
     int ret_code;
 
     for (size_t b = 0; b < ARRAY_SIZE(brightness); ++b) {

@@ -1,0 +1,13 @@
+config SPI_RGB_LED
+    bool "RGB LED strip driver using SPI"
+    depends on SPI
+    select LED_STRIP_RGB_SCRATCH
+	help
+	  Enable LED strip driver for daisy chains of SPI-ish devices.
+	  2-wire SPI is supported.
+
+config SPI_RGB_LED_DIMMING
+    bool "Enable dimming support per LED"
+    depends on SPI_RGB_LED
+    help
+      Enable dimming support for SPI RGB LED strips.

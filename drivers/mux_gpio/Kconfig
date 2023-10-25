@@ -1,0 +1,33 @@
+# I2C_MUX_GPIO gpio-based I2C bus multiplexer
+
+config I2C_MUX_GPIO
+    bool "I2C_MUX_GPIO gpio-based I2C bus multiplexer"
+    depends on I2C
+    help
+        Enable driver for GPIO-based I2C bus multiplexer.
+
+if I2C_MUX_GPIO
+	config I2C_MUX_GPIO_INIT_PRIO
+		int "I2C_MUX_GPIO init priority"
+		default 65
+
+	config I2C_MUX_GPIO_CHANNEL_INIT_PRIO
+		int "I2C_MUX_GPIO init priority"
+		default 66
+endif
+
+config SPI_MUX_GPIO
+	bool "GPIO based SPI bus multiplexer"
+	depends on SPI
+	help
+		Enable driver for GPIO-based SPI bus multiplexer.
+
+if SPI_MUX_GPIO
+	config SPI_MUX_GPIO_INIT_PRIO
+		int "I2C_MUX_GPIO init priority"
+		default 65
+
+	config SPI_MUX_GPIO_CHANNEL_INIT_PRIO
+		int "I2C_MUX_GPIO init priority"
+		default 66
+endif

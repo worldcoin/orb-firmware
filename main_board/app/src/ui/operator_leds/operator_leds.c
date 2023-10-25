@@ -5,6 +5,7 @@
 #include <math.h>
 #include <utils.h>
 #include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/led_strip.h>
 #include <zephyr/kernel.h>
 
@@ -13,51 +14,6 @@ LOG_MODULE_REGISTER(operator_leds);
 #include "operator_leds.h"
 #include "ui/rgb_leds.h"
 
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-// todo: implement for Diamond
-
-int
-operator_leds_set_brightness(uint8_t brightness)
-{
-    UNUSED_PARAMETER(brightness);
-
-    return RET_SUCCESS;
-}
-
-int
-operator_leds_set_pattern(
-    DistributorLEDsPattern_DistributorRgbLedPattern pattern, uint32_t mask,
-    const RgbColor *color)
-{
-    UNUSED_PARAMETER(pattern);
-    UNUSED_PARAMETER(mask);
-    UNUSED_PARAMETER(color);
-    return RET_SUCCESS;
-}
-
-int
-operator_leds_init(void)
-{
-    return RET_SUCCESS;
-}
-
-ret_code_t
-operator_leds_set_leds_sequence(uint8_t *bytes, uint32_t size)
-{
-    UNUSED_PARAMETER(bytes);
-    UNUSED_PARAMETER(size);
-
-    return RET_SUCCESS;
-}
-
-void
-operator_leds_blocking_set(const RgbColor *color, uint32_t mask)
-{
-    UNUSED_PARAMETER(color);
-    UNUSED_PARAMETER(mask);
-}
-
-#else
 static K_THREAD_STACK_DEFINE(operator_leds_stack_area,
                              THREAD_STACK_SIZE_OPERATOR_RGB_LEDS);
 static struct k_thread operator_leds_thread_data;
@@ -293,7 +249,7 @@ operator_leds_init(void)
 }
 
 void
-operator_leds_blocking_set(const RgbColor *color, uint32_t mask)
+operator_leds_set_blocking(const RgbColor *color, uint32_t mask)
 {
     const struct device *led_strip =
         DEVICE_DT_GET(DT_NODELABEL(operator_rgb_leds));
@@ -303,10 +259,31 @@ operator_leds_blocking_set(const RgbColor *color, uint32_t mask)
         return;
     }
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    // previous_mask initialized to invalid value to force first update
+    static uint32_t previous_mask = -1;
+    const struct gpio_dt_spec supply_5v_rgb_enable_gpio_spec =
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_5v_rgb_enable_gpios);
+
+    if (previous_mask == 0 && mask != 0) {
+        // enable power supply and mux for communication to LEDs
+        gpio_pin_set_dt(&supply_5v_rgb_enable_gpio_spec, 1);
+    }
+#endif
+
     struct led_rgb c = {.r = color->red, .g = color->green, .b = color->blue};
     apply_pattern(mask, &c);
     int ret = led_strip_update_rgb(led_strip, leds, ARRAY_SIZE(leds));
     ASSERT_SOFT(ret);
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    if (mask == 0 && previous_mask != 0) {
+        // disable power supply and mux for communication to LEDs
+        gpio_pin_set_dt(&supply_5v_rgb_enable_gpio_spec, 0);
+    }
+
+    previous_mask = mask;
+#endif
 }
 
 /// Turn one operator LED during boot to indicate battery switch is turned on
@@ -323,6 +300,13 @@ operator_leds_initial_state(void)
         return RET_ERROR_INTERNAL;
     }
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    // enable 5V_RGB and mux for communication to LEDs
+    const struct gpio_dt_spec supply_5v_rgb_enable_gpio_spec =
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_5v_rgb_enable_gpios);
+    gpio_pin_set_dt(&supply_5v_rgb_enable_gpio_spec, 1);
+#endif
+
     struct led_rgb color = global_color;
     apply_pattern(global_mask, &color);
     led_strip_update_rgb(led_strip, leds, ARRAY_SIZE(leds));
@@ -331,4 +315,3 @@ operator_leds_initial_state(void)
 }
 
 SYS_INIT(operator_leds_initial_state, POST_KERNEL, SYS_INIT_UI_LEDS_PRIORITY);
-#endif

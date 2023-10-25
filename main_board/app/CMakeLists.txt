@@ -97,6 +97,7 @@ list(APPEND SOURCES_FILES
     src/voltage_measurement/voltage_measurement.c
 
     ${SINE_LUT_SRC_FILE}
+    src/ui/ui.c
     src/ui/ambient_light/als.c
     src/ui/button/button.c
     src/ui/front_leds/front_leds.c

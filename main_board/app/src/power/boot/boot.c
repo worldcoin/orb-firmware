@@ -428,9 +428,9 @@ power_turn_on_power_supplies(void)
     return 0;
 }
 
-// BUILD_ASSERT(CONFIG_I2C_INIT_PRIORITY > SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
-//              "I2C must be initialized _after_ the power supplies so that the
-//              " "safety circuit doesn't get tripped");
+BUILD_ASSERT(CONFIG_I2C_INIT_PRIORITY > SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
+             "I2C must be initialized _after_ the power supplies so that the "
+             "safety circuit doesn't get tripped");
 
 #ifdef CONFIG_GPIO_PCA95XX_INIT_PRIORITY
 BUILD_ASSERT(
@@ -488,9 +488,10 @@ power_until_button_press(void)
         return RET_ERROR_INVALID_STATE;
     }
 
-    LOG_INF("Waiting for button press of " TOSTR(BUTTON_PRESS_TIME_MS) "ms");
+    const RgbColor white = RGB_WHITE_BUTTON_PRESS;
     uint32_t operator_led_mask = 0;
-    const RgbColor white = RGB_WHITE_OPERATOR_LEDS;
+    operator_leds_set_blocking(&white, operator_led_mask);
+    LOG_INF("Waiting for button press of " TOSTR(BUTTON_PRESS_TIME_MS) "ms");
     for (size_t i = 0; i <= OPERATOR_LEDS_COUNT; ++i) {
         // check if pvcc is discharged to perform optics self test
         // the button must not be pressed to initiate the self test
@@ -506,7 +507,7 @@ power_until_button_press(void)
         if (IS_ENABLED(CONFIG_INSTA_BOOT)) {
             power_vbat_5v_3v3_supplies_on();
             operator_led_mask = BIT_MASK(OPERATOR_LEDS_COUNT);
-            operator_leds_blocking_set(&white, operator_led_mask);
+            operator_leds_set_blocking(&white, operator_led_mask);
             i = OPERATOR_LEDS_COUNT;
             break;
         }
@@ -531,7 +532,7 @@ power_until_button_press(void)
         }
 
         // update LEDs
-        operator_leds_blocking_set(&white, operator_led_mask);
+        operator_leds_set_blocking(&white, operator_led_mask);
 
         k_msleep(BUTTON_PRESS_TIME_MS / OPERATOR_LEDS_COUNT);
     }
@@ -594,6 +595,13 @@ app_init_state(void)
 
 SYS_INIT(app_init_state, POST_KERNEL, SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY);
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+BUILD_ASSERT(CONFIG_LED_STRIP_INIT_PRIORITY <
+                 SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY,
+             "initialize LED strip before waiting for button press as it needs "
+             "the strip");
+#endif
+
 #define SYSTEM_RESET_UI_DELAY_MS 200
 
 /// SHUTDOWN_REQ interrupt callback
@@ -645,7 +653,7 @@ reboot_thread()
     if (delay > 1) {
         k_msleep(1000);
         atomic_set(&reboot_delay_s, delay - 1);
-        RgbColor color = RGB_WHITE;
+        RgbColor color = RGB_WHITE_SHUTDOWN;
         operator_leds_set_pattern(
             DistributorLEDsPattern_DistributorRgbLedPattern_PULSING_RGB,
             0b00100, &color);

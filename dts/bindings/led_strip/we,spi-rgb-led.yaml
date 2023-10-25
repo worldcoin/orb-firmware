@@ -1,0 +1,23 @@
+description: |
+  SPI-based LED strip controller
+  We expect this node to be a child of a SPI node
+
+  led_strip:led_strip@0
+  {
+      compatible = "we,spi-rgb-led";
+      reg = <0>;
+      spi-max-frequency = <1600000>;
+      duplex = <SPI_HALF_DUPLEX>;
+
+      num-leds = <5>;
+  };
+
+include: spi-device.yaml
+
+compatible: "we,spi-rgb-led"
+
+properties:
+  num-leds:
+    type: int
+    required: true
+    description: Number of LEDs in LED strip

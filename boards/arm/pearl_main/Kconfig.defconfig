@@ -3,9 +3,5 @@
 config BOARD
 	default "pearl_main"
 
-config SPI_STM32_INTERRUPT
-	default y
-	depends on SPI
-
 config USE_STM32_LL_ADC
 	default y

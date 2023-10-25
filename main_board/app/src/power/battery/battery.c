@@ -125,9 +125,9 @@ battery_low_operator_leds_blink(void)
 {
     RgbColor color = {.red = 5, .green = 0, .blue = 0};
     for (int i = 0; i < 3; ++i) {
-        operator_leds_blocking_set(&color, 0b11111);
+        operator_leds_set_blocking(&color, 0b11111);
         k_msleep(500);
-        operator_leds_blocking_set(&color, 0b00000);
+        operator_leds_set_blocking(&color, 0b00000);
         k_msleep(500);
     }
 }

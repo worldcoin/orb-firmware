@@ -13,59 +13,6 @@
 
 LOG_MODULE_REGISTER(front_unit_rgb_leds, CONFIG_FRONT_UNIT_RGB_LEDS_LOG_LEVEL);
 
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-// todo: implement for Diamond
-
-ret_code_t
-front_leds_init(void)
-{
-    return RET_SUCCESS;
-}
-
-ret_code_t
-front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
-                       uint32_t start_angle, int32_t angle_length,
-                       RgbColor *color, uint32_t pulsing_period_ms,
-                       float pulsing_scale)
-{
-    UNUSED_PARAMETER(pattern);
-    UNUSED_PARAMETER(start_angle);
-    UNUSED_PARAMETER(angle_length);
-    UNUSED_PARAMETER(color);
-    UNUSED_PARAMETER(pulsing_period_ms);
-    UNUSED_PARAMETER(pulsing_scale);
-
-    return RET_SUCCESS;
-}
-
-ret_code_t
-front_leds_set_center_leds_sequence(uint8_t *bytes, uint32_t size)
-{
-    UNUSED_PARAMETER(bytes);
-    UNUSED_PARAMETER(size);
-
-    return RET_SUCCESS;
-}
-
-ret_code_t
-front_leds_set_ring_leds_sequence(uint8_t *bytes, uint32_t size)
-{
-    UNUSED_PARAMETER(bytes);
-    UNUSED_PARAMETER(size);
-    return RET_SUCCESS;
-}
-
-void
-front_leds_set_brightness(uint32_t brightness)
-{
-    UNUSED_PARAMETER(brightness);
-}
-
-void
-front_leds_turn_off_final(void)
-{
-}
-#else
 static K_THREAD_STACK_DEFINE(front_leds_stack_area,
                              THREAD_STACK_SIZE_FRONT_UNIT_RGB_LEDS);
 static struct k_thread front_led_thread_data;
@@ -74,16 +21,34 @@ static K_SEM_DEFINE(sem, 1, 1); // init to 1 to use default values below
 const struct device *const led_strip =
     DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds));
 
-#define NUM_LEDS         DT_PROP(DT_NODELABEL(front_unit_rgb_leds), num_leds)
-#define NUM_CENTER_LEDS  9
-#define NUM_RING_LEDS    (NUM_LEDS - NUM_CENTER_LEDS)
+#define NUM_LEDS DT_PROP(DT_NODELABEL(front_unit_rgb_leds), num_leds)
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+#define NUM_CENTER_LEDS 9
+#else
+#define NUM_CENTER_LEDS 23
+#endif
+#define NUM_RING_LEDS (NUM_LEDS - NUM_CENTER_LEDS)
+
+// for rainbow pattern
 #define SHADES_PER_COLOR 4 // 4^3 = 64 different colors
-#define INDEX_RING_ZERO                                                        \
-    ((NUM_RING_LEDS * 3 / 4)) // LED index at angle 0º in trigonometric circle
+
+// LED index at angle 0º in trigonometric circle
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+#define INDEX_RING_ZERO ((NUM_RING_LEDS * 3 / 4))
+#else
+#define INDEX_RING_ZERO 19 //
+#endif
 
 struct center_ring_leds {
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     struct led_rgb center_leds[NUM_CENTER_LEDS];
     struct led_rgb ring_leds[NUM_RING_LEDS];
+#else
+    // on Diamond, the ring LEDs are the first LEDs
+    // connected to the LED strip
+    struct led_rgb ring_leds[NUM_RING_LEDS];
+    struct led_rgb center_leds[NUM_CENTER_LEDS];
+#endif
 };
 
 typedef union {
@@ -174,7 +139,7 @@ front_leds_thread()
     uint32_t pulsing_period_ms;
     float scaler;
     k_timeout_t wait_until = K_FOREVER;
-    uint32_t pulsing_index = 0;
+    uint32_t pulsing_index = ARRAY_SIZE(SINE_LUT);
 
     for (;;) {
         // wait for next command
@@ -262,24 +227,38 @@ front_leds_thread()
                 pulsing_scale = PULSING_SCALE_DEFAULT;
                 // fallthrough
             case UserLEDsPattern_UserRgbLedPattern_PULSING_RGB:;
-                scaler = (SINE_LUT[pulsing_index] * pulsing_scale) + 1;
+                if (pulsing_index < ARRAY_SIZE(SINE_LUT)) {
+                    // from 0 to 1.0
+                    scaler = SINE_LUT[pulsing_index] * pulsing_scale;
+                } else {
+                    // from 1.0 to 0
+                    size_t index = (ARRAY_SIZE(SINE_LUT) - 1 -
+                                    (pulsing_index - ARRAY_SIZE(SINE_LUT)));
+                    scaler = SINE_LUT[index] * pulsing_scale;
+                }
                 color.r = roundf(scaler * color.r);
                 color.g = roundf(scaler * color.g);
                 color.b = roundf(scaler * color.b);
 
                 wait_until = K_MSEC(global_pulsing_delay_time_ms);
-                pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
                 set_ring(color, start_angle_degrees, angle_length_degrees);
                 set_center((struct led_rgb)RGB_OFF);
                 break;
             case UserLEDsPattern_UserRgbLedPattern_PULSING_RGB_ONLY_CENTER:
-                scaler = (SINE_LUT[pulsing_index] * pulsing_scale) + 1;
+                if (pulsing_index < ARRAY_SIZE(SINE_LUT)) {
+                    // from 0 to 1.0
+                    scaler = SINE_LUT[pulsing_index] * PULSING_SCALE_DEFAULT;
+                } else {
+                    // from 1.0 to 0
+                    size_t index = (ARRAY_SIZE(SINE_LUT) - 1 -
+                                    (pulsing_index - ARRAY_SIZE(SINE_LUT)));
+                    scaler = SINE_LUT[index] * PULSING_SCALE_DEFAULT;
+                }
                 color.r = roundf(scaler * color.r);
                 color.g = roundf(scaler * color.g);
                 color.b = roundf(scaler * color.b);
 
                 wait_until = K_MSEC(global_pulsing_delay_time_ms);
-                pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
                 set_center(color);
                 set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
                 break;
@@ -288,14 +267,20 @@ front_leds_thread()
                 set_center((struct led_rgb)RGB_OFF);
                 break;
             case UserLEDsPattern_UserRgbLedPattern_BOOT_ANIMATION:
-                // bottom brightness at 0
-                scaler = SINE_LUT[pulsing_index] * pulsing_scale;
+                if (pulsing_index < ARRAY_SIZE(SINE_LUT)) {
+                    // from 0 to 1.0
+                    scaler = SINE_LUT[pulsing_index] * PULSING_SCALE_DEFAULT;
+                } else {
+                    // from 1.0 to 0
+                    size_t index = (ARRAY_SIZE(SINE_LUT) - 1 -
+                                    (pulsing_index - ARRAY_SIZE(SINE_LUT)));
+                    scaler = SINE_LUT[index] * PULSING_SCALE_DEFAULT;
+                }
                 color.r = roundf(scaler * color.r);
                 color.g = roundf(scaler * color.g);
                 color.b = roundf(scaler * color.b);
 
                 wait_until = K_MSEC(global_pulsing_delay_time_ms);
-                pulsing_index = (pulsing_index + 1) % ARRAY_SIZE(SINE_LUT);
                 set_center(color);
                 set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
                 break;
@@ -304,6 +289,9 @@ front_leds_thread()
                 continue;
             }
         }
+
+        pulsing_index = (pulsing_index + 1) % (ARRAY_SIZE(SINE_LUT) * 2);
+
         // update LEDs
         k_mutex_lock(&leds_update_mutex, K_FOREVER);
         if (!final_done) {
@@ -373,6 +361,15 @@ update_parameters(UserLEDsPattern_UserRgbLedPattern pattern,
                   uint32_t start_angle, int32_t angle_length, RgbColor *color,
                   uint32_t pulsing_period_ms, float pulsing_scale)
 {
+    if (pulsing_period_ms == 0) {
+        LOG_WRN("Pulsing period 0, setting to default");
+        pulsing_period_ms = INITIAL_PULSING_PERIOD_MS;
+    }
+
+    if (pulsing_scale == 0) {
+        LOG_WRN("Pulsing scale is 0, setting to default");
+        pulsing_scale = PULSING_SCALE_DEFAULT;
+    }
 
     CRITICAL_SECTION_ENTER(k);
 
@@ -520,7 +517,6 @@ front_leds_turn_off_final(void)
     final_done = true;
     memset(leds.all, 0, sizeof leds.all);
     led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
-    led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
     k_mutex_unlock(&leds_update_mutex);
 }
 
@@ -562,4 +558,3 @@ front_leds_initial_state(void)
 }
 
 SYS_INIT(front_leds_initial_state, POST_KERNEL, SYS_INIT_UI_LEDS_PRIORITY);
-#endif

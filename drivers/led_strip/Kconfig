@@ -6,5 +6,6 @@ menuconfig LED_STRIP
 if LED_STRIP
 
 rsource "Kconfig.ws2812_pwm_stm32"
+rsource "Kconfig.spi_rgb_led"
 
 endif
