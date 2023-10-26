@@ -84,12 +84,39 @@ enum temperature_sensors {
     TEMPERATURE_SENSOR_MAIN_BOARD,
     TEMPERATURE_SENSOR_LIQUID_LENS,
     TEMPERATURE_SENSOR_DIE,
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    TEMPERATURE_SENSOR_MAIN_BOARD_USB_HUB_BOT,
+    TEMPERATURE_SENSOR_MAIN_BOARD_USB_HUB_TOP,
+    TEMPERATURE_SENSOR_MAIN_BOARD_SECURITY_SUPPLY,
+    TEMPERATURE_SENSOR_MAIN_BOARD_AUDIO_AMPLIFIER,
+    TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAP_CHARGER,
+    TEMPERATURE_SENSOR_POWER_BOARD_PVCC_SUPPLY,
+    TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_LEFT,
+    TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_RIGHT,
+    TEMPERATURE_SENSOR_FRONT_UNIT_850_730_LEFT_TOP,
+    TEMPERATURE_SENSOR_FRONT_UNIT_850_730_LEFT_BOTTOM,
+    TEMPERATURE_SENSOR_FRONT_UNIT_850_730_RIGHT_TOP,
+    TEMPERATURE_SENSOR_FRONT_UNIT_850_730_RIGHT_BOTTOM,
+    TEMPERATURE_SENSOR_FRONT_UNIT_940_LEFT_TOP,
+    TEMPERATURE_SENSOR_FRONT_UNIT_940_LEFT_BOTTOM,
+    TEMPERATURE_SENSOR_FRONT_UNIT_940_RIGHT_TOP,
+    TEMPERATURE_SENSOR_FRONT_UNIT_940_RIGHT_BOTTOM,
+    TEMPERATURE_SENSOR_FRONT_UNIT_940_CENTER_TOP,
+    TEMPERATURE_SENSOR_FRONT_UNIT_940_CENTER_BOTTOM,
+    TEMPERATURE_SENSOR_FRONT_UNIT_940_WHITE_TOP,
+    TEMPERATURE_SENSOR_FRONT_UNIT_940_SHROUD_RGB_TOP,
+#endif
     TEMPERATURE_SENSOR_COUNT
 };
 
 static struct sensor_and_channel sensors_and_channels[] = {
     [TEMPERATURE_SENSOR_FRONT_UNIT] =
+#if defined(CONFIG_BOARD_PEARL_MAIN)
         {.sensor = DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor)),
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_shroud_rgb_top)),
+#endif
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source = Temperature_TemperatureSource_FRONT_UNIT,
          .hardware_diagnostic_source =
@@ -105,7 +132,12 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .average = TEMPERATURE_SENTINEL_VALUE},
 
     [TEMPERATURE_SENSOR_MAIN_BOARD] =
+#if defined(CONFIG_BOARD_PEARL_MAIN)
         {.sensor = DEVICE_DT_GET(DT_NODELABEL(main_board_tmp_sensor)),
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(main_board_tmp_sensor_security_supply)),
+#endif
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source = Temperature_TemperatureSource_MAIN_BOARD,
          .hardware_diagnostic_source =
@@ -136,20 +168,261 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
-    [TEMPERATURE_SENSOR_DIE] = {
-        .sensor = &(struct device){.name = "die_temp"},
-        .channel = SENSOR_CHAN_DIE_TEMP,
-        .temperature_source = Temperature_TemperatureSource_MAIN_MCU,
-        .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
-        .cb = overtemp_callback,
-        .cb_data = &(struct overtemp_info){.overtemp_c = MCU_DIE_OVERTEMP_C,
-                                           .overtemp_drop_c =
-                                               OVERTEMP_TO_NOMINAL_DROP_C,
-                                           .in_overtemp = false,
-                                           .critical_timer = 0},
-        .history = {0},
-        .wr_idx = 0,
-        .average = TEMPERATURE_SENTINEL_VALUE}};
+    [TEMPERATURE_SENSOR_DIE] =
+        {.sensor = &(struct device){.name = "die_temp"},
+         .channel = SENSOR_CHAN_DIE_TEMP,
+         .temperature_source = Temperature_TemperatureSource_MAIN_MCU,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = overtemp_callback,
+         .cb_data = &(struct overtemp_info){.overtemp_c = MCU_DIE_OVERTEMP_C,
+                                            .overtemp_drop_c =
+                                                OVERTEMP_TO_NOMINAL_DROP_C,
+                                            .in_overtemp = false,
+                                            .critical_timer = 0},
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    [TEMPERATURE_SENSOR_MAIN_BOARD_USB_HUB_BOT] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(main_board_tmp_sensor_usb_hub_bot)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_MAIN_BOARD_USB_HUB_BOT,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_MAIN_BOARD_USB_HUB_TOP] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(main_board_tmp_sensor_usb_hub_top)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_MAIN_BOARD_USB_HUB_TOP,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_MAIN_BOARD_SECURITY_SUPPLY] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(main_board_tmp_sensor_security_supply)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_MAIN_BOARD_SECURITY_SUPPLY,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_MAIN_BOARD_AUDIO_AMPLIFIER] =
+        {.sensor = DEVICE_DT_GET(DT_NODELABEL(main_board_tmp_sensor_audio_amp)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_MAIN_BOARD_AUDIO_AMPLIFIER,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAP_CHARGER] =
+        {.sensor = DEVICE_DT_GET(
+             DT_NODELABEL(power_board_tmp_sensor_super_cap_charger)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_POWER_BOARD_SUPER_CAP_CHARGER,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_POWER_BOARD_PVCC_SUPPLY] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(power_board_tmp_sensor_pvcc_supply)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_POWER_BOARD_PVCC_SUPPLY,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_LEFT] =
+        {.sensor = DEVICE_DT_GET(
+             DT_NODELABEL(power_board_tmp_sensor_super_caps_left)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_POWER_BOARD_SUPER_CAPS_LEFT,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_RIGHT] =
+        {.sensor = DEVICE_DT_GET(
+             DT_NODELABEL(power_board_tmp_sensor_super_caps_right)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_POWER_BOARD_SUPER_CAPS_RIGHT,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_FRONT_UNIT_850_730_LEFT_TOP] =
+        {.sensor = DEVICE_DT_GET(
+             DT_NODELABEL(front_unit_tmp_sensor_850_730_left_top)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_FRONT_UNIT_850_730_LEFT_TOP,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_FRONT_UNIT_850_730_LEFT_BOTTOM] =
+        {.sensor = DEVICE_DT_GET(
+             DT_NODELABEL(front_unit_tmp_sensor_850_730_left_bot)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_FRONT_UNIT_850_730_LEFT_BOTTOM,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_FRONT_UNIT_850_730_RIGHT_TOP] =
+        {.sensor = DEVICE_DT_GET(
+             DT_NODELABEL(front_unit_tmp_sensor_850_730_right_top)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_FRONT_UNIT_850_730_RIGHT_TOP,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_FRONT_UNIT_850_730_RIGHT_BOTTOM] =
+        {.sensor = DEVICE_DT_GET(
+             DT_NODELABEL(front_unit_tmp_sensor_850_730_right_bot)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_FRONT_UNIT_850_730_RIGHT_BOTTOM,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_FRONT_UNIT_940_LEFT_TOP] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_940_left_top)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_FRONT_UNIT_940_LEFT_TOP,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_FRONT_UNIT_940_LEFT_BOTTOM] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_940_left_bot)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_FRONT_UNIT_940_LEFT_BOTTOM,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_FRONT_UNIT_940_RIGHT_TOP] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_940_right_top)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_FRONT_UNIT_940_RIGHT_TOP,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_FRONT_UNIT_940_RIGHT_BOTTOM] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_940_right_bot)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_FRONT_UNIT_940_RIGHT_BOTTOM,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_FRONT_UNIT_940_CENTER_TOP] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_940_center_top)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_FRONT_UNIT_940_CENTER_TOP,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_FRONT_UNIT_940_CENTER_BOTTOM] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_940_center_bot)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_FRONT_UNIT_940_CENTER_BOTTOM,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_FRONT_UNIT_940_WHITE_TOP] =
+        {.sensor = DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_white_top)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_FRONT_UNIT_940_WHITE_TOP,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+    [TEMPERATURE_SENSOR_FRONT_UNIT_940_SHROUD_RGB_TOP] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_shroud_rgb_top)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source =
+             Temperature_TemperatureSource_FRONT_UNIT_940_SHROUD_RGB_TOP,
+         .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+         .cb = NULL,
+         .cb_data = NULL,
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+#endif
+};
 
 BUILD_ASSERT(TEMPERATURE_SENSOR_COUNT == ARRAY_SIZE(sensors_and_channels),
              "Count must match sensors_and_channels size");
@@ -344,7 +617,8 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
 
     if (sensor_and_channel->wr_idx == 0) {
         sensor_and_channel->average = average(sensor_and_channel->history);
-        LOG_DBG("%s: %iC", sensor_and_channel->sensor->name,
+        LOG_DBG("%s: %d: %iC", sensor_and_channel->sensor->name,
+                sensor_and_channel->temperature_source,
                 sensor_and_channel->average);
         temperature_report_internal(sensor_and_channel);
     }
@@ -375,14 +649,17 @@ check_ready(void)
     for (size_t i = 0; i < ARRAY_SIZE(sensors_and_channels); ++i) {
         if (sensors_and_channels[i].channel != SENSOR_CHAN_DIE_TEMP) {
             if (!device_is_ready(sensors_and_channels[i].sensor)) {
-                LOG_ERR("Could not initialize temperature sensor '%s'",
-                        sensors_and_channels[i].sensor->name);
+                LOG_ERR("Could not initialize temperature sensor '%s: %d'",
+                        sensors_and_channels[i].sensor->name,
+                        sensors_and_channels[i].temperature_source);
                 diag_set_status(
                     sensors_and_channels[i].hardware_diagnostic_source,
                     HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR);
                 ret = RET_ERROR_INVALID_STATE;
             } else {
-                LOG_INF("Initialized %s", sensors_and_channels[i].sensor->name);
+                LOG_INF("Initialized %s: %d",
+                        sensors_and_channels[i].sensor->name,
+                        sensors_and_channels[i].temperature_source);
                 diag_set_status(
                     sensors_and_channels[i].hardware_diagnostic_source,
                     HardwareDiagnostic_Status_STATUS_OK);

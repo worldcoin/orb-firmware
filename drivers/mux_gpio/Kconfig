@@ -14,6 +14,19 @@ if I2C_MUX_GPIO
 	config I2C_MUX_GPIO_CHANNEL_INIT_PRIO
 		int "I2C_MUX_GPIO init priority"
 		default 66
+
+    config I2C_MUX_GLOBAL_LOCK
+        bool "If enabled a global lock will be used for the I2C mux. If disabled each instance will use its own lock."
+        default n
+        help
+            This option should be enabled if multiple instances of this driver are using the same i2c-parent bus and
+            child nodes of the different driver instances are connected to I2C devices with the same I2C address. In this
+            case the global lock ensures that only one thread can get access to the I2C multiplexers at the same time.
+            Without enabling this global lock it could happen that one thread switches an I2C multiplexer but before
+            starting its I2C transfers another thread is scheduled. Now, this second thread could access the i2c-mux-gpio
+            driver and switches another I2C multiplexer (with the same i2c-parent) as well. If both multiplexers switched
+            I2C devices with the same address to the i2c-parent bus, then the data in the following I2C transfers will
+            probably be corrupted.
 endif
 
 config SPI_MUX_GPIO

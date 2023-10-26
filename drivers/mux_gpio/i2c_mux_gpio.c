@@ -25,6 +25,10 @@ struct i2c_mux_gpio_root_data {
     uint8_t selected_chan;
 };
 
+#if IS_ENABLED(CONFIG_I2C_MUX_GLOBAL_LOCK)
+static K_MUTEX_DEFINE(i2c_mux_global_lock);
+#endif
+
 struct i2c_mux_gpio_channel_config {
     const struct device *root;
     uint8_t chan_addr;
@@ -90,7 +94,9 @@ static int
 i2c_mux_gpio_transfer(const struct device *dev, struct i2c_msg *msgs,
                       uint8_t num_msgs, uint16_t addr)
 {
+#if !IS_ENABLED(CONFIG_I2C_MUX_GLOBAL_LOCK)
     struct i2c_mux_gpio_root_data *data = get_root_data_from_channel(dev);
+#endif
     const struct i2c_mux_gpio_root_config *root_config =
         get_root_config_from_channel(dev);
     const struct i2c_mux_gpio_channel_config *down_cfg = dev->config;
@@ -98,7 +104,12 @@ i2c_mux_gpio_transfer(const struct device *dev, struct i2c_msg *msgs,
 
     LOG_DBG("start gpio transfer");
 
+#if IS_ENABLED(CONFIG_I2C_MUX_GLOBAL_LOCK)
+    res = k_mutex_lock(&i2c_mux_global_lock, K_MSEC(5000));
+#else
     res = k_mutex_lock(&data->lock, K_MSEC(5000));
+#endif
+
     if (res != 0) {
         return res;
     }
@@ -117,7 +128,11 @@ i2c_mux_gpio_transfer(const struct device *dev, struct i2c_msg *msgs,
     }
 
 end_trans:
+#if IS_ENABLED(CONFIG_I2C_MUX_GLOBAL_LOCK)
+    k_mutex_unlock(&i2c_mux_global_lock);
+#else
     k_mutex_unlock(&data->lock);
+#endif
     LOG_DBG("gpio transfer finished");
     return res;
 }
