@@ -15,6 +15,12 @@ K_THREAD_STACK_DEFINE(voltage_measurement_adc1_thread_stack,
                       THREAD_STACK_SIZE_VOLTAGE_MEASUREMENT_ADC1);
 static struct k_thread voltage_measurement_adc1_thread_data = {0};
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+K_THREAD_STACK_DEFINE(voltage_measurement_adc4_thread_stack,
+                      THREAD_STACK_SIZE_VOLTAGE_MEASUREMENT_ADC4);
+static struct k_thread voltage_measurement_adc4_thread_data = {0};
+#endif
+
 K_THREAD_STACK_DEFINE(voltage_measurement_adc5_thread_stack,
                       THREAD_STACK_SIZE_VOLTAGE_MEASUREMENT_ADC5);
 static struct k_thread voltage_measurement_adc5_thread_data = {0};
@@ -59,7 +65,7 @@ static const float voltage_divider_scalings_ev5[] = {DT_FOREACH_PROP_ELEM(
     DT_PATH(voltage_measurement_ev5), voltage_divider_scalings,
     DT_STRING_UNQUOTED_AND_COMMA)};
 #endif
-static const char voltage_measurement_channel_names[][11] = {
+static const char voltage_measurement_channel_names[][12] = {
     DT_FOREACH_PROP_ELEM(DT_PATH(voltage_measurement), io_channel_names,
                          DT_PROP_AND_COMMA)};
 BUILD_ASSERT(CHANNEL_COUNT == ARRAY_SIZE(adc_channels),
@@ -69,6 +75,10 @@ BUILD_ASSERT(CHANNEL_COUNT == ARRAY_SIZE(voltage_measurement_channel_names),
 
 static volatile const struct device *const adc1_dev =
     DEVICE_DT_GET(DT_NODELABEL(adc1));
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+static volatile const struct device *const adc4_dev =
+    DEVICE_DT_GET(DT_NODELABEL(adc4));
+#endif
 static volatile const struct device *const adc5_dev =
     DEVICE_DT_GET(DT_NODELABEL(adc5));
 
@@ -83,22 +93,43 @@ static volatile const struct device *const adc5_dev =
 #define MAX_VOLTAGE_TRANSMIT_PERIOD_MS 60000
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-#define NUMBER_OF_CHANNELS_ADC_1 7
+#define NUMBER_OF_CHANNELS_ADC_1 10
 #else
 #define NUMBER_OF_CHANNELS_ADC_1 6
 #endif
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#define NUMBER_OF_CHANNELS_ADC_4 2
+#else
+#define NUMBER_OF_CHANNELS_ADC_4 0
+#endif
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#define NUMBER_OF_CHANNELS_ADC_5 8
+#else
 #define NUMBER_OF_CHANNELS_ADC_5 5
-#define NUMBER_OF_CHANNELS       (NUMBER_OF_CHANNELS_ADC_1 + NUMBER_OF_CHANNELS_ADC_5)
+#endif
+
+#define NUMBER_OF_CHANNELS                                                     \
+    (NUMBER_OF_CHANNELS_ADC_1 + NUMBER_OF_CHANNELS_ADC_4 +                     \
+     NUMBER_OF_CHANNELS_ADC_5)
+
 BUILD_ASSERT(CHANNEL_COUNT == NUMBER_OF_CHANNELS,
              "Number of voltage measurement channels does not match");
 
 static volatile uint16_t adc1_samples_buffer[NUMBER_OF_CHANNELS_ADC_1] = {0};
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+static volatile uint16_t adc4_samples_buffer[NUMBER_OF_CHANNELS_ADC_4] = {0};
+#endif
 static volatile uint16_t adc5_samples_buffer[NUMBER_OF_CHANNELS_ADC_5] = {0};
 
 typedef struct {
     union {
         struct {
             uint16_t raw_adc1[NUMBER_OF_CHANNELS_ADC_1];
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+            uint16_t raw_adc4[NUMBER_OF_CHANNELS_ADC_4];
+#endif
             uint16_t raw_adc5[NUMBER_OF_CHANNELS_ADC_5];
         };
         uint16_t raw[NUMBER_OF_CHANNELS];
@@ -107,6 +138,9 @@ typedef struct {
     union {
         struct {
             uint16_t raw_min_adc1[NUMBER_OF_CHANNELS_ADC_1];
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+            uint16_t raw_min_adc4[NUMBER_OF_CHANNELS_ADC_4];
+#endif
             uint16_t raw_min_adc5[NUMBER_OF_CHANNELS_ADC_5];
         };
         uint16_t raw_min[NUMBER_OF_CHANNELS];
@@ -115,6 +149,9 @@ typedef struct {
     union {
         struct {
             uint16_t raw_max_adc1[NUMBER_OF_CHANNELS_ADC_1];
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+            uint16_t raw_max_adc4[NUMBER_OF_CHANNELS_ADC_4];
+#endif
             uint16_t raw_max_adc5[NUMBER_OF_CHANNELS_ADC_5];
         };
         uint16_t raw_max[NUMBER_OF_CHANNELS];
@@ -315,6 +352,37 @@ adc1_callback(const struct device *dev, const struct adc_sequence *sequence,
     return ADC_ACTION_REPEAT;
 }
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+// interrupt context!
+static enum adc_action
+adc4_callback(const struct device *dev, const struct adc_sequence *sequence,
+              uint16_t sampling_index)
+{
+    ARG_UNUSED(dev);
+    ARG_UNUSED(sequence);
+    ARG_UNUSED(sampling_index);
+
+    memcpy((void *)adc_samples_buffers.raw_adc4, (void *)adc4_samples_buffer,
+           sizeof(adc_samples_buffers.raw_adc4));
+
+    for (uint8_t i = 0; i < NUMBER_OF_CHANNELS_ADC_4; i++) {
+        if (adc_samples_buffers.raw_adc4[i] <
+            adc_samples_buffers.raw_min_adc4[i]) {
+            adc_samples_buffers.raw_min_adc4[i] =
+                adc_samples_buffers.raw_adc4[i];
+        }
+
+        if (adc_samples_buffers.raw_adc4[i] >
+            adc_samples_buffers.raw_max_adc4[i]) {
+            adc_samples_buffers.raw_max_adc4[i] =
+                adc_samples_buffers.raw_adc4[i];
+        }
+    }
+
+    return ADC_ACTION_REPEAT;
+}
+#endif
+
 // interrupt context!
 static enum adc_action
 adc5_callback(const struct device *dev, const struct adc_sequence *sequence,
@@ -385,6 +453,45 @@ voltage_measurement_adc1_thread()
         k_sleep(K_MSEC(1000));
     }
 }
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+_Noreturn static void
+voltage_measurement_adc4_thread()
+{
+    int err;
+
+    struct adc_sequence_options sequence_options = {0};
+    sequence_options.callback = adc4_callback;
+    sequence_options.interval_us = ADC_SAMPLING_PERIOD_US;
+    sequence_options.user_data = NULL;
+
+    struct adc_sequence sequence = {0};
+    sequence.options = &sequence_options;
+    sequence.channels = 0;
+    sequence.buffer = (uint16_t *)adc4_samples_buffer;
+    sequence.buffer_size = sizeof(adc4_samples_buffer);
+    sequence.resolution = ADC_RESOLUTION_BITS;
+    sequence.oversampling = ADC_OVERSAMPLING;
+    sequence.calibrate = false;
+
+    for (size_t i = 0; i < ARRAY_SIZE(adc_channels); i++) {
+        const struct adc_dt_spec *adc_channel = &adc_channels[i];
+        if (adc_channel->dev == adc4_dev) {
+            sequence.channels |= BIT(adc_channel->channel_id);
+        }
+    }
+
+    while (1) {
+        // adc_read should block forever because the callback functions always
+        // requests a repetition of the sample
+        err = adc_read((const struct device *)adc4_dev, &sequence);
+        LOG_ERR("should not be reached, err = %d", err);
+
+        // repeat adc_read after 1 second
+        k_sleep(K_MSEC(1000));
+    }
+}
+#endif
 
 _Noreturn static void
 voltage_measurement_adc5_thread()
@@ -476,7 +583,7 @@ publish_all_voltages(void)
     CRITICAL_SECTION_EXIT(k);
 
     for (Voltage_VoltageSource i = Voltage_VoltageSource_MAIN_MCU_INTERNAL;
-         i <= Voltage_VoltageSource_SUPPLY_3V3_SSD; ++i) {
+         i <= Voltage_VoltageSource_SUPER_CAP_7; ++i) {
         voltage_msg.source = i;
 
         voltage_measurement_channel_t channel = CHANNEL_3V3_UC;
@@ -541,6 +648,82 @@ publish_all_voltages(void)
                 channel = CHANNEL_3V3_SSD_3V8;
             }
             break;
+        case Voltage_VoltageSource_SUPPLY_3V3_WIFI:
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+            channel = CHANNEL_3V3_WIFI;
+            break;
+#else
+            continue;
+#endif
+        case Voltage_VoltageSource_SUPPLY_3V3_LTE:
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+            channel = CHANNEL_3V3_LTE;
+            break;
+#else
+            continue;
+#endif
+        case Voltage_VoltageSource_SUPPLY_3V6:
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+            channel = CHANNEL_3V6;
+            break;
+#else
+            continue;
+#endif
+        case Voltage_VoltageSource_SUPPLY_1V2:
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+            channel = CHANNEL_1V2;
+            break;
+#else
+            continue;
+#endif
+        case Voltage_VoltageSource_SUPPLY_2V8:
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+            channel = CHANNEL_2V8;
+            break;
+#else
+            continue;
+#endif
+        case Voltage_VoltageSource_SUPPLY_1V8_SEC:
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+            channel = CHANNEL_1V8_SEC;
+            break;
+#else
+            continue;
+#endif
+        case Voltage_VoltageSource_SUPPLY_4V7_SEC:
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+            channel = CHANNEL_4V7_SEC;
+            break;
+#else
+            continue;
+#endif
+        case Voltage_VoltageSource_SUPPLY_17V_CAPS:
+            // todo
+            continue;
+        case Voltage_VoltageSource_SUPER_CAP_0:
+            // todo
+            continue;
+        case Voltage_VoltageSource_SUPER_CAP_1:
+            // todo
+            continue;
+        case Voltage_VoltageSource_SUPER_CAP_2:
+            // todo
+            continue;
+        case Voltage_VoltageSource_SUPER_CAP_3:
+            // todo
+            continue;
+        case Voltage_VoltageSource_SUPER_CAP_4:
+            // todo
+            continue;
+        case Voltage_VoltageSource_SUPER_CAP_5:
+            // todo
+            continue;
+        case Voltage_VoltageSource_SUPER_CAP_6:
+            // todo
+            continue;
+        case Voltage_VoltageSource_SUPER_CAP_7:
+            // todo
+            continue;
         }
 
         ret_code_t ret = voltage_measurement_get_stats(
@@ -691,6 +874,16 @@ voltage_measurement_init(const Hardware *hw_version)
         voltage_measurement_adc1_thread, NULL, NULL, NULL,
         THREAD_PRIORITY_VOLTAGE_MEASUREMENT_ADC1, 0, K_NO_WAIT);
     k_thread_name_set(tid_adc1, "voltage_measurement_adc1");
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    k_tid_t tid_adc4 = k_thread_create(
+        &voltage_measurement_adc4_thread_data,
+        voltage_measurement_adc4_thread_stack,
+        K_THREAD_STACK_SIZEOF(voltage_measurement_adc4_thread_stack),
+        voltage_measurement_adc4_thread, NULL, NULL, NULL,
+        THREAD_PRIORITY_VOLTAGE_MEASUREMENT_ADC4, 0, K_NO_WAIT);
+    k_thread_name_set(tid_adc4, "voltage_measurement_adc4");
+#endif
 
     k_tid_t tid_adc5 = k_thread_create(
         &voltage_measurement_adc5_thread_data,

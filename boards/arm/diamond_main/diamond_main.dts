@@ -8,6 +8,7 @@
 /// see @file modules/hal/stm32/stm32cube/stm32g4xx/drivers/include/stm32g4xx_ll_dmamux.h
 #define LL_DMAMUX_REQ_ADC1            0x00000005U  /*!< DMAMUX ADC1 request        */
 #define LL_DMAMUX_REQ_ADC3            0x00000025U  /*!< DMAMUX ADC3 request        */
+#define LL_DMAMUX_REQ_ADC4            0x00000026U  /*!< DMAMUX ADC4 request        */
 #define LL_DMAMUX_REQ_ADC5            0x00000027U  /*!< DMAMUX ADC5 request        */
 #define LL_DMAMUX_REQ_USART1_RX       0x00000018U  /*!< DMAMUX USART1 RX request   */
 #define LL_DMAMUX_REQ_USART1_TX       0x00000019U  /*!< DMAMUX USART1 TX request   */
@@ -16,6 +17,7 @@
 #define LL_DMAMUX_CHANNEL_8           0x00000008U  /*!< DMAMUX Channel 8 connected to DMA2 Channel 1  */
 #define LL_DMAMUX_CHANNEL_9           0x00000009U  /*!< DMAMUX Channel 9 connected to DMA2 Channel 2  */
 #define LL_DMAMUX_CHANNEL_10          0x0000000AU  /*!< DMAMUX Channel 10 connected to DMA2 Channel 3 */
+#define LL_DMAMUX_CHANNEL_11          0x0000000BU  /*!< DMAMUX Channel 11 connected to DMA2 Channel 4 */
 
 /// see @file zephyr/dts/bindings/dma/st,stm32-dma-v2.yaml
 #define DMA_CONFIG_CYCLIC_SHIFT     5
@@ -176,29 +178,45 @@
         //      Diamond PoC2: R1=94k, R2=10k
         // [1]: 3V3_SSD
         //      Diamond PoC2: R1=10k, R2=10k
-        // [2]: PVCC
-        //      Diamond PoC2: R1=442k, R2=23.5k
-        // [3]: 12V
-        //      Diamond PoC2: R1=57k, R2=10k
-        // [4]: 12V_CAPS
-        //      Diamond PoC2: R1=57k, R2=10k
-        // [5]: Die Temperature
-        // [6]: Vbat / 3
-        // adc5:
-        // [7]: 1V8
-        //      Diamond PoC2: R1=27R, R2=inf
-        // [8]: 3V3
+        // [2]: 3V3_WIFI
         //      Diamond PoC2: R1=10k, R2=10k
-        // [9]: 5V
-        //      Diamond PoC2: R1=20k, R2=10k
-        // [10]: 3V3_LTE
+        // [3]: PVCC
+        //      Diamond PoC2: R1=442k, R2=23.5k
+        // [4]: 12V
+        //      Diamond PoC2: R1=57k, R2=10k
+        // [5]: 12V_CAPS
+        //      Diamond PoC2: R1=57k, R2=10k
+        // [6]: V_SCAP_LOW
+        //      Diamond PoC2
+        // [7]: V_SCAP_HIGH
+        //      Diamond PoC2
+        // [8]: Die Temperature
+        // [9]: Vbat / 3
+        // adc4:
+        // [10]: 1V8_SEC
+        //       Diamond PoC2: R1=27R, R2=inf
+        // [11]: 4V7_SEC
+        //       Diamond PoC2: R1=2*47k, R2=47k
+        // adc5:
+        // [12]: 1V8
+        //       Diamond PoC2: R1=27R, R2=inf
+        // [13]: 3V3
         //       Diamond PoC2: R1=10k, R2=10k
-        // [11]: VREFINT (typ. 1.212 V)
+        // [14]: 5V
+        //       Diamond PoC2: R1=20k, R2=10k
+        // [15]: 3V6
+        //       Diamond PoC2: R1=10k, R2=10k
+        // [16]: 3V3_LTE
+        //       Diamond PoC2: R1=10k, R2=10k
+        // [17]: 1V2
+        //       Diamond PoC2: R1=27R, R2=inf
+        // [18]: 2V8
+        //       Diamond PoC2: R1=10k, R2=10k
+        // [19]: VREFINT (typ. 1.212 V)
         //
-        // todo: add other Diamond ADC channels like V_SCAP_MUX_LOW/HIGH and change README.md accordingly
-        io-channels = <&adc1 1>, <&adc1 2>, <&adc1 7>, <&adc1 8>, <&adc1 9>, <&adc1 16>, <&adc1 17>, <&adc5 7>, <&adc5 8>, <&adc5 9>, <&adc5 13>, <&adc5 18>;
-        io-channel-names = "vbat_sw", "3v3_ssd", "pvcc", "12v", "12v_caps", "die_temp", "3v3_uc", "1v8", "3v3", "5v", "3v3_lte", "vrefint";
-        voltage-divider-scalings = "10.4f", "2.0f", "19.81f", "6.7f", "6.7f", "1.0f", "3.0f", "1.0f", "2.0f", "3.0f", "2.0f", "1.0f";
+        io-channels = <&adc1 1>, <&adc1 2>, <&adc1 3>, <&adc1 7>, <&adc1 8>, <&adc1 9>, <&adc1 11>, <&adc1 14>, <&adc1 16>, <&adc1 17>,<&adc4 1>, <&adc4 2>, <&adc5 7>, <&adc5 8>, <&adc5 9>, <&adc5 12>, <&adc5 13>, <&adc5 14>, <&adc5 15>, <&adc5 18>;
+        io-channel-names = "vbat_sw", "3v3_ssd", "3v3_wifi", "pvcc", "12v", "12v_caps", "v_scap_low", "v_scap_high", "die_temp", "3v3_uc","1v8_sec", "4v7_sec", "1v8", "3v3", "5v", "3v6", "3v3_lte", "1v2", "2V8", "vrefint";
+        voltage-divider-scalings = "10.4f", "2.0f", "2.0f", "19.81f", "6.7f", "6.7f", "1.0f", "1.0f", "1.0f", "3.0f","1.0f", "3.0f", "1.0f", "2.0f", "3.0f", "2.0f", "2.0f", "1.0f", "2.0f", "1.0f";
     };
 
     i2c-mux-gpio-mainboard {
@@ -465,16 +483,13 @@
 };
 
 &adc1 {
-    // used to measure battery voltage, hardware revision
-    // & die temperature (channel 16)
-
     // dmamux1: 8 = dma2,channel 1
     dmas = < &dmamux1 LL_DMAMUX_CHANNEL_8 LL_DMAMUX_REQ_ADC1 (STM32_DMA_PERIPH_TO_MEMORY |
     STM32_DMA_MEM_INC |  STM32_DMA_MEM_16BITS | STM32_DMA_PERIPH_16BITS) >;
     dma-names = "dmamux";
 
     status = "okay";
-    pinctrl-0 = <&adc1_in1_pa0 &adc1_in2_pa1 &adc1_in7_pc1 &adc1_in8_pc2 &adc1_in9_pc3>;
+    pinctrl-0 = <&adc1_in1_pa0 &adc1_in2_pa1 &adc1_in3_pa2 &adc1_in7_pc1 &adc1_in8_pc2 &adc1_in9_pc3 &adc1_in11_pb12 &adc1_in14_pb11>;
     pinctrl-names = "default";
     vref-mv = <2048>;
     vbat-channel = <0x11>;
@@ -492,6 +507,14 @@
 
     channel@2 {		// 3V3_SSD
         reg = <2>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@3 {		// 3V3_WIFI
+        reg = <3>;
         zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
         zephyr,gain = "ADC_GAIN_1";
         zephyr,reference = "ADC_REF_INTERNAL";
@@ -516,6 +539,22 @@
 
     channel@9 {		// 12V_CAPS
         reg = <9>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@b {		// V_SCAP_LOW
+        reg = <11>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@e {		// V_SCAP_HIGH
+        reg = <14>;
         zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
         zephyr,gain = "ADC_GAIN_1";
         zephyr,reference = "ADC_REF_INTERNAL";
@@ -585,13 +624,44 @@
     };
 };
 
+&adc4 {
+    // dmamux1: 11 = dma2,channel 4
+    dmas = < &dmamux1 LL_DMAMUX_CHANNEL_11 LL_DMAMUX_REQ_ADC4 (STM32_DMA_PERIPH_TO_MEMORY |
+    STM32_DMA_MEM_INC |  STM32_DMA_MEM_16BITS | STM32_DMA_PERIPH_16BITS) >;
+    dma-names = "dmamux";
+
+    status = "okay";
+    pinctrl-0 = <&adc4_in1_pe14 &adc4_in2_pe15>;
+    pinctrl-names = "default";
+    vref-mv = <2048>;
+
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    channel@1 {		// 1V8_SEC
+        reg = <1>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@2 {		// 4V7_SEC
+        reg = <2>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+};
+
 &adc5 {
     // dmamux1: 9 = dma2,ch2
     dmas = < &dmamux1 LL_DMAMUX_CHANNEL_9 LL_DMAMUX_REQ_ADC5 (STM32_DMA_PERIPH_TO_MEMORY |
 	STM32_DMA_MEM_INC | STM32_DMA_MEM_16BITS | STM32_DMA_PERIPH_16BITS) >;
     dma-names = "dmamux";
     status = "okay";
-    pinctrl-0 = <&adc5_in7_pd10 &adc5_in8_pd11 &adc5_in9_pd12 &adc5_in13_pd9>;
+    pinctrl-0 = <&adc5_in7_pd10 &adc5_in8_pd11 &adc5_in9_pd12 &adc5_in12_pd8 &adc5_in13_pd9 &adc5_in14_pe10 &adc5_in15_pe11>;
     pinctrl-names = "default";
     vref-mv = <2048>;
     vref-channel = < 0x12 >;
@@ -623,8 +693,32 @@
         zephyr,resolution = <12>;
     };
 
+    channel@c {		// 3V6
+        reg = <12>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
     channel@d {	        // 3V3_LTE
         reg = <13>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@e {		// 1V2
+        reg = <14>;
+        zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
+        zephyr,gain = "ADC_GAIN_1";
+        zephyr,reference = "ADC_REF_INTERNAL";
+        zephyr,resolution = <12>;
+    };
+
+    channel@f {		// 2V8
+        reg = <15>;
         zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
         zephyr,gain = "ADC_GAIN_1";
         zephyr,reference = "ADC_REF_INTERNAL";

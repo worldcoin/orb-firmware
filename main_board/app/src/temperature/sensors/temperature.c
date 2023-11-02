@@ -402,7 +402,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
         {.sensor = DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_white_top)),
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
-             Temperature_TemperatureSource_FRONT_UNIT_940_WHITE_TOP,
+             Temperature_TemperatureSource_FRONT_UNIT_WHITE_TOP,
          .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
          .cb = NULL,
          .cb_data = NULL,
@@ -414,7 +414,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
              DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_shroud_rgb_top)),
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
-             Temperature_TemperatureSource_FRONT_UNIT_940_SHROUD_RGB_TOP,
+             Temperature_TemperatureSource_FRONT_UNIT_SHROUD_RGB_TOP,
          .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
          .cb = NULL,
          .cb_data = NULL,
