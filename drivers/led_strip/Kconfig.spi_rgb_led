@@ -11,3 +11,14 @@ config SPI_RGB_LED_DIMMING
     depends on SPI_RGB_LED
     help
       Enable dimming support for SPI RGB LED strips.
+
+config SPI_RGB_LED_BUFFER_SIZE
+    int "Size of SPI RGB LED buffer"
+    depends on SPI_RGB_LED
+    default 396
+    help
+      Size of the SPI RGB LED buffer in bytes. This is the maximum
+      number of bytes that can be sent to the LED strip in one go.
+      This buffer is used so that the original LED buffer is not
+      modified. The buffer size must be a multiple of the size of
+      struct led_rgb.

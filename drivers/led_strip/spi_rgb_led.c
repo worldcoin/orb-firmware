@@ -14,8 +14,14 @@
 
 struct spi_rgb_led_config {
     struct spi_dt_spec bus;
-    size_t num_leds;
 };
+
+BUILD_ASSERT(CONFIG_SPI_RGB_LED_BUFFER_SIZE % sizeof(struct led_rgb) == 0,
+             "CONFIG_SPI_RGB_LED_BUFFER_SIZE must be a multiple of "
+             "sizeof(struct led_rgb)");
+
+static uint8_t spi_buf_tx[CONFIG_SPI_RGB_LED_BUFFER_SIZE];
+static K_SEM_DEFINE(spi_sem, 1, 1);
 
 static int
 spi_rgb_led_update(const struct device *dev, void *buf, size_t size)
@@ -56,12 +62,18 @@ static int
 spi_rgb_led_update_rgb(const struct device *dev, struct led_rgb *pixels,
                        size_t count)
 {
-    uint8_t *p = (uint8_t *)pixels;
     size_t i;
 
     /* Make sure we can write to the pixels array */
     BUILD_ASSERT(sizeof(struct led_rgb) == 4, "led_rgb is not 4 bytes long: "
                                               "cannot write to pixels array");
+    __ASSERT(count * sizeof(struct led_rgb) <= CONFIG_SPI_RGB_LED_BUFFER_SIZE,
+             "Too many pixels to update");
+
+    int ret = k_sem_take(&spi_sem, K_MSEC(1000));
+    if (ret) {
+        return ret;
+    }
 
     /* Rewrite to the on-wire format:
      * Flags (3 bits) | Dimming (5 bits) | Green (8 bits) | Blue (8 bits) | Red
@@ -87,9 +99,6 @@ spi_rgb_led_update_rgb(const struct device *dev, struct led_rgb *pixels,
 #if defined(CONFIG_SPI_RGB_LED_DIMMING)
         if (pixels[i].scratch == 0) {
             prefix = 0xA0;
-            pixels[i].r = 0;
-            pixels[i].g = 0;
-            pixels[i].b = 0;
         } else {
             prefix = 0xE0 | (pixels[i].scratch & 0x1F);
         }
@@ -105,17 +114,16 @@ spi_rgb_led_update_rgb(const struct device *dev, struct led_rgb *pixels,
         }
 #endif
 
-        uint8_t r = pixels[i].r;
-        uint8_t g = pixels[i].g;
-        uint8_t b = pixels[i].b;
-
-        *p++ = prefix;
-        *p++ = g;
-        *p++ = b;
-        *p++ = r;
+        spi_buf_tx[i * 4] = prefix;
+        spi_buf_tx[i * 4 + 1] = pixels[i].g;
+        spi_buf_tx[i * 4 + 2] = pixels[i].b;
+        spi_buf_tx[i * 4 + 3] = pixels[i].r;
     }
 
-    return spi_rgb_led_update(dev, pixels, sizeof(struct led_rgb) * count);
+    ret = spi_rgb_led_update(dev, spi_buf_tx, sizeof(struct led_rgb) * count);
+    k_sem_give(&spi_sem);
+
+    return ret;
 }
 
 static int
