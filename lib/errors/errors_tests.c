@@ -1,4 +1,9 @@
+#ifdef CONFIG_WATCHDOG
 #include "watchdog.h"
+#endif
+
+#include <app_assert.h>
+#include <compilers.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/random/rand32.h>
 
@@ -124,9 +129,11 @@ fatal_errors_test(void)
     case USER_ASSERT_HARD_IN_ISR:
         irq_offload(user_assert_in_isr, NULL);
         break;
+#ifdef CONFIG_WATCHDOG
     case WATCHDOG:
         (void)watchdog_init();
         break;
+#endif
 #if defined(CONFIG_USERSPACE)
     case ZUSER_FATAL_Z_OOPS:
         trigger_z_oops();
