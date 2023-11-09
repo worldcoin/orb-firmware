@@ -14,13 +14,15 @@ Compile the bootloader:
 
 ```shell
 # Passing the board is mandatory to build the bootloader
-west build -b [pearl_main | pearl_security | diamond_main | diamond_security]
+west build -b [pearl_main | pearl_security | diamond_main | diamond_security]  [-- -DDTC_OVERLAY_FILE=one_slot.overlay]
 ```
 
 - `pearl_main`: main board v3.1+, used on Pearl Orbs
 - `pearl_security`: security MCU, any version
 - `diamond_main`: Main MCU, used on Diamond Orb Mainboards v4.1+,
 - `diamond_security`: Security MCU, used on Diamond Orb Mainboards v4.1+,
+
+- `-DDTC_OVERLAY_FILE=one_slot.overlay`: Use this if you want to flash a main/sec_board application with the one-slot configuration.
 
 Flash the bootloader, before the application:
 

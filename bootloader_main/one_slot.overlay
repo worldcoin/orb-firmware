@@ -1,0 +1,33 @@
+/ {
+    chosen {
+        zephyr,flash = &flash0;
+        zephyr,code-partition = &slot0_partition;
+    };
+
+	aliases {
+		secondary-slot = &slot1_dummy_partition;
+	};
+};
+
+&flash0 {
+    // Base address: 0x8000000
+    // For more information, see:
+    // http://docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        // 440KiB
+        // Absolute address 0x8000C000
+        slot0_partition: partition@C000 {
+            reg = <0x0000C000 0x0006E000>;
+        };
+
+        // 8KiB
+        // Absolute address 0x8007A000 (0x8000C000 + 0x06E000)
+        slot1_dummy_partition: partition@7A000 {
+            reg = <0x0007A000 0x00002000>;
+        };
+    };
+};
