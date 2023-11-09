@@ -4,6 +4,7 @@
 #include <mcu_messaging.pb.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <zephyr/kernel.h>
 
 /**
  * @brief Set the sampling period for the temperature sensors
@@ -19,9 +20,11 @@ temperature_set_sampling_period_ms(uint32_t sample_period);
 /**
  * @brief Initialize the temperature sensors
  * @param hw_version Initialization depends on the hardware version
+ * @param *analog_mux_mutex Mutex for I2C multiplexer which shares control
+ * signals with the V_SCAP voltages multiplexer
  */
 void
-temperature_init(const Hardware *hw_version);
+temperature_init(const Hardware *hw_version, struct k_mutex *i2c_mux_mutex);
 
 /**
  * @brief Report a temperature reading to the Jetson

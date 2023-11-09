@@ -58,6 +58,8 @@ typedef void (*temperature_callback)(
 static void
 overtemp_callback(struct sensor_and_channel *sensor_and_channel);
 
+static struct k_mutex *temperature_i2c_mux_mutex;
+
 struct overtemp_info {
     int32_t overtemp_c;
     int32_t overtemp_drop_c;
@@ -504,7 +506,13 @@ get_ambient_temperature(const struct device *dev, int32_t *temp,
         if (device_is_ready(dev) == false) {
             return RET_ERROR_INTERNAL;
         }
+        if (k_mutex_lock(temperature_i2c_mux_mutex, K_MSEC(100)) != 0) {
+            LOG_ERR("Could not lock mutex.");
+            return RET_ERROR_INTERNAL;
+        }
         ret = sensor_sample_fetch(dev);
+        k_mutex_unlock(temperature_i2c_mux_mutex);
+
         if (ret) {
             LOG_ERR("Error fetching %s: %d", dev->name, ret);
             return RET_ERROR_INTERNAL;
@@ -674,11 +682,13 @@ check_ready(void)
 }
 
 void
-temperature_init(const Hardware *hw_version)
+temperature_init(const Hardware *hw_version, struct k_mutex *i2c_mux_mutex)
 {
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     ARG_UNUSED(hw_version);
 #endif
+
+    temperature_i2c_mux_mutex = i2c_mux_mutex;
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     if (hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {

@@ -54,6 +54,14 @@ static const struct gpio_dt_spec debug_led_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), debug_led_gpios);
 #endif
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+static const struct gpio_dt_spec super_cap_mux_gpios[] = {
+    DT_FOREACH_PROP_ELEM_SEP(DT_PATH(i2c_mux_gpio_power_board), mux_gpios,
+                             GPIO_DT_SPEC_GET_BY_IDX, (, ))};
+static const struct gpio_dt_spec super_cap_enable_gpio =
+    GPIO_DT_SPEC_GET(DT_PATH(i2c_mux_gpio_power_board), enable_gpios);
+#endif
+
 /* Data of ADC io-channels specified in devicetree. */
 static const struct adc_dt_spec adc_channels[] = {DT_FOREACH_PROP_ELEM(
     DT_PATH(voltage_measurement), io_channels, DT_SPEC_AND_COMMA)};
@@ -94,19 +102,11 @@ static volatile const struct device *const adc5_dev =
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
 #define NUMBER_OF_CHANNELS_ADC_1 10
-#else
-#define NUMBER_OF_CHANNELS_ADC_1 6
-#endif
-
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
 #define NUMBER_OF_CHANNELS_ADC_4 2
-#else
-#define NUMBER_OF_CHANNELS_ADC_4 0
-#endif
-
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
 #define NUMBER_OF_CHANNELS_ADC_5 8
 #else
+#define NUMBER_OF_CHANNELS_ADC_1 6
+#define NUMBER_OF_CHANNELS_ADC_4 0
 #define NUMBER_OF_CHANNELS_ADC_5 5
 #endif
 
@@ -166,6 +166,27 @@ static Hardware_OrbVersion hardware_version =
 k_tid_t tid_publish = NULL;
 
 static atomic_t voltages_publish_period_ms = ATOMIC_INIT(0);
+
+static struct k_mutex *voltages_analog_mux_mutex;
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+
+#define NUMBER_OF_SUPER_CAPS    8
+#define SUPER_CAP_MUX_POSITIONS 4
+#define SUPER_CAP_MUX_LOW_IDX   0
+#define SUPER_CAP_MUX_HIGH_IDX  1
+
+BUILD_ASSERT(NUMBER_OF_SUPER_CAPS == 2 * SUPER_CAP_MUX_POSITIONS,
+             "Number of super caps must be 2 times the number of multiplexer "
+             "switch positions");
+
+static const float super_cap_scaling_factors[NUMBER_OF_SUPER_CAPS] = {
+    1.3333f, 2.818f, 5.343f, 5.343f, 6.757f, 11.1f, 11.1f, 11.1f};
+
+static int32_t super_cap_voltages_mv[NUMBER_OF_SUPER_CAPS] = {0};
+static int32_t super_cap_differential_voltages[NUMBER_OF_SUPER_CAPS] = {0};
+
+#endif
 
 uint16_t
 voltage_measurement_get_vref_mv(void)
@@ -582,6 +603,8 @@ publish_all_voltages(void)
 
     CRITICAL_SECTION_EXIT(k);
 
+    bool is_super_cap_channel = false;
+
     for (Voltage_VoltageSource i = Voltage_VoltageSource_MAIN_MCU_INTERNAL;
          i <= Voltage_VoltageSource_SUPER_CAP_7; ++i) {
         voltage_msg.source = i;
@@ -648,88 +671,129 @@ publish_all_voltages(void)
                 channel = CHANNEL_3V3_SSD_3V8;
             }
             break;
-        case Voltage_VoltageSource_SUPPLY_3V3_WIFI:
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
+        case Voltage_VoltageSource_SUPPLY_3V3_WIFI:
             channel = CHANNEL_3V3_WIFI;
             break;
-#else
-            continue;
-#endif
         case Voltage_VoltageSource_SUPPLY_3V3_LTE:
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
             channel = CHANNEL_3V3_LTE;
             break;
-#else
-            continue;
-#endif
+
         case Voltage_VoltageSource_SUPPLY_3V6:
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
             channel = CHANNEL_3V6;
             break;
-#else
-            continue;
-#endif
+
         case Voltage_VoltageSource_SUPPLY_1V2:
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
             channel = CHANNEL_1V2;
             break;
-#else
-            continue;
-#endif
+
         case Voltage_VoltageSource_SUPPLY_2V8:
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
             channel = CHANNEL_2V8;
             break;
-#else
-            continue;
-#endif
+
         case Voltage_VoltageSource_SUPPLY_1V8_SEC:
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
             channel = CHANNEL_1V8_SEC;
             break;
-#else
-            continue;
-#endif
+
         case Voltage_VoltageSource_SUPPLY_4V7_SEC:
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
             channel = CHANNEL_4V7_SEC;
             break;
-#else
+
+        case Voltage_VoltageSource_SUPPLY_17V_CAPS:
+            voltage_msg.voltage_current_mv = super_cap_voltages_mv[7];
+            voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
+            voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
+            is_super_cap_channel = true;
+            break;
+
+        case Voltage_VoltageSource_SUPER_CAP_0:
+            voltage_msg.voltage_current_mv = super_cap_differential_voltages[0];
+            voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
+            voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
+            is_super_cap_channel = true;
+            break;
+
+        case Voltage_VoltageSource_SUPER_CAP_1:
+            voltage_msg.voltage_current_mv = super_cap_differential_voltages[1];
+            voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
+            voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
+            is_super_cap_channel = true;
+            break;
+
+        case Voltage_VoltageSource_SUPER_CAP_2:
+            voltage_msg.voltage_current_mv = super_cap_differential_voltages[2];
+            voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
+            voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
+            is_super_cap_channel = true;
+            break;
+
+        case Voltage_VoltageSource_SUPER_CAP_3:
+            voltage_msg.voltage_current_mv = super_cap_differential_voltages[3];
+            voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
+            voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
+            is_super_cap_channel = true;
+            break;
+
+        case Voltage_VoltageSource_SUPER_CAP_4:
+            voltage_msg.voltage_current_mv = super_cap_differential_voltages[4];
+            voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
+            voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
+            is_super_cap_channel = true;
+            break;
+
+        case Voltage_VoltageSource_SUPER_CAP_5:
+            voltage_msg.voltage_current_mv = super_cap_differential_voltages[5];
+            voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
+            voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
+            is_super_cap_channel = true;
+            break;
+
+        case Voltage_VoltageSource_SUPER_CAP_6:
+            voltage_msg.voltage_current_mv = super_cap_differential_voltages[6];
+            voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
+            voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
+            is_super_cap_channel = true;
+            break;
+
+        case Voltage_VoltageSource_SUPER_CAP_7:
+            voltage_msg.voltage_current_mv = super_cap_differential_voltages[7];
+            voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
+            voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
+            is_super_cap_channel = true;
+            break;
+#elif defined(CONFIG_BOARD_PEARL_MAIN)
+        case Voltage_VoltageSource_SUPPLY_3V3_WIFI:
+        case Voltage_VoltageSource_SUPPLY_3V3_LTE:
+        case Voltage_VoltageSource_SUPPLY_3V6:
+        case Voltage_VoltageSource_SUPPLY_1V2:
+        case Voltage_VoltageSource_SUPPLY_2V8:
+        case Voltage_VoltageSource_SUPPLY_1V8_SEC:
+        case Voltage_VoltageSource_SUPPLY_4V7_SEC:
+        case Voltage_VoltageSource_SUPPLY_17V_CAPS:
+        case Voltage_VoltageSource_SUPER_CAP_0:
+        case Voltage_VoltageSource_SUPER_CAP_1:
+        case Voltage_VoltageSource_SUPER_CAP_2:
+        case Voltage_VoltageSource_SUPER_CAP_3:
+        case Voltage_VoltageSource_SUPER_CAP_4:
+        case Voltage_VoltageSource_SUPER_CAP_5:
+        case Voltage_VoltageSource_SUPER_CAP_6:
+        case Voltage_VoltageSource_SUPER_CAP_7:
             continue;
 #endif
-        case Voltage_VoltageSource_SUPPLY_17V_CAPS:
-            // todo
-            continue;
-        case Voltage_VoltageSource_SUPER_CAP_0:
-            // todo
-            continue;
-        case Voltage_VoltageSource_SUPER_CAP_1:
-            // todo
-            continue;
-        case Voltage_VoltageSource_SUPER_CAP_2:
-            // todo
-            continue;
-        case Voltage_VoltageSource_SUPER_CAP_3:
-            // todo
-            continue;
-        case Voltage_VoltageSource_SUPER_CAP_4:
-            // todo
-            continue;
-        case Voltage_VoltageSource_SUPER_CAP_5:
-            // todo
-            continue;
-        case Voltage_VoltageSource_SUPER_CAP_6:
-            // todo
-            continue;
-        case Voltage_VoltageSource_SUPER_CAP_7:
-            // todo
+        default:
+            LOG_ERR("illegal state");
             continue;
         }
 
-        ret_code_t ret = voltage_measurement_get_stats(
-            &publish_adc_buffers, channel, &voltage_msg.voltage_current_mv,
-            &voltage_msg.voltage_min_mv, &voltage_msg.voltage_max_mv);
-        ASSERT_SOFT(ret);
+        ret_code_t ret;
+        if (!is_super_cap_channel) {
+            ret = voltage_measurement_get_stats(
+                &publish_adc_buffers, channel, &voltage_msg.voltage_current_mv,
+                &voltage_msg.voltage_min_mv, &voltage_msg.voltage_max_mv);
+            ASSERT_SOFT(ret);
+        } else {
+            ret = RET_SUCCESS;
+        }
 
         if (ret == RET_SUCCESS) {
             ret = publish_new(&voltage_msg, sizeof(voltage_msg),
@@ -742,8 +806,12 @@ publish_all_voltages(void)
             }
         }
 
-        LOG_DBG("channel %s published",
-                voltage_measurement_channel_names[channel]);
+        if (!is_super_cap_channel) {
+            LOG_DBG("channel %s published",
+                    voltage_measurement_channel_names[channel]);
+        } else {
+            LOG_DBG("channel super cap published");
+        }
     }
 
     // If publishing of all voltages was unsuccessful the min/max values, which
@@ -756,6 +824,84 @@ publish_all_voltages(void)
     }
 }
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+
+static ret_code_t
+voltage_measurement_sample_switched_channels(void)
+{
+
+    if (k_mutex_lock(voltages_analog_mux_mutex, K_MSEC(100)) == 0) {
+        // save gpio state and restore it later for not interfering with the i2c
+        // mux driver
+        int mux_store[2];
+        mux_store[0] = gpio_pin_get_dt(&super_cap_mux_gpios[0]);
+        mux_store[1] = gpio_pin_get_dt(&super_cap_mux_gpios[1]);
+
+        gpio_pin_set_dt(&super_cap_enable_gpio, 1);
+
+        int32_t vref_mv = DT_PROP(DT_PATH(zephyr_user), vref_mv);
+
+        for (uint8_t i = 0; i < SUPER_CAP_MUX_POSITIONS; i++) {
+            // voltage channels are connected to multiplexer in reverse order
+            uint8_t mux_position = SUPER_CAP_MUX_POSITIONS - 1 - i;
+            gpio_pin_set_dt(&super_cap_mux_gpios[0],
+                            ((mux_position & BIT(0)) != 0));
+            gpio_pin_set_dt(&super_cap_mux_gpios[1],
+                            ((mux_position & BIT(1)) != 0));
+
+            // wait for 2.1 full sampling periods to be safe that
+            // the signal voltage is applied for at least one whole sample time
+            k_usleep((int32_t)(ADC_SAMPLING_PERIOD_US * 2.1f));
+
+            int32_t super_cap_voltages_raw[2];
+
+            CRITICAL_SECTION_ENTER(k);
+            super_cap_voltages_raw[SUPER_CAP_MUX_LOW_IDX] =
+                adc_samples_buffers.raw[CHANNEL_V_SCAP_LOW];
+            super_cap_voltages_raw[SUPER_CAP_MUX_HIGH_IDX] =
+                adc_samples_buffers.raw[CHANNEL_V_SCAP_HIGH];
+            CRITICAL_SECTION_EXIT(k);
+
+            adc_raw_to_millivolts(
+                vref_mv, ADC_GAIN, ADC_RESOLUTION_BITS,
+                &super_cap_voltages_raw[SUPER_CAP_MUX_LOW_IDX]);
+            adc_raw_to_millivolts(
+                vref_mv, ADC_GAIN, ADC_RESOLUTION_BITS,
+                &super_cap_voltages_raw[SUPER_CAP_MUX_HIGH_IDX]);
+
+            super_cap_voltages_mv[i] =
+                (int32_t)((float)(super_cap_voltages_raw
+                                      [SUPER_CAP_MUX_LOW_IDX]) *
+                          super_cap_scaling_factors[i]);
+            super_cap_voltages_mv[i + SUPER_CAP_MUX_POSITIONS] =
+                (int32_t)((float)(super_cap_voltages_raw
+                                      [SUPER_CAP_MUX_HIGH_IDX]) *
+                          super_cap_scaling_factors[i +
+                                                    SUPER_CAP_MUX_POSITIONS]);
+        }
+
+#ifdef CONFIG_VOLTAGE_MEASUREMENT_LOG_LEVEL_DBG
+        for (uint8_t i = 0; i < NUMBER_OF_SUPER_CAPS; i++) {
+            LOG_DBG("V_SCAP_%d = %d mV", i, super_cap_voltages_mv[i]);
+        }
+#endif
+
+        gpio_pin_set_dt(&super_cap_enable_gpio, 0);
+
+        // restore mux gpio values for not interfering with the i2c mux driver
+        gpio_pin_set_dt(&super_cap_mux_gpios[0], mux_store[0]);
+        gpio_pin_set_dt(&super_cap_mux_gpios[1], mux_store[1]);
+
+        k_mutex_unlock(voltages_analog_mux_mutex);
+    } else {
+        LOG_ERR("Could not lock mutex.");
+        return RET_ERROR_INTERNAL;
+    }
+
+    return RET_SUCCESS;
+}
+#endif
+
 _Noreturn static void
 voltage_measurement_publish_thread()
 {
@@ -766,6 +912,32 @@ voltage_measurement_publish_thread()
         } else {
             k_msleep(sleep_period_ms);
         }
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+        ret_code_t ret = voltage_measurement_sample_switched_channels();
+        if (ret == RET_SUCCESS) {
+            super_cap_differential_voltages[0] = super_cap_voltages_mv[0];
+            for (uint8_t i = 1; i < NUMBER_OF_SUPER_CAPS; i++) {
+                super_cap_differential_voltages[i] =
+                    super_cap_voltages_mv[i] - super_cap_voltages_mv[i - 1];
+            }
+
+            for (uint8_t i = 0; i < NUMBER_OF_SUPER_CAPS; i++) {
+                if (super_cap_differential_voltages[i] < 0) {
+                    super_cap_differential_voltages[i] = 0;
+                    LOG_WRN("super cap voltage %d below 0", i);
+                }
+
+                if (super_cap_differential_voltages[i] > 20000) {
+                    super_cap_differential_voltages[i] = 20000;
+                    LOG_WRN("super cap voltage %d above 20 V", i);
+                }
+            }
+        } else {
+            memset((void *)&super_cap_differential_voltages, 0,
+                   sizeof(super_cap_differential_voltages));
+        }
+#endif
 
         publish_all_voltages();
     }
@@ -820,9 +992,11 @@ voltage_measurement_debug_thread()
 #endif
 
 ret_code_t
-voltage_measurement_init(const Hardware *hw_version)
+voltage_measurement_init(const Hardware *hw_version,
+                         struct k_mutex *analog_mux_mutex)
 {
     hardware_version = hw_version->version;
+    voltages_analog_mux_mutex = analog_mux_mutex;
 
     reset_statistics();
 

@@ -39,6 +39,8 @@ LOG_MODULE_REGISTER(main);
 
 static bool jetson_up_and_running = false;
 
+static K_MUTEX_DEFINE(analog_and_i2c_mutex);
+
 #ifdef CONFIG_ZTEST_NEW_API
 #include <zephyr/ztest.h>
 
@@ -204,7 +206,7 @@ initialize(void)
 
     // voltage_measurement module is used by battery.c and boot.c -> must be
     // initialized before
-    err_code = voltage_measurement_init(&hw);
+    err_code = voltage_measurement_init(&hw, &analog_and_i2c_mutex);
     ASSERT_SOFT(err_code);
 
     // logs over CAN must be initialized after CAN-messaging module
@@ -223,7 +225,7 @@ initialize(void)
     err_code = fan_init();
     ASSERT_SOFT(err_code);
 
-    temperature_init(&hw);
+    temperature_init(&hw, &analog_and_i2c_mutex);
 
     err_code = sound_init();
     ASSERT_SOFT(err_code);
@@ -249,7 +251,7 @@ initialize(void)
     ASSERT_SOFT(err_code);
 #endif // CONFIG_NO_SUPER_CAPS
 
-    err_code = als_init();
+    err_code = als_init(&analog_and_i2c_mutex);
     ASSERT_SOFT(err_code);
 
     err_code = dfu_init();

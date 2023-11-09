@@ -5,6 +5,7 @@
 #include <app_assert.h>
 #include <stm32_ll_adc.h>
 #include <zephyr/devicetree.h>
+#include <zephyr/kernel.h>
 
 /**
  * Sorted list of all possible voltage monitoring channels as defined in the
@@ -71,12 +72,15 @@ voltage_measurement_get_vref_mv_from_raw(Hardware_OrbVersion hardware_version,
  * @brief Initialize the voltage measurement module.
  *
  * @param *hw_version Mainboard hardware version
+ * @param *analog_mux_mutex Mutex for V_SCAP voltages multiplexer which shares
+ * control signals with the I2C multiplexer
  *
  * @return error code
  * @retval RET_SUCCESS on success
  */
 ret_code_t
-voltage_measurement_init(const Hardware *hw_version);
+voltage_measurement_init(const Hardware *hw_version,
+                         struct k_mutex *analog_mux_mutex);
 
 /**
  * @brief Gets the measured voltage of a specific channel.
