@@ -45,8 +45,14 @@ static const struct gpio_dt_spec liquid_lens_en =
     GPIO_DT_SPEC_GET(DT_PATH(liquid_lens), enable_gpios);
 static float liquid_lens_current_amplifier_gain = 0.0f;
 static float liquid_lens_shunt_resistance_ohms = 0.0f;
+
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 BUILD_ASSERT(DT_PROP_LEN(DT_PATH(liquid_lens), amplifier_gains) == 2,
              "We support 2 different gains based on hardware");
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+BUILD_ASSERT(DT_PROP_LEN(DT_PATH(liquid_lens), amplifier_gains) == 1,
+             "We support only one gain property on Diamond hardware");
+#endif
 
 static K_THREAD_STACK_DEFINE(liquid_lens_stack_area,
                              THREAD_STACK_SIZE_LIQUID_LENS);
@@ -259,21 +265,29 @@ liquid_lens_is_enabled(void)
 ret_code_t
 liquid_lens_init(const Hardware *hw_version)
 {
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    UNUSED_PARAMETER(hw_version);
+#endif
+
     const struct device *clk;
     clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
     int err_code;
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     if (hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         liquid_lens_current_amplifier_gain =
             DT_PROP_BY_IDX(DT_PATH(liquid_lens), amplifier_gains, 1);
         liquid_lens_shunt_resistance_ohms = DT_STRING_UNQUOTED_BY_IDX(
             DT_PATH(liquid_lens), shunt_resistor_ohms, 1);
     } else {
+#endif
         liquid_lens_current_amplifier_gain =
             DT_PROP_BY_IDX(DT_PATH(liquid_lens), amplifier_gains, 0);
         liquid_lens_shunt_resistance_ohms = DT_STRING_UNQUOTED_BY_IDX(
             DT_PATH(liquid_lens), shunt_resistor_ohms, 0);
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     }
+#endif
 
     err_code = clock_control_on(clk, &liquid_lens_hrtim_pclken);
     if (err_code) {
@@ -281,7 +295,7 @@ liquid_lens_init(const Hardware *hw_version)
         return RET_ERROR_NOT_INITIALIZED;
     }
 
-    err_code = gpio_pin_configure_dt(&liquid_lens_en, GPIO_OUTPUT);
+    err_code = gpio_pin_configure_dt(&liquid_lens_en, GPIO_OUTPUT_INACTIVE);
     if (err_code) {
         ASSERT_SOFT(err_code);
         return RET_ERROR_NOT_INITIALIZED;

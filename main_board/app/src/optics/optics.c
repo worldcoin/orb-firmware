@@ -122,8 +122,6 @@ optics_init(const Hardware *hw_version)
         return err_code;
     }
 
-    // todo: fix for Diamond hardware
-#if defined(CONFIG_BOARD_PEARL_MAIN)
     err_code = mirrors_init();
     if (err_code) {
         ASSERT_SOFT(err_code);
@@ -141,6 +139,8 @@ optics_init(const Hardware *hw_version)
         ASSERT_SOFT(err_code);
         return err_code;
     }
+
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 
     // TODO poll pvcc-enable pin on Diamond
     err_code = configure_front_unit_3v3_detection();

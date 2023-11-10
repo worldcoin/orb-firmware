@@ -162,9 +162,8 @@
 
         enable-gpios = <&gpio_exp1 7 GPIO_ACTIVE_HIGH>;
 
-        // array: EV1..4, EV5
-        amplifier-gains = <20>, <10>;
-        shunt-resistor-ohms = "0.15f", "0.15f";
+        amplifier-gains = <10>;
+        shunt-resistor-ohms = "0.15f";
     };
 
     voltage_measurement {

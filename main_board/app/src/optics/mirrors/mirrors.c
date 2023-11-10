@@ -124,14 +124,27 @@ static const int32_t motors_initial_angle[MIRRORS_COUNT] = {
     AUTO_HOMING_VERTICAL_ANGLE_RESULT_MILLI_DEGREES,
     AUTO_HOMING_HORIZONTAL_ANGLE_RESULT_MILLI_DEGREES};
 
-#define HARDWARE_REV_COUNT 2
-static size_t hw_rev_idx = 0;
-static const uint32_t
-    motors_center_from_end[HARDWARE_REV_COUNT][MIRRORS_COUNT] = {
-        {55000, 55000}, // vertical, horizontal, mainboard v3.1
-        {55000, 87000}, // vertical, horizontal, mainboard v3.2
-};
-const float motors_arm_length[MIRRORS_COUNT] = {12.0f, 18.71f};
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+// EV2 and later
+#define MOTOR_VERTICAL_CENTER_FROM_END_STEPS   55000
+#define MOTOR_HORIZONTAL_CENTER_FROM_END_STEPS 87000
+
+#define MOTOR_VERTICAL_ARM_LENGTH_MM   12.0f
+#define MOTOR_HORIZONTAL_ARM_LENGTH_MM 18.71f
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+// values measured on first PoC Diamond Orb
+#define MOTOR_VERTICAL_CENTER_FROM_END_STEPS   55000
+#define MOTOR_HORIZONTAL_CENTER_FROM_END_STEPS 51200
+
+#define MOTOR_VERTICAL_ARM_LENGTH_MM   12.0f
+#define MOTOR_HORIZONTAL_ARM_LENGTH_MM 12.0f
+#endif
+
+static const uint32_t motors_center_from_end_steps[MIRRORS_COUNT] = {
+    MOTOR_VERTICAL_CENTER_FROM_END_STEPS,
+    MOTOR_HORIZONTAL_CENTER_FROM_END_STEPS};
+const float motors_arm_length_mm[MIRRORS_COUNT] = {
+    MOTOR_VERTICAL_ARM_LENGTH_MM, MOTOR_HORIZONTAL_ARM_LENGTH_MM};
 
 const uint32_t steps_per_mm = 12800; // 1mm / 0.4mm (pitch) * (360° / 18° (per
                                      // step)) * 256 micro-steps
@@ -269,7 +282,7 @@ const uint64_t position_mode_full_speed[MIRRORS_COUNT][10] = {
 static uint32_t
 microsteps_to_millidegrees(uint32_t microsteps, mirror_t motor)
 {
-    uint32_t mdegrees = asinf((float)microsteps / (motors_arm_length[motor] *
+    uint32_t mdegrees = asinf((float)microsteps / (motors_arm_length_mm[motor] *
                                                    (float)steps_per_mm)) *
                         360000.0f / M_PI;
     return mdegrees;
@@ -361,7 +374,7 @@ mirror_set_xtarget(int32_t xtarget, mirror_t mirror)
     motors_refs[mirror].angle_millidegrees =
         (int32_t)roundf(
             asinf((float)(xtarget - motors_refs[mirror].x0) /
-                  (motors_arm_length[mirror] * (float)steps_per_mm)) *
+                  (motors_arm_length_mm[mirror] * (float)steps_per_mm)) *
             360000.0f / M_PI) +
         motors_initial_angle[mirror];
     LOG_DBG("Setting mirror %u to %d milli-degrees (xtarget=%d)", mirror,
@@ -388,11 +401,14 @@ mirror_angle_from_center(int32_t d_from_center, mirror_t mirror)
     }
 
     float millimeters = sinf((float)d_from_center * M_PI / 360000.0f) *
-                        motors_arm_length[mirror];
+                        motors_arm_length_mm[mirror];
     int32_t steps = (int32_t)roundf(millimeters * (float)steps_per_mm);
     int32_t xtarget = motors_refs[mirror].x0 + steps;
 
     mirror_set_xtarget(xtarget, mirror);
+
+    LOG_DBG("new gimbal pos: %d °, %d um, %d steps", d_from_center,
+            (int32_t)(millimeters * 1000), steps);
 
     return RET_SUCCESS;
 }
@@ -413,7 +429,7 @@ mirrors_angle_relative(int32_t angle_millidegrees, mirror_t mirror)
 
     int32_t steps =
         (int32_t)roundf(sinf((float)angle_millidegrees * M_PI / 360000.0f) *
-                        motors_arm_length[mirror] * (float)steps_per_mm);
+                        motors_arm_length_mm[mirror] * (float)steps_per_mm);
     int32_t xtarget = x + steps;
     if (xtarget > (int32_t)(motors_refs[mirror].x0 +
                             motors_refs[mirror].full_course / 2) ||
@@ -1096,7 +1112,7 @@ mirrors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                     TMC5041_REGISTERS[REG_IDX_XACTUAL][motor], 0x0);
 
                 motors_refs[motor].x0 =
-                    motors_center_from_end[hw_rev_idx][motor];
+                    (int32_t)motors_center_from_end_steps[motor];
                 motors_refs[motor].full_course = abs(motors_refs[motor].x0 * 2);
 
                 // go to middle position
@@ -1277,21 +1293,6 @@ mirrors_init(void)
     ASSERT_SOFT(err_code);
     err_code = mirrors_auto_homing_one_end(MIRROR_VERTICAL_ANGLE);
     ASSERT_SOFT(err_code);
-
-    // see `motors_center_from_end` array
-    Hardware_OrbVersion version = version_get_hardware_rev();
-    if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1) {
-        hw_rev_idx = 0;
-    } else if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2 ||
-               version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
-               version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4 ||
-               version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-               version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
-        hw_rev_idx = 1;
-    } else {
-        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
-        return RET_ERROR_INVALID_STATE;
-    }
 
     k_work_init(&vertical_set_work_item.work,
                 mirror_angle_vertical_work_wrapper);
