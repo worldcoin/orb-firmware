@@ -26,6 +26,10 @@ module = CONE_RGB_LEDS
 module-str = CONE_RGB_LEDS
 source "subsys/logging/Kconfig.template.log_config"
 
+module = WHITE_LEDS
+module-str = WHITE_LEDS
+source "subsys/logging/Kconfig.template.log_config"
+
 module = RUNNER
 module-str = RUNNER
 source "subsys/logging/Kconfig.template.log_config"

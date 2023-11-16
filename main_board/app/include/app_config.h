@@ -40,6 +40,10 @@
 // Cone button
 #define THREAD_PRIORITY_CONE_BUTTON   8
 #define THREAD_STACK_SIZE_CONE_BUTTON 592
+
+// white LEDs
+#define THREAD_PRIORITY_WHITE_LEDS   9
+#define THREAD_STACK_SIZE_WHITE_LEDS 512
 #endif
 
 // Liquid Lens

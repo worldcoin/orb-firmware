@@ -25,6 +25,7 @@
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
 #include "ui/rgb_leds/cone_leds/cone_leds.h"
+#include "ui/white_leds/white_leds.h"
 #endif
 
 LOG_MODULE_REGISTER(runner, CONFIG_RUNNER_LOG_LEVEL);
@@ -638,7 +639,25 @@ handle_cone_leds_pattern(job_t *job)
     cone_leds_set_pattern(pattern, &color);
     job_ack(Ack_ErrorCode_SUCCESS, job);
 }
-#endif
+
+static void
+handle_white_leds_brightness(job_t *job)
+{
+    JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(JetsonToMcu_white_leds_brightness_tag);
+
+    uint32_t brightness = msg->payload.white_leds_brightness.brightness;
+    if (brightness > 1000) {
+        LOG_ERR("Got white LED brightness value of %u out of range [0,1000]",
+                brightness);
+        job_ack(Ack_ErrorCode_RANGE, job);
+    } else {
+        LOG_DBG("Got white LED brightness value of %u", brightness);
+        white_leds_set_brightness(brightness);
+        job_ack(Ack_ErrorCode_SUCCESS, job);
+    }
+}
+#endif // CONFIG_BOARD_DIAMOND_MAIN
 
 static void
 handle_user_leds_brightness(job_t *job)
@@ -1216,16 +1235,18 @@ static const hm_callback handle_message_callbacks[] = {
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     [JetsonToMcu_cone_leds_sequence_tag] = handle_cone_leds_sequence,
     [JetsonToMcu_cone_leds_pattern_tag] = handle_cone_leds_pattern,
+    [JetsonToMcu_white_leds_brightness_tag] = handle_white_leds_brightness,
 #elif defined(CONFIG_BOARD_PEARL_MAIN)
     [JetsonToMcu_cone_leds_sequence_tag] = handle_not_supported,
     [JetsonToMcu_cone_leds_pattern_tag] = handle_not_supported,
+    [JetsonToMcu_white_leds_brightness_tag] = handle_not_supported,
 #else
 #error "Board not supported"
 #endif
 };
 
 static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 45,
+    ARRAY_SIZE(handle_message_callbacks) <= 46,
     "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void

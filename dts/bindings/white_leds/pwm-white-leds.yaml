@@ -1,0 +1,8 @@
+description: PWM for white LEDs on Front Unit
+
+compatible: "pwm-white-leds"
+
+properties:
+  pwms:
+    required: true
+    type: phandle-array

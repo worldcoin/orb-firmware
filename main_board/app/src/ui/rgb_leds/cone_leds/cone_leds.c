@@ -51,7 +51,7 @@ cone_leds_thread()
 {
     ConeLEDsPattern_ConeRgbLedPattern pattern;
     struct led_rgb color;
-    k_timeout_t wait_until;
+    k_timeout_t wait_until = K_FOREVER;
 
     while (1) {
         k_sem_take(&sem_new_setting, wait_until);

@@ -113,6 +113,7 @@ endif()
 if (CONFIG_BOARD_DIAMOND_MAIN)
     list(APPEND SOURCES_FILES src/power/battery/battery_amber.c)
     list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds.c)
+    list(APPEND SOURCES_FILES src/ui/white_leds/white_leds.c)
     list(APPEND SOURCES_FILES src/power/battery/battery_amber.c)
 endif()
 

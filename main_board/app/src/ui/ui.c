@@ -5,6 +5,7 @@
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
 #include "ui/rgb_leds/cone_leds/cone_leds.h"
+#include "ui/white_leds/white_leds.h"
 #include <zephyr/toolchain/gcc.h>
 #endif
 
@@ -27,7 +28,12 @@ ui_init(void)
                  "SC18IS606 must be configured before using it by the LED "
                  "strip driver.");
 
-    cone_leds_init();
+    // explicitly discard the return value of the init functions
+    // in case the cone is not connected
+    (void)cone_leds_init();
+
+    err_code = white_leds_init();
+    ASSERT_SOFT(err_code);
 #endif
 
     return RET_SUCCESS;
