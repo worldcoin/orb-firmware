@@ -323,7 +323,7 @@ send_msg(McuMessage *msg)
 #define FOCUS_SWEEP_FPS        30
 #define FOCUS_SWEEP_WAIT_TIME_MS                                               \
     ((uint32_t)((((float)(FOCUS_SWEEP_NUM_FRAMES) / FOCUS_SWEEP_FPS) * 1000) + \
-                ((1.0f / (FOCUS_SWEEP_FPS)*2))))
+                ((1.0f / (FOCUS_SWEEP_FPS) * 2))))
 
 ZTEST(hil, test_ir_eye_camera_focus_sweep)
 {
