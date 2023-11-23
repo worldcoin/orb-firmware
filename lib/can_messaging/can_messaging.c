@@ -83,7 +83,10 @@ can_messaging_reset_async(void)
     // check that the job is initialized by reading the handler value
     if (can_reset_work.handler != NULL && k_work_submit(&can_reset_work) < 0) {
         return RET_ERROR_INTERNAL;
+    } else if (can_reset_work.handler == NULL) {
+        return RET_ERROR_INVALID_STATE;
     }
+
     return RET_SUCCESS;
 }
 
@@ -95,8 +98,7 @@ can_messaging_suspend(void)
     if (can_dev) {
         err_code = can_stop(can_dev);
         if (err_code != -EALREADY) {
-            ASSERT_SOFT(err_code);
-            err_code = RET_ERROR_INTERNAL;
+            ASSERT_HARD(err_code);
         }
     }
 
@@ -110,13 +112,12 @@ can_messaging_resume(void)
 
     // reset CAN queues
     err_code = can_messaging_reset_async();
-    ASSERT_SOFT(err_code);
+    ASSERT_HARD(err_code);
 
     if (can_dev) {
         err_code = can_start(can_dev);
         if (err_code != -EALREADY) {
-            ASSERT_SOFT(err_code);
-            err_code = RET_ERROR_INTERNAL;
+            ASSERT_HARD(err_code);
         }
     }
 
