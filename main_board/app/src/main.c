@@ -204,7 +204,7 @@ initialize(void)
     Hardware hw = {.version = version_get_hardware_rev()};
     LOG_INF("Hardware version: %u", hw.version);
 
-    // voltage_measurement module is used by battery.c and boot.c -> must be
+    // voltage_measurement module is used by battery and boot -> must be
     // initialized before
     err_code = voltage_measurement_init(&hw, &analog_and_i2c_mutex);
     ASSERT_SOFT(err_code);

@@ -1,4 +1,5 @@
 #include "app_config.h"
+#include "battery.h"
 #include "battery_can.h"
 #include "errors.h"
 #include "mcu_messaging.pb.h"
@@ -19,31 +20,16 @@
 #include "logs_can.h"
 LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
 
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-// todo: implement for Diamond
-
-ret_code_t
-battery_init(void)
-{
-    return RET_SUCCESS;
-}
-
-#else
 static const struct device *can_dev = DEVICE_DT_GET(DT_ALIAS(battery_can_bus));
-K_THREAD_STACK_DEFINE(can_battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
+K_THREAD_STACK_DEFINE(battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
 static struct k_thread rx_thread_data = {0};
-
-// minimum voltage needed to boot the Orb during startup (in millivolts)
-#define BATTERY_MINIMUM_VOLTAGE_STARTUP_MV       13750
-#define BATTERY_MINIMUM_VOLTAGE_RUNTIME_MV       12500
-#define BATTERY_MINIMUM_CAPACITY_STARTUP_PERCENT 5
 
 // the time between sends of battery data to the Jetson
 // We selected 1100 ms because the battery publishes its data with 1000 ms
 // Consequently we can be sure that at least one update was sent by the battery
 // and the firmware doesn't assume falsely that the battery got removed.
-#define BATTERY_INFO_SEND_PERIOD_MS              1100
-#define BATTERY_MESSAGES_TIMEOUT_MS              (BATTERY_INFO_SEND_PERIOD_MS * 8)
+#define BATTERY_INFO_SEND_PERIOD_MS 1100
+#define BATTERY_MESSAGES_TIMEOUT_MS (BATTERY_INFO_SEND_PERIOD_MS * 8)
 static_assert(
     BATTERY_MESSAGES_TIMEOUT_MS > BATTERY_INFO_SEND_PERIOD_MS * 3,
     "Coarse timing resolution to check if battery is still sending messages");
@@ -57,7 +43,7 @@ volatile bool current_can_controller_state_changed = false;
 static struct can_filter battery_can_filter = {
     .id = 0, .mask = CAN_STD_ID_MASK, .flags = CAN_FILTER_DATA};
 
-static volatile bool transmission_completed = true;
+static volatile bool can_transmission_completed = true;
 
 #define CAN_MESSAGE_HANDLER(id)                                                \
     static struct battery_##id##_s state_##id = {0};                           \
@@ -121,18 +107,6 @@ static bool publish_battery_info_request = false;
 static int request_battery_info_left_attempts = BATTERY_ID_REQUEST_ATTEMPTS;
 
 static void
-battery_low_operator_leds_blink(void)
-{
-    RgbColor color = {.red = 5, .green = 0, .blue = 0};
-    for (int i = 0; i < 3; ++i) {
-        operator_leds_set_blocking(&color, 0b11111);
-        k_msleep(500);
-        operator_leds_set_blocking(&color, 0b00000);
-        k_msleep(500);
-    }
-}
-
-static void
 publish_battery_reset_reason(void)
 {
     static BatteryResetReason reset_reason;
@@ -149,90 +123,42 @@ publish_battery_reset_reason(void)
 }
 
 static void
-publish_battery_voltages(void)
+publish_battery_voltages(BatteryVoltage *voltages)
 {
-    if (can_message_414_received) {
-        static BatteryVoltage voltages;
-        CRITICAL_SECTION_ENTER(k);
-        voltages = (BatteryVoltage){
-            .battery_cell1_mv = state_414.voltage_group_1,
-            .battery_cell2_mv = state_414.voltage_group_2,
-            .battery_cell3_mv = state_414.voltage_group_3,
-            .battery_cell4_mv = state_414.voltage_group_4,
-        };
-        CRITICAL_SECTION_EXIT(k);
-        LOG_DBG("Battery voltage: (%d, %d, %d, %d) mV",
-                voltages.battery_cell1_mv, voltages.battery_cell2_mv,
-                voltages.battery_cell3_mv, voltages.battery_cell4_mv);
-        publish_new(&voltages, sizeof voltages, McuToJetson_battery_voltage_tag,
-                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-    }
+    LOG_DBG("Battery voltage: (%d, %d, %d, %d) mV", voltages->battery_cell1_mv,
+            voltages->battery_cell2_mv, voltages->battery_cell3_mv,
+            voltages->battery_cell4_mv);
+    publish_new(voltages, sizeof(BatteryVoltage),
+                McuToJetson_battery_voltage_tag,
+                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 
 static void
-publish_battery_capacity(void)
+publish_battery_capacity(BatteryCapacity *battery_cap)
 {
-    if (can_message_499_received) {
-        static BatteryCapacity battery_cap;
-
-        // LOG_INF when battery capacity changes
-        if (battery_cap.percentage != state_499.state_of_charge) {
-            LOG_INF("Main battery: %u%%", state_499.state_of_charge);
-            request_battery_info_left_attempts = BATTERY_ID_REQUEST_ATTEMPTS;
-        }
-
-        CRITICAL_SECTION_ENTER(k);
-        battery_cap.percentage = state_499.state_of_charge;
-        CRITICAL_SECTION_EXIT(k);
-
-        LOG_DBG("State of charge: %u%%", battery_cap.percentage);
-        publish_new(&battery_cap, sizeof(battery_cap),
-                    McuToJetson_battery_capacity_tag,
-                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-    }
+    LOG_DBG("State of charge: %u%%", battery_cap->percentage);
+    publish_new(battery_cap, sizeof(BatteryCapacity),
+                McuToJetson_battery_capacity_tag,
+                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 
 static void
-publish_battery_is_charging(void)
+publish_battery_is_charging(BatteryIsCharging *is_charging)
 {
-    if (can_message_499_received) {
-        static BatteryIsCharging is_charging;
-
-        // LOG_INF when battery is_charging changes
-        if (is_charging.battery_is_charging !=
-            (state_499.flags & BIT(IS_CHARGING_BIT))) {
-            LOG_INF("Is charging: %s",
-                    state_499.flags & BIT(IS_CHARGING_BIT) ? "yes" : "no");
-        }
-
-        CRITICAL_SECTION_ENTER(k);
-        is_charging.battery_is_charging =
-            state_499.flags & BIT(IS_CHARGING_BIT);
-        CRITICAL_SECTION_EXIT(k);
-
-        LOG_DBG("Is charging? %s",
-                is_charging.battery_is_charging ? "yes" : "no");
-        publish_new(&is_charging, sizeof(is_charging),
-                    McuToJetson_battery_is_charging_tag,
-                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-    }
+    LOG_DBG("Is charging? %s", is_charging->battery_is_charging ? "yes" : "no");
+    publish_new(is_charging, sizeof(BatteryIsCharging),
+                McuToJetson_battery_is_charging_tag,
+                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 
 static void
-publish_battery_cell_temperature(void)
+publish_battery_cell_temperature(int16_t cell_temperature_decidegrees)
 {
-    if (can_message_415_received) {
-        int16_t cell_temperature;
-
-        CRITICAL_SECTION_ENTER(k);
-        cell_temperature = state_415.cell_temperature;
-        CRITICAL_SECTION_EXIT(k);
-
-        LOG_DBG("Battery cell temperature: %u.%u°C", cell_temperature / 10,
-                cell_temperature % 10);
-        temperature_report(Temperature_TemperatureSource_BATTERY_CELL,
-                           cell_temperature / 10);
-    }
+    LOG_DBG("Battery cell temperature: %u.%u°C",
+            cell_temperature_decidegrees / 10,
+            cell_temperature_decidegrees % 10);
+    temperature_report(Temperature_TemperatureSource_BATTERY_CELL,
+                       cell_temperature_decidegrees / 10);
 }
 
 static void
@@ -402,32 +328,19 @@ publish_battery_info(void)
 }
 
 static void
-publish_battery_pcb_temperature(void)
+publish_battery_pcb_temperature(int16_t pcb_temperature_decidegrees)
 {
-    if (can_message_499_received) {
-        int16_t pcb_temperature;
-        CRITICAL_SECTION_ENTER(k);
-        pcb_temperature = state_499.pcb_temperature;
-        CRITICAL_SECTION_EXIT(k);
-        LOG_DBG("Battery PCB temperature: %u.%u°C", pcb_temperature / 10,
-                pcb_temperature % 10);
-        temperature_report(Temperature_TemperatureSource_BATTERY_PCB,
-                           pcb_temperature / 10);
-    }
+    LOG_DBG("Battery PCB temperature: %u.%u°C",
+            pcb_temperature_decidegrees / 10, pcb_temperature_decidegrees % 10);
+    temperature_report(Temperature_TemperatureSource_BATTERY_PCB,
+                       pcb_temperature_decidegrees / 10);
 }
 
 static void
-publish_battery_pack_temperature(void)
+publish_battery_pack_temperature(int16_t pack_temperature_decidegrees)
 {
-    if (can_message_499_received) {
-        int16_t pack_temperature;
-        CRITICAL_SECTION_ENTER(k);
-        pack_temperature = state_499.pack_temperature;
-        CRITICAL_SECTION_EXIT(k);
-
-        temperature_report(Temperature_TemperatureSource_BATTERY_PACK,
-                           pack_temperature / 10);
-    }
+    temperature_report(Temperature_TemperatureSource_BATTERY_PACK,
+                       pack_temperature_decidegrees / 10);
 }
 
 static void
@@ -447,7 +360,7 @@ battery_rtr_tx_complete_cb(const struct device *dev, int error_nr, void *arg)
         }
     }
 
-    transmission_completed = true;
+    can_transmission_completed = true;
 }
 
 static void
@@ -478,7 +391,7 @@ send_rtr_message(uint32_t message_id)
     frame.flags = CAN_FRAME_RTR;
 
     LOG_DBG("can_send 0x%08x", message_id);
-    transmission_completed = false;
+    can_transmission_completed = false;
     int ret = can_send(can_dev, &frame, K_MSEC(100), battery_rtr_tx_complete_cb,
                        NULL);
     if (ret != 0) {
@@ -508,7 +421,7 @@ send_rtr_message(uint32_t message_id)
 
     int16_t transmission_complete_timeout_ms = 100;
 
-    while (!transmission_completed) {
+    while (!can_transmission_completed) {
         k_msleep(1);
 
         transmission_complete_timeout_ms--;
@@ -583,21 +496,11 @@ setup_filters(void)
 }
 
 static void
-check_battery_voltage()
+check_battery_voltage(uint16_t battery_voltage_mv)
 {
-    if (can_message_414_received) {
-        uint32_t voltage_mv;
-
-        CRITICAL_SECTION_ENTER(k);
-        voltage_mv = state_414.voltage_group_1 + state_414.voltage_group_2 +
-                     state_414.voltage_group_3 + state_414.voltage_group_4;
-        CRITICAL_SECTION_EXIT(k);
-
-        if (voltage_mv < BATTERY_MINIMUM_VOLTAGE_RUNTIME_MV) {
-            // blink operator leds
-            battery_low_operator_leds_blink();
-            reboot(1);
-        }
+    if (battery_voltage_mv < BATTERY_MINIMUM_VOLTAGE_RUNTIME_MV) {
+        operator_leds_indicate_low_battery_blocking();
+        reboot(1);
     }
 }
 
@@ -636,7 +539,7 @@ clear_can_message_buffers(void)
 _Noreturn static void
 battery_rx_thread()
 {
-    bool got_battery_voltage_can_message_local = false;
+    bool got_battery_voltage_message_local = false;
     uint32_t battery_messages_timeout = 0;
 
     bool battery_mcu_id_request_pending = false;
@@ -666,15 +569,74 @@ battery_rx_thread()
             }
         }
 
-        check_battery_voltage();
+        if (can_message_414_received) {
+            BatteryVoltage voltages;
+            CRITICAL_SECTION_ENTER(k);
+            voltages = (BatteryVoltage){
+                .battery_cell1_mv = state_414.voltage_group_1,
+                .battery_cell2_mv = state_414.voltage_group_2,
+                .battery_cell3_mv = state_414.voltage_group_3,
+                .battery_cell4_mv = state_414.voltage_group_4,
+            };
+            CRITICAL_SECTION_EXIT(k);
 
-        publish_battery_voltages();
-        publish_battery_capacity();
-        publish_battery_is_charging();
-        publish_battery_cell_temperature();
+            uint32_t pack_voltage_mv =
+                voltages.battery_cell1_mv + voltages.battery_cell2_mv +
+                voltages.battery_cell3_mv + voltages.battery_cell4_mv;
+            check_battery_voltage(pack_voltage_mv);
+
+            publish_battery_voltages(&voltages);
+        }
+        if (can_message_499_received) {
+            static BatteryCapacity battery_cap;
+
+            if (battery_cap.percentage != state_499.state_of_charge) {
+                LOG_INF("Main battery: %u%%", state_499.state_of_charge);
+                request_battery_info_left_attempts =
+                    BATTERY_ID_REQUEST_ATTEMPTS;
+            }
+
+            CRITICAL_SECTION_ENTER(k);
+            battery_cap.percentage = state_499.state_of_charge;
+            CRITICAL_SECTION_EXIT(k);
+            publish_battery_capacity(&battery_cap);
+
+            static BatteryIsCharging is_charging;
+
+            if (is_charging.battery_is_charging !=
+                (state_499.flags & BIT(IS_CHARGING_BIT))) {
+                LOG_INF("Is charging: %s",
+                        state_499.flags & BIT(IS_CHARGING_BIT) ? "yes" : "no");
+            }
+
+            CRITICAL_SECTION_ENTER(k);
+            is_charging.battery_is_charging =
+                state_499.flags & BIT(IS_CHARGING_BIT);
+            CRITICAL_SECTION_EXIT(k);
+            publish_battery_is_charging(&is_charging);
+
+            int16_t pcb_temperature_decidegrees;
+            CRITICAL_SECTION_ENTER(k);
+            pcb_temperature_decidegrees = state_499.pcb_temperature;
+            CRITICAL_SECTION_EXIT(k);
+            publish_battery_pcb_temperature(pcb_temperature_decidegrees);
+
+            int16_t pack_temperature_decidegrees;
+            CRITICAL_SECTION_ENTER(k);
+            pack_temperature_decidegrees = state_499.pack_temperature;
+            CRITICAL_SECTION_EXIT(k);
+            publish_battery_pack_temperature(pack_temperature_decidegrees);
+        }
+        if (can_message_415_received) {
+            int16_t cell_temperature_decidegrees;
+
+            CRITICAL_SECTION_ENTER(k);
+            cell_temperature_decidegrees = state_415.cell_temperature;
+            CRITICAL_SECTION_EXIT(k);
+            publish_battery_cell_temperature(cell_temperature_decidegrees);
+        }
+
         publish_battery_diagnostics();
-        publish_battery_pcb_temperature();
-        publish_battery_pack_temperature();
 
         if (publish_battery_info_request) {
             publish_battery_info_request = false;
@@ -725,11 +687,11 @@ battery_rx_thread()
             // and consider the battery as removed if no message
             // has been received for BATTERY_MESSAGES_TIMEOUT_MS
             CRITICAL_SECTION_ENTER(k);
-            got_battery_voltage_can_message_local = can_message_414_received;
+            got_battery_voltage_message_local = can_message_414_received;
             can_message_414_received = false;
             CRITICAL_SECTION_EXIT(k);
 
-            if (got_battery_voltage_can_message_local) {
+            if (got_battery_voltage_message_local) {
                 // request battery info only if communication to the
                 // Jetson is active
                 if (request_battery_info_left_attempts &&
@@ -742,6 +704,7 @@ battery_rx_thread()
                     request_battery_info();
                     request_battery_info_left_attempts--;
                 }
+
                 battery_messages_timeout = 0;
             } else {
                 // no messages received from battery
@@ -799,7 +762,7 @@ battery_init(void)
     can_set_state_change_callback(can_dev, can_state_change_callback, NULL);
 
     uint32_t full_voltage_mv = 0;
-    uint32_t battery_cap_percentage = 0;
+    uint8_t battery_cap_percentage = 0;
     bool got_battery_voltage_can_message_local;
 
     for (size_t i = 0; i < WAIT_FOR_VOLTAGES_TOTAL_PERIOD_MS /
@@ -812,6 +775,7 @@ battery_init(void)
         battery_cap_percentage = state_499.state_of_charge;
         got_battery_voltage_can_message_local = can_message_414_received;
         CRITICAL_SECTION_EXIT(k);
+
         if (full_voltage_mv >= BATTERY_MINIMUM_VOLTAGE_STARTUP_MV &&
             battery_cap_percentage >=
                 BATTERY_MINIMUM_CAPACITY_STARTUP_PERCENT) {
@@ -853,7 +817,7 @@ battery_init(void)
     //   more charge
     if (full_voltage_mv < BATTERY_MINIMUM_VOLTAGE_STARTUP_MV ||
         battery_cap_percentage < BATTERY_MINIMUM_CAPACITY_STARTUP_PERCENT) {
-        battery_low_operator_leds_blink();
+        operator_leds_indicate_low_battery_blocking();
 
         LOG_ERR_IMM("Low battery voltage, rebooting!");
         NVIC_SystemReset();
@@ -862,11 +826,10 @@ battery_init(void)
     }
 
     k_tid_t tid = k_thread_create(
-        &rx_thread_data, can_battery_rx_thread_stack,
-        K_THREAD_STACK_SIZEOF(can_battery_rx_thread_stack), battery_rx_thread,
-        NULL, NULL, NULL, THREAD_PRIORITY_BATTERY, 0, K_NO_WAIT);
+        &rx_thread_data, battery_rx_thread_stack,
+        K_THREAD_STACK_SIZEOF(battery_rx_thread_stack), battery_rx_thread, NULL,
+        NULL, NULL, THREAD_PRIORITY_BATTERY, 0, K_NO_WAIT);
     k_thread_name_set(tid, "battery");
 
     return RET_SUCCESS;
 }
-#endif

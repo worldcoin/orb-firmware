@@ -3,6 +3,11 @@
 #include "errors.h"
 #include "mcu_messaging.pb.h"
 
+// minimum voltage needed to boot the Orb during startup (in millivolts)
+#define BATTERY_MINIMUM_VOLTAGE_STARTUP_MV       13750
+#define BATTERY_MINIMUM_VOLTAGE_RUNTIME_MV       12500
+#define BATTERY_MINIMUM_CAPACITY_STARTUP_PERCENT 5
+
 /**
  * Initialize main battery module
  *

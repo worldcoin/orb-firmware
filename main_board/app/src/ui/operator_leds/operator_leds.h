@@ -51,11 +51,17 @@ operator_leds_set_leds_sequence(uint8_t *bytes, uint32_t size);
 
 /**
  * Set operator LEDs to a specific color using a mask.
- * ⚠️ Not to be used in normal condition, use @c operator_leds_set_pattern
- * instead
+ * All communication to the LEDs is done before this function returns.
  * On Diamond: also handles power optimization when all LEDs are off
  * @param mask Bit mask to control LED individually (max is
  * OPERATOR_LEDS_ALL_MASK)
  */
 void
 operator_leds_set_blocking(const RgbColor *color, uint32_t mask);
+
+/**
+ * Show an animation for indicating a low battery
+ * The function returns after the animation is finished.
+ */
+void
+operator_leds_indicate_low_battery_blocking(void);

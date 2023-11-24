@@ -916,6 +916,17 @@
     };
 };
 
+&i2c4 {
+    pinctrl-0 = <&i2c4_scl_pc6 &i2c4_sda_pb7>;
+    pinctrl-names = "default";
+    status = "okay";
+
+    bq4050:bq4050@b{
+        reg = <0x0b>;
+        compatible = "ti,bq4050";
+    };
+};
+
 &can1 {
     pinctrl-0 = <&fdcan1_rx_pd0 &fdcan1_tx_pd1>;
     pinctrl-names = "default";
@@ -939,16 +950,6 @@
     sample-point-data = <853>; // closest value
     status = "okay";
 };
-
-//// For battery communications
-// todo: replace by SMBus interface as soon as new Diamond Battery is ready
-//&can2 {
-//    pinctrl-0 = <&fdcan2_rx_pb5 &fdcan2_tx_pb6>;
-//    pinctrl-names = "default";
-//    bus-speed = <1000000>;
-//    bus-speed-data = <1000000>;
-//    status = "okay";
-//};
 
 &spi1 {
     pinctrl-0 = <&spi1_sck_pa5 &spi1_miso_pa6 &spi1_mosi_pa7>;

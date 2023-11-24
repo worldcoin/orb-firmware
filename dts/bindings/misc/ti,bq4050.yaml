@@ -1,0 +1,5 @@
+description: BQ4050 battery gas gauge and protection
+
+compatible: "ti,bq4050"
+
+include: i2c-device.yaml

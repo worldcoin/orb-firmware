@@ -286,6 +286,18 @@ operator_leds_set_blocking(const RgbColor *color, uint32_t mask)
 #endif
 }
 
+void
+operator_leds_indicate_low_battery_blocking(void)
+{
+    RgbColor color = {.red = 5, .green = 0, .blue = 0};
+    for (int i = 0; i < 3; ++i) {
+        operator_leds_set_blocking(&color, 0b11111);
+        k_msleep(500);
+        operator_leds_set_blocking(&color, 0b00000);
+        k_msleep(500);
+    }
+}
+
 /// Turn one operator LED during boot to indicate battery switch is turned on
 /// \param dev
 /// \return 0 on success, error code otherwise

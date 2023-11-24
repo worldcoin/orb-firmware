@@ -81,7 +81,6 @@ list(APPEND SOURCES_FILES
     src/optics/mirrors/mirrors.c
 
     src/power/boot/boot.c
-    src/power/battery/battery.c
 
     src/runner/runner.c
 
@@ -107,6 +106,11 @@ list(APPEND SOURCES_FILES
 
 if (BOARD STREQUAL "pearl_main")
     list(APPEND SOURCES_FILES src/gnss/gnss.c)
+    list(APPEND SOURCES_FILES src/power/battery/battery_ruby.c)
+endif()
+
+if (BOARD STREQUAL "diamond_main")
+    list(APPEND SOURCES_FILES src/power/battery/battery_amber.c)
 endif()
 
 if (CONFIG_ZTEST)
