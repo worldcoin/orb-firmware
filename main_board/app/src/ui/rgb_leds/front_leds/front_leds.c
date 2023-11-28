@@ -1,8 +1,8 @@
 #include "front_leds.h"
+#include "app_config.h"
 #include "logs_can.h"
-#include "ui/rgb_leds.h"
+#include "ui/rgb_leds/rgb_leds.h"
 #include <app_assert.h>
-#include <app_config.h>
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>
@@ -18,7 +18,7 @@ static K_THREAD_STACK_DEFINE(front_leds_stack_area,
 static struct k_thread front_led_thread_data;
 static K_SEM_DEFINE(sem, 1, 1); // init to 1 to use default values below
 
-const struct device *const led_strip =
+static const struct device *const led_strip =
     DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds));
 
 #define NUM_LEDS DT_PROP(DT_NODELABEL(front_unit_rgb_leds), num_leds)
@@ -236,9 +236,13 @@ front_leds_thread()
                                     (pulsing_index - ARRAY_SIZE(SINE_LUT)));
                     scaler = SINE_LUT[index] * pulsing_scale;
                 }
+#if defined(CONFIG_SPI_RGB_LED_DIMMING)
+                color.scratch = roundf(scaler * color.scratch);
+#else
                 color.r = roundf(scaler * color.r);
                 color.g = roundf(scaler * color.g);
                 color.b = roundf(scaler * color.b);
+#endif
 
                 wait_until = K_MSEC(global_pulsing_delay_time_ms);
                 set_ring(color, start_angle_degrees, angle_length_degrees);
@@ -254,9 +258,13 @@ front_leds_thread()
                                     (pulsing_index - ARRAY_SIZE(SINE_LUT)));
                     scaler = SINE_LUT[index] * PULSING_SCALE_DEFAULT;
                 }
+#if defined(CONFIG_SPI_RGB_LED_DIMMING)
+                color.scratch = roundf(scaler * color.scratch);
+#else
                 color.r = roundf(scaler * color.r);
                 color.g = roundf(scaler * color.g);
                 color.b = roundf(scaler * color.b);
+#endif
 
                 wait_until = K_MSEC(global_pulsing_delay_time_ms);
                 set_center(color);
@@ -265,6 +273,10 @@ front_leds_thread()
             case UserLEDsPattern_UserRgbLedPattern_RGB:
                 set_ring(color, start_angle_degrees, angle_length_degrees);
                 set_center((struct led_rgb)RGB_OFF);
+                break;
+            case UserLEDsPattern_UserRgbLedPattern_RGB_ONLY_CENTER:
+                set_center((struct led_rgb)color);
+                set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
                 break;
             case UserLEDsPattern_UserRgbLedPattern_BOOT_ANIMATION:
                 if (pulsing_index < ARRAY_SIZE(SINE_LUT)) {
@@ -276,9 +288,13 @@ front_leds_thread()
                                     (pulsing_index - ARRAY_SIZE(SINE_LUT)));
                     scaler = SINE_LUT[index] * PULSING_SCALE_DEFAULT;
                 }
+#if defined(CONFIG_SPI_RGB_LED_DIMMING)
+                color.scratch = roundf(scaler * color.scratch);
+#else
                 color.r = roundf(scaler * color.r);
                 color.g = roundf(scaler * color.g);
                 color.b = roundf(scaler * color.b);
+#endif
 
                 wait_until = K_MSEC(global_pulsing_delay_time_ms);
                 set_center(color);
@@ -417,84 +433,44 @@ front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
 }
 
 ret_code_t
-front_leds_set_center_leds_sequence(uint8_t *bytes, uint32_t size)
+front_leds_set_center_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 {
-    bool found_a_difference = false;
-
-    LOG_DBG("Got center seq of len %" PRIu32, size);
-
-    if (size % 3 != 0) {
-        LOG_ERR("Bytes must be a multiple of 3");
-        ret_code_t ret = RET_ERROR_INVALID_PARAM;
-        ASSERT_SOFT(ret);
-        return ret;
-    }
-
-    size = MIN(size, ARRAY_SIZE(leds.part.center_leds) * 3);
-
-    CRITICAL_SECTION_ENTER(k);
-    for (size_t i = 0; i < (size / 3); ++i) {
-        if (leds.part.center_leds[i].r != bytes[i * 3]) {
-            found_a_difference = true;
-        }
-        if (leds.part.center_leds[i].g != bytes[i * 3 + 1]) {
-            found_a_difference = true;
-        }
-        if (leds.part.center_leds[i].b != bytes[i * 3 + 2]) {
-            found_a_difference = true;
-        }
-        leds.part.center_leds[i].r = bytes[i * 3];
-        leds.part.center_leds[i].g = bytes[i * 3 + 1];
-        leds.part.center_leds[i].b = bytes[i * 3 + 2];
-    }
-
-    for (size_t i = size / 3; i < ARRAY_SIZE(leds.part.center_leds); ++i) {
-        if (leds.part.center_leds[i].r != 0 ||
-            leds.part.center_leds[i].g != 0 ||
-            leds.part.center_leds[i].b != 0) {
-            found_a_difference = true;
-        }
-        leds.part.center_leds[i] = (struct led_rgb)RGB_OFF;
-    }
-
-    CRITICAL_SECTION_EXIT(k);
-
-    if (found_a_difference) {
-        k_sem_give(&sem);
-    }
-
-    return RET_SUCCESS;
+    ret_code_t ret = rgb_leds_set_leds_sequence(
+        bytes, size, LED_FORMAT_ARGB, leds.part.center_leds,
+        ARRAY_SIZE(leds.part.center_leds), (bool *)&use_sequence, &sem, NULL);
+    ASSERT_SOFT(ret);
+    return ret;
 }
 
 ret_code_t
-front_leds_set_ring_leds_sequence(uint8_t *bytes, uint32_t size)
+front_leds_set_center_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
 {
-    ret_code_t ret = RET_SUCCESS;
+    ret_code_t ret = rgb_leds_set_leds_sequence(
+        bytes, size, LED_FORMAT_RGB, leds.part.center_leds,
+        ARRAY_SIZE(leds.part.center_leds), (bool *)&use_sequence, &sem, NULL);
+    ASSERT_SOFT(ret);
+    return ret;
+}
 
-    LOG_DBG("Got ring seq of len %" PRIu32, size);
+ret_code_t
+front_leds_set_ring_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
+{
+    ret_code_t ret = rgb_leds_set_leds_sequence(
+        bytes, size, LED_FORMAT_ARGB, leds.part.ring_leds,
+        ARRAY_SIZE(leds.part.ring_leds), (bool *)&use_sequence, &sem,
+        &ring_write);
+    ASSERT_SOFT(ret);
+    return ret;
+}
 
-    if (size % 3 != 0) {
-        LOG_ERR("Bytes must be a multiple of 3");
-        ret = RET_ERROR_INVALID_PARAM;
-        ASSERT_SOFT(ret);
-        return ret;
-    }
-
-    size = MIN(size, ARRAY_SIZE(leds.part.ring_leds) * 3);
-
-    k_mutex_lock(&ring_write, K_FOREVER);
-    for (size_t i = 0; i < (size / 3); ++i) {
-        leds.part.ring_leds[i].r = bytes[i * 3];
-        leds.part.ring_leds[i].g = bytes[i * 3 + 1];
-        leds.part.ring_leds[i].b = bytes[i * 3 + 2];
-    }
-    for (size_t i = size / 3; i < ARRAY_SIZE(leds.part.ring_leds); ++i) {
-        leds.part.ring_leds[i] = (struct led_rgb)RGB_OFF;
-    }
-    k_mutex_unlock(&ring_write);
-
-    use_sequence = true;
-    k_sem_give(&sem);
+ret_code_t
+front_leds_set_ring_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
+{
+    ret_code_t ret = rgb_leds_set_leds_sequence(
+        bytes, size, LED_FORMAT_RGB, leds.part.ring_leds,
+        ARRAY_SIZE(leds.part.ring_leds), (bool *)&use_sequence, &sem,
+        &ring_write);
+    ASSERT_SOFT(ret);
     return ret;
 }
 
@@ -509,7 +485,7 @@ front_leds_set_brightness(uint32_t brightness)
 }
 
 void
-front_leds_turn_off_final(void)
+front_leds_turn_off_blocking(void)
 {
     ASSERT_CONST_POINTER_NOT_NULL(led_strip);
 

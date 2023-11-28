@@ -1,0 +1,17 @@
+# SC18IS606 I2C-SPI bridge configuration options
+
+config SC18IS606
+    bool "SC18IS606 I2C-SPI bridge"
+    depends on I2C
+    help
+        Enable driver for SC18IS606 I2C-SPI bridge.
+
+if SC18IS606
+	config SC18IS606_INIT_PRIO
+		int "SC18IS606 init priority"
+		default 65
+
+	config SC18IS606_CHANNEL_INIT_PRIO
+		int "SC18IS606 init priority"
+		default 66
+endif

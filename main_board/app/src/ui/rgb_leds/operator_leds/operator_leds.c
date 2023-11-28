@@ -1,6 +1,8 @@
+#include "operator_leds.h"
+#include "app_config.h"
 #include "logs_can.h"
+#include "ui/rgb_leds/rgb_leds.h"
 #include <app_assert.h>
-#include <app_config.h>
 #include <errors.h>
 #include <math.h>
 #include <utils.h>
@@ -10,9 +12,6 @@
 #include <zephyr/kernel.h>
 
 LOG_MODULE_REGISTER(operator_leds);
-
-#include "operator_leds.h"
-#include "ui/rgb_leds.h"
 
 static K_THREAD_STACK_DEFINE(operator_leds_stack_area,
                              THREAD_STACK_SIZE_OPERATOR_RGB_LEDS);
@@ -29,7 +28,7 @@ static volatile uint32_t global_mask = 0b11111;
 static volatile struct led_rgb global_color = RGB_WHITE_OPERATOR_LEDS;
 static volatile bool use_sequence;
 
-const volatile uint32_t global_pulsing_delay_time_ms =
+static const volatile uint32_t global_pulsing_delay_time_ms =
     (INITIAL_PULSING_PERIOD_MS / 2) / SINE_TABLE_LENGTH;
 /// half period <=> from 0 to pi rad <=> 0 to 1 to 0
 extern const float SINE_LUT[SINE_TABLE_LENGTH];
@@ -119,9 +118,13 @@ operator_leds_thread(void *a, void *b, void *c)
                                 (pulsing_index - ARRAY_SIZE(SINE_LUT)));
                 scaler = SINE_LUT[index] * PULSING_SCALE_DEFAULT;
             }
+#if defined(CONFIG_SPI_RGB_LED_DIMMING)
+            color.scratch = roundf(scaler * color.scratch);
+#else
             color.r = roundf(scaler * color.r);
             color.g = roundf(scaler * color.g);
             color.b = roundf(scaler * color.b);
+#endif
             wait_until = K_MSEC(global_pulsing_delay_time_ms);
             pulsing_index = (pulsing_index + 1) % (ARRAY_SIZE(SINE_LUT) * 2);
             break;
@@ -141,9 +144,13 @@ operator_leds_thread(void *a, void *b, void *c)
                                     ARRAY_SIZE(SINE_LUT)))] *
                          PULSING_SCALE_DEFAULT;
             }
+#if defined(CONFIG_SPI_RGB_LED_DIMMING)
+            color.scratch = roundf(scaler * color.scratch);
+#else
             color.r = roundf(scaler * color.r);
             color.g = roundf(scaler * color.g);
             color.b = roundf(scaler * color.b);
+#endif
             wait_until = K_MSEC(global_pulsing_delay_time_ms);
 
             pulsing_index = (pulsing_index + 1) %
@@ -185,6 +192,9 @@ operator_leds_set_pattern(
 
     if (color != NULL) {
         // RgbColor -> struct led_rgb
+#ifdef CONFIG_LED_STRIP_RGB_SCRATCH
+        global_color.scratch = RGB_BRIGHTNESS_MAX;
+#endif
         global_color.r = color->red;
         global_color.g = color->green;
         global_color.b = color->blue;
@@ -198,32 +208,22 @@ operator_leds_set_pattern(
 }
 
 ret_code_t
-operator_leds_set_leds_sequence(uint8_t *bytes, uint32_t size)
+operator_leds_set_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 {
-    ret_code_t ret = RET_SUCCESS;
+    ret_code_t ret = rgb_leds_set_leds_sequence(
+        bytes, size, LED_FORMAT_ARGB, leds, ARRAY_SIZE(leds),
+        (bool *)&use_sequence, &sem_new_setting, NULL);
+    ASSERT_SOFT(ret);
+    return ret;
+}
 
-    if (size % 3 != 0) {
-        LOG_ERR("Bytes must be a multiple of 3");
-        ret = RET_ERROR_INVALID_PARAM;
-        ASSERT_SOFT(ret);
-        return ret;
-    }
-
-    size = MIN(size, ARRAY_SIZE(leds) * 3);
-
-    CRITICAL_SECTION_ENTER(k);
-    for (size_t i = 0; i < (size / 3); ++i) {
-        leds[i].r = bytes[i * 3];
-        leds[i].g = bytes[i * 3 + 1];
-        leds[i].b = bytes[i * 3 + 2];
-    }
-    for (size_t i = size / 3; i < ARRAY_SIZE(leds); ++i) {
-        leds[i] = (struct led_rgb)RGB_OFF;
-    }
-    use_sequence = true;
-    CRITICAL_SECTION_EXIT(k);
-
-    k_sem_give(&sem_new_setting);
+ret_code_t
+operator_leds_set_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
+{
+    ret_code_t ret = rgb_leds_set_leds_sequence(
+        bytes, size, LED_FORMAT_RGB, leds, ARRAY_SIZE(leds),
+        (bool *)&use_sequence, &sem_new_setting, NULL);
+    ASSERT_SOFT(ret);
     return ret;
 }
 
@@ -271,7 +271,13 @@ operator_leds_set_blocking(const RgbColor *color, uint32_t mask)
     }
 #endif
 
-    struct led_rgb c = {.r = color->red, .g = color->green, .b = color->blue};
+    struct led_rgb c = {
+#ifdef CONFIG_LED_STRIP_RGB_SCRATCH
+        .scratch = RGB_BRIGHTNESS_MAX,
+#endif
+        .r = color->red,
+        .g = color->green,
+        .b = color->blue};
     apply_pattern(mask, &c);
     int ret = led_strip_update_rgb(led_strip, leds, ARRAY_SIZE(leds));
     ASSERT_SOFT(ret);

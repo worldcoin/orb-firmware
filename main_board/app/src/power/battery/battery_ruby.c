@@ -6,7 +6,7 @@
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "temperature/sensors/temperature.h"
-#include "ui/operator_leds/operator_leds.h"
+#include "ui/rgb_leds/operator_leds/operator_leds.h"
 #include "utils.h"
 #include "voltage_measurement/voltage_measurement.h"
 #include <app_assert.h>

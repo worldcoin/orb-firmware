@@ -12,16 +12,20 @@
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "temperature/sensors/temperature.h"
-#include "ui/operator_leds/operator_leds.h"
-#include "ui/rgb_leds.h"
+#include "ui/rgb_leds/operator_leds/operator_leds.h"
+#include "ui/rgb_leds/rgb_leds.h"
 #include "voltage_measurement/voltage_measurement.h"
 #include <app_assert.h>
 #include <heartbeat.h>
 #include <pb_decode.h>
 #include <stdlib.h>
 #include <uart_messaging.h>
-#include <ui/front_leds/front_leds.h>
+#include <ui/rgb_leds/front_leds/front_leds.h>
 #include <zephyr/kernel.h>
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#include "ui/rgb_leds/cone_leds/cone_leds.h"
+#endif
 
 LOG_MODULE_REGISTER(runner, CONFIG_RUNNER_LOG_LEVEL);
 
@@ -454,10 +458,7 @@ handle_user_leds_pattern(job_t *job)
         job_ack(Ack_ErrorCode_RANGE, job);
     } else {
         RgbColor *color_ptr = NULL;
-        if (msg->payload.user_leds_pattern.pattern ==
-                UserLEDsPattern_UserRgbLedPattern_RGB ||
-            msg->payload.user_leds_pattern.pattern ==
-                UserLEDsPattern_UserRgbLedPattern_PULSING_RGB) {
+        if (msg->payload.user_leds_pattern.has_custom_color) {
             color_ptr = &msg->payload.user_leds_pattern.custom_color;
         }
         ret_code_t ret =
@@ -477,15 +478,27 @@ handle_user_center_leds_sequence(job_t *job)
 
     ret_code_t ret;
     uint32_t data_format = msg->payload.center_leds_sequence.which_data_format;
+    uint8_t *bytes;
+    uint32_t size;
 
     switch (data_format) {
     case UserCenterLEDsSequence_rgb_uncompressed_tag:;
-        uint8_t *bytes = msg->payload.center_leds_sequence.data_format
-                             .rgb_uncompressed.bytes;
-        uint32_t size =
+        bytes = msg->payload.center_leds_sequence.data_format.rgb_uncompressed
+                    .bytes;
+        size =
             msg->payload.center_leds_sequence.data_format.rgb_uncompressed.size;
 
-        ret = front_leds_set_center_leds_sequence(bytes, size);
+        ret = front_leds_set_center_leds_sequence_rgb24(bytes, size);
+        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+                job);
+        break;
+    case UserCenterLEDsSequence_argb32_uncompressed_tag:;
+        bytes = msg->payload.center_leds_sequence.data_format
+                    .argb32_uncompressed.bytes;
+        size = msg->payload.center_leds_sequence.data_format.argb32_uncompressed
+                   .size;
+
+        ret = front_leds_set_center_leds_sequence_argb32(bytes, size);
         job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
                 job);
         break;
@@ -503,15 +516,26 @@ handle_user_ring_leds_sequence(job_t *job)
 
     ret_code_t ret;
     uint32_t data_format = msg->payload.ring_leds_sequence.which_data_format;
+    uint8_t *bytes;
+    uint32_t size;
 
     switch (data_format) {
-    case UserRingLEDsSequence_rgb_uncompressed_tag:;
-        uint8_t *bytes =
+    case UserRingLEDsSequence_rgb_uncompressed_tag:
+        bytes =
             msg->payload.ring_leds_sequence.data_format.rgb_uncompressed.bytes;
-        uint32_t size =
+        size =
             msg->payload.ring_leds_sequence.data_format.rgb_uncompressed.size;
 
-        ret = front_leds_set_ring_leds_sequence(bytes, size);
+        ret = front_leds_set_ring_leds_sequence_rgb24(bytes, size);
+        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+                job);
+        break;
+    case UserRingLEDsSequence_argb32_uncompressed_tag:
+        bytes = msg->payload.ring_leds_sequence.data_format.argb32_uncompressed
+                    .bytes;
+        size = msg->payload.ring_leds_sequence.data_format.argb32_uncompressed
+                   .size;
+        ret = front_leds_set_ring_leds_sequence_argb32(bytes, size);
         job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
                 job);
         break;
@@ -530,15 +554,27 @@ handle_distributor_leds_sequence(job_t *job)
     ret_code_t ret;
     uint32_t data_format =
         msg->payload.distributor_leds_sequence.which_data_format;
+    uint8_t *bytes;
+    uint32_t size;
 
     switch (data_format) {
     case DistributorLEDsSequence_rgb_uncompressed_tag:;
-        uint8_t *bytes = msg->payload.distributor_leds_sequence.data_format
-                             .rgb_uncompressed.bytes;
-        uint32_t size = msg->payload.distributor_leds_sequence.data_format
-                            .rgb_uncompressed.size;
+        bytes = msg->payload.distributor_leds_sequence.data_format
+                    .rgb_uncompressed.bytes;
+        size = msg->payload.distributor_leds_sequence.data_format
+                   .rgb_uncompressed.size;
 
-        ret = operator_leds_set_leds_sequence(bytes, size);
+        ret = operator_leds_set_leds_sequence_rgb24(bytes, size);
+        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+                job);
+        break;
+    case DistributorLEDsSequence_argb32_uncompressed_tag:;
+        bytes = msg->payload.distributor_leds_sequence.data_format
+                    .argb32_uncompressed.bytes;
+        size = msg->payload.distributor_leds_sequence.data_format
+                   .argb32_uncompressed.size;
+
+        ret = operator_leds_set_leds_sequence_argb32(bytes, size);
         job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
                 job);
         break;
@@ -547,6 +583,62 @@ handle_distributor_leds_sequence(job_t *job)
         job_ack(Ack_ErrorCode_FAIL, job);
     }
 }
+
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+static void
+handle_cone_leds_sequence(job_t *job)
+{
+    JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(JetsonToMcu_cone_leds_sequence_tag);
+
+    ret_code_t ret;
+    uint32_t data_format = msg->payload.cone_leds_sequence.which_data_format;
+    uint8_t *bytes;
+    uint32_t size;
+
+    switch (data_format) {
+    case ConeLEDsSequence_rgb_uncompressed_tag:;
+        bytes =
+            msg->payload.cone_leds_sequence.data_format.rgb_uncompressed.bytes;
+        size =
+            msg->payload.cone_leds_sequence.data_format.rgb_uncompressed.size;
+
+        ret = cone_leds_set_leds_sequence_rgb24(bytes, size);
+        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+                job);
+        break;
+    case ConeLEDsSequence_argb32_uncompressed_tag:;
+        bytes = msg->payload.cone_leds_sequence.data_format.argb32_uncompressed
+                    .bytes;
+        size = msg->payload.cone_leds_sequence.data_format.argb32_uncompressed
+                   .size;
+
+        ret = cone_leds_set_leds_sequence_argb32(bytes, size);
+        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+                job);
+        break;
+    default:
+        LOG_WRN("Unkown data format: %" PRIu32, data_format);
+        job_ack(Ack_ErrorCode_FAIL, job);
+    }
+}
+
+static void
+handle_cone_leds_pattern(job_t *job)
+{
+    JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(JetsonToMcu_cone_leds_pattern_tag);
+
+    ConeLEDsPattern_ConeRgbLedPattern pattern =
+        msg->payload.cone_leds_pattern.pattern;
+    LOG_DBG("Got cone LED pattern: %u", pattern);
+    RgbColor color = (msg->payload.cone_leds_pattern.has_custom_color)
+                         ? msg->payload.cone_leds_pattern.custom_color
+                         : (RgbColor){20, 20, 20};
+    cone_leds_set_pattern(pattern, &color);
+    job_ack(Ack_ErrorCode_SUCCESS, job);
+}
+#endif
 
 static void
 handle_user_leds_brightness(job_t *job)
@@ -1057,6 +1149,13 @@ handle_perform_ir_eye_camera_mirror_sweep(job_t *job)
     }
 }
 
+__maybe_unused static void
+handle_not_supported(job_t *job)
+{
+    LOG_ERR("Message not supported: %u", job->message.which_payload);
+    job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+}
+
 typedef void (*hm_callback)(job_t *job);
 
 // These functions ARE NOT allowed to block!
@@ -1114,10 +1213,19 @@ static const hm_callback handle_message_callbacks[] = {
         handle_ir_eye_camera_mirror_sweep_values_polynomial,
     [JetsonToMcu_perform_ir_eye_camera_mirror_sweep_tag] =
         handle_perform_ir_eye_camera_mirror_sweep,
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    [JetsonToMcu_cone_leds_sequence_tag] = handle_cone_leds_sequence,
+    [JetsonToMcu_cone_leds_pattern_tag] = handle_cone_leds_pattern,
+#elif defined(CONFIG_BOARD_PEARL_MAIN)
+    [JetsonToMcu_cone_leds_sequence_tag] = handle_not_supported,
+    [JetsonToMcu_cone_leds_pattern_tag] = handle_not_supported,
+#else
+#error "Board not supported"
+#endif
 };
 
 static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 43,
+    ARRAY_SIZE(handle_message_callbacks) <= 45,
     "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
@@ -1324,4 +1432,5 @@ runner_init(void)
                                  K_THREAD_STACK_SIZEOF(runner_process_stack),
                                  runner_process_jobs_thread, NULL, NULL, NULL,
                                  THREAD_PRIORITY_RUNNER, 0, K_NO_WAIT);
+    k_thread_name_set(runner_tid, "runner");
 }

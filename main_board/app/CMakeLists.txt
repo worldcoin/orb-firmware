@@ -99,17 +99,20 @@ list(APPEND SOURCES_FILES
     src/ui/ui.c
     src/ui/ambient_light/als.c
     src/ui/button/button.c
-    src/ui/front_leds/front_leds.c
-    src/ui/operator_leds/operator_leds.c
+    src/ui/rgb_leds/rgb_leds.c
+    src/ui/rgb_leds/front_leds/front_leds.c
+    src/ui/rgb_leds/operator_leds/operator_leds.c
     src/ui/sound/sound.c
     )
 
-if (BOARD STREQUAL "pearl_main")
+if (CONFIG_BOARD_PEARL_MAIN)
     list(APPEND SOURCES_FILES src/gnss/gnss.c)
     list(APPEND SOURCES_FILES src/power/battery/battery_ruby.c)
 endif()
 
-if (BOARD STREQUAL "diamond_main")
+if (CONFIG_BOARD_DIAMOND_MAIN)
+    list(APPEND SOURCES_FILES src/power/battery/battery_amber.c)
+    list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds.c)
     list(APPEND SOURCES_FILES src/power/battery/battery_amber.c)
 endif()
 
@@ -121,10 +124,13 @@ if (CONFIG_ZTEST)
         src/optics/mirrors/mirrors_tests.c
         src/system/dfu/dfu_tests.c
         src/temperature/fan/fan_tests.c
-        src/ui/front_leds/front_leds_tests.c
-        src/ui/operator_leds/operator_leds_tests.c
+        src/ui/rgb_leds/front_leds/front_leds_tests.c
+        src/ui/rgb_leds/operator_leds/operator_leds_tests.c
         src/pubsub/pubsub_tests.c
         )
+    if (CONFIG_BOARD_DIAMOND_MAIN)
+        list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds_tests.c)
+    endif()
 else ()
     list(APPEND SOURCES_FILES
         src/pubsub/pubsub.c)

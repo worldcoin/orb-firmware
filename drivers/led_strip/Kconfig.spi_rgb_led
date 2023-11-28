@@ -8,7 +8,7 @@ config SPI_RGB_LED
 
 config SPI_RGB_LED_DIMMING
     bool "Enable dimming support per LED"
-    depends on SPI_RGB_LED
+    depends on SPI_RGB_LED && LED_STRIP_RGB_SCRATCH
     help
       Enable dimming support for SPI RGB LED strips.
 

@@ -78,6 +78,7 @@ als_init(struct k_mutex *i2c_mux_mutex)
     k_thread_create(&als_thread_data, stack_area_als,
                     K_THREAD_STACK_SIZEOF(stack_area_als), als_thread, NULL,
                     NULL, NULL, THREAD_PRIORITY_ALS, 0, K_NO_WAIT);
+    k_thread_name_set(&als_thread_data, "als");
 
     return RET_SUCCESS;
 }

@@ -14,8 +14,16 @@ module = PUBSUB
 module-str = PUBSUB
 source "subsys/logging/Kconfig.template.log_config"
 
+module = RGB_LEDS
+module-str = RGB_LEDS
+source "subsys/logging/Kconfig.template.log_config"
+
 module = FRONT_UNIT_RGB_LEDS
 module-str = FRONT_UNIT_RGB_LEDS
+source "subsys/logging/Kconfig.template.log_config"
+
+module = CONE_RGB_LEDS
+module-str = CONE_RGB_LEDS
 source "subsys/logging/Kconfig.template.log_config"
 
 module = RUNNER
@@ -68,4 +76,8 @@ source "subsys/logging/Kconfig.template.log_config"
 
 module = VOLTAGE_MEASUREMENT
 module-str = VOLTAGE_MEASUREMENT
+source "subsys/logging/Kconfig.template.log_config"
+
+module = SC18IS606
+module-str = SC18IS606
 source "subsys/logging/Kconfig.template.log_config"

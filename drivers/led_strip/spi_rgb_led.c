@@ -97,21 +97,13 @@ spi_rgb_led_update_rgb(const struct device *dev, struct led_rgb *pixels,
          * > about 1ms).
          */
 #if defined(CONFIG_SPI_RGB_LED_DIMMING)
-        if (pixels[i].scratch == 0) {
-            prefix = 0xA0;
-        } else {
-            prefix = 0xE0 | (pixels[i].scratch & 0x1F);
-        }
+        prefix = 0xE0 | (pixels[i].scratch & 0x1F);
 #else
         /* When CONFIG_SPI_RGB_LED_DIMMING is not enabled, we always
          * send the maximum global dimming level, the RGB values are
          * going to do the dimming.
          */
-        if (pixels[i].r || pixels[i].g || pixels[i].b) {
-            prefix = 0xE0 | 0x1F;
-        } else {
-            prefix = 0xA0;
-        }
+        prefix = 0xE0 | 0x1F;
 #endif
 
         spi_buf_tx[i * 4] = prefix;

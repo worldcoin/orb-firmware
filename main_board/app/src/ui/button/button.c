@@ -1,4 +1,5 @@
 #include "button.h"
+#include "app_config.h"
 #include "mcu_messaging.pb.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
@@ -25,6 +26,16 @@ button_pressed(struct k_work *item);
 
 static K_WORK_DEFINE(button_pressed_work, button_pressed);
 static K_WORK_DEFINE(button_released_work, button_released);
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+K_THREAD_STACK_DEFINE(cone_button_thread_stack, THREAD_STACK_SIZE_CONE_BUTTON);
+static struct k_thread cone_button_thread_data = {0};
+
+static const struct gpio_dt_spec cone_button_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), cone_button_gpios);
+
+#define CONE_BUTTON_POLL_PERIOD_MS 10
+#endif
 
 static void
 button_released(struct k_work *item)
@@ -94,6 +105,25 @@ button_uninit(void)
     return ret;
 }
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+_Noreturn static void
+cone_button_thread()
+{
+    bool button_pressed_old_state = false;
+    while (1) {
+        bool button_pressed_new_state = gpio_pin_get_dt(&cone_button_gpio_spec);
+        if (!button_pressed_old_state && button_pressed_new_state) {
+            k_work_submit(&button_pressed_work);
+        } else if (button_pressed_old_state && !button_pressed_new_state) {
+            k_work_submit(&button_released_work);
+        }
+        button_pressed_old_state = button_pressed_new_state;
+
+        k_msleep(CONE_BUTTON_POLL_PERIOD_MS);
+    }
+}
+#endif
+
 int
 button_init(void)
 {
@@ -134,6 +164,23 @@ button_init(void)
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    if (!device_is_ready(cone_button_gpio_spec.port)) {
+        LOG_WRN("cone button device not ready");
+    } else {
+        err_code = gpio_pin_configure_dt(&cone_button_gpio_spec, GPIO_INPUT);
+        if (err_code) {
+            LOG_WRN("cone button configuration error");
+        } else {
+            k_thread_create(&cone_button_thread_data, cone_button_thread_stack,
+                            K_THREAD_STACK_SIZEOF(cone_button_thread_stack),
+                            cone_button_thread, NULL, NULL, NULL,
+                            THREAD_PRIORITY_CONE_BUTTON, 0, K_NO_WAIT);
+            k_thread_name_set(&cone_button_thread_data, "cone_button");
+        }
+    }
+#endif
 
     LOG_INF("Power button initialized");
     is_init = true;

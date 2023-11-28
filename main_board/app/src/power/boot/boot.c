@@ -4,9 +4,9 @@
 #include "sysflash/sysflash.h"
 #include "system/version/version.h"
 #include "ui/button/button.h"
-#include "ui/front_leds/front_leds.h"
-#include "ui/operator_leds/operator_leds.h"
-#include "ui/rgb_leds.h"
+#include "ui/rgb_leds/front_leds/front_leds.h"
+#include "ui/rgb_leds/operator_leds/operator_leds.h"
+#include "ui/rgb_leds/rgb_leds.h"
 #include "utils.h"
 #include <app_assert.h>
 #include <app_config.h>
@@ -692,7 +692,7 @@ reboot_thread()
 
     operator_leds_set_pattern(
         DistributorLEDsPattern_DistributorRgbLedPattern_OFF, 0, NULL);
-    front_leds_turn_off_final();
+    front_leds_turn_off_blocking();
 
     k_msleep(SYSTEM_RESET_UI_DELAY_MS);
 

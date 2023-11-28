@@ -1,0 +1,54 @@
+description: |
+  I2C-bus to SPI bridge
+
+  Required properties:
+  - compatible: "nxp,sc18is606"
+  - reg: I2C address of SC18IS606
+  * SPI child bus node
+
+  Example:
+  &i2c4 {
+    pinctrl-0 = <&i2c4_scl_pc6 &i2c4_sda_pb7>;
+    pinctrl-names = "default";
+    status = "okay";
+
+    spi_bridge: sc18is606@28{
+      reg = <0x28>;
+      compatible = "nxp,sc18is606";
+      status = "okay";
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      bridge_spi_bus: spi@0{
+        compatible = "nxp,sc18is606-spi-master";
+        status = "okay";
+        reg = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        clock-frequency = <455000>;
+
+        rgb_leds:rgb_leds@0{
+          compatible = "we,spi-rgb-led";
+          reg = <0>;
+          spi-max-frequency = <455000>;
+          duplex = <SPI_HALF_DUPLEX>;
+          num-leds = <64>;
+        };
+      };
+    };
+  };
+
+compatible: "nxp,sc18is606"
+
+include: [i2c-device.yaml]
+
+properties:
+  reset-gpios:
+    type: phandle-array
+    description: |
+      GPIO connected to the controller RESET pin. This pin is active-low.
+
+child-binding:
+  description: SPI controller
+  compatible: "nxp,sc18is606-spi-master"
+  include: [spi-controller.yaml]

@@ -120,6 +120,7 @@ tof_1d_init(void)
     k_thread_create(&tof_1d_thread_data, stack_area_tof_1d,
                     K_THREAD_STACK_SIZEOF(stack_area_tof_1d), tof_1d_thread,
                     NULL, NULL, NULL, THREAD_PRIORITY_1DTOF, 0, K_NO_WAIT);
+    k_thread_name_set(&tof_1d_thread_data, "tof_1d");
 
     // set short distance mode
     struct sensor_value distance_config = {.val1 = 1 /* short */, .val2 = 0};

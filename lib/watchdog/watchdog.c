@@ -79,6 +79,7 @@ watchdog_init(void)
                     K_THREAD_STACK_SIZEOF(stack_area), watchdog_thread, NULL,
                     NULL, NULL, CONFIG_ORB_LIB_THREAD_PRIORITY_WATCHDOG, 0,
                     K_NO_WAIT);
+    k_thread_name_set(&watchdog_thread_data, "watchdog");
 
     return RET_SUCCESS;
 }

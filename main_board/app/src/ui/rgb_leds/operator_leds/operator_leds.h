@@ -1,7 +1,7 @@
 #pragma once
 
+#include "mcu_messaging.pb.h"
 #include <errors.h>
-#include <mcu_messaging.pb.h>
 
 #define OPERATOR_LEDS_COUNT    DT_PROP(DT_NODELABEL(operator_rgb_leds), num_leds)
 #define OPERATOR_LEDS_ALL_MASK BIT_MASK(OPERATOR_LEDS_COUNT)
@@ -42,14 +42,28 @@ operator_leds_init(void);
 
 /**
  * Set operator LEDs to a specific color using a sequence of bytes.
- * @param bytes
- * @param size
- * @return
+ * @param bytes 3-byte long items for each RGB LED
+ * @param size size of the array, 3 * number of LEDs
+ * @retval RET_ERROR_INVALID_PARAM if size is not a multiple of 3
+ * @retval RET_SUCCESS on success
  */
 ret_code_t
-operator_leds_set_leds_sequence(uint8_t *bytes, uint32_t size);
+operator_leds_set_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size);
 
 /**
+ * Set operator LEDs to a specific color using a sequence of bytes.
+ * @param bytes 4-byte long items for each ARGB32 LED
+ * @param size size of the array, 4 * number of LEDs
+ * @retval RET_ERROR_INVALID_PARAM if size is not a multiple of 4
+ * @retval RET_SUCCESS on success
+ */
+ret_code_t
+operator_leds_set_leds_sequence_argb32(const uint8_t *bytes, uint32_t size);
+
+/**
+ * Set operator LEDs to a specific color using a mask, the LED are
+ * actuated before returning.
+ * ⚠️ Prefer @fn operator_leds_set_pattern when possible
  * Set operator LEDs to a specific color using a mask.
  * All communication to the LEDs is done before this function returns.
  * On Diamond: also handles power optimization when all LEDs are off
@@ -61,7 +75,7 @@ operator_leds_set_blocking(const RgbColor *color, uint32_t mask);
 
 /**
  * Show an animation for indicating a low battery
- * The function returns after the animation is finished.
+ * @note This function blocks until the animation is finished
  */
 void
 operator_leds_indicate_low_battery_blocking(void);
