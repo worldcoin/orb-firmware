@@ -1,4 +1,4 @@
-#include "mirrors.h"
+#include "mirror.h"
 #include "logs_can.h"
 #include "mcu_messaging.pb.h"
 #include "pubsub/pubsub.h"
@@ -20,22 +20,22 @@
 #define M_PI 3.14159265358979323846f
 #endif
 
-LOG_MODULE_REGISTER(mirrors, CONFIG_MIRRORS_LOG_LEVEL);
+LOG_MODULE_REGISTER(mirror, CONFIG_MIRROR_LOG_LEVEL);
 
 K_THREAD_STACK_DEFINE(stack_area_mirror_work_queue, 2048);
-K_THREAD_STACK_DEFINE(stack_area_mirror_horizontal_init, 2048);
-K_THREAD_STACK_DEFINE(stack_area_mirror_vertical_init, 2048);
+K_THREAD_STACK_DEFINE(stack_area_motor_phi_init, 2048);
+K_THREAD_STACK_DEFINE(stack_area_motor_theta_init, 2048);
 
-static struct k_thread thread_data_mirror_horizontal;
-static struct k_thread thread_data_mirror_vertical;
-static struct k_sem homing_in_progress_sem[MIRRORS_COUNT];
+static struct k_thread thread_data_motor_phi;
+static struct k_thread thread_data_motor_theta;
+static struct k_sem homing_in_progress_sem[MOTORS_COUNT];
 
 static struct k_work_q mirror_work_queue;
 
 static struct async_mirror_command {
     struct k_work work;
     int32_t angle_millidegrees;
-} vertical_set_work_item, horizontal_set_work_item;
+} theta_angle_set_work_item, phi_angle_set_work_item;
 
 // To get motor driver status, we need to poll its register (interrupt pins not
 // connected)
@@ -83,9 +83,9 @@ static struct spi_buf_set tx_bufs = {.buffers = &tx, .count = 1};
 #define IHOLDDELAY      (1 << 16)
 
 // initial values [IRUN, SGT]
-const uint8_t motor_irun_sgt[MIRRORS_COUNT][2] = {
-    {0x13, 6}, // vertical
-    {0x13, 6}, // horizontal
+const uint8_t motor_irun_sgt[MOTORS_COUNT][2] = {
+    {0x13, 6}, // motor for theta angle
+    {0x13, 6}, // motor for phi angle
 };
 
 typedef enum tmc5041_registers_e {
@@ -103,7 +103,7 @@ typedef enum tmc5041_registers_e {
     REG_IDX_COUNT
 } tmc5041_registers_t;
 
-const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][MIRRORS_COUNT] = {
+const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][MOTORS_COUNT] = {
     {0x20, 0x40}, // RAMPMODE
     {0x21, 0x41}, // XACTUAL
     {0x22, 0x42}, // VACTUAL
@@ -118,36 +118,41 @@ const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][MIRRORS_COUNT] = {
 };
 
 // a bit more than mechanical range
-static const uint32_t motors_full_course_maximum_steps[MIRRORS_COUNT] = {
+static const uint32_t motors_full_course_maximum_steps[MOTORS_COUNT] = {
     (500 * 256), (700 * 256)};
-static const int32_t motors_initial_angle[MIRRORS_COUNT] = {
-    AUTO_HOMING_VERTICAL_ANGLE_RESULT_MILLI_DEGREES,
-    AUTO_HOMING_HORIZONTAL_ANGLE_RESULT_MILLI_DEGREES};
+static const int32_t mirror_center_angles[MOTORS_COUNT] = {
+    MIRROR_ANGLE_THETA_CENTER_MILLIDEGREES,
+    MIRROR_ANGLE_PHI_CENTER_MILLIDEGREES};
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 // EV2 and later
-#define MOTOR_VERTICAL_CENTER_FROM_END_STEPS   55000
-#define MOTOR_HORIZONTAL_CENTER_FROM_END_STEPS 87000
+#define MOTOR_THETA_CENTER_FROM_END_STEPS 55000
+#define MOTOR_PHI_CENTER_FROM_END_STEPS   87000
+#define MOTOR_THETA_FULL_RANGE_STEPS      (2 * MOTOR_THETA_CENTER_FROM_END_STEPS)
+#define MOTOR_PHI_FULL_RANGE_STEPS        (2 * MOTOR_PHI_CENTER_FROM_END_STEPS)
 
-#define MOTOR_VERTICAL_ARM_LENGTH_MM   12.0f
-#define MOTOR_HORIZONTAL_ARM_LENGTH_MM 18.71f
+#define MOTOR_THETA_ARM_LENGTH_MM 12.0f
+#define MOTOR_PHI_ARM_LENGTH_MM   18.71f
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
 // values measured on first PoC Diamond Orb
-#define MOTOR_VERTICAL_CENTER_FROM_END_STEPS   55000
-#define MOTOR_HORIZONTAL_CENTER_FROM_END_STEPS 51200
+#define MOTOR_THETA_CENTER_FROM_END_STEPS 63000
+#define MOTOR_PHI_CENTER_FROM_END_STEPS   47600
+#define MOTOR_THETA_FULL_RANGE_STEPS      140000
+#define MOTOR_PHI_FULL_RANGE_STEPS        102400
 
-#define MOTOR_VERTICAL_ARM_LENGTH_MM   12.0f
-#define MOTOR_HORIZONTAL_ARM_LENGTH_MM 12.0f
+#define MOTOR_THETA_ARM_LENGTH_MM 12.0f
+#define MOTOR_PHI_ARM_LENGTH_MM   12.0f
 #endif
 
-static const uint32_t motors_center_from_end_steps[MIRRORS_COUNT] = {
-    MOTOR_VERTICAL_CENTER_FROM_END_STEPS,
-    MOTOR_HORIZONTAL_CENTER_FROM_END_STEPS};
-const float motors_arm_length_mm[MIRRORS_COUNT] = {
-    MOTOR_VERTICAL_ARM_LENGTH_MM, MOTOR_HORIZONTAL_ARM_LENGTH_MM};
+static const uint32_t motors_center_from_end_steps[MOTORS_COUNT] = {
+    MOTOR_THETA_CENTER_FROM_END_STEPS, MOTOR_PHI_CENTER_FROM_END_STEPS};
+static const uint32_t motors_full_range_steps[MOTORS_COUNT] = {
+    MOTOR_THETA_FULL_RANGE_STEPS, MOTOR_PHI_FULL_RANGE_STEPS};
+const float motors_arm_length_mm[MOTORS_COUNT] = {MOTOR_THETA_ARM_LENGTH_MM,
+                                                  MOTOR_PHI_ARM_LENGTH_MM};
 
-const uint32_t steps_per_mm = 12800; // 1mm / 0.4mm (pitch) * (360° / 18° (per
-                                     // step)) * 256 micro-steps
+const uint32_t microsteps_per_mm = 12800; // 1mm / 0.4mm (pitch) * (360° / 18°
+                                          // (per step)) * 256 micro-steps
 
 enum mirror_autohoming_state {
     AH_UNINIT,
@@ -160,27 +165,27 @@ enum mirror_autohoming_state {
 };
 
 typedef struct {
-    int32_t x0; // step at x=0 (middle position)
+    int32_t steps_at_center_position;
     uint32_t full_course;
     uint8_t velocity_mode_current;
     uint8_t stall_guard_threshold;
     enum mirror_autohoming_state auto_homing_state;
     uint32_t motor_state;
-    int32_t angle_millidegrees;
+    uint32_t angle_millidegrees;
 } motors_refs_t;
 
-static motors_refs_t motors_refs[MIRRORS_COUNT] = {0};
+static motors_refs_t motors_refs[MOTORS_COUNT] = {0};
 
 #if AUTO_HOMING_ENABLED
 
 // minimum number of microsteps for 40º range
-static const uint32_t motors_full_course_minimum_steps[MIRRORS_COUNT] = {
+static const uint32_t motors_full_course_minimum_steps[MOTORS_COUNT] = {
     (300 * 256), (325 * 256)};
 
 /// One direction with stall guard detection
 /// Velocity mode
-const uint64_t motor_init_for_velocity_mode[MIRRORS_COUNT][8] = {
-    // Vertical motor
+const uint64_t motor_init_for_velocity_mode[MOTORS_COUNT][8] = {
+    // motor for theta angle
     {
         0xEC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
                       // (spreadCycle)
@@ -199,7 +204,7 @@ const uint64_t motor_init_for_velocity_mode[MIRRORS_COUNT][8] = {
         // command
     },
 
-    // Horizontal motor
+    // motor for phi angle
     {
         0xFC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
                       // (spreadCycle)
@@ -218,7 +223,7 @@ const uint64_t motor_init_for_velocity_mode[MIRRORS_COUNT][8] = {
                                                         // software command
     }}; // RAMPMODE velocity mode to +VMAX using AMAX
 
-const uint64_t position_mode_initial_phase[MIRRORS_COUNT][10] = {
+const uint64_t position_mode_initial_phase[MOTORS_COUNT][10] = {
     {
         0xEC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
                       // (spreadCycle)
@@ -249,7 +254,7 @@ const uint64_t position_mode_initial_phase[MIRRORS_COUNT][10] = {
 
 #endif
 
-const uint64_t position_mode_full_speed[MIRRORS_COUNT][10] = {
+const uint64_t position_mode_full_speed[MOTORS_COUNT][10] = {
     {
         0xEC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
                       // (spreadCycle)
@@ -279,13 +284,29 @@ const uint64_t position_mode_full_speed[MIRRORS_COUNT][10] = {
         0xC000000000,                 // RAMPMODE = 0 position move
     }};
 
-static uint32_t
-microsteps_to_millidegrees(uint32_t microsteps, mirror_t motor)
+static int32_t
+calculate_millidegrees_from_center_position(
+    int32_t microsteps_from_center_position, motor_t mirror)
 {
-    uint32_t mdegrees = asinf((float)microsteps / (motors_arm_length_mm[motor] *
-                                                   (float)steps_per_mm)) *
-                        360000.0f / M_PI;
-    return mdegrees;
+    float stepper_position_from_center_millimeters =
+        (float)microsteps_from_center_position / (float)microsteps_per_mm;
+    int32_t angle_from_center_millidegrees =
+        asinf(stepper_position_from_center_millimeters /
+              motors_arm_length_mm[mirror]) *
+        180000.0f / M_PI;
+    return angle_from_center_millidegrees;
+}
+
+static int32_t
+calculate_microsteps_from_center_position(
+    int32_t angle_from_center_millidegrees, motor_t mirror)
+{
+    float stepper_position_from_center_millimeters =
+        sinf((float)angle_from_center_millidegrees * M_PI / 180000.0f) *
+        motors_arm_length_mm[mirror];
+    int32_t stepper_position_from_center_microsteps = (int32_t)roundf(
+        stepper_position_from_center_millimeters * (float)microsteps_per_mm);
+    return stepper_position_from_center_microsteps;
 }
 
 static void
@@ -369,181 +390,226 @@ motor_controller_spi_read(const struct device *spi_bus_controller, uint8_t reg)
 }
 
 static void
-mirror_set_xtarget(int32_t xtarget, mirror_t mirror)
+mirror_set_stepper_position(int32_t position_steps, motor_t mirror)
 {
-    motors_refs[mirror].angle_millidegrees =
-        (int32_t)roundf(
-            asinf((float)(xtarget - motors_refs[mirror].x0) /
-                  (motors_arm_length_mm[mirror] * (float)steps_per_mm)) *
-            360000.0f / M_PI) +
-        motors_initial_angle[mirror];
-    LOG_DBG("Setting mirror %u to %d milli-degrees (xtarget=%d)", mirror,
-            motors_refs[mirror].angle_millidegrees, xtarget);
-
     motor_controller_spi_write(spi_bus_controller,
                                TMC5041_REGISTERS[REG_IDX_XTARGET][mirror],
-                               xtarget);
+                               position_steps);
 }
 
-/// Set relative angle in millidegrees from the center position
-/// \param d_from_center millidegrees from center
-/// \param mirror MIRROR_VERTICAL_ANGLE or MIRROR_HORIZONTAL_ANGLE
+/// Set relative angle from the center position
+/// \param angle_from_center_millidegrees
+/// \param motor MOTOR_THETA_ANGLE or MOTOR_PHI_ANGLE
 /// \return
 static ret_code_t
-mirror_angle_from_center(int32_t d_from_center, mirror_t mirror)
+mirror_set_angle_from_center(int32_t angle_from_center_millidegrees,
+                             motor_t motor)
 {
-    if (mirror >= MIRRORS_COUNT) {
+    if (motor >= MOTORS_COUNT) {
         return RET_ERROR_INVALID_PARAM;
     }
 
-    if (motors_refs[mirror].motor_state) {
-        return motors_refs[mirror].motor_state;
+    if (motors_refs[motor].motor_state) {
+        return motors_refs[motor].motor_state;
     }
 
-    float millimeters = sinf((float)d_from_center * M_PI / 360000.0f) *
-                        motors_arm_length_mm[mirror];
-    int32_t steps = (int32_t)roundf(millimeters * (float)steps_per_mm);
-    int32_t xtarget = motors_refs[mirror].x0 + steps;
+    int32_t stepper_position_from_center_microsteps =
+        calculate_microsteps_from_center_position(
+            angle_from_center_millidegrees, motor);
 
-    mirror_set_xtarget(xtarget, mirror);
+    if (motor == MOTOR_PHI_ANGLE) {
+        stepper_position_from_center_microsteps =
+            -stepper_position_from_center_microsteps;
+    }
 
-    LOG_DBG("new gimbal pos: %d °, %d um, %d steps", d_from_center,
-            (int32_t)(millimeters * 1000), steps);
+    int32_t stepper_position_absolute_microsteps =
+        motors_refs[motor].steps_at_center_position +
+        stepper_position_from_center_microsteps;
+
+    motors_refs[motor].angle_millidegrees =
+        angle_from_center_millidegrees + mirror_center_angles[motor];
+
+    LOG_INF("Setting mirror %u to %d milli-degrees (%d microsteps)", motor,
+            motors_refs[motor].angle_millidegrees,
+            stepper_position_absolute_microsteps);
+
+    mirror_set_stepper_position(stepper_position_absolute_microsteps, motor);
+
+    LOG_INF("new mirror pos from center: %d °, %d microsteps",
+            angle_from_center_millidegrees,
+            stepper_position_from_center_microsteps);
 
     return RET_SUCCESS;
 }
 
+static ret_code_t
+mirror_check_angle(uint32_t angle_millidegrees, motor_t motor)
+{
+    switch (motor) {
+    case MOTOR_THETA_ANGLE:
+        if (angle_millidegrees > MIRROR_ANGLE_THETA_MAX_MILLIDEGREES ||
+            angle_millidegrees < MIRROR_ANGLE_THETA_MIN_MILLIDEGREES) {
+            LOG_ERR("Mirror theta angle of %d out of range [%d;%d]",
+                    angle_millidegrees, MIRROR_ANGLE_THETA_MIN_MILLIDEGREES,
+                    MIRROR_ANGLE_THETA_MAX_MILLIDEGREES);
+            return RET_ERROR_INVALID_PARAM;
+        }
+        return RET_SUCCESS;
+    case MOTOR_PHI_ANGLE:
+        if (angle_millidegrees > MIRROR_ANGLE_PHI_MAX_MILLIDEGREES ||
+            angle_millidegrees < MIRROR_ANGLE_PHI_MIN_MILLIDEGREES) {
+            LOG_ERR("Mirror phi angle of %u out of range [%u;%u]",
+                    angle_millidegrees, MIRROR_ANGLE_PHI_MIN_MILLIDEGREES,
+                    MIRROR_ANGLE_PHI_MAX_MILLIDEGREES);
+            return RET_ERROR_INVALID_PARAM;
+        }
+        return RET_SUCCESS;
+    default:
+        return RET_ERROR_INVALID_PARAM;
+        break;
+    }
+}
+
 /**
- * Set relative angle in millidegrees from the current position
- * @param angle_millidegrees millidegrees from current position
- * @param mirror MIRROR_VERTICAL_ANGLE or MIRROR_HORIZONTAL_ANGLE
+ * Set relative angle from the current position
+ * @param angle_millidegrees from current position
+ * @param motor MOTOR_THETA_ANGLE or MOTOR_PHI_ANGLE
  * @retval RET_SUCCESS on success
  * @retval RET_ERROR_FORBIDDEN if the mirror cannot be moved to the requested
  * position given its current position
  */
 static ret_code_t
-mirrors_angle_relative(int32_t angle_millidegrees, mirror_t mirror)
+mirror_set_angle_relative(int32_t angle_millidegrees, motor_t motor)
 {
-    int32_t x = (int32_t)motor_controller_spi_read(
-        spi_bus_controller, TMC5041_REGISTERS[REG_IDX_XACTUAL][mirror]);
+    int32_t stepper_position_absolute_microsteps =
+        (int32_t)motor_controller_spi_read(
+            spi_bus_controller, TMC5041_REGISTERS[REG_IDX_XACTUAL][motor]);
 
-    int32_t steps =
-        (int32_t)roundf(sinf((float)angle_millidegrees * M_PI / 360000.0f) *
-                        motors_arm_length_mm[mirror] * (float)steps_per_mm);
-    int32_t xtarget = x + steps;
-    if (xtarget > (int32_t)(motors_refs[mirror].x0 +
-                            motors_refs[mirror].full_course / 2) ||
-        xtarget < (int32_t)(motors_refs[mirror].x0 -
-                            motors_refs[mirror].full_course / 2)) {
-        return RET_ERROR_FORBIDDEN;
+    int32_t stepper_position_from_center_microsteps =
+        stepper_position_absolute_microsteps -
+        motors_refs[motor].steps_at_center_position;
+
+    if (motor == MOTOR_PHI_ANGLE) {
+        stepper_position_from_center_microsteps =
+            -stepper_position_from_center_microsteps;
     }
 
-    mirror_set_xtarget(xtarget, mirror);
+    int32_t angle_from_center_millidegrees =
+        calculate_millidegrees_from_center_position(
+            stepper_position_from_center_microsteps, motor);
+
+    int32_t target_angle_from_center_millidegrees =
+        angle_from_center_millidegrees + angle_millidegrees;
+    ret_code_t ret =
+        mirror_check_angle((uint32_t)(target_angle_from_center_millidegrees +
+                                      mirror_center_angles[motor]),
+                           motor);
+
+    LOG_DBG(
+        "Set relative angle: old_pos_microsteps = %d, from_center_microsteps = "
+        "%d, angle_from_center = %d, target_angle_from_center = %d",
+        stepper_position_absolute_microsteps,
+        stepper_position_from_center_microsteps, angle_from_center_millidegrees,
+        target_angle_from_center_millidegrees);
+
+    if (ret != RET_SUCCESS) {
+        return ret;
+    }
+
+    ret = mirror_set_angle_from_center(target_angle_from_center_millidegrees,
+                                       motor);
+
+    return ret;
+}
+
+ret_code_t
+mirror_set_angle_phi_relative(int32_t angle_millidegrees)
+{
+    return mirror_set_angle_relative(angle_millidegrees, MOTOR_PHI_ANGLE);
+}
+
+ret_code_t
+mirror_set_angle_theta_relative(int32_t angle_millidegrees)
+{
+    return mirror_set_angle_relative(angle_millidegrees, MOTOR_THETA_ANGLE);
+}
+
+static ret_code_t
+mirror_set_angle(uint32_t angle_millidegrees, motor_t motor)
+{
+    ret_code_t ret = mirror_check_angle(angle_millidegrees, motor);
+    if (ret != RET_SUCCESS) {
+        return ret;
+    }
+
+    int32_t angle_from_center_millidegrees =
+        (int32_t)angle_millidegrees - mirror_center_angles[motor];
+
+    return mirror_set_angle_from_center(angle_from_center_millidegrees, motor);
+}
+
+ret_code_t
+mirror_set_angle_phi(uint32_t angle_millidegrees)
+{
+    return mirror_set_angle(angle_millidegrees, MOTOR_PHI_ANGLE);
+}
+
+ret_code_t
+mirror_set_angle_theta(uint32_t angle_millidegrees)
+{
+    return mirror_set_angle(angle_millidegrees, MOTOR_THETA_ANGLE);
+}
+
+static void
+mirror_angle_theta_work_wrapper(struct k_work *item)
+{
+    struct async_mirror_command *cmd =
+        CONTAINER_OF(item, struct async_mirror_command, work);
+    mirror_set_angle_theta(cmd->angle_millidegrees);
+}
+
+static void
+mirror_angle_phi_work_wrapper(struct k_work *item)
+{
+    struct async_mirror_command *cmd =
+        CONTAINER_OF(item, struct async_mirror_command, work);
+    mirror_set_angle_phi(cmd->angle_millidegrees);
+}
+
+ret_code_t
+mirror_set_angle_phi_async(int32_t angle_millidegrees)
+{
+    ret_code_t ret = mirror_check_angle(angle_millidegrees, MOTOR_PHI_ANGLE);
+    if (ret != RET_SUCCESS) {
+        return ret;
+    }
+
+    if (k_work_busy_get(&phi_angle_set_work_item.work)) {
+        LOG_ERR("async: Mirror phi set work item is busy!");
+        return RET_ERROR_BUSY;
+    }
+
+    phi_angle_set_work_item.angle_millidegrees = angle_millidegrees;
+    k_work_submit_to_queue(&mirror_work_queue, &phi_angle_set_work_item.work);
 
     return RET_SUCCESS;
 }
 
 ret_code_t
-mirrors_angle_horizontal_relative(int32_t angle_millidegrees)
+mirror_set_angle_theta_async(int32_t angle_millidegrees)
 {
-    return mirrors_angle_relative(angle_millidegrees, MIRROR_HORIZONTAL_ANGLE);
-}
-
-ret_code_t
-mirrors_angle_vertical_relative(int32_t angle_millidegrees)
-{
-    return mirrors_angle_relative(angle_millidegrees, MIRROR_VERTICAL_ANGLE);
-}
-
-ret_code_t
-mirrors_angle_horizontal(int32_t angle_millidegrees)
-{
-    if (angle_millidegrees > MIRRORS_ANGLE_HORIZONTAL_MAX ||
-        angle_millidegrees < MIRRORS_ANGLE_HORIZONTAL_MIN) {
-        LOG_ERR("not-async: Accepted range is [%u;%u], got %d",
-                MIRRORS_ANGLE_HORIZONTAL_MIN, MIRRORS_ANGLE_HORIZONTAL_MAX,
-                angle_millidegrees);
-        return RET_ERROR_INVALID_PARAM;
+    ret_code_t ret = mirror_check_angle(angle_millidegrees, MOTOR_THETA_ANGLE);
+    if (ret != RET_SUCCESS) {
+        return ret;
     }
 
-    // recenter
-    int32_t m_degrees_from_center =
-        angle_millidegrees - motors_initial_angle[MIRROR_HORIZONTAL_ANGLE];
-
-    return mirror_angle_from_center(m_degrees_from_center,
-                                    MIRROR_HORIZONTAL_ANGLE);
-}
-
-ret_code_t
-mirrors_angle_vertical(int32_t angle_millidegrees)
-{
-    if (angle_millidegrees > MIRRORS_ANGLE_VERTICAL_MAX ||
-        angle_millidegrees < MIRRORS_ANGLE_VERTICAL_MIN) {
-        LOG_ERR("not-async: Accepted range is [%d;%d], got %d",
-                MIRRORS_ANGLE_VERTICAL_MIN, MIRRORS_ANGLE_VERTICAL_MAX,
-                angle_millidegrees);
-        return RET_ERROR_INVALID_PARAM;
-    }
-
-    return mirror_angle_from_center(angle_millidegrees, MIRROR_VERTICAL_ANGLE);
-}
-
-static void
-mirror_angle_vertical_work_wrapper(struct k_work *item)
-{
-    struct async_mirror_command *cmd =
-        CONTAINER_OF(item, struct async_mirror_command, work);
-    mirrors_angle_vertical(cmd->angle_millidegrees);
-}
-
-static void
-mirror_angle_horizontal_work_wrapper(struct k_work *item)
-{
-    struct async_mirror_command *cmd =
-        CONTAINER_OF(item, struct async_mirror_command, work);
-    mirrors_angle_horizontal(cmd->angle_millidegrees);
-}
-
-ret_code_t
-mirrors_angle_horizontal_async(int32_t angle_millidegrees)
-{
-    if (angle_millidegrees > MIRRORS_ANGLE_HORIZONTAL_MAX ||
-        angle_millidegrees < MIRRORS_ANGLE_HORIZONTAL_MIN) {
-        LOG_ERR("async: Accepted range is [%u;%u], got %d",
-                MIRRORS_ANGLE_HORIZONTAL_MIN, MIRRORS_ANGLE_HORIZONTAL_MAX,
-                angle_millidegrees);
-        return RET_ERROR_INVALID_PARAM;
-    }
-
-    if (k_work_busy_get(&horizontal_set_work_item.work)) {
-        LOG_ERR("async: Mirror horizontal set work item is busy!");
+    if (k_work_busy_get(&theta_angle_set_work_item.work)) {
+        LOG_ERR("async: Mirror theta set work item is busy!");
         return RET_ERROR_BUSY;
     }
 
-    horizontal_set_work_item.angle_millidegrees = angle_millidegrees;
-    k_work_submit_to_queue(&mirror_work_queue, &horizontal_set_work_item.work);
-
-    return RET_SUCCESS;
-}
-
-ret_code_t
-mirrors_angle_vertical_async(int32_t angle_millidegrees)
-{
-    if (angle_millidegrees > MIRRORS_ANGLE_VERTICAL_MAX ||
-        angle_millidegrees < MIRRORS_ANGLE_VERTICAL_MIN) {
-        LOG_ERR("async: Accepted range is [%d;%d], got %d",
-                MIRRORS_ANGLE_VERTICAL_MIN, MIRRORS_ANGLE_VERTICAL_MAX,
-                angle_millidegrees);
-        return RET_ERROR_INVALID_PARAM;
-    }
-
-    if (k_work_busy_get(&vertical_set_work_item.work)) {
-        LOG_ERR("async: Mirror vertical set work item is busy!");
-        return RET_ERROR_BUSY;
-    }
-
-    vertical_set_work_item.angle_millidegrees = angle_millidegrees;
-    k_work_submit_to_queue(&mirror_work_queue, &vertical_set_work_item.work);
+    theta_angle_set_work_item.angle_millidegrees = angle_millidegrees;
+    k_work_submit_to_queue(&mirror_work_queue, &theta_angle_set_work_item.work);
 
     return RET_SUCCESS;
 }
@@ -557,45 +623,39 @@ mirrors_angle_vertical_async(int32_t angle_millidegrees)
  * First, increase current without modifying SGT
  * Second, decrease SGT but revert current to normal
  * Third, increase current with SGT decreased
- * @param mirror
+ * @param motor
  */
 static void
-increase_stall_sensitivity(mirror_t mirror)
+increase_stall_sensitivity(motor_t motor)
 {
-    if (motors_refs[mirror].velocity_mode_current ==
-            motor_irun_sgt[mirror][0] &&
-        motors_refs[mirror].stall_guard_threshold ==
-            motor_irun_sgt[mirror][1]) {
+    if (motors_refs[motor].velocity_mode_current == motor_irun_sgt[motor][0] &&
+        motors_refs[motor].stall_guard_threshold == motor_irun_sgt[motor][1]) {
         // default values
         // increase current first
-        motors_refs[mirror].velocity_mode_current =
-            motor_irun_sgt[mirror][0] + 1;
-        motors_refs[mirror].stall_guard_threshold = motor_irun_sgt[mirror][1];
-    } else if (motors_refs[mirror].velocity_mode_current ==
-                   (motor_irun_sgt[mirror][0] + 1) &&
-               motors_refs[mirror].stall_guard_threshold ==
-                   motor_irun_sgt[mirror][1]) {
+        motors_refs[motor].velocity_mode_current = motor_irun_sgt[motor][0] + 1;
+        motors_refs[motor].stall_guard_threshold = motor_irun_sgt[motor][1];
+    } else if (motors_refs[motor].velocity_mode_current ==
+                   (motor_irun_sgt[motor][0] + 1) &&
+               motors_refs[motor].stall_guard_threshold ==
+                   motor_irun_sgt[motor][1]) {
         // increased current
         // decrease stall detection threshold
-        motors_refs[mirror].velocity_mode_current = motor_irun_sgt[mirror][0];
-        motors_refs[mirror].stall_guard_threshold =
-            motor_irun_sgt[mirror][1] - 1;
-    } else if (motors_refs[mirror].velocity_mode_current ==
-                   motor_irun_sgt[mirror][0] &&
-               motors_refs[mirror].stall_guard_threshold ==
-                   motor_irun_sgt[mirror][1] - 1) {
+        motors_refs[motor].velocity_mode_current = motor_irun_sgt[motor][0];
+        motors_refs[motor].stall_guard_threshold = motor_irun_sgt[motor][1] - 1;
+    } else if (motors_refs[motor].velocity_mode_current ==
+                   motor_irun_sgt[motor][0] &&
+               motors_refs[motor].stall_guard_threshold ==
+                   motor_irun_sgt[motor][1] - 1) {
         // increase current once more while keeping reduced stall detection
         // threshold
-        motors_refs[mirror].velocity_mode_current =
-            motor_irun_sgt[mirror][0] + 1;
-        motors_refs[mirror].stall_guard_threshold =
-            motor_irun_sgt[mirror][1] - 1;
+        motors_refs[motor].velocity_mode_current = motor_irun_sgt[motor][0] + 1;
+        motors_refs[motor].stall_guard_threshold = motor_irun_sgt[motor][1] - 1;
     } else {
         LOG_WRN("Out of options to increase sensitivity");
     }
-    LOG_DBG("Motor %u: IRUN: 0x%02x, SGT: %u", mirror,
-            motors_refs[mirror].velocity_mode_current,
-            motors_refs[mirror].stall_guard_threshold);
+    LOG_DBG("Motor %u: IRUN: 0x%02x, SGT: %u", motor,
+            motors_refs[motor].velocity_mode_current,
+            motors_refs[motor].stall_guard_threshold);
 }
 
 /**
@@ -603,53 +663,47 @@ increase_stall_sensitivity(mirror_t mirror)
  * First, decrease current without modifying SGT
  * Second, increase SGT but revert current to normal
  * Third, decrease current with SGT increased
- * @param mirror
+ * @param motor
  */
 static void
-decrease_stall_sensivity(mirror_t mirror)
+decrease_stall_sensivity(motor_t motor)
 {
-    if (motors_refs[mirror].velocity_mode_current ==
-            motor_irun_sgt[mirror][0] &&
-        motors_refs[mirror].stall_guard_threshold ==
-            motor_irun_sgt[mirror][1]) {
-        motors_refs[mirror].velocity_mode_current =
-            motor_irun_sgt[mirror][0] - 1;
-        motors_refs[mirror].stall_guard_threshold = motor_irun_sgt[mirror][1];
-    } else if (motors_refs[mirror].velocity_mode_current ==
-                   (motor_irun_sgt[mirror][0] - 1) &&
-               motors_refs[mirror].stall_guard_threshold ==
-                   motor_irun_sgt[mirror][1]) {
-        motors_refs[mirror].velocity_mode_current = motor_irun_sgt[mirror][0];
-        motors_refs[mirror].stall_guard_threshold =
-            motor_irun_sgt[mirror][1] + 1;
-    } else if (motors_refs[mirror].velocity_mode_current ==
-                   motor_irun_sgt[mirror][0] &&
-               motors_refs[mirror].stall_guard_threshold ==
-                   motor_irun_sgt[mirror][1] + 1) {
-        motors_refs[mirror].velocity_mode_current =
-            motor_irun_sgt[mirror][0] - 1;
-        motors_refs[mirror].stall_guard_threshold =
-            motor_irun_sgt[mirror][1] + 1;
+    if (motors_refs[motor].velocity_mode_current == motor_irun_sgt[motor][0] &&
+        motors_refs[motor].stall_guard_threshold == motor_irun_sgt[motor][1]) {
+        motors_refs[motor].velocity_mode_current = motor_irun_sgt[motor][0] - 1;
+        motors_refs[motor].stall_guard_threshold = motor_irun_sgt[motor][1];
+    } else if (motors_refs[motor].velocity_mode_current ==
+                   (motor_irun_sgt[motor][0] - 1) &&
+               motors_refs[motor].stall_guard_threshold ==
+                   motor_irun_sgt[motor][1]) {
+        motors_refs[motor].velocity_mode_current = motor_irun_sgt[motor][0];
+        motors_refs[motor].stall_guard_threshold = motor_irun_sgt[motor][1] + 1;
+    } else if (motors_refs[motor].velocity_mode_current ==
+                   motor_irun_sgt[motor][0] &&
+               motors_refs[motor].stall_guard_threshold ==
+                   motor_irun_sgt[motor][1] + 1) {
+        motors_refs[motor].velocity_mode_current = motor_irun_sgt[motor][0] - 1;
+        motors_refs[motor].stall_guard_threshold = motor_irun_sgt[motor][1] + 1;
     } else {
         LOG_WRN("Out of options to decrease sensitivity");
     }
-    LOG_DBG("Motor %u: IRUN: 0x%02x, SGT: %u", mirror,
-            motors_refs[mirror].velocity_mode_current,
-            motors_refs[mirror].stall_guard_threshold);
+    LOG_DBG("Motor %u: IRUN: 0x%02x, SGT: %u", motor,
+            motors_refs[motor].velocity_mode_current,
+            motors_refs[motor].stall_guard_threshold);
 }
 
 static void
-reset_irun_sgt(mirror_t mirror)
+reset_irun_sgt(motor_t motor)
 {
-    motors_refs[mirror].velocity_mode_current = motor_irun_sgt[mirror][0];
-    motors_refs[mirror].stall_guard_threshold = motor_irun_sgt[mirror][1];
+    motors_refs[motor].velocity_mode_current = motor_irun_sgt[motor][0];
+    motors_refs[motor].stall_guard_threshold = motor_irun_sgt[motor][1];
 }
 
 static void
-to_one_direction(mirror_t mirror, bool positive_direction)
+to_one_direction(motor_t motor, bool positive_direction)
 {
-    uint8_t current = motors_refs[mirror].velocity_mode_current;
-    uint8_t sgt = motors_refs[mirror].stall_guard_threshold;
+    uint8_t current = motors_refs[motor].velocity_mode_current;
+    uint8_t sgt = motors_refs[motor].stall_guard_threshold;
 
     LOG_DBG("Current: %u, sgt: %u", current, sgt);
 
@@ -660,23 +714,23 @@ to_one_direction(mirror_t mirror, bool positive_direction)
 
     // COOLCONF, set SGT to offset StallGuard value
     motor_controller_spi_write(spi_bus_controller,
-                               TMC5041_REGISTERS[REG_IDX_COOLCONF][mirror],
+                               TMC5041_REGISTERS[REG_IDX_COOLCONF][motor],
                                (sgt << 16) | (1 << 24) /* enable SG filter */);
 
     // IHOLD_IRUN reg, bytes: [IHOLDDELAY|IRUN|IHOLD]
     // IHOLD = 0
     motor_controller_spi_write(spi_bus_controller,
-                               TMC5041_REGISTERS[REG_IDX_IHOLD_IRUN][mirror],
+                               TMC5041_REGISTERS[REG_IDX_IHOLD_IRUN][motor],
                                IHOLDDELAY | (current << 8));
 
     // start velocity mode until stall is detected ->
     motor_controller_spi_send_commands(
-        spi_bus_controller, motor_init_for_velocity_mode[mirror],
-        ARRAY_SIZE(motor_init_for_velocity_mode[mirror]));
+        spi_bus_controller, motor_init_for_velocity_mode[motor],
+        ARRAY_SIZE(motor_init_for_velocity_mode[motor]));
 
     // let's go
     motor_controller_spi_write(spi_bus_controller,
-                               TMC5041_REGISTERS[REG_IDX_RAMPMODE][mirror],
+                               TMC5041_REGISTERS[REG_IDX_RAMPMODE][motor],
                                positive_direction ? 1 : 2);
 }
 
@@ -696,12 +750,12 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
     UNUSED_PARAMETER(p3);
 
     ret_code_t err_code = RET_SUCCESS;
-    uint32_t mirror = (uint32_t)p1;
+    uint32_t motor = (uint32_t)p1;
     uint32_t status = 0;
     uint16_t last_stall_guard_values[2] = {0x0};
     size_t last_stall_guard_index = 0;
     int32_t timeout = 0;
-    motors_refs[mirror].auto_homing_state = AH_UNINIT;
+    motors_refs[motor].auto_homing_state = AH_UNINIT;
     uint32_t loop_count = 0;
     uint32_t loop_count_last_step = 0;
     int32_t first_direction = 1;
@@ -710,12 +764,12 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
     bool stall_detected = false;
     int32_t attempt = 0;
 
-    LOG_INF("Initializing mirror %u", mirror);
-    reset_irun_sgt(mirror);
+    LOG_INF("Initializing mirror %u", motor);
+    reset_irun_sgt(motor);
 
-    while (attempt < 2 && motors_refs[mirror].auto_homing_state != AH_SUCCESS) {
+    while (attempt < 2 && motors_refs[motor].auto_homing_state != AH_SUCCESS) {
         status = motor_controller_spi_read(
-            spi_bus_controller, TMC5041_REGISTERS[REG_IDX_DRV_STATUS][mirror]);
+            spi_bus_controller, TMC5041_REGISTERS[REG_IDX_DRV_STATUS][motor]);
         sg = status & 0x1FF;
         avg =
             (last_stall_guard_values[0] / 2) +
@@ -724,13 +778,13 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
              2);
         stall_detected = false;
 
-        LOG_DBG("Status %d 0x%08x, SG=%u, state %u", mirror, status, sg,
-                motors_refs[mirror].auto_homing_state);
+        LOG_DBG("Status %d 0x%08x, SG=%u, state %u", motor, status, sg,
+                motors_refs[motor].auto_homing_state);
         if (!(status & MOTOR_DRV_STATUS_STANDSTILL) &&
-            (motors_refs[mirror].auto_homing_state == AH_LOOKING_FIRST_END ||
-             motors_refs[mirror].auto_homing_state == AH_GO_OTHER_END)) {
+            (motors_refs[motor].auto_homing_state == AH_LOOKING_FIRST_END ||
+             motors_refs[motor].auto_homing_state == AH_GO_OTHER_END)) {
             if (sg < (avg * 0.75)) {
-                LOG_DBG("Motor %u stall detection, avg %u, sg %u", mirror, avg,
+                LOG_DBG("Motor %u stall detection, avg %u, sg %u", motor, avg,
                         sg);
                 stall_detected = true;
             }
@@ -741,7 +795,7 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                    sizeof(last_stall_guard_values));
         }
 
-        switch (motors_refs[mirror].auto_homing_state) {
+        switch (motors_refs[motor].auto_homing_state) {
 
         case AH_UNINIT: {
             // reset values
@@ -749,48 +803,48 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
             timeout = AUTOHOMING_TIMEOUT_LOOP_COUNT;
 
             // VSTART
-            motor_controller_spi_write(
-                spi_bus_controller, TMC5041_REGISTERS[REG_IDX_VSTART][mirror],
-                0x0);
+            motor_controller_spi_write(spi_bus_controller,
+                                       TMC5041_REGISTERS[REG_IDX_VSTART][motor],
+                                       0x0);
 
             // write xactual = 0
             motor_controller_spi_write(
-                spi_bus_controller, TMC5041_REGISTERS[REG_IDX_XACTUAL][mirror],
+                spi_bus_controller, TMC5041_REGISTERS[REG_IDX_XACTUAL][motor],
                 0x0);
 
             // clear status by reading RAMP_STAT
             motor_controller_spi_read(
                 spi_bus_controller,
-                TMC5041_REGISTERS[REG_IDX_RAMP_STAT][mirror]);
+                TMC5041_REGISTERS[REG_IDX_RAMP_STAT][motor]);
 
             // move a bit towards one end <-
             motor_controller_spi_send_commands(
-                spi_bus_controller, position_mode_initial_phase[mirror],
-                ARRAY_SIZE(position_mode_initial_phase[mirror]));
+                spi_bus_controller, position_mode_initial_phase[motor],
+                ARRAY_SIZE(position_mode_initial_phase[motor]));
 
             int32_t steps = ((int32_t)AUTOHOMING_AWAY_FROM_BARRIER_STEPS *
                              (int32_t)first_direction);
             LOG_WRN("Steps away from barrier: %i", steps);
             motor_controller_spi_write(
-                spi_bus_controller, TMC5041_REGISTERS[REG_IDX_XTARGET][mirror],
+                spi_bus_controller, TMC5041_REGISTERS[REG_IDX_XTARGET][motor],
                 (uint32_t)steps);
 
-            motors_refs[mirror].auto_homing_state = AH_INITIAL_SHIFT;
+            motors_refs[motor].auto_homing_state = AH_INITIAL_SHIFT;
         } break;
         case AH_INITIAL_SHIFT:
             if (status & MOTOR_DRV_STATUS_STANDSTILL) {
                 // motor is away from mechanical barrier
-                LOG_INF("Motor %u away from mechanical barrier", mirror);
+                LOG_INF("Motor %u away from mechanical barrier", motor);
 
                 // clear events
                 // the motor can be re-enabled by reading RAMP_STAT
                 motor_controller_spi_read(
                     spi_bus_controller,
-                    TMC5041_REGISTERS[REG_IDX_RAMP_STAT][mirror]);
+                    TMC5041_REGISTERS[REG_IDX_RAMP_STAT][motor]);
 
-                to_one_direction(mirror, (first_direction != 1));
+                to_one_direction(motor, (first_direction != 1));
 
-                motors_refs[mirror].auto_homing_state = AH_LOOKING_FIRST_END;
+                motors_refs[motor].auto_homing_state = AH_LOOKING_FIRST_END;
                 loop_count_last_step = loop_count;
 
                 // before we continue we need to wait for the motor to
@@ -800,8 +854,8 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                     k_msleep(AUTOHOMING_POLL_DELAY_MS);
                     status = motor_controller_spi_read(
                         spi_bus_controller,
-                        TMC5041_REGISTERS[REG_IDX_DRV_STATUS][mirror]);
-                    LOG_DBG("Status %d 0x%08x", mirror, status);
+                        TMC5041_REGISTERS[REG_IDX_DRV_STATUS][motor]);
+                    LOG_DBG("Status %d 0x%08x", motor, status);
                 } while (status & MOTOR_DRV_STATUS_STALLGUARD || --t == 0);
             }
             break;
@@ -816,19 +870,19 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 
                 // stop the motor (VMAX in velocity mode)
                 motor_controller_spi_write(
-                    spi_bus_controller, TMC5041_REGISTERS[REG_IDX_VMAX][mirror],
+                    spi_bus_controller, TMC5041_REGISTERS[REG_IDX_VMAX][motor],
                     0x0);
 
-                motors_refs[mirror].auto_homing_state = AH_WAIT_STANDSTILL;
+                motors_refs[motor].auto_homing_state = AH_WAIT_STANDSTILL;
 
                 if (timeout == 0) {
                     LOG_WRN("Timeout while looking for first end on motor %d, "
                             "increasing stall detection sensitivity",
-                            mirror);
+                            motor);
 
                     first_direction = -first_direction;
-                    increase_stall_sensitivity(mirror);
-                    motors_refs[mirror].auto_homing_state = AH_UNINIT;
+                    increase_stall_sensitivity(motor);
+                    motors_refs[motor].auto_homing_state = AH_UNINIT;
                 } else if ((loop_count - loop_count_last_step) *
                                AUTOHOMING_POLL_DELAY_MS <=
                            200) {
@@ -838,15 +892,15 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 
                     LOG_WRN(
                         "Motor %u stalls quickly, decrease stall sensitivity",
-                        mirror);
+                        motor);
 
                     // invert directions for autohoming in order to make sure we
                     // are not stuck
                     first_direction = -first_direction;
-                    decrease_stall_sensivity(mirror);
-                    motors_refs[mirror].auto_homing_state = AH_UNINIT;
+                    decrease_stall_sensivity(motor);
+                    motors_refs[motor].auto_homing_state = AH_UNINIT;
                 } else {
-                    LOG_INF("Motor %u stalled", mirror);
+                    LOG_INF("Motor %u stalled", motor);
                 }
             }
             break;
@@ -856,24 +910,24 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 // actual velocity VACTUAL or checking vzero or the standstill
                 // flag
 
-                LOG_INF("Motor %u reached first end pos", mirror);
+                LOG_INF("Motor %u reached first end pos", motor);
 
                 motor_controller_spi_write(
                     spi_bus_controller,
-                    TMC5041_REGISTERS[REG_IDX_SW_MODE][mirror], 0);
+                    TMC5041_REGISTERS[REG_IDX_SW_MODE][motor], 0);
 
                 // write xactual = 0
                 motor_controller_spi_write(
                     spi_bus_controller,
-                    TMC5041_REGISTERS[REG_IDX_XACTUAL][mirror], 0x0);
+                    TMC5041_REGISTERS[REG_IDX_XACTUAL][motor], 0x0);
 
                 // clear events
                 // the motor can be re-enabled by reading RAMP_STAT
                 motor_controller_spi_read(
                     spi_bus_controller,
-                    TMC5041_REGISTERS[REG_IDX_RAMP_STAT][mirror]);
+                    TMC5041_REGISTERS[REG_IDX_RAMP_STAT][motor]);
 
-                to_one_direction(mirror, (first_direction == 1));
+                to_one_direction(motor, (first_direction == 1));
 
                 // before we continue we need to wait for the motor to move and
                 // removes its stall detection flag
@@ -883,20 +937,20 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                     k_msleep(AUTOHOMING_POLL_DELAY_MS);
                     status = motor_controller_spi_read(
                         spi_bus_controller,
-                        TMC5041_REGISTERS[REG_IDX_DRV_STATUS][mirror]);
-                    LOG_DBG("Status %d 0x%08x", mirror, status);
+                        TMC5041_REGISTERS[REG_IDX_DRV_STATUS][motor]);
+                    LOG_DBG("Status %d 0x%08x", motor, status);
                 } while (status & MOTOR_DRV_STATUS_STALLGUARD || --t == 0);
 
                 if (status & MOTOR_DRV_STATUS_STALLGUARD) {
                     LOG_ERR("Motor %u stalled when trying to reach other end",
-                            mirror);
+                            motor);
 
-                    motors_refs[mirror].auto_homing_state = AH_FAIL;
+                    motors_refs[motor].auto_homing_state = AH_FAIL;
                     err_code = RET_ERROR_INVALID_STATE;
                     break;
                 }
 
-                motors_refs[mirror].auto_homing_state = AH_GO_OTHER_END;
+                motors_refs[motor].auto_homing_state = AH_GO_OTHER_END;
             }
             break;
         case AH_GO_OTHER_END:
@@ -906,68 +960,70 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 if (timeout == 0) {
                     LOG_ERR("Timeout to other end");
 
-                    motors_refs[mirror].auto_homing_state = AH_FAIL;
+                    motors_refs[motor].auto_homing_state = AH_FAIL;
                     err_code = RET_ERROR_INVALID_STATE;
                     break;
                 }
 
                 // stop the motor (VMAX in velocity mode)
                 motor_controller_spi_write(
-                    spi_bus_controller, TMC5041_REGISTERS[REG_IDX_VMAX][mirror],
+                    spi_bus_controller, TMC5041_REGISTERS[REG_IDX_VMAX][motor],
                     0x0);
 
                 motor_controller_spi_read(
                     spi_bus_controller,
-                    TMC5041_REGISTERS[REG_IDX_RAMP_STAT][mirror]);
+                    TMC5041_REGISTERS[REG_IDX_RAMP_STAT][motor]);
 
                 k_msleep(100);
 
                 // read current position
                 int32_t x = (int32_t)motor_controller_spi_read(
                     spi_bus_controller,
-                    TMC5041_REGISTERS[REG_IDX_XACTUAL][mirror]);
-                LOG_INF("Motor %u reached other end, pos %d", mirror, x);
+                    TMC5041_REGISTERS[REG_IDX_XACTUAL][motor]);
+                LOG_INF("Motor %u reached other end, pos %d", motor, x);
 
                 motor_controller_spi_write(
                     spi_bus_controller,
-                    TMC5041_REGISTERS[REG_IDX_SW_MODE][mirror], 0);
+                    TMC5041_REGISTERS[REG_IDX_SW_MODE][motor], 0);
 
                 // verify that motor moved at least
                 // `motors_full_course_minimum_steps`
                 if ((uint32_t)abs(x) <
-                    motors_full_course_minimum_steps[mirror]) {
+                    motors_full_course_minimum_steps[motor]) {
                     LOG_ERR(
                         "Motor %u range: %u microsteps, must be more than %u",
-                        mirror, abs(x),
-                        abs(motors_full_course_minimum_steps[mirror] *
+                        motor, abs(x),
+                        abs(motors_full_course_minimum_steps[motor] *
                             first_direction));
 
-                    motors_refs[mirror].auto_homing_state = AH_FAIL;
+                    motors_refs[motor].auto_homing_state = AH_FAIL;
                     err_code = RET_ERROR_INVALID_STATE;
                     break;
                 }
 
-                motors_refs[mirror].auto_homing_state = AH_SUCCESS;
+                motors_refs[motor].auto_homing_state = AH_SUCCESS;
 
                 // write xactual = 0
                 motor_controller_spi_write(
                     spi_bus_controller,
-                    TMC5041_REGISTERS[REG_IDX_XACTUAL][mirror], 0x0);
-                motors_refs[mirror].x0 = (-x / 2);
-                motors_refs[mirror].full_course = abs(x);
+                    TMC5041_REGISTERS[REG_IDX_XACTUAL][motor], 0x0);
+                motors_refs[motor].steps_at_center_position = (-x / 2);
+                motors_refs[motor].full_course = abs(x);
 
-                uint32_t angle_millid = microsteps_to_millidegrees(
-                    motors_refs[mirror].full_course, mirror);
+                uint32_t angle_millid =
+                    2 *
+                    calculate_millidegrees_from_center_position(
+                        (int32_t)(motors_refs[motor].full_course / 2), motor);
                 LOG_INF("Motor %u: range: %u millidegrees = %u usteps; x0: %d "
                         "usteps",
-                        mirror, angle_millid, motors_refs[mirror].full_course,
-                        motors_refs[mirror].x0);
+                        motor, angle_millid, motors_refs[motor].full_course,
+                        motors_refs[motor].steps_at_center_position);
 
                 MotorRange range = {
-                    .which_motor = (mirror == MIRROR_VERTICAL_ANGLE
-                                        ? MotorRange_Motor_VERTICAL
-                                        : MotorRange_Motor_HORIZONTAL),
-                    .range_microsteps = motors_refs[mirror].full_course,
+                    .which_motor = (motor == MOTOR_THETA_ANGLE
+                                        ? MotorRange_Motor_VERTICAL_THETA
+                                        : MotorRange_Motor_HORIZONTAL_PHI),
+                    .range_microsteps = motors_refs[motor].full_course,
                     .range_millidegrees = angle_millid};
                 publish_new(&range, sizeof(range), McuToJetson_motor_range_tag,
                             CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
@@ -977,8 +1033,8 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                 // will drive the motor
                 motor_controller_spi_write(
                     spi_bus_controller,
-                    TMC5041_REGISTERS[REG_IDX_XTARGET][mirror],
-                    motors_refs[mirror].x0);
+                    TMC5041_REGISTERS[REG_IDX_XTARGET][motor],
+                    motors_refs[motor].steps_at_center_position);
                 break;
             }
             break;
@@ -987,8 +1043,8 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
         case AH_FAIL:
             // - full range not detected
             // - stall detected far from second end
-            motors_refs[mirror].auto_homing_state = AH_UNINIT;
-            reset_irun_sgt(mirror);
+            motors_refs[motor].auto_homing_state = AH_UNINIT;
+            reset_irun_sgt(motor);
             attempt++;
             break;
         }
@@ -1000,60 +1056,59 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
 
     // in any case, we want the motor to be in positioning mode
     motor_controller_spi_send_commands(
-        spi_bus_controller, position_mode_full_speed[mirror],
-        ARRAY_SIZE(position_mode_full_speed[mirror]));
+        spi_bus_controller, position_mode_full_speed[motor],
+        ARRAY_SIZE(position_mode_full_speed[motor]));
 
     // keep auto-homing state
-    motors_refs[mirror].motor_state = err_code;
+    motors_refs[motor].motor_state = err_code;
 
     if (err_code) {
         // todo raise event motor issue
     }
 
-    if (mirror == MIRROR_VERTICAL_ANGLE) {
-        motors_refs[mirror].angle_millidegrees =
-            AUTO_HOMING_VERTICAL_ANGLE_RESULT_MILLI_DEGREES;
+    if (motor == MOTOR_THETA_ANGLE) {
+        motors_refs[motor].angle_millidegrees =
+            MIRROR_ANGLE_THETA_CENTER_MILLIDEGREES;
     } else {
-        motors_refs[mirror].angle_millidegrees =
-            AUTO_HOMING_HORIZONTAL_ANGLE_RESULT_MILLI_DEGREES;
+        motors_refs[motor].angle_millidegrees =
+            MIRROR_ANGLE_PHI_CENTER_MILLIDEGREES;
     }
 
-    k_sem_give(homing_in_progress_sem + mirror);
+    k_sem_give(homing_in_progress_sem + motor);
 }
 
 ret_code_t
-mirrors_auto_homing_stall_detection(mirror_t mirror,
-                                    struct k_thread **thread_ret)
+mirror_auto_homing_stall_detection(motor_t motor, struct k_thread **thread_ret)
 {
-    if (mirror >= MIRRORS_COUNT) {
+    if (motor >= MOTORS_COUNT) {
         return RET_ERROR_INVALID_PARAM;
     }
 
-    if (k_sem_take(&homing_in_progress_sem[mirror], K_NO_WAIT) == -EBUSY) {
-        LOG_WRN("Motor %u auto-homing already in progress", mirror);
+    if (k_sem_take(&homing_in_progress_sem[motor], K_NO_WAIT) == -EBUSY) {
+        LOG_WRN("Motor %u auto-homing already in progress", motor);
         return RET_ERROR_BUSY;
     }
 
-    if (mirror == MIRROR_HORIZONTAL_ANGLE) {
+    if (motor == MOTOR_PHI_ANGLE) {
         if (thread_ret) {
-            *thread_ret = &thread_data_mirror_horizontal;
+            *thread_ret = &thread_data_motor_phi;
         }
         k_tid_t tid = k_thread_create(
-            &thread_data_mirror_horizontal, stack_area_mirror_horizontal_init,
-            K_THREAD_STACK_SIZEOF(stack_area_mirror_horizontal_init),
-            motors_auto_homing_thread, (void *)MIRROR_HORIZONTAL_ANGLE, NULL,
-            NULL, THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
-        k_thread_name_set(tid, "mirrors_ah_horizontal_stalldetect");
+            &thread_data_motor_phi, stack_area_motor_phi_init,
+            K_THREAD_STACK_SIZEOF(stack_area_motor_phi_init),
+            motors_auto_homing_thread, (void *)MOTOR_PHI_ANGLE, NULL, NULL,
+            THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
+        k_thread_name_set(tid, "mirror_ah_phi_stalldetect");
     } else {
         if (thread_ret) {
-            *thread_ret = &thread_data_mirror_vertical;
+            *thread_ret = &thread_data_motor_theta;
         }
         k_tid_t tid = k_thread_create(
-            &thread_data_mirror_vertical, stack_area_mirror_vertical_init,
-            K_THREAD_STACK_SIZEOF(stack_area_mirror_vertical_init),
-            motors_auto_homing_thread, (void *)MIRROR_VERTICAL_ANGLE, NULL,
-            NULL, THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
-        k_thread_name_set(tid, "mirrors_ah_vertical_stalldetect");
+            &thread_data_motor_theta, stack_area_motor_theta_init,
+            K_THREAD_STACK_SIZEOF(stack_area_motor_theta_init),
+            motors_auto_homing_thread, (void *)MOTOR_THETA_ANGLE, NULL, NULL,
+            THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
+        k_thread_name_set(tid, "mirror_ah_theta_stalldetect");
     }
 
     return RET_SUCCESS;
@@ -1062,14 +1117,14 @@ mirrors_auto_homing_stall_detection(mirror_t mirror,
 #endif
 
 bool
-mirrors_homed_successfully(void)
+mirror_homed_successfully(void)
 {
-    return motors_refs[MIRROR_HORIZONTAL_ANGLE].motor_state == RET_SUCCESS &&
-           motors_refs[MIRROR_VERTICAL_ANGLE].motor_state == RET_SUCCESS;
+    return motors_refs[MOTOR_PHI_ANGLE].motor_state == RET_SUCCESS &&
+           motors_refs[MOTOR_THETA_ANGLE].motor_state == RET_SUCCESS;
 }
 
 static void
-mirrors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
+mirror_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
 {
     ARG_UNUSED(p2);
     ARG_UNUSED(p3);
@@ -1111,15 +1166,15 @@ mirrors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                     spi_bus_controller,
                     TMC5041_REGISTERS[REG_IDX_XACTUAL][motor], 0x0);
 
-                motors_refs[motor].x0 =
+                motors_refs[motor].steps_at_center_position =
                     (int32_t)motors_center_from_end_steps[motor];
-                motors_refs[motor].full_course = abs(motors_refs[motor].x0 * 2);
+                motors_refs[motor].full_course = motors_full_range_steps[motor];
 
                 // go to middle position
                 motor_controller_spi_write(
                     spi_bus_controller,
                     TMC5041_REGISTERS[REG_IDX_XTARGET][motor],
-                    motors_refs[motor].x0);
+                    motors_refs[motor].steps_at_center_position);
 
                 motors_refs[motor].auto_homing_state = AH_WAIT_STANDSTILL;
             }
@@ -1128,17 +1183,20 @@ mirrors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
             break;
         case AH_WAIT_STANDSTILL: {
             if (status & MOTOR_DRV_STATUS_STANDSTILL) {
-                uint32_t angle_millid = microsteps_to_millidegrees(
-                    motors_refs[motor].full_course, motor);
-                LOG_INF("Motor %u, x0: %d microsteps, range: %u millidegrees",
-                        motor, motors_refs[motor].x0, angle_millid);
+                uint32_t angle_range_millidegrees =
+                    2 * calculate_millidegrees_from_center_position(
+                            motors_refs[motor].full_course / 2, motor);
+                LOG_INF("Motor %u, x0: center: %d microsteps, range: %u "
+                        "millidegrees",
+                        motor, motors_refs[motor].steps_at_center_position,
+                        angle_range_millidegrees);
 
                 MotorRange range = {
-                    .which_motor = (motor == MIRROR_VERTICAL_ANGLE
-                                        ? MotorRange_Motor_VERTICAL
-                                        : MotorRange_Motor_HORIZONTAL),
+                    .which_motor = (motor == MOTOR_THETA_ANGLE
+                                        ? MotorRange_Motor_VERTICAL_THETA
+                                        : MotorRange_Motor_HORIZONTAL_PHI),
                     .range_microsteps = motors_refs[motor].full_course,
-                    .range_millidegrees = angle_millid};
+                    .range_millidegrees = angle_range_millidegrees};
                 publish_new(&range, sizeof(range), McuToJetson_motor_range_tag,
                             CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 
@@ -1169,75 +1227,74 @@ mirrors_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
         motors_refs[motor].motor_state = RET_SUCCESS;
     }
 
-    if (motor == MIRROR_VERTICAL_ANGLE) {
+    if (motor == MOTOR_THETA_ANGLE) {
         motors_refs[motor].angle_millidegrees =
-            AUTO_HOMING_VERTICAL_ANGLE_RESULT_MILLI_DEGREES;
+            MIRROR_ANGLE_THETA_CENTER_MILLIDEGREES;
     } else {
         motors_refs[motor].angle_millidegrees =
-            AUTO_HOMING_HORIZONTAL_ANGLE_RESULT_MILLI_DEGREES;
+            MIRROR_ANGLE_PHI_CENTER_MILLIDEGREES;
     }
 
     k_sem_give(homing_in_progress_sem + motor);
 }
 
 ret_code_t
-mirrors_auto_homing_one_end(mirror_t mirror)
+mirror_auto_homing_one_end(motor_t motor)
 {
-    if (mirror >= MIRRORS_COUNT) {
+    if (motor >= MOTORS_COUNT) {
         return RET_ERROR_INVALID_PARAM;
     }
 
-    if (k_sem_take(&homing_in_progress_sem[mirror], K_NO_WAIT) == -EBUSY) {
-        LOG_WRN("Motor %u auto-homing already in progress", mirror);
+    if (k_sem_take(&homing_in_progress_sem[motor], K_NO_WAIT) == -EBUSY) {
+        LOG_WRN("Motor %u auto-homing already in progress", motor);
         return RET_ERROR_BUSY;
     }
 
-    if (mirror == MIRROR_HORIZONTAL_ANGLE) {
+    if (motor == MOTOR_PHI_ANGLE) {
         k_tid_t tid = k_thread_create(
-            &thread_data_mirror_horizontal, stack_area_mirror_horizontal_init,
-            K_THREAD_STACK_SIZEOF(stack_area_mirror_horizontal_init),
-            mirrors_auto_homing_one_end_thread, (void *)MIRROR_HORIZONTAL_ANGLE,
-            NULL, NULL, THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
-        k_thread_name_set(tid, "motors_ah_horizontal_one_end");
+            &thread_data_motor_phi, stack_area_motor_phi_init,
+            K_THREAD_STACK_SIZEOF(stack_area_motor_phi_init),
+            mirror_auto_homing_one_end_thread, (void *)MOTOR_PHI_ANGLE, NULL,
+            NULL, THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
+        k_thread_name_set(tid, "motor_ah_phi_one_end");
     } else {
-        k_timeout_t delay = (motors_refs[MIRROR_VERTICAL_ANGLE].motor_state ==
+        k_timeout_t delay = (motors_refs[MOTOR_THETA_ANGLE].motor_state ==
                                      RET_ERROR_NOT_INITIALIZED
                                  ? K_MSEC(2000)
                                  : K_NO_WAIT);
 
         k_tid_t tid = k_thread_create(
-            &thread_data_mirror_vertical, stack_area_mirror_vertical_init,
-            K_THREAD_STACK_SIZEOF(stack_area_mirror_vertical_init),
-            mirrors_auto_homing_one_end_thread, (void *)MIRROR_VERTICAL_ANGLE,
-            NULL, NULL, THREAD_PRIORITY_MOTORS_INIT, 0, delay);
-        k_thread_name_set(tid, "motors_ah_vertical_one_end");
+            &thread_data_motor_theta, stack_area_motor_theta_init,
+            K_THREAD_STACK_SIZEOF(stack_area_motor_theta_init),
+            mirror_auto_homing_one_end_thread, (void *)MOTOR_THETA_ANGLE, NULL,
+            NULL, THREAD_PRIORITY_MOTORS_INIT, 0, delay);
+        k_thread_name_set(tid, "motor_ah_theta_one_end");
     }
 
     return RET_SUCCESS;
 }
 
 bool
-mirrors_auto_homing_in_progress()
+mirror_auto_homing_in_progress()
 {
-    return (
-        k_sem_count_get(&homing_in_progress_sem[MIRROR_VERTICAL_ANGLE]) == 0 ||
-        k_sem_count_get(&homing_in_progress_sem[MIRROR_HORIZONTAL_ANGLE]) == 0);
+    return (k_sem_count_get(&homing_in_progress_sem[MOTOR_THETA_ANGLE]) == 0 ||
+            k_sem_count_get(&homing_in_progress_sem[MOTOR_PHI_ANGLE]) == 0);
 }
 
-int32_t
-mirrors_get_horizontal_position(void)
+uint32_t
+mirror_get_phi_angle_millidegrees(void)
 {
-    return motors_refs[MIRROR_HORIZONTAL_ANGLE].angle_millidegrees;
+    return motors_refs[MOTOR_PHI_ANGLE].angle_millidegrees;
 }
 
-int32_t
-mirrors_get_vertical_position(void)
+uint32_t
+mirror_get_theta_angle_millidegrees(void)
 {
-    return motors_refs[MIRROR_VERTICAL_ANGLE].angle_millidegrees;
+    return motors_refs[MOTOR_THETA_ANGLE].angle_millidegrees;
 }
 
 ret_code_t
-mirrors_init(void)
+mirror_init(void)
 {
     int err_code;
     uint32_t read_value;
@@ -1263,41 +1320,38 @@ mirrors_init(void)
         return RET_ERROR_OFFLINE;
     }
 
-    err_code =
-        k_sem_init(&homing_in_progress_sem[MIRROR_HORIZONTAL_ANGLE], 1, 1);
+    err_code = k_sem_init(&homing_in_progress_sem[MOTOR_PHI_ANGLE], 1, 1);
     if (err_code) {
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
 
-    err_code = k_sem_init(&homing_in_progress_sem[MIRROR_VERTICAL_ANGLE], 1, 1);
+    err_code = k_sem_init(&homing_in_progress_sem[MOTOR_THETA_ANGLE], 1, 1);
     if (err_code) {
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
 
-    motors_refs[MIRROR_HORIZONTAL_ANGLE].motor_state =
-        RET_ERROR_NOT_INITIALIZED;
-    motors_refs[MIRROR_VERTICAL_ANGLE].motor_state = RET_ERROR_NOT_INITIALIZED;
+    motors_refs[MOTOR_PHI_ANGLE].motor_state = RET_ERROR_NOT_INITIALIZED;
+    motors_refs[MOTOR_THETA_ANGLE].motor_state = RET_ERROR_NOT_INITIALIZED;
 
     // Set motor in positioning mode
     motor_controller_spi_send_commands(
-        spi_bus_controller, position_mode_full_speed[MIRROR_HORIZONTAL_ANGLE],
-        ARRAY_SIZE(position_mode_full_speed[MIRROR_HORIZONTAL_ANGLE]));
+        spi_bus_controller, position_mode_full_speed[MOTOR_PHI_ANGLE],
+        ARRAY_SIZE(position_mode_full_speed[MOTOR_PHI_ANGLE]));
     motor_controller_spi_send_commands(
-        spi_bus_controller, position_mode_full_speed[MIRROR_VERTICAL_ANGLE],
-        ARRAY_SIZE(position_mode_full_speed[MIRROR_VERTICAL_ANGLE]));
+        spi_bus_controller, position_mode_full_speed[MOTOR_THETA_ANGLE],
+        ARRAY_SIZE(position_mode_full_speed[MOTOR_THETA_ANGLE]));
 
     // auto-home after boot
-    err_code = mirrors_auto_homing_one_end(MIRROR_HORIZONTAL_ANGLE);
+    err_code = mirror_auto_homing_one_end(MOTOR_PHI_ANGLE);
     ASSERT_SOFT(err_code);
-    err_code = mirrors_auto_homing_one_end(MIRROR_VERTICAL_ANGLE);
+    err_code = mirror_auto_homing_one_end(MOTOR_THETA_ANGLE);
     ASSERT_SOFT(err_code);
 
-    k_work_init(&vertical_set_work_item.work,
-                mirror_angle_vertical_work_wrapper);
-    k_work_init(&horizontal_set_work_item.work,
-                mirror_angle_horizontal_work_wrapper);
+    k_work_init(&theta_angle_set_work_item.work,
+                mirror_angle_theta_work_wrapper);
+    k_work_init(&phi_angle_set_work_item.work, mirror_angle_phi_work_wrapper);
 
     k_work_queue_init(&mirror_work_queue);
     k_work_queue_start(&mirror_work_queue, stack_area_mirror_work_queue,

@@ -6,7 +6,7 @@
 #include "mcu_messaging.pb.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
 #include "optics/liquid_lens/liquid_lens.h"
-#include "optics/mirrors/mirrors.h"
+#include "optics/mirror/mirror.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "system/version/version.h"
@@ -334,40 +334,57 @@ handle_mirror_angle_message(job_t *job)
     JetsonToMcu *msg = &job->message;
     MAKE_ASSERTS(JetsonToMcu_mirror_angle_tag);
 
-    uint32_t horizontal_angle = msg->payload.mirror_angle.horizontal_angle;
-    int32_t vertical_angle = msg->payload.mirror_angle.vertical_angle;
+    uint32_t mirror_target_angle_phi_millidegrees;
+    uint32_t mirror_target_angle_theta_millidegrees;
 
-    if (mirrors_auto_homing_in_progress()) {
+    switch (msg->payload.mirror_angle.angle_type) {
+    case MirrorAngleType_HORIZONTAL_VERTICAL: {
+        // this angle type should not be used anymore but is kept for
+        // compatibility
+        uint32_t horizontal_angle_millidegrees =
+            msg->payload.mirror_angle.horizontal_angle;
+        int32_t vertical_angle_millidegrees =
+            msg->payload.mirror_angle.vertical_angle;
+        mirror_target_angle_phi_millidegrees =
+            -(((int32_t)horizontal_angle_millidegrees - 45000) / 2) + 45000;
+        mirror_target_angle_theta_millidegrees =
+            vertical_angle_millidegrees / 2 + 90000;
+    } break;
+    case MirrorAngleType_PHI_THETA:
+        mirror_target_angle_phi_millidegrees =
+            msg->payload.mirror_angle.phi_angle_millidegrees;
+        mirror_target_angle_theta_millidegrees =
+            msg->payload.mirror_angle.theta_angle_millidegrees;
+        break;
+    default:
+        job_ack(Ack_ErrorCode_FAIL, job);
+        return;
+    }
+
+    if (mirror_auto_homing_in_progress()) {
         job_ack(Ack_ErrorCode_IN_PROGRESS, job);
         return;
     }
 
-    if (horizontal_angle > MIRRORS_ANGLE_HORIZONTAL_MAX ||
-        horizontal_angle < MIRRORS_ANGLE_HORIZONTAL_MIN) {
-        LOG_ERR("Horizontal angle of %u out of range [%u;%u]", horizontal_angle,
-                MIRRORS_ANGLE_HORIZONTAL_MIN, MIRRORS_ANGLE_HORIZONTAL_MAX);
-        job_ack(Ack_ErrorCode_RANGE, job);
+    LOG_DBG("Got mirror angle message, theta: %u, phi: %u",
+            mirror_target_angle_theta_millidegrees,
+            mirror_target_angle_phi_millidegrees);
+
+    ret_code_t ret = mirror_set_angle_phi(mirror_target_angle_phi_millidegrees);
+    if (ret == RET_SUCCESS) {
+        ret = mirror_set_angle_theta(mirror_target_angle_theta_millidegrees);
+    }
+
+    if (ret != RET_SUCCESS) {
+        if (ret == RET_ERROR_INVALID_PARAM) {
+            job_ack(Ack_ErrorCode_RANGE, job);
+        } else {
+            job_ack(Ack_ErrorCode_FAIL, job);
+        }
         return;
     }
 
-    if (vertical_angle > MIRRORS_ANGLE_VERTICAL_MAX ||
-        vertical_angle < MIRRORS_ANGLE_VERTICAL_MIN) {
-        LOG_ERR("Vertical angle of %d out of range [%d;%d]", vertical_angle,
-                MIRRORS_ANGLE_VERTICAL_MIN, MIRRORS_ANGLE_VERTICAL_MAX);
-        job_ack(Ack_ErrorCode_RANGE, job);
-        return;
-    }
-
-    LOG_DBG("Got mirror angle message, vert: %d, horiz: %u", vertical_angle,
-            horizontal_angle);
-
-    if (mirrors_angle_horizontal(horizontal_angle) != RET_SUCCESS) {
-        job_ack(Ack_ErrorCode_FAIL, job);
-    } else if (mirrors_angle_vertical(vertical_angle) != RET_SUCCESS) {
-        job_ack(Ack_ErrorCode_FAIL, job);
-    } else {
-        job_ack(Ack_ErrorCode_SUCCESS, job);
-    }
+    job_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
@@ -884,18 +901,18 @@ handle_do_homing(job_t *job)
     PerformMirrorHoming_Angle angle = msg->payload.do_homing.angle;
     LOG_DBG("Got do autohoming message, mode = %u, angle = %u", mode, angle);
 
-    if (mirrors_auto_homing_in_progress()) {
+    if (mirror_auto_homing_in_progress()) {
         job_ack(Ack_ErrorCode_IN_PROGRESS, job);
     } else if (mode == PerformMirrorHoming_Mode_STALL_DETECTION) {
         job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
     } else {
         if (angle == PerformMirrorHoming_Angle_BOTH ||
-            angle == PerformMirrorHoming_Angle_HORIZONTAL) {
-            ret |= mirrors_auto_homing_one_end(MIRROR_HORIZONTAL_ANGLE);
+            angle == PerformMirrorHoming_Angle_HORIZONTAL_PHI) {
+            ret |= mirror_auto_homing_one_end(MOTOR_PHI_ANGLE);
         }
         if (angle == PerformMirrorHoming_Angle_BOTH ||
-            angle == PerformMirrorHoming_Angle_VERTICAL) {
-            ret |= mirrors_auto_homing_one_end(MIRROR_VERTICAL_ANGLE);
+            angle == PerformMirrorHoming_Angle_VERTICAL_THETA) {
+            ret |= mirror_auto_homing_one_end(MOTOR_THETA_ANGLE);
         }
 
         // send ack before timeout even though auto-homing not completed
@@ -980,37 +997,61 @@ handle_mirror_angle_relative_message(job_t *job)
     JetsonToMcu *msg = &job->message;
     MAKE_ASSERTS(JetsonToMcu_mirror_angle_relative_tag);
 
-    int32_t horizontal_angle =
-        msg->payload.mirror_angle_relative.horizontal_angle;
-    int32_t vertical_angle = msg->payload.mirror_angle_relative.vertical_angle;
+    int32_t mirror_relative_angle_phi_millidegrees;
+    int32_t mirror_relative_angle_theta_millidegrees;
 
-    if (mirrors_auto_homing_in_progress()) {
+    switch (msg->payload.mirror_angle_relative.angle_type) {
+    case MirrorAngleType_HORIZONTAL_VERTICAL: {
+        int32_t relative_angle_horizontal_millidegrees =
+            msg->payload.mirror_angle_relative.horizontal_angle;
+        int32_t relative_angle_vertical_millidegrees =
+            msg->payload.mirror_angle_relative.vertical_angle;
+        mirror_relative_angle_phi_millidegrees =
+            -(relative_angle_horizontal_millidegrees / 2);
+        mirror_relative_angle_theta_millidegrees =
+            relative_angle_vertical_millidegrees / 2;
+        LOG_DBG(
+            "Got relative mirror angle message, vertical: %d, horizontal: %d",
+            relative_angle_vertical_millidegrees,
+            relative_angle_horizontal_millidegrees);
+    } break;
+    case MirrorAngleType_PHI_THETA:
+        mirror_relative_angle_phi_millidegrees =
+            msg->payload.mirror_angle_relative.phi_angle_millidegrees;
+        mirror_relative_angle_theta_millidegrees =
+            msg->payload.mirror_angle_relative.theta_angle_millidegrees;
+        break;
+    default:
+        job_ack(Ack_ErrorCode_FAIL, job);
+        return;
+    }
+
+    if (mirror_auto_homing_in_progress()) {
         job_ack(Ack_ErrorCode_IN_PROGRESS, job);
         return;
     }
 
-    if (abs(horizontal_angle) > MIRRORS_ANGLE_HORIZONTAL_RANGE) {
-        LOG_ERR("Horizontal angle of %u out of range (max %u)",
-                horizontal_angle, MIRRORS_ANGLE_HORIZONTAL_RANGE);
-        job_ack(Ack_ErrorCode_RANGE, job);
-        return;
+    LOG_DBG("Got relative mirror angle message, theta: %d, phi: %d",
+            mirror_relative_angle_theta_millidegrees,
+            mirror_relative_angle_phi_millidegrees);
+
+    ret_code_t ret =
+        mirror_set_angle_phi_relative(mirror_relative_angle_phi_millidegrees);
+    if (ret == RET_SUCCESS) {
+        ret = mirror_set_angle_theta_relative(
+            mirror_relative_angle_theta_millidegrees);
     }
-    if (abs(vertical_angle) > MIRRORS_ANGLE_VERTICAL_RANGE) {
-        LOG_ERR("Vertical angle of %u out of range (max %u)", vertical_angle,
-                MIRRORS_ANGLE_VERTICAL_RANGE);
-        job_ack(Ack_ErrorCode_RANGE, job);
+
+    if (ret != RET_SUCCESS) {
+        if (ret == RET_ERROR_INVALID_PARAM) {
+            job_ack(Ack_ErrorCode_RANGE, job);
+        } else {
+            job_ack(Ack_ErrorCode_FAIL, job);
+        }
         return;
     }
 
-    LOG_DBG("Got relative mirror angle message, vert: %d, horiz: %u",
-            vertical_angle, horizontal_angle);
-
-    if (mirrors_angle_horizontal_relative(horizontal_angle) != RET_SUCCESS ||
-        mirrors_angle_vertical_relative(vertical_angle) != RET_SUCCESS) {
-        job_ack(Ack_ErrorCode_FAIL, job);
-    } else {
-        job_ack(Ack_ErrorCode_SUCCESS, job);
-    }
+    job_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
 static void

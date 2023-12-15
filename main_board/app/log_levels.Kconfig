@@ -34,8 +34,8 @@ module = RUNNER
 module-str = RUNNER
 source "subsys/logging/Kconfig.template.log_config"
 
-module = MIRRORS
-module-str = MIRRORS
+module = MIRROR
+module-str = MIRROR
 source "subsys/logging/Kconfig.template.log_config"
 
 module = LIQUID_LENS

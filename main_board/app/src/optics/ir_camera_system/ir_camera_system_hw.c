@@ -7,11 +7,11 @@
 #include "ir_camera_timer_settings.h"
 #include "optics/1d_tof/tof_1d.h"
 #include "optics/liquid_lens/liquid_lens.h"
+#include "optics/mirror/mirror.h"
 #include <app_assert.h>
 #include <app_config.h>
 #include <assert.h>
 #include <math.h>
-#include <optics/mirrors/mirrors.h>
 #include <soc.h>
 #include <stm32_ll_tim.h>
 #include <system/stm32_timer_utils/stm32_timer_utils.h>
@@ -279,15 +279,15 @@ evaluate_focus_sweep_polynomial(uint32_t frame_no)
                          (focus_sweep_polynomial.coef_f * frame_no_float)))))));
 }
 
-// In milli-degrees
 struct mirror_delta {
-    int32_t delta_x;
-    int32_t delta_y;
+    int32_t delta_phi_millidegrees;
+    int32_t delta_theta_millidegrees;
 };
 
 // Mirror sweep stuff
 static IREyeCameraMirrorSweepValuesPolynomial mirror_sweep_polynomial;
-static int32_t initial_mirror_y_pos, initial_mirror_x_pos;
+static uint32_t initial_mirror_angle_theta_millidegrees,
+    initial_mirror_angle_phi_millidegrees;
 
 void
 ir_camera_system_set_polynomial_coefficients_for_mirror_sweep_hw(
@@ -311,8 +311,14 @@ evaluate_mirror_sweep_polynomials(uint32_t frame_no)
                    (mirror_sweep_polynomial.angle_coef_b +
                     (frame_no_float * mirror_sweep_polynomial.angle_coef_c)));
 
-    md.delta_x = (int32_t)(radius * sinf(angle)) * 1000;
-    md.delta_y = (int32_t)(radius * cosf(angle)) * 1000;
+    md.delta_phi_millidegrees = (int32_t)(radius * sinf(angle)) * 1000;
+    md.delta_theta_millidegrees = (int32_t)(radius * cosf(angle)) * 1000;
+
+    // because of the new angle definitions as phi/theta (previous
+    // horizontal/vertical) we need to divide these values by 2 and invert the
+    // x-value: todo: I'm not sure about the inversion -> double check this
+    md.delta_phi_millidegrees /= -2;
+    md.delta_theta_millidegrees /= 2;
 
     return md;
 }
@@ -360,8 +366,12 @@ camera_sweep_isr(void *arg)
         } else {
             struct mirror_delta md =
                 evaluate_mirror_sweep_polynomials(sweep_index);
-            mirrors_angle_horizontal_async(md.delta_x + initial_mirror_x_pos);
-            mirrors_angle_vertical_async(md.delta_y + initial_mirror_y_pos);
+            mirror_set_angle_phi_async(
+                md.delta_phi_millidegrees +
+                (int32_t)initial_mirror_angle_phi_millidegrees);
+            mirror_set_angle_theta_async(
+                md.delta_theta_millidegrees +
+                (int32_t)initial_mirror_angle_theta_millidegrees);
         }
     } else {
         LOG_ERR("Nothing is in progress, this should not be possible!");
@@ -409,11 +419,14 @@ static void
 initialize_mirror_sweep(void)
 {
     sweep_index = 0;
-    initial_mirror_x_pos = mirrors_get_horizontal_position();
-    initial_mirror_y_pos = mirrors_get_vertical_position();
+    initial_mirror_angle_phi_millidegrees = mirror_get_phi_angle_millidegrees();
+    initial_mirror_angle_theta_millidegrees =
+        mirror_get_theta_angle_millidegrees();
 
-    LOG_DBG("Initial mirror x pos: %d", initial_mirror_x_pos);
-    LOG_DBG("Initial mirror y pos: %d", initial_mirror_y_pos);
+    LOG_DBG("Initial mirror angle phi: %d",
+            initial_mirror_angle_phi_millidegrees);
+    LOG_DBG("Initial mirror angle theta: %d",
+            initial_mirror_angle_theta_millidegrees);
 
     clear_ccr_interrupt_flag[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
         CAMERA_TRIGGER_TIMER);

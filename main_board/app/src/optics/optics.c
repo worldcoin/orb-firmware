@@ -3,7 +3,7 @@
 #include "optics/1d_tof/tof_1d.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
 #include "optics/liquid_lens/liquid_lens.h"
-#include "optics/mirrors/mirrors.h"
+#include "optics/mirror/mirror.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "system/diag.h"
@@ -122,7 +122,7 @@ optics_init(const Hardware *hw_version)
         return err_code;
     }
 
-    err_code = mirrors_init();
+    err_code = mirror_init();
     if (err_code) {
         ASSERT_SOFT(err_code);
         return err_code;

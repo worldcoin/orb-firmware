@@ -78,7 +78,7 @@ list(APPEND SOURCES_FILES
     src/optics/ir_camera_system/ir_camera_system_hw.c
     src/optics/ir_camera_system/ir_camera_system.c
     src/optics/liquid_lens/liquid_lens.c
-    src/optics/mirrors/mirrors.c
+    src/optics/mirror/mirror.c
 
     src/power/boot/boot.c
 
@@ -122,7 +122,7 @@ if (CONFIG_ZTEST)
     list(APPEND SOURCES_FILES
         src/voltage_measurement/voltage_measurement_tests.c
         src/optics/ir_camera_system/ir_camera_system_tests.c
-        src/optics/mirrors/mirrors_tests.c
+        src/optics/mirror/mirror_tests.c
         src/system/dfu/dfu_tests.c
         src/temperature/fan/fan_tests.c
         src/ui/rgb_leds/front_leds/front_leds_tests.c
