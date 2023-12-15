@@ -14,6 +14,7 @@
 #include "temperature/sensors/temperature.h"
 #include "ui/rgb_leds/operator_leds/operator_leds.h"
 #include "ui/rgb_leds/rgb_leds.h"
+#include "ui/ui.h"
 #include "voltage_measurement/voltage_measurement.h"
 #include <app_assert.h>
 #include <heartbeat.h>
@@ -1069,6 +1070,9 @@ handle_value_get_message(job_t *job)
         break;
     case ValueGet_Value_HARDWARE_VERSIONS:
         version_hw_send(job->remote_addr);
+        break;
+    case ValueGet_Value_CONE_PRESENT:
+        ui_cone_present_send(job->remote_addr);
         break;
     default: {
         // unknown value, respond with error

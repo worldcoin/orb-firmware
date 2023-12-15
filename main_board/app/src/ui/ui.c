@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "pubsub/pubsub.h"
 #include "ui/rgb_leds/front_leds/front_leds.h"
 #include "ui/rgb_leds/operator_leds/operator_leds.h"
 #include <app_assert.h>
@@ -8,6 +9,18 @@
 #include "ui/white_leds/white_leds.h"
 #include <zephyr/toolchain/gcc.h>
 #endif
+
+static bool cone_present = false;
+
+void
+ui_cone_present_send(uint32_t remote)
+{
+    ConePresent cone_status = {
+        .cone_present = cone_present,
+    };
+    publish_new(&cone_status, sizeof(cone_status), McuToJetson_cone_present_tag,
+                remote);
+}
 
 int
 ui_init(void)
@@ -28,9 +41,8 @@ ui_init(void)
                  "SC18IS606 must be configured before using it by the LED "
                  "strip driver.");
 
-    // explicitly discard the return value of the init functions
-    // in case the cone is not connected
-    (void)cone_leds_init();
+    cone_present = (cone_leds_init() == RET_SUCCESS);
+    ui_cone_present_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 
     err_code = white_leds_init();
     ASSERT_SOFT(err_code);
