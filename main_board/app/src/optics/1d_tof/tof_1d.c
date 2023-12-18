@@ -33,9 +33,14 @@ BUILD_ASSERT(INTER_MEASUREMENT_FREQ_HZ > 0,
 bool
 distance_is_safe(void)
 {
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+    // fixme: find a way to use 1d tof on diamond
+    return true;
+#else
     long counter = atomic_get(&too_close_counter);
     bool is_safe = counter < TOO_CLOSE_THRESHOLD;
     return is_safe;
+#endif
 }
 
 _Noreturn void
