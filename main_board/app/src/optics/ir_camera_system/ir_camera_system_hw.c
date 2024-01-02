@@ -8,6 +8,7 @@
 #include "optics/1d_tof/tof_1d.h"
 #include "optics/liquid_lens/liquid_lens.h"
 #include "optics/mirror/mirror.h"
+#include "ui/rgb_leds/front_leds/front_leds.h"
 #include <app_assert.h>
 #include <app_config.h>
 #include <assert.h>
@@ -115,6 +116,8 @@ static struct stm32_pclken led_850nm_pclken =
     (DT_PROP_BY_IDX(LED_850NM_NODE, channels, 0))
 #define LED_850NM_TIMER_RIGHT_CHANNEL                                          \
     (DT_PROP_BY_IDX(LED_850NM_NODE, channels, 1))
+#define LED_850NM_TIMER_GLOBAL_IRQn                                            \
+    DT_IRQ_BY_NAME(DT_PARENT(LED_850NM_NODE), global, irq)
 // END --- 850nm LEDs
 
 // START --- 940nm LED
@@ -132,6 +135,8 @@ static struct stm32_pclken led_940nm_pclken = DT_INST_CLK(LED_940NM_NODE);
     (DT_PROP_BY_IDX(LED_940NM_NODE, channels, 0))
 #define LED_940NM_TIMER_RIGHT_CHANNEL                                          \
     (DT_PROP_BY_IDX(LED_940NM_NODE, channels, 1))
+#define LED_940NM_GLOBAL_IRQn                                                  \
+    DT_IRQ_BY_NAME(DT_PARENT(LED_940NM_NODE), global, irq)
 // END --- 940nm LED
 
 // START --- 740nm LED
@@ -453,6 +458,23 @@ ir_camera_system_perform_mirror_sweep_hw(void)
     }
 }
 
+static void
+ir_leds_pulse_finished_isr(void *arg)
+{
+    ARG_UNUSED(arg);
+
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    front_leds_notify_ir_leds_off();
+
+    clear_ccr_interrupt_flag[LED_850NM_TIMER_LEFT_CHANNEL - 1](LED_850NM_TIMER);
+    clear_ccr_interrupt_flag[LED_850NM_TIMER_RIGHT_CHANNEL - 1](
+        LED_850NM_TIMER);
+    clear_ccr_interrupt_flag[LED_940NM_TIMER_LEFT_CHANNEL - 1](LED_940NM_TIMER);
+    clear_ccr_interrupt_flag[LED_940NM_TIMER_RIGHT_CHANNEL - 1](
+        LED_940NM_TIMER);
+#endif
+}
+
 static bool
 ir_leds_are_on(void)
 {
@@ -651,38 +673,56 @@ set_ccr_ir_leds(void)
         k_msleep(1);
     }
 
+    // disable all CCR interrupts, later enable only active channel
+    disable_ccr_interrupt[LED_850NM_TIMER_RIGHT_CHANNEL - 1](LED_850NM_TIMER);
+    disable_ccr_interrupt[LED_850NM_TIMER_LEFT_CHANNEL - 1](LED_850NM_TIMER);
+    disable_ccr_interrupt[LED_940NM_TIMER_RIGHT_CHANNEL - 1](LED_940NM_TIMER);
+    disable_ccr_interrupt[LED_940NM_TIMER_LEFT_CHANNEL - 1](LED_940NM_TIMER);
+
     switch (ir_camera_system_get_enabled_leds()) {
     case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
         set_timer_compare[LED_850NM_TIMER_LEFT_CHANNEL - 1](
             LED_850NM_TIMER, global_timer_settings.ccr);
         set_timer_compare[LED_850NM_TIMER_RIGHT_CHANNEL - 1](
             LED_850NM_TIMER, global_timer_settings.ccr);
+        // single interrupt is sufficient for both 850nm channels
+        enable_ccr_interrupt[LED_850NM_TIMER_LEFT_CHANNEL - 1](LED_850NM_TIMER);
         break;
     case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
         set_timer_compare[LED_850NM_TIMER_LEFT_CHANNEL - 1](
             LED_850NM_TIMER, global_timer_settings.ccr);
+        enable_ccr_interrupt[LED_850NM_TIMER_LEFT_CHANNEL - 1](LED_850NM_TIMER);
         break;
     case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
         set_timer_compare[LED_850NM_TIMER_RIGHT_CHANNEL - 1](
             LED_850NM_TIMER, global_timer_settings.ccr);
+        enable_ccr_interrupt[LED_850NM_TIMER_RIGHT_CHANNEL - 1](
+            LED_850NM_TIMER);
         break;
     case InfraredLEDs_Wavelength_WAVELENGTH_940NM:
         set_timer_compare[LED_940NM_TIMER_LEFT_CHANNEL - 1](
             LED_940NM_TIMER, global_timer_settings.ccr);
         set_timer_compare[LED_940NM_TIMER_RIGHT_CHANNEL - 1](
             LED_940NM_TIMER, global_timer_settings.ccr);
+        // single interrupt is sufficient for both 940nm channels
+        enable_ccr_interrupt[LED_940NM_TIMER_LEFT_CHANNEL - 1](LED_940NM_TIMER);
         break;
     case InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
         set_timer_compare[LED_940NM_TIMER_LEFT_CHANNEL - 1](
             LED_940NM_TIMER, global_timer_settings.ccr);
+        enable_ccr_interrupt[LED_940NM_TIMER_LEFT_CHANNEL - 1](LED_940NM_TIMER);
         break;
     case InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:
         set_timer_compare[LED_940NM_TIMER_RIGHT_CHANNEL - 1](
             LED_940NM_TIMER, global_timer_settings.ccr);
+        enable_ccr_interrupt[LED_940NM_TIMER_RIGHT_CHANNEL - 1](
+            LED_940NM_TIMER);
         break;
     case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
         set_timer_compare[LED_740NM_TIMER_CHANNEL - 1](
             LED_740NM_TIMER, global_timer_settings.ccr_740nm);
+        // RGB LEDs could wait for a trigger, otherwise no action is taken
+        ir_leds_pulse_finished_isr(NULL);
         break;
     case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
         if (gpio_pin_get_dt(&super_caps_charging_mode) == 1) {
@@ -691,6 +731,8 @@ set_ccr_ir_leds(void)
                                         GPIO_OUTPUT_INACTIVE);
             ASSERT_SOFT(ret);
         }
+        // RGB LEDs could wait for a trigger, otherwise no action is taken
+        ir_leds_pulse_finished_isr(NULL);
         break;
     }
 }
@@ -965,6 +1007,17 @@ ir_camera_system_disable_2d_tof_camera_hw(void)
     debug_print();
 }
 
+__maybe_unused uint32_t
+ir_camera_system_get_time_until_update_us_internal(void)
+{
+    uint32_t time_until_update_ticks =
+        global_timer_settings.arr - LL_TIM_GetCounter(CAMERA_TRIGGER_TIMER);
+    uint32_t time_until_update_us =
+        ((global_timer_settings.psc + 1) * time_until_update_ticks) /
+        ASSUMED_TIMER_CLOCK_FREQ_MHZ;
+    return time_until_update_us;
+}
+
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
 static ret_code_t
 reset_fuse(void)
@@ -1054,6 +1107,16 @@ ir_camera_system_hw_init(void)
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
+
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    IRQ_CONNECT(LED_940NM_GLOBAL_IRQn, LED_940NM_GLOBAL_INTERRUPT_PRIO,
+                ir_leds_pulse_finished_isr, NULL, 0);
+    irq_enable(LED_940NM_GLOBAL_IRQn);
+
+    IRQ_CONNECT(LED_850NM_TIMER_GLOBAL_IRQn, LED_850NM_GLOBAL_INTERRUPT_PRIO,
+                ir_leds_pulse_finished_isr, NULL, 0);
+    irq_enable(LED_850NM_TIMER_GLOBAL_IRQn);
+#endif
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     reset_fuse();

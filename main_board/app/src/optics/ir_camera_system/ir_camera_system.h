@@ -61,6 +61,15 @@ InfraredLEDs_Wavelength
 ir_camera_system_get_enabled_leds(void);
 
 /**
+ * Returns the time in microseconds until the next update of the
+ * CAMERA_TRIGGER_TIMER happens.
+ * This timer triggers all cameras and the IR LEDs at the update event.
+ * @return time until update in us
+ */
+uint32_t
+ir_camera_system_get_time_until_update_us(void);
+
+/**
  * Set cameras' Frames-Per-Second value
  * Settings are computed to turn on IR LEDs with a duty cycle of 10% and maximum
  * on-time of 5ms

@@ -97,3 +97,13 @@ front_leds_set_brightness(uint32_t brightness);
  */
 void
 front_leds_turn_off_blocking(void);
+
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+/**
+ * Notifies that the IR leds are now off within their duty cycle
+ * This allows synchronization of the RGB LEDs update to prevents flickering
+ * on Pearl Orbs.
+ */
+void
+front_leds_notify_ir_leds_off(void);
+#endif

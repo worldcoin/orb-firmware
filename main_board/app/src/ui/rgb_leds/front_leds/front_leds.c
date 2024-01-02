@@ -1,6 +1,7 @@
 #include "front_leds.h"
 #include "app_config.h"
 #include "logs_can.h"
+#include "optics/ir_camera_system/ir_camera_system.h"
 #include "ui/rgb_leds/rgb_leds.h"
 #include <app_assert.h>
 #include <assert.h>
@@ -24,20 +25,19 @@ static const struct device *const led_strip =
 #define NUM_LEDS DT_PROP(DT_NODELABEL(front_unit_rgb_leds), num_leds)
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 #define NUM_CENTER_LEDS 9
+#define INDEX_RING_ZERO ((NUM_RING_LEDS * 3 / 4))
+// Maximum amount of time for LED strip update
+// It's also the minimum amount of time we need to trigger
+// an LED strip update until the next IR LED pulse
+#define LED_STRIP_MAXIMUM_UPDATE_TIME_US 10000
 #else
 #define NUM_CENTER_LEDS 23
+#define INDEX_RING_ZERO 19 // 0º is at 19th LED
 #endif
 #define NUM_RING_LEDS (NUM_LEDS - NUM_CENTER_LEDS)
 
 // for rainbow pattern
 #define SHADES_PER_COLOR 4 // 4^3 = 64 different colors
-
-// LED index at angle 0º in trigonometric circle
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-#define INDEX_RING_ZERO ((NUM_RING_LEDS * 3 / 4))
-#else
-#define INDEX_RING_ZERO 19 //
-#endif
 
 struct center_ring_leds {
 #if defined(CONFIG_BOARD_PEARL_MAIN)
@@ -58,6 +58,7 @@ typedef union {
 static user_leds_t leds;
 
 K_MUTEX_DEFINE(leds_update_mutex);
+K_SEM_DEFINE(leds_wait_for_trigger, 0, 1);
 static volatile bool final_done = false;
 
 // default values
@@ -77,6 +78,19 @@ static volatile uint32_t global_pulsing_delay_time_ms =
 
 /// half period <=> from 0 to pi rad <=> 0 to 1 to 0
 extern const float SINE_LUT[SINE_TABLE_LENGTH];
+
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+static volatile bool wait_for_interrupt = false;
+
+void
+front_leds_notify_ir_leds_off(void)
+{
+    if (wait_for_interrupt) {
+        k_sem_give(&leds_wait_for_trigger);
+        wait_for_interrupt = false;
+    }
+}
+#endif
 
 // NOTE:
 // All delays here are a bit skewed since it takes ~7ms to transmit the LED
@@ -312,7 +326,20 @@ front_leds_thread()
         k_mutex_lock(&leds_update_mutex, K_FOREVER);
         if (!final_done) {
             ASSERT_CONST_POINTER_NOT_NULL(led_strip);
-
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+            // 850nm and 940nm IR leds mustn't be on when the RGB strip
+            // is updated to prevent the LED from flickering.
+            // If they are active and the next pulse is too close in time (we
+            // don't have enough time to update all the RGB leds), wait for
+            // finished IR pulse.
+            wait_for_interrupt = (ir_camera_system_get_enabled_leds() >
+                                  InfraredLEDs_Wavelength_WAVELENGTH_740NM) &&
+                                 (ir_camera_system_get_time_until_update_us() <
+                                  LED_STRIP_MAXIMUM_UPDATE_TIME_US);
+            if (wait_for_interrupt) {
+                k_sem_take(&leds_wait_for_trigger, K_FOREVER);
+            }
+#endif
             led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
         }
         k_mutex_unlock(&leds_update_mutex);
@@ -492,6 +519,7 @@ front_leds_turn_off_blocking(void)
     k_mutex_lock(&leds_update_mutex, K_FOREVER);
     final_done = true;
     memset(leds.all, 0, sizeof leds.all);
+    led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
     led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
     k_mutex_unlock(&leds_update_mutex);
 }
