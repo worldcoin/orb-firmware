@@ -1,6 +1,6 @@
 #include "button.h"
 #include "app_config.h"
-#include "mcu_messaging.pb.h"
+#include "mcu_messaging_main.pb.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include <app_assert.h>

@@ -3,6 +3,7 @@
 #include "runner/runner.h"
 #include <can_messaging.h>
 #include <flash_map_backend/flash_map_backend.h>
+#include <mcu_messaging_main.pb.h>
 #include <pb_encode.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/crc.h>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mcu_messaging.pb.h"
+#include "mcu_messaging_main.pb.h"
 #include <errors.h>
 
 #define OPERATOR_LEDS_COUNT    DT_PROP(DT_NODELABEL(operator_rgb_leds), num_leds)

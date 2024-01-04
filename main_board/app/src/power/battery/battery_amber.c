@@ -1,7 +1,7 @@
 #include "app_config.h"
 #include "battery.h"
 #include "errors.h"
-#include "mcu_messaging.pb.h"
+#include "mcu_messaging_main.pb.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "temperature/sensors/temperature.h"

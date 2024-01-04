@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mcu_messaging.pb.h"
+#include "mcu_messaging_main.pb.h"
 #include <errors.h>
 
 #define FULL_RING_DEGREES (360)

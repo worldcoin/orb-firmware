@@ -1,5 +1,5 @@
 #include "gnss.h"
-#include "mcu_messaging.pb.h"
+#include "mcu_messaging_main.pb.h"
 #include "utils.h"
 #include <app_assert.h>
 #include <app_config.h>

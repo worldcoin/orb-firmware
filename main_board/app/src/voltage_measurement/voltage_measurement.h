@@ -1,7 +1,7 @@
 #pragma once
 
 #include "errors.h"
-#include "mcu_messaging.pb.h"
+#include "mcu_messaging_main.pb.h"
 #include <app_assert.h>
 #include <stm32_ll_adc.h>
 #include <zephyr/devicetree.h>

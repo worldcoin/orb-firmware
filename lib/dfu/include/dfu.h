@@ -2,7 +2,7 @@
 
 #include "bootutil/image.h"
 #include "utils.h"
-#include <mcu_messaging.pb.h>
+#include <mcu_messaging_common.pb.h>
 #include <stdbool.h>
 
 #define DFU_BLOCK_SIZE_MAX                                                     \

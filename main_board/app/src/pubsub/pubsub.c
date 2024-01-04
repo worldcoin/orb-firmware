@@ -1,7 +1,7 @@
 #include "pubsub.h"
 #include "app_config.h"
 #include "logs_can.h"
-#include "mcu_messaging.pb.h"
+#include "mcu_messaging_main.pb.h"
 #include "system/diag.h"
 #include <app_assert.h>
 #include <can_messaging.h>

@@ -16,7 +16,7 @@ manifest:
           - nanopb
           - hal_st
     - name: protobuf-definitions
-      revision: b05112ea1a06fdb26f70a09c84ef4b2ee08be26b
+      revision: d2a62bc6e475a7394eb840e1aa833918b9b36de0
       path: modules/orb-protobuf-definitions
     - name: plug-and-trust
       revision: beb0db6da441f8fd5becfab6c216c8d51aac8dbf

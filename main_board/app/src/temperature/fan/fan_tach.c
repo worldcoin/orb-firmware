@@ -1,5 +1,5 @@
 #include <app_config.h>
-#include <mcu_messaging.pb.h>
+#include <mcu_messaging_main.pb.h>
 #include <pubsub/pubsub.h>
 #include <stm32_ll_rcc.h>
 #include <stm32g474xx.h>

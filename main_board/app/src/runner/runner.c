@@ -3,7 +3,7 @@
 #include "can_messaging.h"
 #include "dfu.h"
 #include "logs_can.h"
-#include "mcu_messaging.pb.h"
+#include "mcu_messaging_main.pb.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
 #include "optics/liquid_lens/liquid_lens.h"
 #include "optics/mirror/mirror.h"

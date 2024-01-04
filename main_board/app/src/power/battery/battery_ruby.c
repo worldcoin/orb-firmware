@@ -2,7 +2,7 @@
 #include "battery.h"
 #include "battery_can.h"
 #include "errors.h"
-#include "mcu_messaging.pb.h"
+#include "mcu_messaging_main.pb.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "temperature/sensors/temperature.h"

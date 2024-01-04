@@ -1,4 +1,4 @@
-#include "mcu_messaging.pb.h"
+#include "mcu_messaging_main.pb.h"
 #include "pubsub.h"
 #include <errors.h>
 #include <utils.h>

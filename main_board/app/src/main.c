@@ -112,31 +112,31 @@ send_reset_reason(void)
         if (IS_WATCHDOG(reset_reason)) {
             fatal_error.reason = FatalError_FatalReason_FATAL_WATCHDOG;
             publish_new(&fatal_error, sizeof(fatal_error),
-                        SecToJetson_fatal_error_tag,
+                        McuToJetson_fatal_error_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
         if (IS_SOFTWARE(reset_reason)) {
             fatal_error.reason = FatalError_FatalReason_FATAL_SOFTWARE_UNKNOWN;
             publish_new(&fatal_error, sizeof(fatal_error),
-                        SecToJetson_fatal_error_tag,
+                        McuToJetson_fatal_error_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
         if (IS_BOR(reset_reason)) {
             fatal_error.reason = FatalError_FatalReason_FATAL_BROWNOUT;
             publish_new(&fatal_error, sizeof(fatal_error),
-                        SecToJetson_fatal_error_tag,
+                        McuToJetson_fatal_error_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
         if (IS_PIN(reset_reason)) {
             fatal_error.reason = FatalError_FatalReason_FATAL_PIN_RESET;
             publish_new(&fatal_error, sizeof(fatal_error),
-                        SecToJetson_fatal_error_tag,
+                        McuToJetson_fatal_error_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
         if (IS_LOW_POWER(reset_reason)) {
             fatal_error.reason = FatalError_FatalReason_FATAL_LOW_POWER;
             publish_new(&fatal_error, sizeof(fatal_error),
-                        SecToJetson_fatal_error_tag,
+                        McuToJetson_fatal_error_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
     }

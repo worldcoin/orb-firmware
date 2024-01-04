@@ -1,7 +1,7 @@
 #pragma once
 
 #include "errors.h"
-#include "mcu_messaging.pb.h"
+#include "mcu_messaging_main.pb.h"
 #include "stdint.h"
 
 /**
