@@ -85,6 +85,13 @@ ret_code_t
 ir_camera_system_set_fps(uint16_t fps);
 
 /**
+ * Get cameras' Frames-Per-Second value
+ * @return Frames-Per-Second, maximum is 60
+ */
+uint16_t
+ir_camera_system_get_fps(void);
+
+/**
  * Set IR LEDs on duration for 940nm and 850nm LEDs
  * Settings are computed to keep duty cycle <= 10%, or maximum on-time of 5ms
  * If LEDs are turned off, a duty cycle of 10% will be applied to set the FPS.

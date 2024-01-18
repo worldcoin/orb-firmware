@@ -335,7 +335,8 @@ front_leds_thread()
             wait_for_interrupt = (ir_camera_system_get_enabled_leds() >
                                   InfraredLEDs_Wavelength_WAVELENGTH_740NM) &&
                                  (ir_camera_system_get_time_until_update_us() <
-                                  LED_STRIP_MAXIMUM_UPDATE_TIME_US);
+                                  LED_STRIP_MAXIMUM_UPDATE_TIME_US) &&
+                                 (ir_camera_system_get_fps() > 0);
             if (wait_for_interrupt) {
                 k_sem_take(&leds_wait_for_trigger, K_FOREVER);
             }

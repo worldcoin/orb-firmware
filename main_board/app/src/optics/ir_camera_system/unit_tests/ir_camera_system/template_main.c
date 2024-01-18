@@ -20,6 +20,9 @@ FAKE_VOID_FUNC(ir_camera_system_enable_leds_hw);
 FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_set_fps_hw, uint16_t);
 FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_set_on_time_us_hw, uint16_t);
 FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_set_on_time_740nm_us_hw, uint16_t);
+
+FAKE_VALUE_FUNC(uint32_t, ir_camera_system_get_time_until_update_us_internal);
+
 FAKE_VOID_FUNC(ir_camera_system_set_polynomial_coefficients_for_focus_sweep_hw,
                IREyeCameraFocusSweepValuesPolynomial);
 FAKE_VOID_FUNC(ir_camera_system_set_focus_values_for_focus_sweep_hw, int16_t *,
@@ -66,6 +69,7 @@ before_each_test(void *fixture)
     RESET_FAKE(ir_camera_system_set_fps_hw);
     RESET_FAKE(ir_camera_system_set_on_time_us_hw);
     RESET_FAKE(ir_camera_system_set_on_time_740nm_us_hw);
+    RESET_FAKE(ir_camera_system_get_time_until_update_us_internal);
     RESET_FAKE(ir_camera_system_set_polynomial_coefficients_for_focus_sweep_hw);
     RESET_FAKE(ir_camera_system_set_focus_values_for_focus_sweep_hw);
     RESET_FAKE(ir_camera_system_perform_focus_sweep_hw);

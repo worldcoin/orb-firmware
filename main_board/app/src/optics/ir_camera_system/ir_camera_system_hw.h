@@ -46,7 +46,7 @@ ir_camera_system_get_time_until_update_us_internal(void)
 }
 #else
 uint32_t
-ir_camera_system_get_time_until_update_us_internal();
+ir_camera_system_get_time_until_update_us_internal(void);
 #endif
 
 /* Focus sweep */

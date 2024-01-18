@@ -169,13 +169,17 @@ ir_camera_system_get_enabled_leds(void)
     return enabled_led_wavelength;
 }
 
-#if defined(CONFIG_BOARD_PEARL_MAIN)
 uint32_t
 ir_camera_system_get_time_until_update_us(void)
 {
     return ir_camera_system_get_time_until_update_us_internal();
 }
-#endif
+
+uint16_t
+ir_camera_system_get_fps(void)
+{
+    return ir_camera_system_get_fps_hw();
+}
 
 // Do not allow changing the FPS when a focus sweep is in progress.
 ret_code_t
