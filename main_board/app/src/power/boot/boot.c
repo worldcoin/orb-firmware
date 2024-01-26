@@ -371,6 +371,10 @@ power_turn_on_power_supplies(void)
 {
     Hardware_OrbVersion version = version_get_hardware_rev();
 
+    // might be a duplicate call, but it's preferable to be sure that
+    // these supplies are on
+    power_vbat_5v_3v3_supplies_on();
+
     // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
     if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
         version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
