@@ -581,6 +581,8 @@ app_init_state(void)
     } else {
         LOG_INF_IMM("Firmware image not confirmed, confirming");
 
+        power_vbat_5v_3v3_supplies_on();
+
         // FIXME image to be confirmed once MCU fully booted
         // Image is confirmed before we actually reboot the Orb
         // in case the MCU is rebooted due to a removed battery or insufficient
