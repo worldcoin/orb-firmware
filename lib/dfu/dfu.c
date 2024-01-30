@@ -220,7 +220,8 @@ process_dfu_blocks_thread()
                 err_code =
                     flash_area_erase(flash_area_p, offset, FLASH_PAGE_SIZE);
                 if (err_code != 0) {
-                    LOG_ERR("Unable to erase sector, err %i", err_code);
+                    LOG_ERR("Unable to erase sector @0x%x, err %i", offset,
+                            err_code);
 
                     if (dfu_block_process_cb != NULL) {
                         dfu_block_process_cb(dfu_state.ctx, RET_ERROR_INTERNAL);
@@ -275,13 +276,25 @@ dfu_secondary_activate(bool permanent)
     }
 
     int ret = boot_set_pending(permanent);
-    if (ret == 0) {
-        LOG_INF("The second image will be loaded after reset");
-    } else {
-        LOG_ERR("Unable to mark secondary slot as pending");
+    if (ret != 0) {
+        LOG_ERR("Unable to mark secondary slot as pending: %d", ret);
+        return ret;
     }
 
-    return ret;
+    ret = boot_swap_type_multi(0);
+    if (ret < 0) {
+        return RET_ERROR_ASSERT_FAILS;
+    }
+
+    if (!((permanent && ret == BOOT_SWAP_TYPE_PERM) ||
+          (!permanent && ret == BOOT_SWAP_TYPE_TEST))) {
+        LOG_WRN("Swap type set to %d", ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    LOG_INF("The second image will be loaded after reset");
+
+    return RET_SUCCESS;
 }
 
 int
