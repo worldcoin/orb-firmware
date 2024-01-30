@@ -555,7 +555,7 @@ reset_statistics(void)
 {
     CRITICAL_SECTION_ENTER(k);
 
-    memset((void *)&adc_samples_buffers.raw_min, ADC_MAX_VALUE,
+    memset((void *)&adc_samples_buffers.raw_min, 0xFF,
            sizeof(adc_samples_buffers.raw_min));
 
     memset((void *)&adc_samples_buffers.raw_max, 0,
