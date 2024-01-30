@@ -151,8 +151,8 @@ target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIRS})
 # link with Zephyr modules below
 # - modules/orb-protobuf-definitions: data format definitions and serializer/deserializer for messages between MCU, Jetson and Security MCU
 # - bootloader/mcuboot/boot/bootutil: public functions to access/modify mcuboot data from the application
-if (CONFIG_ORB_PROTOBUF_DEFINITIONS_LIB)
-    zephyr_link_libraries(ORB_PROTOBUF_DEFINITIONS_LIB)
+if (CONFIG_ORB_MCU_MESSAGING_LIB)
+    zephyr_link_libraries(ORB_MCU_MESSAGING_LIB)
     # dependency below doesn't have to be forced if using West but must be added when using CMake only
     # to build zephyr_final
     add_dependencies(app generate_proto_files)

@@ -15,9 +15,9 @@ manifest:
           - segger
           - nanopb
           - hal_st
-    - name: protobuf-definitions
-      revision: d2a62bc6e475a7394eb840e1aa833918b9b36de0
-      path: modules/orb-protobuf-definitions
+    - name: orb-mcu-messaging
+      revision: 373914af23e3ab33a6ef0f64d3a6e3f39d75a8ab
+      path: modules/orb-mcu-messaging
     - name: plug-and-trust
       revision: beb0db6da441f8fd5becfab6c216c8d51aac8dbf
       path: modules/plug-and-trust
