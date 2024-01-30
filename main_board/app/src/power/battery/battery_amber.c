@@ -60,9 +60,9 @@ typedef struct {
     uint16_t cell_4_min_voltage_mv;
     uint16_t max_delta_cell_voltage_mv;
     uint16_t max_charge_current_ma;
-    uint16_t max_discharge_current_ma;
-    uint16_t max_avg_dsg_current_ma;
-    uint16_t max_avg_dsg_power;
+    int16_t max_discharge_current_ma;
+    int16_t max_avg_dsg_current_ma;
+    int16_t max_avg_dsg_power;
     int8_t max_temp_cell_degrees;
     int8_t min_temp_cell_degrees;
     int8_t max_delta_cell_temp_degrees;
@@ -310,13 +310,6 @@ publish_battery_pcb_temperature(int16_t pcb_temperature_decidegrees)
 }
 
 static void
-publish_battery_pack_temperature(int16_t pack_temperature_decidegrees)
-{
-    temperature_report(Temperature_TemperatureSource_BATTERY_PACK,
-                       pack_temperature_decidegrees / 10);
-}
-
-static void
 check_battery_voltage(uint16_t battery_voltage_mv)
 {
     if (battery_voltage_mv < BATTERY_MINIMUM_VOLTAGE_RUNTIME_MV) {
@@ -398,12 +391,7 @@ battery_rx_thread()
 
             if (ret == 0) {
                 const int16_t kelvin_offset_decidegrees = -2732;
-                // todo: check which channels we actually use in the final BMS
-                // design
                 publish_battery_pcb_temperature(
-                    da_status_2.temperature_ts1_decikelvin +
-                    kelvin_offset_decidegrees);
-                publish_battery_pack_temperature(
                     da_status_2.temperature_ts2_decikelvin +
                     kelvin_offset_decidegrees);
                 publish_battery_cell_temperature(
@@ -446,8 +434,8 @@ battery_rx_thread()
                 LOG_DBG("Serial number: 0x%04X", serial_number);
             }
 
-            info_hw_fw.mcu_id.bytes[0] = serial_number;
-            info_hw_fw.mcu_id.bytes[1] = serial_number >> 8;
+            info_hw_fw.mcu_id.bytes[11] = serial_number;
+            info_hw_fw.mcu_id.bytes[10] = serial_number >> 8;
 
             info_hw_fw.hw_version =
                 BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_UNDETECTED;
@@ -552,8 +540,15 @@ battery_rx_thread()
                     (uint16_t)lifetime_data_1.max_temp_fet_degrees * 10;
                 info_max_values.maximum_charge_current_ma =
                     lifetime_data_1.max_charge_current_ma;
-                info_max_values.maximum_discharge_current_ma =
-                    lifetime_data_1.max_discharge_current_ma;
+
+                if (lifetime_data_1.max_discharge_current_ma > 0) {
+                    LOG_WRN("max_discharge_current_ma = %d > 0",
+                            lifetime_data_1.max_discharge_current_ma);
+                    info_max_values.maximum_discharge_current_ma = 0;
+                } else {
+                    info_max_values.maximum_discharge_current_ma =
+                        -lifetime_data_1.max_discharge_current_ma;
+                }
 
                 publish_new(&info_max_values, sizeof(info_max_values),
                             McuToJetson_battery_info_max_values_tag,
