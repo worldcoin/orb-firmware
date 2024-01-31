@@ -1,0 +1,6 @@
+sec_board/
+utils/ota/*.pem.*
+boards/arm/pearl_security/**
+boards/arm/diamond_security/**
+.github/
+dts/bindings/gpio/gpio-tamper-*.yaml
