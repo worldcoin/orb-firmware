@@ -35,22 +35,6 @@ make format
 
 Create a feature branch by prefixing with your name `name/`.
 
-### Pull request
+### Commit message
 
-Use the linear ID `O-xxx` into the Pull Request description:
-
-```
-Fixes <issue number>
-```
-
-### Release process
-
-Follow these steps:
-
-- Rename `main` branch to `prod`
-- Bump versions in the [VERSION file](VERSION)
-- Tag new versioned release using semver. As an example: `git tag -a v0.6.2 -m "Release v0.6.2"`. Make
-  sure to push the tags (`git push --follow-tags`). This will trigger CI to create a new release on GitHub.
-- Any modification to the release has to be done using a new Pull Request to `main`
-- Pull those changes into the release branch (`cherry-pick`)
-- Never merge release branch to `main`
+Follow [Zephyr guidelines](https://docs.zephyrproject.org/latest/contribute/guidelines.html#commit-message-guidelines).
