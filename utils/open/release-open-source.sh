@@ -3,7 +3,8 @@
 # exit on error
 set -e
 
-git checkout open
+git checkout open || git checkout --orphan open
+
 # move to git root
 GIT_ROOT=$(git rev-parse --show-toplevel)
 cd "$GIT_ROOT" || exit 1
