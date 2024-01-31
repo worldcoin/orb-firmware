@@ -553,6 +553,8 @@ voltage_measurement_adc5_thread()
 static void
 reset_statistics(void)
 {
+    LOG_DBG("reset statistics");
+
     CRITICAL_SECTION_ENTER(k);
 
     memset((void *)&adc_samples_buffers.raw_min, 0xFF,
@@ -905,6 +907,10 @@ voltage_measurement_sample_switched_channels(void)
 _Noreturn static void
 voltage_measurement_publish_thread()
 {
+    // clear statistics to remove min/max values that occurred during booting
+    // the power supplies
+    reset_statistics();
+
     while (1) {
         atomic_val_t sleep_period_ms = atomic_get(&voltages_publish_period_ms);
         if (sleep_period_ms == 0) {
@@ -1071,12 +1077,23 @@ voltage_measurement_init(const Hardware *hw_version,
     // module is initialized
     k_sleep(K_USEC(2 * ADC_SAMPLING_PERIOD_US));
 
+    // Start publish thread with a delay of 10 seconds because we don't want to
+    // publish voltages before all power supplies are turned on. Otherwise, it
+    // is hard to filter for outliers because you see outliers in the data at
+    // each boot of an Orb.
+#ifdef CONFIG_ZTEST
+    // don't delay execution when ZTESTs are enabled otherwise no voltage
+    // messages are pubilshed when the test starts.
+    const k_timeout_t delay = K_SECONDS(0);
+#else
+    const k_timeout_t delay = K_SECONDS(10);
+#endif
     tid_publish = k_thread_create(
         &voltage_measurement_publish_thread_data,
         voltage_measurement_publish_thread_stack,
         K_THREAD_STACK_SIZEOF(voltage_measurement_publish_thread_stack),
         voltage_measurement_publish_thread, NULL, NULL, NULL,
-        THREAD_PRIORITY_VOLTAGE_MEASUREMENT_PUBLISH, 0, K_NO_WAIT);
+        THREAD_PRIORITY_VOLTAGE_MEASUREMENT_PUBLISH, 0, delay);
     k_thread_name_set(tid_publish, "voltage_measurement_publish");
 
 #ifdef CONFIG_VOLTAGE_MEASUREMENT_LOG_LEVEL_DBG
