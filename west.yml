@@ -18,8 +18,16 @@ manifest:
     - name: orb-mcu-messaging
       revision: 373914af23e3ab33a6ef0f64d3a6e3f39d75a8ab
       path: modules/orb-mcu-messaging
+      groups: [internal]
+    - name: open-orb-mcu-messaging
+      revision: main
+      path: modules/open-orb-mcu-messaging
+      groups: [public]
     - name: plug-and-trust
       revision: beb0db6da441f8fd5becfab6c216c8d51aac8dbf
       path: modules/plug-and-trust
   self:
     path: orb
+    import:
+      # select groups in orb/utils/open/groups.yml, between [internal] and [public]
+      - utils/open/groups.yml

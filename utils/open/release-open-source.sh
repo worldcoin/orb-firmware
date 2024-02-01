@@ -19,6 +19,10 @@ git rm --cached -r --pathspec-from-file="$GIT_ROOT"/utils/open/blocklist.txt
 cat "$GIT_ROOT"/utils/open/blocklist.txt >> "$GIT_ROOT"/.gitignore
 git add "$GIT_ROOT"/.gitignore
 
+# use public facing repositories
+cp "$GIT_ROOT"/utils/open/public.yml.template "$GIT_ROOT"/utils/open/groups.yml
+git add "$GIT_ROOT"/utils/open/groups.yml
+
 # Check if "License" is in README.md
 if ! grep -q "## License" "$GIT_ROOT"/README.md; then
     echo "
