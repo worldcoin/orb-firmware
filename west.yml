@@ -20,7 +20,7 @@ manifest:
       path: modules/orb-mcu-messaging
       groups: [internal]
     - name: open-orb-mcu-messaging
-      revision: main
+      revision: 2818573daa4250d608590041ddb488500bfa8108
       path: modules/open-orb-mcu-messaging
       groups: [public]
     - name: plug-and-trust
