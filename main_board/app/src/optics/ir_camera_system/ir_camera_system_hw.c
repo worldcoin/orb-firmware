@@ -1063,69 +1063,6 @@ reset_fuse(void)
 #endif
 
 ret_code_t
-ir_camera_system_hw_init(void)
-{
-    int err_code = 0;
-
-    if (!device_is_ready(super_caps_charging_mode.port)) {
-        ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
-    }
-
-    // super caps charger to draw less current than default
-    // this mode is enabled when IR LEDs are not used
-    err_code =
-        gpio_pin_configure_dt(&super_caps_charging_mode, GPIO_OUTPUT_INACTIVE);
-    if (err_code) {
-        ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
-    }
-
-    err_code = enable_clocks_and_configure_pins(
-        all_pclken, ARRAY_SIZE(all_pclken), pin_controls,
-        ARRAY_SIZE(pin_controls));
-
-    if (err_code < 0) {
-        ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
-    }
-
-    err_code = setup_740nm_940nm_led_timer();
-    if (err_code < 0) {
-        ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
-    }
-
-    err_code = setup_850nm_led_timer();
-    if (err_code < 0) {
-        ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
-    }
-
-    err_code = setup_camera_triggers();
-    if (err_code < 0) {
-        ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
-    }
-
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-    IRQ_CONNECT(LED_940NM_GLOBAL_IRQn, LED_940NM_GLOBAL_INTERRUPT_PRIO,
-                ir_leds_pulse_finished_isr, NULL, 0);
-    irq_enable(LED_940NM_GLOBAL_IRQn);
-
-    IRQ_CONNECT(LED_850NM_TIMER_GLOBAL_IRQn, LED_850NM_GLOBAL_INTERRUPT_PRIO,
-                ir_leds_pulse_finished_isr, NULL, 0);
-    irq_enable(LED_850NM_TIMER_GLOBAL_IRQn);
-#endif
-
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    reset_fuse();
-#endif
-
-    return RET_SUCCESS;
-}
-
-ret_code_t
 ir_camera_system_set_fps_hw(uint16_t fps)
 {
     ret_code_t ret;
@@ -1205,4 +1142,67 @@ uint16_t
 ir_camera_system_get_fps_hw(void)
 {
     return global_timer_settings.fps;
+}
+
+ret_code_t
+ir_camera_system_hw_init(void)
+{
+    int err_code = 0;
+
+    if (!device_is_ready(super_caps_charging_mode.port)) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+
+    // super caps charger to draw less current than default
+    // this mode is enabled when IR LEDs are not used
+    err_code =
+        gpio_pin_configure_dt(&super_caps_charging_mode, GPIO_OUTPUT_INACTIVE);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+
+    err_code = enable_clocks_and_configure_pins(
+        all_pclken, ARRAY_SIZE(all_pclken), pin_controls,
+        ARRAY_SIZE(pin_controls));
+
+    if (err_code < 0) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+
+    err_code = setup_740nm_940nm_led_timer();
+    if (err_code < 0) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+
+    err_code = setup_850nm_led_timer();
+    if (err_code < 0) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+
+    err_code = setup_camera_triggers();
+    if (err_code < 0) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    IRQ_CONNECT(LED_940NM_GLOBAL_IRQn, LED_940NM_GLOBAL_INTERRUPT_PRIO,
+                ir_leds_pulse_finished_isr, NULL, 0);
+    irq_enable(LED_940NM_GLOBAL_IRQn);
+
+    IRQ_CONNECT(LED_850NM_TIMER_GLOBAL_IRQn, LED_850NM_GLOBAL_INTERRUPT_PRIO,
+                ir_leds_pulse_finished_isr, NULL, 0);
+    irq_enable(LED_850NM_TIMER_GLOBAL_IRQn);
+#endif
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    reset_fuse();
+#endif
+
+    return RET_SUCCESS;
 }

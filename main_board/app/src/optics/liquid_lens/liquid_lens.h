@@ -11,9 +11,9 @@
 /**
  * @brief Sets the target current to maintain
  * @param new_target_current_ma the target current clipped to [-400,400]
- * @return error code:
- *  - RET_SUCCESS: All good
- *  - RET_ERROR_BUSY: Some other operation (like a focus sweep) is in progress
+ * @retval RET_SUCCESS: All good
+ * @retval RET_ERROR_BUSY: Some other operation (like a focus sweep) is in
+ * progress
  */
 ret_code_t
 liquid_set_target_current_ma(int32_t new_target_current_ma);

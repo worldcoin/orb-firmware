@@ -9,9 +9,8 @@
 /**
  * Set brightness
  * @param brightness
- * @return
- * * RET_SUCCESS brightness set, will be applied
- * * RET_ERROR_BUSY previous brightness application in progress
+ * @retval RET_SUCCESS brightness set, will be applied
+ * @retval RET_ERROR_BUSY previous brightness application in progress
  */
 int
 operator_leds_set_brightness(uint8_t brightness);
@@ -21,9 +20,8 @@ operator_leds_set_brightness(uint8_t brightness);
  * @param pattern Pattern to apply
  * @param mask Bit mask (max is OPERATOR_LEDS_ALL_MASK)
  * @param color Custom color, NULL to use default
- * @return
- * * RET_SUCCESS pattern set, will be applied
- * * RET_ERROR_BUSY previous pattern application in progress
+ * @retval RET_SUCCESS pattern set, will be applied
+ * @retval RET_ERROR_BUSY previous pattern application in progress
  */
 int
 operator_leds_set_pattern(
@@ -33,9 +31,8 @@ operator_leds_set_pattern(
 /**
  * Init operator LED thread
  * The LED won't turn on until pattern or brightness is set
- * @return error code:
- * * RET_ERROR_INTERNAL unable to init operator LEDs
- * * RET_SUCCESS successfully initialized
+ * @retval RET_ERROR_INTERNAL unable to init operator LEDs
+ * @retval RET_SUCCESS successfully initialized
  */
 int
 operator_leds_init(void);
@@ -63,7 +60,7 @@ operator_leds_set_leds_sequence_argb32(const uint8_t *bytes, uint32_t size);
 /**
  * Set operator LEDs to a specific color using a mask, the LED are
  * actuated before returning.
- * ⚠️ Prefer @fn operator_leds_set_pattern when possible
+ * ⚠️ Prefer operator_leds_set_pattern() when possible
  * Set operator LEDs to a specific color using a mask.
  * All communication to the LEDs is done before this function returns.
  * On Diamond: also handles power optimization when all LEDs are off

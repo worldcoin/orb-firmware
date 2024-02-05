@@ -31,12 +31,14 @@ static K_THREAD_STACK_DEFINE(pub_stored_stack_area,
                              THREAD_STACK_SIZE_PUB_STORED);
 static struct k_thread pub_stored_thread_data;
 
-/// Structure holding a message to store when sending isn't enabled
-/// `data` contains an `McuToJetson` into an `McuMessage`.
-/// The McuMessage is encoded (serialized).
-///
-/// \note Up to 5 bytes are used for wrapping the `McuToJetson` into an
-/// `McuMessage`
+/**
+ * Structure holding a message to store when sending isn't enabled
+ * `data` contains an `McuToJetson` into an `McuMessage`.
+ * The McuMessage is encoded (serialized).
+ *
+ * @note Up to 5 bytes are used for wrapping the `McuToJetson` into an
+ * `McuMessage`
+ */
 struct pub_entry_s {
     uint32_t destination;
     uint8_t data[McuToJetson_size + MCU_MESSAGE_ENCODED_WRAPPER_SIZE];

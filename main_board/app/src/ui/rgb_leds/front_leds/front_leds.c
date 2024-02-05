@@ -542,9 +542,11 @@ front_leds_init(void)
     return RET_SUCCESS;
 }
 
-/// Turn off front LEDs during boot
-/// \param dev
-/// \return 0 on success, error code otherwise
+/**
+ * Turn off front LEDs during boot
+ * @param dev
+ * @return 0 on success, error code otherwise
+ */
 int
 front_leds_initial_state(void)
 {

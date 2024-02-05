@@ -35,7 +35,7 @@ state_change_callback(const struct device *dev, enum can_state state,
 
 /// Print out CAN bus state change
 /// Recover manually in case CONFIG_CAN_AUTO_BUS_OFF_RECOVERY not defined
-/// \param work
+/// @param work
 static void
 state_change_work_handler(struct k_work *work)
 {
@@ -74,9 +74,11 @@ can_reset_work_handler(struct k_work *work)
     ASSERT_HARD(err_code);
 }
 
-/// Reset CAN TX queues, keep RX threads running
-/// Can be used in ISR context
-/// \return RET_SUCCESS on success, error code otherwise
+/**
+ * Reset CAN TX queues, keep RX threads running
+ * Can be used in ISR context
+ * @return RET_SUCCESS on success, error code otherwise
+ */
 static ret_code_t
 can_messaging_reset_async(void)
 {
@@ -164,7 +166,9 @@ can_messaging_init(ret_code_t (*in_handler)(can_message_t *message))
     if (err_code == 0) {
         err_code = can_start(can_dev);
         ASSERT_SOFT(err_code);
+    } else {
+        err_code = RET_ERROR_INTERNAL;
     }
 
-    return RET_SUCCESS;
+    return err_code;
 }

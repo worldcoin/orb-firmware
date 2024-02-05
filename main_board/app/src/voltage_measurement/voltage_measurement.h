@@ -75,7 +75,6 @@ voltage_measurement_get_vref_mv_from_raw(Hardware_OrbVersion hardware_version,
  * @param *analog_mux_mutex Mutex for V_SCAP voltages multiplexer which shares
  * control signals with the I2C multiplexer
  *
- * @return error code
  * @retval RET_SUCCESS on success
  */
 ret_code_t

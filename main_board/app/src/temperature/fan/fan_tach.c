@@ -46,9 +46,9 @@ struct timer_info {
  * Setting the prescaler so that the timer times out after one second
  * allows us to set a minimum measurable RPM of 60RPM (1 full tachometer period
  * in 1 second).
- * \note All the timers are counting using at least a 16-bit register, so the
+ * @note All the timers are counting using at least a 16-bit register, so the
  * timeout occurs when counter reaches 65535.
- * \note 32-bit timers will in any case be able to capture more than a second
+ * @note 32-bit timers will in any case be able to capture more than a second
  * before timing out with the CPU rate of 170MHz.
  *
  * Based on a CPU rate of 170MHz, the prescaler must be set to:

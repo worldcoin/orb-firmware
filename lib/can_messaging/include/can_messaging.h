@@ -1,8 +1,6 @@
 #pragma once
 
 #include "errors.h"
-#include <stddef.h>
-#include <stdint.h>
 #include <zephyr/drivers/can.h>
 
 /// Maximum CAN frame size depends on CAN driver configuration
@@ -32,38 +30,60 @@ typedef struct {
     size_t size;          // actual number of bytes used in the `bytes` member
 } can_message_t;
 
-/// Send new message using CAN-FD
-/// \param message
-/// \return RET_SUCCESS on success, error code otherwise
+/**
+ * Send new message using CAN-FD
+ * @param message
+ * @return RET_SUCCESS on success, error code otherwise
+ **/
 ret_code_t
 can_messaging_async_tx(const can_message_t *message);
 
-/// Send new message using ISO-TP transport
-/// \param message
-/// \return RET_SUCCESS on success, error code otherwise
+/**
+ * Send new message using ISO-TP transport
+ * @param message
+ * @return RET_SUCCESS on success, error code otherwise
+ **/
 ret_code_t
 can_isotp_messaging_async_tx(const can_message_t *message);
 
-/// Send CAN message and wait for completion (1-second timeout)
-/// ⚠️ Cannot be used in ISR context
-/// \param message to be sent
-/// \return
-/// * RET_SUCCESS on success
-/// * RET_ERROR_FORBIDDEN if run from ISR
-/// * RET_ERROR_INVALID_STATE if can device is not active
-/// * RET_ERROR_INVALID_PARAM if error encoding the message
-/// * RET_ERROR_INTERNAL for CAN errors
+/**
+ * Send CAN message and wait for completion (1-second timeout)
+ * ⚠️ Cannot be used in ISR context
+ * @param message to be sent
+ * @retval RET_SUCCESS on success
+ * @retval RET_ERROR_FORBIDDEN if run from ISR
+ * @retval RET_ERROR_INVALID_STATE if can device is not active
+ * @retval RET_ERROR_INVALID_PARAM if error encoding the message
+ * @retval RET_ERROR_INTERNAL for CAN errors
+ **/
 ret_code_t
 can_messaging_blocking_tx(const can_message_t *message);
 
+/**
+ * Stop CAN device
+ * Hard reset on failure
+ * @return -EALREADY or 0 on success
+ */
 ret_code_t
 can_messaging_suspend(void);
 
+/**
+ * Start CAN device
+ * Queues are going to be reset in a separate workqueue
+ * Hard reset on failure
+ * @return -EALREADY or 0 on success
+ */
 ret_code_t
 can_messaging_resume(void);
 
-/// Init CAN message module
-/// Pass a function to handle incoming messages
-/// \param in_handler Function that will handle incoming messages
-/// \return
+/**
+ * Init CAN message module
+ * Pass a function to handle incoming messages
+ * @param in_handler Function that will handle incoming messages
+ * @retval RET_ERROR_NOT_INITIALIZED if CAN device not found (no definition in
+ *device tree)
+ * @retval RET_ERROR_INTERNAL if unable to configure CAN & CAN ISO-TP handlers
+ *for TX and RX
+ * @return value from @c can_set_mode()
+ **/
 ret_code_t can_messaging_init(ret_code_t (*in_handler)(can_message_t *message));

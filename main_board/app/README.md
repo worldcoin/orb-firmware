@@ -31,7 +31,7 @@ Let's build and run the application, you have several options:
 >
 > - Firmware images are signed and encrypted. If you don't have development keys already created locally, then run
 >   `./generate_dev_keys` while in the directory `"$REPO_DIR"/orb/utils/ota/`.
-> - Make sure to have the [bootloader flashed](../../bootloader_main/README.md) _before_ flashing the application.
+> - Make sure to have the [bootloader flashed](../../bootloader/README.md) _before_ flashing the application.
 > - If you want to use the one-slot configuration (`-DDTC_OVERLAY_FILE=one_slot.overlay`) then the bootloader must have been built with this option as well.
 
 #### With Makefile
@@ -136,14 +136,14 @@ twister -vv --testsuite-root . --platform native_posix_64 --platform unit_testin
 
 ### Memory map
 
-| Region                              | Location   | Size  |
-| ----------------------------------- | ---------- | ----- |
-| [Bootloader](../../bootloader_main) | 0x00000000 | 48kB  |
-| Application Primary Slot            | 0x0000C000 | 224kB |
-| Application Secondary Slot          | 0x00044000 | 224kB |
-| Scratch partition                   | 0x0007C000 | 8kB   |
-| App storage                         | 0x0007E000 | 4kB   |
-| Config                              | 0x0007F000 | 4kB   |
+| Region                         | Location   | Size  |
+| ------------------------------ | ---------- | ----- |
+| [Bootloader](../../bootloader) | 0x00000000 | 48kB  |
+| Application Primary Slot       | 0x0000C000 | 224kB |
+| Application Secondary Slot     | 0x00044000 | 224kB |
+| Scratch partition              | 0x0007C000 | 8kB   |
+| App storage                    | 0x0007E000 | 4kB   |
+| Config                         | 0x0007F000 | 4kB   |
 
 ### Timer allocations - Mainboard 3.1
 

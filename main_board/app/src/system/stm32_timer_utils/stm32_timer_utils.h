@@ -18,9 +18,8 @@
  *
  * @note periph_clock_enables_len and pin_controls_len must be equal
  *
- * @return
- *  * RET_SUCCESS if configuration succeeded
- *  * RET_ERROR_INTERNAL if anything failed
+ * @retval RET_SUCCESS if configuration succeeded
+ * @retval RET_ERROR_INTERNAL if anything failed
  */
 ret_code_t
 enable_clocks_and_configure_pins(struct stm32_pclken **periph_clock_enables,

@@ -6,7 +6,8 @@
 
 /**
  * @brief Power supply the super capacitors
- * @return
+ * @return RET_SUCCESS if super capacitors are successfully powered on, return
+ * value of @c gpio_pin_set otherwise
  */
 int
 boot_turn_on_super_cap_charger(void);

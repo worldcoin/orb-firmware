@@ -100,9 +100,11 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
 
 #ifdef CONFIG_ORB_LIB_ERRORS_TESTS
 
-/// Test a fatal error condition
-/// Does not return: make sure the microcontroller resets after
-/// hitting the fatal error
+/**
+ * Test a fatal error condition
+ * Does not return: make sure the microcontroller resets after
+ * hitting the fatal error
+ */
 void
 fatal_errors_test(void);
 

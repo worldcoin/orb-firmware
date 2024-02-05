@@ -65,20 +65,24 @@
 #define __BKPT(value) __ASM volatile("bkpt " #value)
 #endif
 
-/// usage of this function will lead to a compile-time error with the passed
-/// message
+/**
+ * usage of this function will lead to a compile-time error with the passed
+ * message
+ */
 __attribute((error("const value from within the array is incorrect"))) void
 assert_pointer_value_check(char *details);
 
-/// This macro helps testing a `const` array value at compile-time.
-///
-/// The compiler should remove the function call to
-/// `assert_pointer_value_check` if the `expected` value matches `array_val`.
-/// If not, the function is used, leading to a compile-time error.
-/// This macro must be called from within a function.
-///
-/// Usage of `static_assert` doesn't work because an array value is a pointer
-/// which is not considered const
+/**
+ * This macro helps testing a `const` array value at compile-time.
+ *
+ * The compiler should remove the function call to
+ * `assert_pointer_value_check` if the `expected` value matches `array_val`.
+ * If not, the function is used, leading to a compile-time error.
+ * This macro must be called from within a function.
+ *
+ * Usage of `static_assert` doesn't work because an array value is a pointer
+ * which is not considered const
+ */
 #define ASSERT_CONST_ARRAY_VALUE(array_val, expected)                          \
     if ((array_val) != (expected)) {                                           \
         assert_pointer_value_check("");                                        \

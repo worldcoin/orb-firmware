@@ -2,9 +2,6 @@
 
 cmake-build-*/
 
-# generated files
-version.h
-
 # keys
 share/*
 share/autogen*

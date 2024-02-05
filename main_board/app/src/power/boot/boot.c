@@ -790,7 +790,10 @@ boot_turn_on_jetson(void)
 int
 boot_turn_on_super_cap_charger(void)
 {
-    gpio_pin_set_dt(&supply_super_cap_enable_gpio_spec, 1);
+    int ret = gpio_pin_set_dt(&supply_super_cap_enable_gpio_spec, 1);
+    if (ret) {
+        return ret;
+    }
     LOG_INF("super cap charger enabled");
 
     k_msleep(1000);

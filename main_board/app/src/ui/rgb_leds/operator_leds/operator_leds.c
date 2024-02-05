@@ -304,9 +304,11 @@ operator_leds_indicate_low_battery_blocking(void)
     }
 }
 
-/// Turn one operator LED during boot to indicate battery switch is turned on
-/// \param dev
-/// \return 0 on success, error code otherwise
+/**
+ * Turn one operator LED during boot to indicate battery switch is turned on
+ * @param dev
+ * @return 0 on success, error code otherwise
+ */
 int
 operator_leds_initial_state(void)
 {

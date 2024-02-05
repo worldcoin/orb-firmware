@@ -36,9 +36,8 @@ cone_leds_set_pattern(ConeLEDsPattern_ConeRgbLedPattern pattern,
 /**
  * Init cone LED thread
  * The LED won't turn on until pattern or brightness is set
- * @return error code:
- * * RET_ERROR_INTERNAL unable to init operator LEDs
- * * RET_SUCCESS successfully initialized
+ * @retval RET_ERROR_INTERNAL unable to init operator LEDs
+ * @retval RET_SUCCESS successfully initialized
  */
 ret_code_t
 cone_leds_init(void);

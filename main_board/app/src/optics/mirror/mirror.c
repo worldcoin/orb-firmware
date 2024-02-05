@@ -397,10 +397,12 @@ mirror_set_stepper_position(int32_t position_steps, motor_t mirror)
                                position_steps);
 }
 
-/// Set relative angle from the center position
-/// \param angle_from_center_millidegrees
-/// \param motor MOTOR_THETA_ANGLE or MOTOR_PHI_ANGLE
-/// \return
+/**
+ * Set relative angle from the center position
+ * @param angle_from_center_millidegrees
+ * @param motor MOTOR_THETA_ANGLE or MOTOR_PHI_ANGLE
+ * @return
+ */
 static ret_code_t
 mirror_set_angle_from_center(int32_t angle_from_center_millidegrees,
                              motor_t motor)

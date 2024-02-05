@@ -1,4 +1,4 @@
-# Proto2 Main MCU - Bootloader
+# Bootloader
 
 ## Getting started
 
@@ -9,7 +9,7 @@ First, follow the instructions in the [top-level README.md](../README.md).
 If you don't have development keys already created locally, then run
 `./generate_dev_keys` while in the directory `"$REPO_DIR"/utils/ota/`.
 
-Make sure you are in `"$REPO_DIR"/orb/bootloader_main/` directory.
+Make sure you are in `"$REPO_DIR"/orb/bootloader/` directory.
 Compile the bootloader:
 
 ```shell
@@ -24,15 +24,13 @@ west build -b [pearl_main | pearl_security | diamond_main | diamond_security]  [
 
 - `-DDTC_OVERLAY_FILE=one_slot.overlay`: Use this if you want to flash a Main MCU application with the one-slot configuration. The one-slot configuration is not supported by the Security MCU at the moment!
 
-Flash the bootloader, before the application:
-
-If not in the Docker container:
+Flash the bootloader before the application:
 
 ```shell
 west flash
 ```
 
-If in the Docker container:
+From Docker:
 
 ```shell
 # Note: sometimes you must have the debugger already plugged into your computer _before_ launching Docker in order for Docker to see it.

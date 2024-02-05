@@ -43,6 +43,7 @@ clean_branch() {
   git branch -D "$TARGET_BRANCH_NAME" || true
 }
 
+git checkout open
 # move to git root
 GIT_ROOT=$(git rev-parse --show-toplevel)
 cd "$GIT_ROOT" || exit 1

@@ -61,9 +61,9 @@ rx_thread()
 /// further processing in a separate thread. See \fn rx_thread.
 ///
 /// ⚠️ ISR context, keep it short
-/// \param dev unused
-/// \param evt rx data: buffer address, offset, length
-/// \param user_data unused
+/// @param dev unused
+/// @param evt rx data: buffer address, offset, length
+/// @param user_data unused
 static void
 uart_event_callback(const struct device *dev, struct uart_event *evt,
                     void *user_data)

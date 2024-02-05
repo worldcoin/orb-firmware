@@ -1,7 +1,7 @@
 boards/arm/diamond_main/**
 boards/arm/pearl_main/**
 boards/arm/stm32g474-hrtim.dtsi
-bootloader_main/**
+bootloader/**
 drivers/**
 dts/**
 lib/**

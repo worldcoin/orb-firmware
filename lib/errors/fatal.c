@@ -16,8 +16,8 @@ static uint32_t reset_reason_reg = 0;
 
 /// Fatal kernel error handling, resets the sytem
 /// Reimplementation of weak `k_sys_fatal_error_handler` based on kernel/fatal.c
-/// \param reason see k_fatal_error_reason
-/// \param esf
+/// @param reason see k_fatal_error_reason
+/// @param esf
 void
 k_sys_fatal_error_handler(unsigned int reason, const z_arch_esf_t *esf)
 {
