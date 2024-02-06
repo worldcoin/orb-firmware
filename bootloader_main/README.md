@@ -18,11 +18,11 @@ west build -b [pearl_main | pearl_security | diamond_main | diamond_security]  [
 ```
 
 - `pearl_main`: main board v3.1+, used on Pearl Orbs
-- `pearl_security`: security MCU, any version
+- `pearl_security`: security MCU, any version, used on Pearl Orbs
 - `diamond_main`: Main MCU, used on Diamond Orb Mainboards v4.1+,
 - `diamond_security`: Security MCU, used on Diamond Orb Mainboards v4.1+,
 
-- `-DDTC_OVERLAY_FILE=one_slot.overlay`: Use this if you want to flash a main/sec_board application with the one-slot configuration.
+- `-DDTC_OVERLAY_FILE=one_slot.overlay`: Use this if you want to flash a Main MCU application with the one-slot configuration. The one-slot configuration is not supported by the Security MCU at the moment!
 
 Flash the bootloader, before the application:
 
