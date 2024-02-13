@@ -15,11 +15,11 @@ ZTEST(hil, test_dfu_upload_tests)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_DFU);
 
-    // with block size of 39,
-    // 53 blocks is a sweet spot for testing:
-    // - uses two pages (erasing two times)
-    // - byte count in final buffer isn't aligned on double-word
-    uint32_t test_block_count = 53; // sys_rand32_get() % 50 + 50;
+    // with block size of 39 bytes, we can test:
+    // - erasing two times on new flash sector
+    // - byte count in final buffer isn't aligned on double-word (useful when
+    // flash is STM32)
+    uint32_t test_block_count = (DFU_FLASH_SECTOR_SIZE / 39) + 1;
 
     can_message_t to_send;
     McuMessage dfu_block = McuMessage_init_zero;
@@ -70,7 +70,7 @@ ZTEST(hil, test_dfu_upload_tests)
                dfu_block.message.j_message.payload.dfu_block.block_number + 1,
                DFU_BLOCK_SIZE_MAX);
 
-        k_msleep(500);
+        k_msleep(100);
     }
 
     LOG_INF("Reading back flash");
@@ -113,18 +113,48 @@ ZTEST(hil, test_dfu_upload_tests)
     zassert_equal(rc, 0);
 }
 
+// Test CRC speed over entire slot
 ZTEST(hil, test_crc_over_flash)
 {
-    // Test CRC speed over entire slot
-    uint8_t *sec_slot = (uint8_t *)0x8044000;
     uint32_t tick = k_cycle_get_32();
-    crc32_ieee(sec_slot, 224 * 1024);
+
+    const struct flash_area *flash_area_p = NULL;
+    int ret = flash_area_open(DT_FIXED_PARTITION_ID(DT_ALIAS(secondary_slot)),
+                              &flash_area_p);
+    zassert_equal(ret, 0, "Unable to open secondary slot");
+
+    uint8_t buf[DFU_FLASH_PAGE_SIZE];
+    uint32_t computed_crc = 0;
+    // read entire flash area content to calculate CRC32
+    for (size_t off = 0; off < flash_area_p->fa_size;
+         off += DFU_FLASH_PAGE_SIZE) {
+        size_t len = (flash_area_p->fa_size - off < DFU_FLASH_PAGE_SIZE)
+                         ? flash_area_p->fa_size - off
+                         : DFU_FLASH_PAGE_SIZE;
+
+        ret = flash_area_read(flash_area_p, (off_t)off, buf, len);
+        zassert_equal(ret, 0, "Unable to read @0x%x in secondary slot", off);
+        computed_crc = crc32_ieee_update(computed_crc, buf, len);
+    }
+
+    flash_area_close(flash_area_p);
+    UNUSED(computed_crc);
+
     uint32_t tock = k_cycle_get_32();
 
     int32_t crc_computation_us =
         (int32_t)(tock - tick) / (sys_clock_hw_cycles_per_sec() / 1000 / 1000);
     LOG_INF("CRC over entire slot took %uus, %u cycles (%u cycle/sec)",
             crc_computation_us, tock - tick, sys_clock_hw_cycles_per_sec());
+
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+    // check within 1400ms (1.4s)
+    // you read that well, access to external SPI Flash takes time...
+    zassert_between_inclusive(crc_computation_us, 0, 1400000);
+#elif defined(CONFIG_BOARD_PEARL_MAIN)
     // check within 50ms
-    zassert_within(crc_computation_us, 25000, 25000);
+    zassert_between_inclusive(crc_computation_us, 0, 50000);
+#else
+#error fix the test for any other board
+#endif
 }

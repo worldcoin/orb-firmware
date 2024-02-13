@@ -2,9 +2,7 @@
 #include "bootutil/bootutil_public.h"
 #include "compilers.h"
 #include "errno.h"
-#include <app_assert.h>
 #include <errors.h>
-#include <flash_map_backend/flash_map_backend.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -20,8 +18,10 @@ K_THREAD_STACK_DEFINE(dfu_thread_stack, CONFIG_ORB_LIB_THREAD_STACK_SIZE_DFU);
 static struct k_thread dfu_thread_data = {0};
 static k_tid_t tid_dfu = NULL;
 
-static struct image_header *primary_slot = NULL;
-static struct image_header *secondary_slot = NULL;
+static struct image_header primary_slot_header = {0};
+static struct image_header secondary_slot_header = {0};
+// protect access to headers above
+static K_SEM_DEFINE(sem_headers, 1, 1);
 
 // Image data comes in at chunks of exactly DFU_BLOCK_SIZE_MAX, except for
 // perhaps the last chunk, which can be smaller.
@@ -54,12 +54,9 @@ BUILD_ASSERT(DFU_BLOCKS_WRITE_SIZE <= DFU_BLOCKS_BUFFER_SIZE,
 BUILD_ASSERT(DFU_BLOCKS_WRITE_SIZE % 8 == 0,
              "DFU_BLOCKS_WRITE_SIZE must be a multiple of a double-word");
 
-#ifndef FLASH_PAGE_SIZE
-#define FLASH_PAGE_SIZE 4096
-#endif
-
-#define PAGE_MASK         (~(FLASH_PAGE_SIZE - 1))
-#define NEXT_PAGE(offset) ((offset & PAGE_MASK) + FLASH_PAGE_SIZE)
+#define SECTOR_MASK (~(DFU_FLASH_SECTOR_SIZE - 1))
+#define NEXT_SECTOR_BOUNDARY(offset)                                           \
+    ((offset & SECTOR_MASK) + DFU_FLASH_SECTOR_SIZE)
 
 static struct {
     // make sure `bytes` is the first field to ensure alignment
@@ -67,7 +64,7 @@ static struct {
     uint32_t wr_idx;
     uint32_t block_number;
     uint32_t block_count;
-    uint32_t flash_offset;
+    size_t flash_offset;
     void *ctx; // pointer to the caller context, to be used with the
                // `dfu_block_process_cb`
 } dfu_state __ALIGN(8) = {0};
@@ -204,21 +201,22 @@ process_dfu_blocks_thread()
 
             // check whether on a sector boundary or
             // bytes to write will use the next sector
-            if (dfu_state.flash_offset % FLASH_PAGE_SIZE == 0 ||
+            if (dfu_state.flash_offset % DFU_FLASH_SECTOR_SIZE == 0 ||
                 ((bytes_to_write > DFU_BLOCKS_WRITE_SIZE) &&
-                 (dfu_state.flash_offset % FLASH_PAGE_SIZE + bytes_to_write >
-                  FLASH_PAGE_SIZE))) {
+                 (dfu_state.flash_offset % DFU_FLASH_SECTOR_SIZE +
+                      bytes_to_write >
+                  DFU_FLASH_SECTOR_SIZE))) {
 
-                uint32_t offset = dfu_state.flash_offset;
+                size_t offset = dfu_state.flash_offset;
                 // erase next sector if not on sector boundary
-                if (dfu_state.flash_offset % FLASH_PAGE_SIZE) {
-                    offset = NEXT_PAGE(offset);
+                if (dfu_state.flash_offset % DFU_FLASH_SECTOR_SIZE) {
+                    offset = NEXT_SECTOR_BOUNDARY(offset);
                 }
                 // erase secondary slot
                 LOG_INF("Erasing Flash, offset 0x%08x", offset);
 
-                err_code =
-                    flash_area_erase(flash_area_p, offset, FLASH_PAGE_SIZE);
+                err_code = flash_area_erase(flash_area_p, (off_t)offset,
+                                            DFU_FLASH_SECTOR_SIZE);
                 if (err_code != 0) {
                     LOG_ERR("Unable to erase sector @0x%x, err %i", offset,
                             err_code);
@@ -270,12 +268,25 @@ process_dfu_blocks_thread()
 static int
 dfu_secondary_activate(bool permanent)
 {
+    int ret;
+
+    struct image_version dummy;
+    dfu_version_secondary_get(&dummy);
+
+    ret = k_sem_take(&sem_headers, K_NO_WAIT);
+    if (ret) {
+        return RET_ERROR_BUSY;
+    }
+    bool img_is_valid = secondary_slot_header.ih_img_size != 0 &&
+                        secondary_slot_header.ih_magic != IMAGE_MAGIC;
+    k_sem_give(&sem_headers);
+
     // check that we have an image in secondary slot
-    if (secondary_slot != NULL && secondary_slot->ih_magic != IMAGE_MAGIC) {
+    if (img_is_valid) {
         return RET_ERROR_INVALID_STATE;
     }
 
-    int ret = boot_set_pending(permanent);
+    ret = boot_set_pending(permanent);
     if (ret != 0) {
         LOG_ERR("Unable to mark secondary slot as pending: %d", ret);
         return ret;
@@ -312,29 +323,70 @@ dfu_secondary_activate_temporarily(void)
 int
 dfu_secondary_check(uint32_t crc32)
 {
-    if (secondary_slot == NULL) {
+    int ret;
+
+    // update header before checking
+    struct image_version dummy;
+    dfu_version_secondary_get(&dummy);
+
+    ret = k_sem_take(&sem_headers, K_NO_WAIT);
+    if (ret) {
+        return RET_ERROR_BUSY;
+    }
+
+    if (secondary_slot_header.ih_img_size == 0) {
+        k_sem_give(&sem_headers);
         return RET_ERROR_INVALID_STATE;
     }
 
     // find full image size by reading image header
     // then add TLV size using the offset provided in the image header
-    size_t img_size = secondary_slot->ih_hdr_size + secondary_slot->ih_img_size;
+    size_t img_size =
+        secondary_slot_header.ih_hdr_size + secondary_slot_header.ih_img_size;
 
-    struct image_tlv_info *tlv_magic =
-        (struct image_tlv_info *)&((uint8_t *)secondary_slot)[img_size];
-    if (tlv_magic->it_magic == IMAGE_TLV_INFO_MAGIC ||
-        tlv_magic->it_magic == IMAGE_TLV_PROT_INFO_MAGIC) {
-        img_size += tlv_magic->it_tlv_tot;
+    k_sem_give(&sem_headers);
+
+    const struct flash_area *flash_area_p = NULL;
+    ret = flash_area_open(DT_FIXED_PARTITION_ID(DT_ALIAS(secondary_slot)),
+                          &flash_area_p);
+    if (ret) {
+        LOG_ERR("Unable to open secondary slot");
+        return RET_ERROR_INTERNAL;
     }
 
-    uint32_t computed = crc32_ieee((uint8_t *)secondary_slot, img_size);
+    struct image_tlv_info tlv_magic = {0};
+    flash_area_read(flash_area_p, (off_t)img_size, &tlv_magic,
+                    sizeof(tlv_magic));
+    if (tlv_magic.it_magic == IMAGE_TLV_INFO_MAGIC ||
+        tlv_magic.it_magic == IMAGE_TLV_PROT_INFO_MAGIC) {
+        img_size += tlv_magic.it_tlv_tot;
+    }
+
+    uint8_t buf[DFU_FLASH_PAGE_SIZE];
+    uint32_t computed_crc = 0;
+    // read entire flash area content to calculate CRC32
+    for (size_t off = 0; off < img_size; off += DFU_FLASH_PAGE_SIZE) {
+        size_t len = (img_size - off < DFU_FLASH_PAGE_SIZE)
+                         ? img_size - off
+                         : DFU_FLASH_PAGE_SIZE;
+        ret = flash_area_read(flash_area_p, (off_t)off, buf, len);
+        if (ret) {
+            LOG_ERR("Unable to read secondary slot");
+            flash_area_close(flash_area_p);
+            return RET_ERROR_INTERNAL;
+        }
+        computed_crc = crc32_ieee_update(computed_crc, buf, len);
+    }
+
+    flash_area_close(flash_area_p);
 
     LOG_INF(
         "Secondary slot CRC32 (binary size %uB): computed 0x%x, expected 0x%x",
-        img_size, computed, crc32);
-    if (computed != crc32) {
+        img_size, computed_crc, crc32);
+    if (computed_crc != crc32) {
         return RET_ERROR_INVALID_STATE;
     }
+
     return RET_SUCCESS;
 }
 
@@ -356,6 +408,10 @@ dfu_primary_is_confirmed()
     bool confirmed = false;
     const struct flash_area *flash_area_p = NULL;
     ret = flash_area_open(flash_area_id_from_image_slot(0), &flash_area_p);
+    if (ret) {
+        LOG_ERR("Unable to open primary slot");
+        return false;
+    }
 
     ret = boot_read_image_ok(flash_area_p, &image_ok);
     if (ret == 0 && (image_ok != BOOT_FLAG_UNSET)) {
@@ -370,74 +426,167 @@ dfu_primary_is_confirmed()
 int
 dfu_version_primary_get(struct image_version *ih_ver)
 {
-    if (primary_slot == NULL) {
-        return RET_ERROR_INVALID_STATE;
+    int ret;
+    if (ih_ver == NULL) {
+        return RET_ERROR_INVALID_PARAM;
     }
 
-    memcpy(ih_ver, &primary_slot->ih_ver, sizeof(struct image_version));
+    ret = k_sem_take(&sem_headers, K_FOREVER);
+    if (ret) {
+        return RET_ERROR_INTERNAL;
+    }
 
-    return RET_SUCCESS;
+    memset(&primary_slot_header, 0, sizeof(primary_slot_header));
+
+    // open and read primary slot
+    const struct flash_area *flash_area_p = NULL;
+    ret = flash_area_open(DT_FIXED_PARTITION_ID(DT_NODELABEL(slot0_partition)),
+                          &flash_area_p);
+    if (ret) {
+        LOG_ERR("Unable to open primary slot");
+        ret = RET_ERROR_INTERNAL;
+        goto exit;
+    }
+
+    ret = flash_area_read(flash_area_p, 0, &primary_slot_header,
+                          sizeof(primary_slot_header));
+    if (ret) {
+        LOG_ERR("Unable to read primary slot header");
+        ret = RET_ERROR_INTERNAL;
+        goto exit;
+    }
+
+    memcpy(ih_ver, &primary_slot_header.ih_ver, sizeof(struct image_version));
+
+exit:
+    k_sem_give(&sem_headers);
+
+    if (flash_area_p) {
+        flash_area_close(flash_area_p);
+    }
+
+    return ret;
 }
 
 int
 dfu_version_secondary_get(struct image_version *ih_ver)
 {
-    // if flash is erased, no image present
-    if (secondary_slot->ih_ver.iv_build_num == 0xFFFFFFFFLU &&
-        secondary_slot->ih_ver.iv_revision == 0xFFFFLU) {
-        return RET_ERROR_NOT_FOUND;
+    int ret;
+    if (ih_ver == NULL) {
+        return RET_ERROR_INVALID_PARAM;
     }
 
-    memcpy(ih_ver, &secondary_slot->ih_ver, sizeof(struct image_version));
+    ret = k_sem_take(&sem_headers, K_FOREVER);
+    if (ret) {
+        return RET_ERROR_INTERNAL;
+    }
 
-    return RET_SUCCESS;
+    // open and read secondary slot
+    const struct flash_area *flash_area_p = NULL;
+    ret = flash_area_open(DT_FIXED_PARTITION_ID(DT_ALIAS(secondary_slot)),
+                          &flash_area_p);
+    if (ret) {
+        LOG_ERR("Unable to open secondary slot");
+        ret = RET_ERROR_INTERNAL;
+        goto exit;
+    }
+
+    ret = flash_area_read(flash_area_p, 0, &secondary_slot_header,
+                          sizeof(secondary_slot_header));
+    if (ret) {
+        LOG_ERR("Unable to read secondary slot");
+        ret = RET_ERROR_INTERNAL;
+        goto exit;
+    }
+
+    // if flash is erased, no image present
+    if (secondary_slot_header.ih_ver.iv_build_num == 0xFFFFFFFFLU &&
+        secondary_slot_header.ih_ver.iv_revision == 0xFFFFLU) {
+        ret = RET_ERROR_NOT_FOUND;
+        goto exit;
+    }
+
+    memcpy(ih_ver, &secondary_slot_header.ih_ver, sizeof(struct image_version));
+
+exit:
+    k_sem_give(&sem_headers);
+
+    if (flash_area_p) {
+        flash_area_close(flash_area_p);
+    }
+
+    return ret;
 }
 
 int
 dfu_init(void)
 {
-    uintptr_t flash_base_addr = 0;
-
-    int ret = flash_device_base(0, &flash_base_addr);
-    ASSERT_SOFT(ret);
-
+    int ret;
     size_t img_size;
     size_t partition_size;
-    primary_slot =
-        (struct image_header *)(flash_base_addr +
-                                DT_REG_ADDR(DT_NODELABEL(slot0_partition)));
-    img_size = primary_slot->ih_hdr_size + primary_slot->ih_img_size;
+
+    /* fetch primary & secondary slot info */
+    struct image_version ih_version_dummy;
+    ret = dfu_version_primary_get(&ih_version_dummy);
+    if (ret) {
+        LOG_ERR("Unable to fetch primary slot image version");
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    ret = dfu_version_secondary_get(&ih_version_dummy);
+    if (ret) {
+        LOG_ERR("Unable to fetch secondary slot image version");
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    ret = k_sem_take(&sem_headers, K_FOREVER);
+    if (ret != 0) {
+        return RET_ERROR_INTERNAL;
+    }
+
+    img_size =
+        primary_slot_header.ih_hdr_size + primary_slot_header.ih_img_size;
+
     partition_size = DT_REG_SIZE(DT_NODELABEL(slot0_partition));
     if (img_size > partition_size) {
         // header not written?
-        primary_slot = NULL;
-        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
+        memset(&primary_slot_header, 0, sizeof(primary_slot_header));
+        ret = RET_ERROR_INVALID_STATE;
     } else {
         LOG_INF("Primary slot version %u.%u.%u-0x%x",
-                primary_slot->ih_ver.iv_major, primary_slot->ih_ver.iv_minor,
-                primary_slot->ih_ver.iv_revision,
-                primary_slot->ih_ver.iv_build_num);
+                primary_slot_header.ih_ver.iv_major,
+                primary_slot_header.ih_ver.iv_minor,
+                primary_slot_header.ih_ver.iv_revision,
+                primary_slot_header.ih_ver.iv_build_num);
+
+        if (secondary_slot_header.ih_img_size != 0 &&
+            secondary_slot_header.ih_magic != IMAGE_MAGIC) {
+            // no valid image in secondary slot
+            LOG_WRN("Invalid image in secondary slot (image magic not found)");
+            memset(&secondary_slot_header, 0, sizeof(secondary_slot_header));
+            ret = RET_ERROR_INVALID_STATE;
+        } else {
+            img_size = secondary_slot_header.ih_hdr_size +
+                       secondary_slot_header.ih_img_size;
+            partition_size = DT_REG_SIZE(DT_ALIAS(secondary_slot));
+            if (img_size > partition_size) {
+                memset(&secondary_slot_header, 0,
+                       sizeof(secondary_slot_header));
+                LOG_WRN("Invalid image in secondary slot. Partition size %uB. "
+                        "Image "
+                        "size %uB",
+                        partition_size, img_size);
+            } else {
+                LOG_INF("Secondary slot version %u.%u.%u-0x%x",
+                        secondary_slot_header.ih_ver.iv_major,
+                        secondary_slot_header.ih_ver.iv_minor,
+                        secondary_slot_header.ih_ver.iv_revision,
+                        secondary_slot_header.ih_ver.iv_build_num);
+            }
+        }
     }
 
-    secondary_slot =
-        (struct image_header *)(flash_base_addr +
-                                DT_REG_ADDR(DT_ALIAS(secondary_slot)));
-    img_size = secondary_slot->ih_hdr_size + secondary_slot->ih_img_size;
-    partition_size = DT_REG_SIZE(DT_ALIAS(secondary_slot));
-    if (img_size > partition_size ||
-        (DT_REG_SIZE(DT_NODELABEL(slot0_partition)) !=
-         DT_REG_SIZE(DT_ALIAS(secondary_slot)))) {
-        secondary_slot = NULL;
-        LOG_WRN("Invalid image in secondary slot. Partition size %uB. Image "
-                "size %uB",
-                partition_size, img_size);
-    } else {
-        LOG_INF("Secondary slot version %u.%u.%u-0x%x",
-                secondary_slot->ih_ver.iv_major,
-                secondary_slot->ih_ver.iv_minor,
-                secondary_slot->ih_ver.iv_revision,
-                secondary_slot->ih_ver.iv_build_num);
-    }
+    k_sem_give(&sem_headers);
 
-    return RET_SUCCESS;
+    return ret;
 }

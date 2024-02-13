@@ -8,6 +8,18 @@
 #define DFU_BLOCK_SIZE_MAX                                                     \
     STRUCT_MEMBER_ARRAY_SIZE(FirmwareUpdateData, image_block.bytes)
 
+#if DT_NODE_HAS_COMPAT(DT_GPARENT(DT_ALIAS(secondary_slot)), jedec_spi_nor)
+#include "flash/spi_nor.h"
+#define DFU_FLASH_SECTOR_SIZE SPI_NOR_SECTOR_SIZE
+#define DFU_FLASH_PAGE_SIZE   SPI_NOR_PAGE_SIZE
+#else
+#ifndef FLASH_PAGE_SIZE
+#define FLASH_PAGE_SIZE 4096
+#endif
+#define DFU_FLASH_SECTOR_SIZE FLASH_PAGE_SIZE
+#define DFU_FLASH_PAGE_SIZE   FLASH_PAGE_SIZE
+#endif
+
 /**
  * Queue one firmware image block.
  * An internal buffer is used to queue blocks before writing to flash a larger,

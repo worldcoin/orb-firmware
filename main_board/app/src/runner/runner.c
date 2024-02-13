@@ -798,7 +798,7 @@ handle_fw_img_primary_confirm(job_t *job)
     // primary slot meaning the image has not been installed successfully
     struct image_version secondary_version;
     struct image_version primary_version;
-    if (dfu_version_secondary_get(&secondary_version) == 0) {
+    if (dfu_version_secondary_get(&secondary_version) == RET_SUCCESS) {
         // check that image to be confirmed has higher version than previous
         // image
         dfu_version_primary_get(&primary_version);
