@@ -4,18 +4,22 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
+#include <zephyr/devicetree.h>
 
 /**
  * First In First Out storage
  * Dynamically sized records can be written
  * Read records are the oldest and can be marked as "processed" or "read" by
- * freeing them (ie invalidating). STM32 flash only allows for writing an
- * entire double word with 0 in case dword isn't erased so an invalid record
- * has its header set to zeros.
+ * freeing them (ie invalidating).
+ *
+ * STM32 flash only allows for writing an entire double word with 0 in case
+ * dword isn't erased so an invalid record has its full header set to zeros.
  */
 
 #define FLASH_WRITE_BLOCK_SIZE                                                 \
-    DT_PROP(DT_CHOSEN(zephyr_flash), write_block_size)
+    DT_PROP_OR(DT_PARENT(DT_PARENT(DT_NODELABEL(storage_partition))),          \
+               write_block_size, 1)
 
 enum magic_state_e {
     RECORD_UNUSED = 0xFFFF,  //!< Unused bytes in Flash (erased)
@@ -40,8 +44,8 @@ typedef struct __PACKED __may_alias {
 /// Pointers to read/write through the flash area
 struct storage_area_s {
     const struct flash_area *fa;
-    storage_header_t *wr_idx; //!< write pointer, direct access to Flash content
-    storage_header_t *rd_idx; //!< read pointer, direct access to Flash content
+    off_t wr_idx; //!< offset into the flash area
+    off_t rd_idx; //!< offset into the flash area
 };
 
 /**
@@ -58,6 +62,7 @@ struct storage_area_s {
  * @retval RET_ERROR_INTERNAL error writing flash
  * @retval RET_ERROR_INVALID_STATE CRC16 computed over flash content doesn't
  * match CRC16 computed over \c record content
+ * @retval RET_ERROR_NOT_INITIALIZED storage area not initialized
  */
 int
 storage_push(char *record, size_t size);
@@ -75,6 +80,7 @@ storage_push(char *record, size_t size);
  *    size
  * @retval RET_ERROR_INVALID_STATE CRC failure, use \c storage_free to discard
  * the data
+ * @retval RET_ERROR_NOT_INITIALIZED storage area not initialized
  */
 int
 storage_peek(char *buffer, size_t *size);
@@ -88,6 +94,7 @@ storage_peek(char *buffer, size_t *size);
  * @retval RET_SUCCESS record invalidated and read index pushed to next record
  * @retval RET_ERROR_NOT_FOUND record pointed by read index isn't valid
  * @retval RET_ERROR_INTERNAL error invalidating record in Flash
+ * @retval RET_ERROR_NOT_INITIALIZED storage area not initialized
  */
 int
 storage_free(void);
