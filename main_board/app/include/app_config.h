@@ -10,7 +10,7 @@
 
 // Power management thread
 #define THREAD_PRIORITY_POWER_MANAGEMENT   3
-#define THREAD_STACK_SIZE_POWER_MANAGEMENT 1024
+#define THREAD_STACK_SIZE_POWER_MANAGEMENT 2048
 
 // Runner / default message processing
 #define THREAD_PRIORITY_RUNNER   6
