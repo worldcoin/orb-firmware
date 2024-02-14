@@ -12,3 +12,10 @@ CONFIG_ARM_MPU=y
 
 # Enable HW stack protection
 CONFIG_HW_STACK_PROTECTION=y
+
+# sector size for the external SPI flash layout
+# not using the default (64K) allows us to have the scratch partition in
+# the STM32 Flash (faster access) as the scratch partition should be at
+# least the size of the largest sector size of any Flash used by the
+# bootloader
+CONFIG_SPI_NOR_FLASH_LAYOUT_PAGE_SIZE=16384

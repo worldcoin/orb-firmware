@@ -32,14 +32,14 @@
     compatible = "worldcoin,diamond_main";
 
     chosen {
+        zephyr,flash = &flash0;
+        zephyr,sram = &sram0;
         // app in slot0_partition by default
         // the bootloader uses an overlay to redefine this
         zephyr,code-partition = &slot0_partition;
 
         zephyr,console = &usart2;
         zephyr,shell-uart = &usart2;
-        zephyr,sram = &sram0;
-        zephyr,flash = &flash0;
         zephyr,canbus = &can1;
     };
 
@@ -47,6 +47,7 @@
         battery-can-bus = &can2;
         watchdog0 = &iwdg;
         secondary-slot = &slot1_partition;
+        spi-flash0 = &w25q32jv;
     };
 
     zephyr,user {
@@ -934,6 +935,41 @@
     };
 };
 
+&i2c3 {
+    pinctrl-0 = <&i2c3_scl_pc8 &i2c3_sda_pc9>;
+    pinctrl-names = "default";
+    status = "okay";
+
+    // io-expander on the power board
+    gpio_exp_pwr_brd: pca95xx@20 {
+        compatible = "nxp,pca95xx";
+        reg = <0x20>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        ngpios = <16>;
+        status = "okay";
+    };
+
+    // io-expander 0x21
+    // PCA9535 registers are the same as one TCA9535
+    gpio_exp1: pca95xx@21 {
+        compatible = "nxp,pca95xx";
+        reg = <0x21>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        ngpios = <16>;
+    };
+
+    // io-expander 0x22
+    gpio_exp2: pca95xx@22 {
+        compatible = "nxp,pca95xx";
+        reg = <0x22>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        ngpios = <16>;
+    };
+};
+
 &i2c4 {
     pinctrl-0 = <&i2c4_scl_pc6 &i2c4_sda_pb7>;
     pinctrl-names = "default";
@@ -1020,6 +1056,24 @@
     };
 };
 
+&spi2 {
+    pinctrl-0 = <&spi2_sck_pb13 &spi2_miso_pb14 &spi2_mosi_pb15>;
+    pinctrl-names = "default";
+    cs-gpios = <&gpiod 15 GPIO_ACTIVE_LOW>;
+    status = "okay";
+
+    w25q32jv: w25q32jv@0 {
+        compatible = "jedec,spi-nor";
+        reg = <0>;
+        spi-max-frequency = <40000000>;
+        size = <0x2000000>;
+        has-dpd;
+        t-enter-dpd = <3000>;
+        t-exit-dpd = <30000>;
+        jedec-id = [ ef 40 16 ];
+    };
+};
+
 &spi4 {
     pinctrl-0 = <&spi4_sck_pe12 &spi4_mosi_pe6>;
     pinctrl-names = "default";
@@ -1034,6 +1088,34 @@
     status = "okay";
 };
 
+&w25q32jv {
+    status = "okay";
+
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        /* 448KiB for app image, secondary slot */
+        slot1_partition: partition@0 {
+            label = "image-1";
+            reg = <0x0 DT_SIZE_K(448)>;
+        };
+
+        /* 8KiB reserved for app storage partition */
+        storage_partition: partition@7E000 {
+            label = "storage";
+            reg = <0x0007E000 DT_SIZE_K(8)>;
+        };
+
+        /* 8KiB reserved for configuration partition */
+        config_partition: partition@7F000 {
+            label = "config";
+            reg = <0x0007F000 DT_SIZE_K(8)>;
+        };
+    };
+};
+
 &flash0 {
     /*
      * Base address: 0x8000000
@@ -1045,76 +1127,27 @@
         #address-cells = <1>;
         #size-cells = <1>;
 
-        /* 48KiB for bootloader */
+        /*
+         *    48KiB for bootloader (mcuboot)
+         * + 448KiB for app image
+         * +  16KiB scratch area for mcuboot
+         * ================================
+         * 512KiB total
+         */
         boot_partition: partition@0 {
             label = "mcuboot";
-            reg = <0x00000000 0x0000C000>;
+            reg = <0x00000000 DT_SIZE_K(48)>;
             read-only;
         };
 
-        /* 224KiB per slot */
-        // 0x800C000
         slot0_partition: partition@C000 {
             label = "image-0";
-            reg = <0x0000C000 0x00038000>;
-        };
-        // 0x8044000
-        slot1_partition: partition@44000 {
-            label = "image-1";
-            reg = <0x00044000 0x00038000>;
+            reg = <0x0000C000 DT_SIZE_K(448)>;
         };
 
-        /* 8KiB scratch */
         scratch_partition: partition@7C000 {
             label = "image-scratch";
-            reg = <0x0007C000 0x00002000>;
+            reg = <0x0007C000 DT_SIZE_K(16)>;
         };
-
-        /* 4KiB reserved for app storage partition */
-        storage_partition: partition@7E000 {
-            label = "storage";
-            reg = <0x0007E000 0x00001000>;
-        };
-
-        /* 4KiB reserved for configuration partition */
-        config_partition: partition@7F000 {
-            label = "config";
-            reg = <0x0007F000 0x00001000>;
-        };
-    };
-};
-
-&i2c3 {
-    pinctrl-0 = <&i2c3_scl_pc8 &i2c3_sda_pc9>;
-    pinctrl-names = "default";
-    status = "okay";
-
-    // io-expander on the power board
-    gpio_exp_pwr_brd: pca95xx@20 {
-        compatible = "nxp,pca95xx";
-        reg = <0x20>;
-        gpio-controller;
-        #gpio-cells = <2>;
-        ngpios = <16>;
-        status = "okay";
-    };
-
-    // io-expander 0x21
-    // PCA9535 registers are the same as one TCA9535
-    gpio_exp1: pca95xx@21 {
-        compatible = "nxp,pca95xx";
-        reg = <0x21>;
-        gpio-controller;
-        #gpio-cells = <2>;
-        ngpios = <16>;
-    };
-
-    // io-expander 0x22
-    gpio_exp2: pca95xx@22 {
-        compatible = "nxp,pca95xx";
-        reg = <0x22>;
-        gpio-controller;
-        #gpio-cells = <2>;
-        ngpios = <16>;
     };
 };
