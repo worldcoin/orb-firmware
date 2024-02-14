@@ -94,7 +94,7 @@ diag_init(void)
 #ifdef CONFIG_ZTEST
 #include <zephyr/ztest.h>
 
-ZTEST(hil, diag)
+ZTEST(hil, test_diag)
 {
     int ret;
 
