@@ -32,8 +32,7 @@ Let's build and run the application, you have several options:
 >   `./generate_dev_keys` while in the directory `"$REPO_DIR"/orb/utils/ota/`.
 > - Make sure to have the [bootloader flashed](../../bootloader/README.md) _before_ flashing the application.
 > - If you want to use the one-slot configuration (`-DDTC_OVERLAY_FILE=one_slot.overlay`) then the bootloader must have
-
-    been built with this option as well.
+>   been built with this option as well.
 
 #### With Makefile
 

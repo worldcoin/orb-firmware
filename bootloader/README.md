@@ -23,13 +23,21 @@ or for the security microcontroller (internal use only):
 west build -b [pearl_security | diamond_security] -- -DBOARD_ROOT=../sec_board
 ```
 
+Board options:
+
 - `pearl_main`: main board v3.2+, used on Pearl Orbs
 - `pearl_security`: security MCU, any version, used on Pearl Orbs
 - `diamond_main`: main board, used on Diamond Orbs
 - `diamond_security`: security MCU, used on Diamond Orbs
 
-- `-DDTC_OVERLAY_FILE=one_slot.overlay`: Use this if you want to flash a Main MCU application with the one-slot
-  configuration. The one-slot configuration is not supported by the Security MCU at the moment!
+Custom options:
+
+- `-DDTC_OVERLAY_FILE=one_slot.overlay`: use this if you want to flash a `pearl_main` application with the one-slot
+  configuration because the image doesn't fit the default partitions. The one-slot configuration shouldn't be needed for
+  any other board.
+- `-DBOARD_ROOT=../sec_board`: needed to build the bootloader for the security microcontrollers as the board definitions
+  are not included in the main repository but taken from the west project in `sec_board/` pulled when the `internal`
+  group is included in the west configuration.
 
 Flash the bootloader before the application:
 
