@@ -500,7 +500,7 @@ ZTEST(hil, test_ir_eye_camera_mirror_sweep)
 
 ZTEST(hil, test_ir_camera_sys_logic_analyzer)
 {
-    Z_TEST_SKIP_IFNDEF(CONFIG_TEST_IR_CAMERA_SYSTEM);
+    Z_TEST_SKIP_IFNDEF(CONFIG_TEST_IR_CAMERA_SYSTEM_WITH_PROBE);
 
     size_t i;
     for (i = 0; i < ARRAY_SIZE(tests); ++i) {

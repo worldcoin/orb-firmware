@@ -41,7 +41,7 @@ config TEST_USER_LEDS
       Tests all the user LED patterns. Visual inspection is needed to check
       for correct pattern implementation.
 
-config TEST_IR_CAMERA_SYSTEM
+config TEST_IR_CAMERA_SYSTEM_WITH_PROBE
     bool "Test the IR camera system"
     help
       The IR/Camera test has to be verified using a scope
@@ -60,7 +60,6 @@ config APP_TESTS_ALL
     select TEST_DFU
     select TEST_OPERATOR_LEDS
     select TEST_USER_LEDS
-    select TEST_IR_CAMERA_SYSTEM
     select TEST_FAN
     select TEST_GNSS
 
