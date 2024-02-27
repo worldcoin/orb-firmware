@@ -20,11 +20,12 @@ manifest:
       path: orb/sec_board
       groups: [internal]
     - name: orb-mcu-messaging
-      revision: 373914af23e3ab33a6ef0f64d3a6e3f39d75a8ab
+      revision: 011ad102a5074675d6551867f7f433f9b3f028ef
       path: modules/orb-mcu-messaging
+      submodules: true
       groups: [internal]
     - name: open-orb-mcu-messaging
-      revision: 2818573daa4250d608590041ddb488500bfa8108
+      revision: 120921587747c712bd454196ac7941af2c2f3497
       path: modules/open-orb-mcu-messaging
       groups: [public]
     - name: plug-and-trust
