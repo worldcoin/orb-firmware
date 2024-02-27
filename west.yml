@@ -15,6 +15,10 @@ manifest:
           - segger
           - nanopb
           - hal_st
+    - name: orb-security-mcu-firmware
+      revision: a74c9b1c2841780d9b13beb792200140f7b9df94
+      path: orb/sec_board
+      groups: [internal]
     - name: orb-mcu-messaging
       revision: 373914af23e3ab33a6ef0f64d3a6e3f39d75a8ab
       path: modules/orb-mcu-messaging

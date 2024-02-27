@@ -5,6 +5,9 @@ CMakeCache.txt
 CMakeFiles/
 app_version.conf
 
+# handled by west
+sec_board/
+
 build/
 twister-out/
 .docker_image_built
