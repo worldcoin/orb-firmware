@@ -1,2 +1,0 @@
-manifest:
-  group-filter: [+public, -internal] # public

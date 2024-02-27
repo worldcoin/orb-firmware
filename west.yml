@@ -15,24 +15,26 @@ manifest:
           - segger
           - nanopb
           - hal_st
-    - name: orb-security-mcu-firmware
-      revision: a74c9b1c2841780d9b13beb792200140f7b9df94
-      path: orb/sec_board
-      groups: [internal]
+    - name: open-orb-mcu-messaging
+      revision: 120921587747c712bd454196ac7941af2c2f3497
+      path: modules/orb-mcu-messaging/public
     - name: orb-mcu-messaging
       revision: 011ad102a5074675d6551867f7f433f9b3f028ef
       path: modules/orb-mcu-messaging
       submodules: true
       groups: [internal]
-    - name: open-orb-mcu-messaging
-      revision: 120921587747c712bd454196ac7941af2c2f3497
-      path: modules/open-orb-mcu-messaging
-      groups: [public]
+    - name: orb-security-mcu-firmware
+      revision: a74c9b1c2841780d9b13beb792200140f7b9df94
+      path: orb/sec_board
+      groups: [internal]
     - name: plug-and-trust
       revision: beb0db6da441f8fd5becfab6c216c8d51aac8dbf
       path: modules/plug-and-trust
+      groups: [internal]
   self:
     path: orb
-    import:
-      # select groups in orb/utils/open/groups.yml, between [internal] and [public]
-      - utils/open/groups.yml
+
+  # by default, only public projects are built
+  # if access is granted, enable internal projects
+  # with `west config manifest.group-filter +internal`
+  group-filter: [-internal]
