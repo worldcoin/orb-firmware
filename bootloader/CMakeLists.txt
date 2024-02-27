@@ -48,6 +48,7 @@ endmacro()
 get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
 get_filename_component(WORKSPACE_DIR ${PROJECT_DIR} DIRECTORY)
 list(APPEND BOARD_ROOT ${PROJECT_DIR})
+list(APPEND DTS_ROOT ${PROJECT_DIR})
 
 # find_package(Zephyr) in order to load application boilerplate:
 # http://docs.zephyrproject.org/application/application.html

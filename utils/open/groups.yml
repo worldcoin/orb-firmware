@@ -1,2 +1,2 @@
 manifest:
-  group-filter: [+internal, -public]
+  group-filter: [+public, -internal] # public

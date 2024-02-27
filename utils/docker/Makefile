@@ -1,27 +1,14 @@
-DOCKER_CI_TAG := $(shell cat docker_image_tag)
-ifeq ($(DOCKER_CI_TAG),)
-    $(error Error reading DOCKER_CI_TAG or tag is empty!)
-endif
-
-DOCKER_REPO := $(shell cat docker_image_repo)
-ifeq ($(DOCKER_REPO),)
-    $(error Error reading DOCKER_REPO or repo is empty!)
-endif
-
-# Use DOCKER_TAG passed in from command line, or use the tag used in CI
-DOCKER_IMAGE_NAME := $(DOCKER_REPO)$(if $(DOCKER_TAG),:$(DOCKER_TAG),:$(DOCKER_CI_TAG))
+# Use DOCKER_TAG if passed in from command line
+DOCKER_IMAGE_NAME := orb-mcu-firmware-builder$(if $(DOCKER_TAG),:$(DOCKER_TAG),:local)
 
 ifneq ($(filter help all build,$(MAKECMDGOALS)),)
 
 .PHONY: help
 help:
-	@:$(info Needed env or cmd-line variables:)
-	@:$(info )
-	@:$(info REPO_DIR = absolute path to top-level west workspace.)
-	@:$(info )
 	@:$(info Optional env or cmd-line variables:)
 	@:$(info )
-	@:$(info BOARD   = board option to give to `west build -b`.)
+	@:$(info BOARD   		= board option to give to `west build -b`.)
+	@:$(info DOCKER_TAG   	= Docker image tag to use.)
 	@:$(info )
 	@:$(info TARGETS:)
 	@:$(info )
@@ -29,29 +16,28 @@ help:
 	@:$(info shell         : drop into the Docker container.)
 	@:$(info clean         : clean the Docker image.)
 	@:$(info )
-	@:$(info where mcu = [ main_board | sec_board ])
-	@:$(info <mcu>-build     : build MCU code.)
-	@:$(info <mcu>-flash     : flash MCU code (also builds if necessary).)
-	@:$(info <mcu>-clean     : clean MCU code.)
-	@:$(info <mcu>-tests     : build and run MCU tests.)
+	@:$(info mcu-build     : build MCU code.)
+	@:$(info mcu-flash     : flash MCU code (also builds if necessary).)
+	@:$(info mcu-clean     : clean MCU code.)
+	@:$(info mcu-tests     : build and run MCU tests.)
 	@:$(info )
 	@:$(info )
 	@:$(info Examples:)
 	@:$(info )
-	@:$(info make main_mcu-build REPO_DIR=/home/pdietl/firmware)
-	@:$(info make main_mcu-tests REPO_DIR=/home/pdietl/firmware)
+	@:$(info make main_mcu-build REPO_DIR=/home/$USER/firmware)
+	@:$(info make main_mcu-tests REPO_DIR=/home/$USER/firmware)
 
 .PHONY: all build
 all build: .docker_image_built
 
 .docker_image_built: Dockerfile Makefile
-	docker build . -t $(DOCKER_REPO):$(if $(DOCKER_TAG),$(DOCKER_TAG),local)
+	docker build . -t $(DOCKER_IMAGE_NAME)
 	touch $@
 
 else
 
 ifndef REPO_DIR
-$(error REPO_DIR must be given in env or cmd line!)
+REPO_DIR := $(shell west topdir)
 endif
 
 ifdef BOARD
@@ -76,20 +62,20 @@ DOCKER_CMD := \
 shell:
 	$(DOCKER_CMD) /bin/bash
 
-%-build:
+mcu-build:
 	$(DOCKER_CMD) /bin/bash -c -- \
-		'cd $(REPO_DIR)/orb/$*/app && west build $(BOARD_CMD)'
+		'cd $(REPO_DIR)/orb/main_board/app && west build $(BOARD_CMD)'
 
-%-flash:
+mcu-flash:
 	$(DOCKER_CMD) /bin/bash -c -- \
-		'cd $(REPO_DIR)/orb/$*/app && west build $(BOARD_CMD) && su-exec root west flash'
+		'cd $(REPO_DIR)/orb/main_board/app && west build $(BOARD_CMD) && su-exec root west flash'
 
-%-clean:
-	cd $(REPO_DIR)/orb/$*/app && rm -rf build
+mcu-clean:
+	cd $(REPO_DIR)/orb/main_board/app && rm -rf build
 
-%-tests:
+mcu-tests:
 	$(DOCKER_CMD) /bin/bash -c -- \
-		'source $(REPO_DIR)/zephyr/zephyr-env.sh && cd $(REPO_DIR)/orb/$*/app && twister -T . -vv -c -p native_posix_64'
+		'source $(REPO_DIR)/zephyr/zephyr-env.sh && cd $(REPO_DIR)/orb/main_board/app && twister -T . -vv -c -p native_posix_64'
 
 .PHONY: format
 format:

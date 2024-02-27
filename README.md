@@ -1,20 +1,30 @@
-# orb-mcu-firmware
+# Orb's microcontrollers firmware
 
-West workspace for microcontrollers' firmware.
+The main microcontroller in the Orb is responsible for a wide range of critical tasks to ensure the device's
+functionality and reliability. Its duties encompass powering on the Orb by initiating a specific sequence for the Jetson
+and activating multiple power lines with various voltages, while simultaneously monitoring these voltages at a high
+frequency to detect any failures. It also oversees the Orb's internal temperatures, voltage levels, and
+logs any errors or warnings that occur during operation. The microcontroller and the Jetson communicate over the CAN bus
+Optically, the Orb is an intricate device, and the microcontroller coordinates IR LED and camera
+synchronization, ensures safety, controls the liquid lens, and adjusts the mirror for optimal operation. For user
+interaction, it handles button inputs for power and starting signups and controls RGB LEDs for visual feedback.
+The [mcuboot](https://github.com/mcu-tools/mcuboot) bootloader manages the [Zephyr](https://www.zephyrproject.org/)
+[application](https://docs.zephyrproject.org/latest/develop/application/index.html) in two slots, allowing for
+over-the-air updates with rollback capabilities.
 
-This repo contains Firmware for the several microcontrollers present in the Orb:
+The Orb comes in two different hardware versions. Support for both is provided in this repository:
 
-- ☀️ Main board microcontroller
-  - Anything related to board supplies and controlling sensors on the Orb
-- 🚨 Security board microcontroller
-  - Anything related to security: signing data and anti-fraud sensors
+- Pearl: [Current hardware iteration of the Orb](https://github.com/worldcoin/orb-hardware), which [you can find around
+  the world](https://worldcoin.org/find-orb).
+- Diamond: Next hardware iteration of the Orb that will be released in the future. It is currently in development
+  and might be subject to breaking changes.
 
 ## Setting Up Development Environment
 
 You can set up your development environment directly on your machine (preferred for Windows users), or you may
 use the provided Docker image. A step-by-step guide is available below.
-Note that all of these steps assume that you have an SSH key set up properly with Github
-and that you have access to all the MCU repos. These repositories are
+Note that all of these steps assume that you have an SSH key set up properly with GitHub
+and that you have access to all the microcontrollers repos. These repositories are
 enumerated in the [west.yml](west.yml) file.
 
 ### Generic Steps
@@ -25,11 +35,10 @@ enumerated in the [west.yml](west.yml) file.
    pip3 install west
    ```
 
-2. Create an empty directory where we will put our projects and dependencies. We assume that you set an environmental
-   variable called `REPO_DIR`. I like to set this to `$HOME/firmware`.
+2. Create an empty directory where the projects and dependencies will be located.
 
    ```shell
-   export REPO_DIR=$HOME/firmware # This env var is used inside the Docker Makefile, hence the need for `export`
+   export REPO_DIR=$HOME/firmware # or any other directory
    mkdir "$REPO_DIR"
    ```
 
@@ -37,7 +46,7 @@ enumerated in the [west.yml](west.yml) file.
 
    ```shell
    cd "$REPO_DIR"
-   west init -m git@github.com:worldcoin/orb-mcu-firmware.git --mr main
+   west init -m <repo-url.git> --mr main
    ```
 
    This will create a directory called `orb`.
@@ -48,32 +57,16 @@ enumerated in the [west.yml](west.yml) file.
    west update
    ```
 
-#### Docker-specific Steps (Linux-based OS)
+#### Docker
 
-5. Enter the Docker container to perform your work. (Note: you need to first configure Github to read
-   the [container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry))
-
+5. If you prefer to use Docker, you can use the provided [Dockerfile](utils/docker/Dockerfile).
    ```shell
-   cd "$REPO_DIR"/orb/utils/docker
-   make shell
+    cd "$REPO_DIR"/orb/utils/docker
+    make build
+    make shell
    ```
 
-You may also build the Docker image locally.
-NOTE: when you build locally, you will get a image with the tag `local`,
-but when you run `make *-build`, Make will use the SHA of the known good
-Docker image used by CI, _unless_ you set the make variable
-`DOCKER_TAG` to something. For instance, do
-`make main_board-build DOCKER_TAG=local` to use the Docker image you built
-locally.
-This locally-built image may not work since Ubuntu-based containers
-are not strictly reproducible.
-
-```shell
-cd "$REPO_DIR"/orb/utils/docker
-make build
-```
-
-#### Native-specific Steps
+#### Native
 
 These instructions are mainly just an adaptation of the instructions in
 the [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting_started/index.html).
@@ -81,32 +74,27 @@ the [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting
 5. Install the dependencies. Two ways:
 
    - Follow instructions in this section
-     for [installing dependencies](https://docs.zephyrproject.org/latest/getting_started/index.html#install-dependencies)
-     , and only this section (don't install Zephyr & Python deps yet). Preferred method for Windows/WSL2.
-   - Or install the Conda environment provided [here](utils/env/environment.yml). Make sure to set the variables.
+     for [installing dependencies](https://docs.zephyrproject.org/latest/getting_started/index.html#install-dependencies).
+     - Then:
+       ```shell
+       pip3 install -r "$REPO_DIR"/zephyr/scripts/requirements.txt
+       ```
+   - Or install the Conda environment provided [here](utils/env/environment.yml).
      ```shell
      conda env create -f orb/utils/env/environment.yml
      conda activate worldcoin
      ```
 
-6. Export CMake packages.
-
-   ```shell
-   cd "$REPO_DIR"
-   west zephyr-export
-   ```
-
-7. Install additional Python dependencies.
-
-   ```shell
-   pip3 install -r "$REPO_DIR"/zephyr/scripts/requirements.txt
-   ```
-
-8. Install a toolchain.
+6. Install a toolchain.
 
    You may change `INSTALL_LOC` to choose an installation location.
-   You may also change `SDK_VER` to choose a specific toolchain version.
-   We removed the toolchain from the Conda environment due to the many architectures and dependencies.
+   You may also change `SDK_VER` to choose a specific toolchain version:
+
+   ```shell
+   export SDK_VER=0.16.5
+   ```
+
+   This script will install the Zephyr SDK in your home directory:
 
    ```shell
    tmp=$(mktemp)
@@ -124,7 +112,7 @@ the [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting
         if ! SDK_VER=\$(curl -s https://api.github.com/repos/zephyrproject-rtos/sdk-ng/releases/latest \\
             | grep tag_name \\
             | awk '{print substr(\$2, 3, length(\$2)-4)}'); then
-            echo "Some error occured when trying to determine the latest SDK version" >&2
+            echo "Some error occurred when trying to determine the latest SDK version" >&2
             return 1
         fi
     fi
@@ -151,52 +139,51 @@ the [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting
    "$tmp"
    ```
 
-9. Install udev rules to allow for flashing as a non-root user (For Linux only).
+7. (Linux-based OS) Install udev rules to allow for flashing as a non-root user
 
    ```shell
+   # make sure to set $SDK_VER, based on previous step
    sudo cp zephyr-sdk-${SDK_VER}/sysroots/x86_64-pokysdk-linux/usr/share/openocd/contrib/60-openocd.rules /etc/udev/rules.d
    sudo udevadm control --reload
    ```
 
-10. Install the protobuf compiler.
+8. Install the protobuf compiler.
 
-    ```shell
-    if [ "$(uname -s)" = Darwin ]; then
-        brew install protobuf-c
-    else
-        sudo apt install protobuf-compiler
-    fi
-    pip3 install protobuf grpcio-tools
-    ```
+   ```shell
+   if [ "$(uname -s)" = Darwin ]; then
+       brew install protobuf-c
+   else
+       sudo apt install protobuf-compiler
+   fi
+   pip3 install protobuf grpcio-tools
+   ```
 
-11. Install CMSIS Pack for PyOCD
+9. Install CMSIS Pack for PyOCD
 
-    ```shell
-    pyocd pack install stm32g474vetx
-    ```
+   ```shell
+   pyocd pack install stm32g474vetx
+   ```
 
-12. You may need to fix up some Python dependencies:
-    ```shell
-    pip3 install six==1.15.0
-    pip3 install pyyaml==6.0
-    ```
+10. Export CMake packages.
+
+```shell
+cd "$REPO_DIR"
+west zephyr-export
+```
 
 Your directory structure now looks similar to this:
 
 ```
 firmware
-├── bootloader
-├── modules
-├── orb
-└── zephyr
+├── bootloader (mcuboot)
+├── modules (dependencies)
+├── orb (this repository)
+└── zephyr (os)
 ```
 
 #### Finally, to Build and Flash
 
-See the board-specific docs:
-
-- ☀️ [Main board](main_board/app/README.md)
-- 🚨 [Security board](sec_board/app/README.md)
+See the board-specific documentation for the [main board](main_board/app/README.md).
 
 #### Debugging
 
@@ -219,15 +206,34 @@ Print out the bootloader and main MCU application logs using:
 python "$REPO_DIR"/orb/utils/debug/uart_dump.py -p /dev/ttyxxx -b 115200
 ```
 
-##### Security board logs
-
-UART is not easily accessible on the Security Board 2.x so the default logging backend is using SeggerRTT (logs sent
-through the debugger SWD interface). From `pyocd` v0.33.1, printing RTT logs is as simple as:
-
-```shell
-pyocd rtt --target=stm32g474vetx
-```
-
 ## Contributing
 
 See [the contribution guide](CONTRIBUTING.md).
+
+## What's not included
+
+There are 2 microcontrollers in the Orb, the _main_ and the _security_ microcontrollers. This repository initially
+contains source code for both but, because the security features of the Orb are not open-sourced at the moment,
+the security microcontroller source code has been removed.
+
+### Private repositories
+
+For people with access to the private repositories, West tracks the repositories to pull in your workspace and all you
+need to do is to enable the `internal` group in the West configuration:
+
+```shell
+west config --local manifest.group-filter "+internal"
+west update
+```
+
+## License
+
+Unless otherwise specified, all code in this repository is dual-licensed under either:
+
+- MIT License (LICENSE-MIT)
+- Apache License, Version 2.0, with LLVM Exceptions (LICENSE-APACHE)
+
+at your option. This means you may select the license you prefer to use.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as
+defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.

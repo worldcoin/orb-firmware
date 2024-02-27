@@ -4,8 +4,8 @@ FROM ubuntu:latest
 SHELL ["/bin/bash", "-c"]
 
 ARG WGET_ARGS="-q --show-progress --progress=bar:force:noscroll --no-check-certificate"
-ARG PROTOC_VERSION=21.7
-ARG SDK_VERSION=0.15.0
+ARG PROTOC_VERSION=25.2
+ARG SDK_VERSION=0.16.5
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
@@ -74,10 +74,10 @@ RUN pyocd pack install stm32g474vetx
 
 # Download and install Zephyr SDK
 RUN ARCH="$(uname -m)" && \
-    wget ${WGET_ARGS} -O /tmp/sdk.tar.gz https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SDK_VERSION}/zephyr-sdk-${SDK_VERSION}_linux-${ARCH}_minimal.tar.gz && \
-    tar -xf /tmp/sdk.tar.gz -C /opt/ && cd /opt/zephyr-sdk-${SDK_VERSION} && \
+    wget ${WGET_ARGS} -O /tmp/sdk.tar.xz https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${SDK_VERSION}/zephyr-sdk-${SDK_VERSION}_linux-${ARCH}_minimal.tar.xz && \
+    tar -xf /tmp/sdk.tar.xz -C /opt/ && cd /opt/zephyr-sdk-${SDK_VERSION} && \
     ./setup.sh -t arm-zephyr-eabi -h -c && \
-    rm -rf /tmp/sdk.tar.gz && . /opt/zephyr-sdk-0.15.0/environment-setup-${ARCH}-pokysdk-linux
+    rm -rf /tmp/sdk.tar.xz && . /opt/zephyr-sdk-${SDK_VERSION}/environment-setup-${ARCH}-pokysdk-linux
 
 # Clean up stale packages
 RUN apt-get clean -y && \
