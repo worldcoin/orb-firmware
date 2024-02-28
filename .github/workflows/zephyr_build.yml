@@ -1,0 +1,38 @@
+name: zephyr_build
+
+on:
+  workflow_call:
+    inputs:
+      board:
+        required: true
+        type: string
+      app_path:
+        required: true
+        type: string
+    secrets:
+      gh_token:
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    env:
+      BOARD: ${{ inputs.board }}
+      APP_PATH: ${{ inputs.app_path }}
+    container: ghcr.io/worldcoin/${{ vars.DOCKER_IMAGE_NAME }}:${{ vars.DOCKER_IMAGE_TAG }}
+    steps:
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # pin@v3
+        with:
+          path: "${{ github.job }}/orb"
+      - name: Initialize West repo
+        run: |
+          cd ${{ github.job }}
+          git config --global --add url."https://wc-cicd:${{ secrets.gh_token }}@github.com/worldcoin/".insteadOf "git@github.com:worldcoin/"
+          west init -l orb || echo "Ignoring west init error $?" # might be already initialized
+          west update
+      - name: Generate temporary signing keys locally
+        run: cd ${{ github.job }}/orb/utils/ota/ && ./generate_dev_keys
+      - name: Build app
+        run: cd ${{ github.job }} && west build ${APP_PATH} -d ${APP_PATH}/build -b ${BOARD} -p -- -DCMAKE_BUILD_TYPE="Release" -DEXTRA_COMPILE_FLAGS=-Werror -DBUILD_FROM_CI=1
+      - name: Build bootloader
+        run: cd ${{ github.job }} && west build orb/bootloader -d orb/bootloader/build -b ${BOARD} -p -- -DCMAKE_BUILD_TYPE="Release" -DBUILD_FROM_CI=1

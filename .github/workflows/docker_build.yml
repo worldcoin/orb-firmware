@@ -1,0 +1,37 @@
+name: docker_build
+on:
+  push:
+    paths:
+      - utils/docker/Dockerfile
+      - utils/docker/Makefile
+      - .github/workflows/docker_build.yml
+jobs:
+  build_and_publish:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # pin@v3
+      - name: Determine New Docker Tag
+        run: |
+          GHCR_TOKEN=$(echo ${{ secrets.GITHUB_TOKEN }} | base64)
+          tag_list=$(\
+            curl \
+            --fail \
+            --no-progress-meter \
+            --header "Authorization: Bearer ${GHCR_TOKEN}" \
+            --url https://ghcr.io/v2/worldcoin/${{ vars.DOCKER_IMAGE_NAME }}/tags/list \
+          )
+          new_docker_tag=$(jq -r '(.tags - ["latest"] | map(tonumber) | max) + 1' <<< "$tag_list")
+          [ -n "$new_docker_tag" ]
+          echo "New Docker version = $new_docker_tag"
+          echo "NEW_DOCKER_IMAGE_NAME_FULL=ghcr.io/worldcoin/${{ vars.DOCKER_IMAGE_NAME }}:$new_docker_tag" >> ${GITHUB_ENV}
+      - name: Build Docker Image
+        run: docker build utils/docker -t "$NEW_DOCKER_IMAGE_NAME_FULL"
+      - name: Login to Github Packages
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # pin@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push Docker Image
+        run: docker push "$NEW_DOCKER_IMAGE_NAME_FULL"
