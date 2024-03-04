@@ -30,7 +30,7 @@ RUN apt-get update && \
         python3-wheel \
         udev \
         wget \
-    	unzip \
+    	  unzip \
         xz-utils
 
 RUN cd /tmp && \

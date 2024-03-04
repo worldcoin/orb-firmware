@@ -1,8 +1,13 @@
-name: main
-on: [push]
+name: Main
+on: [pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Main MCU workflow
-  build_pearl_main:
+  build-pearl-main:
     uses: ./.github/workflows/zephyr_build.yml
     with:
       board: pearl_main
@@ -10,18 +15,10 @@ jobs:
     secrets:
       gh_token: ${{ secrets.GIT_HUB_TOKEN }}
 
-  build_diamond_main:
+  build-diamond-main:
     uses: ./.github/workflows/zephyr_build.yml
     with:
       board: diamond_main
       app_path: orb/main_board/app
     secrets:
       gh_token: ${{ secrets.GIT_HUB_TOKEN }}
-
-  check-format:
-    runs-on: ubuntu-22.04
-    container:
-      image: ghcr.io/worldcoin/${{ vars.DOCKER_IMAGE_NAME }}:${{ vars.DOCKER_IMAGE_TAG }}
-    steps:
-      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # pin@v3
-      - run: git config --global --add safe.directory /__w/open-orb-mcu-firmware/open-orb-mcu-firmware && pre-commit run --all-files --config utils/format/pre-commit-config.yaml

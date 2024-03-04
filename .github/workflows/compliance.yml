@@ -1,0 +1,33 @@
+name: Format & Compliance
+on: [pull_request]
+
+jobs:
+  check-compliance:
+    name: Check formatting & commit message compliance
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/worldcoin/${{ vars.DOCKER_IMAGE_NAME }}:${{ vars.DOCKER_IMAGE_TAG }}
+    steps:
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # pin@v3
+        with:
+          path: "${{ github.job }}/orb"
+      - name: Check formatting
+        run: |
+          cd "${{ github.job }}/orb"
+          git config --global --add safe.directory /__w/open-orb-mcu-firmware/open-orb-mcu-firmware
+          pre-commit run --all-files --config utils/format/pre-commit-config.yaml
+      - name: Check commit message
+        run: |
+          cd "${{ github.job }}/orb"
+          # Un-shallow
+          git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+          # Deepen topic branch; checkout topic branch
+          git fetch origin ${{ github.event.pull_request.head.ref }} --depth=$(( ${{ github.event.pull_request.commits }} + 1 ))
+          git checkout ${{ github.event.pull_request.head.ref }}
+          # Fetch main for common origin
+          git fetch origin ${{ github.event.pull_request.base.ref }}:${{ github.event.pull_request.base.ref }} --depth=50
+          gitlint --config utils/format/.gitlint --commits ${{ github.event.pull_request.base.ref }}..
+      - name: Guide to contributing
+        if: failure()
+        run: |
+          echo "Take a look at CONTRIBUTING.md"

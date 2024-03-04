@@ -1,4 +1,4 @@
-name: docker_build
+name: Build Docker Image
 on:
   push:
     paths:
@@ -8,6 +8,7 @@ on:
 jobs:
   build_and_publish:
     runs-on: ubuntu-22.04
+    name: Build Docker image and publish to Github Packages
     steps:
       - name: Checkout
         uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # pin@v3

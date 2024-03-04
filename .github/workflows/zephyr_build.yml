@@ -20,6 +20,7 @@ jobs:
       BOARD: ${{ inputs.board }}
       APP_PATH: ${{ inputs.app_path }}
     container: ghcr.io/worldcoin/${{ vars.DOCKER_IMAGE_NAME }}:${{ vars.DOCKER_IMAGE_TAG }}
+    name: Build Zephyr app & bootloader
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # pin@v3
         with:
