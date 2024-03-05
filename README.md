@@ -12,6 +12,8 @@ The [mcuboot](https://github.com/mcu-tools/mcuboot) bootloader manages the [Zeph
 [application](https://docs.zephyrproject.org/latest/develop/application/index.html) in two slots, allowing for
 over-the-air updates with rollback capabilities.
 
+![main mcu firmware block diagram](utils/doc/block-diagram-main-mcu-firmware.svg "Main microcontroller Firmware")
+
 The Orb comes in two different hardware versions. Support for both is provided in this repository:
 
 - Pearl: [Current hardware iteration of the Orb](https://github.com/worldcoin/orb-hardware), which [you can find around
