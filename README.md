@@ -1,3 +1,5 @@
+![pearl_orb](utils/doc/pearl_orb_banner.png "Main microcontroller Firmware")
+
 # Orb's microcontrollers firmware
 
 The main microcontroller in the Orb is responsible for a wide range of critical tasks to ensure the device's
