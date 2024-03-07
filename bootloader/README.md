@@ -10,19 +10,26 @@ If you don't have development keys already created locally, then run
 `./generate_dev_keys` while in the directory `"$REPO_DIR"/utils/ota/`.
 
 Make sure you are in `"$REPO_DIR"/orb/bootloader/` directory.
-Compile the bootloader:
+Compile the bootloader for the main microcontroller:
 
 ```shell
 # Passing the board is mandatory to build the bootloader
-west build -b [pearl_main | pearl_security | diamond_main | diamond_security]  [-- -DDTC_OVERLAY_FILE=one_slot.overlay]
+west build -b [pearl_main | diamond_main]  [-- -DDTC_OVERLAY_FILE=one_slot.overlay]
 ```
 
-- `pearl_main`: main board v3.1+, used on Pearl Orbs
-- `pearl_security`: security MCU, any version, used on Pearl Orbs
-- `diamond_main`: Main MCU, used on Diamond Orb Mainboards v4.1+,
-- `diamond_security`: Security MCU, used on Diamond Orb Mainboards v4.1+,
+or for the security microcontroller (internal use only):
 
-- `-DDTC_OVERLAY_FILE=one_slot.overlay`: Use this if you want to flash a Main MCU application with the one-slot configuration. The one-slot configuration is not supported by the Security MCU at the moment!
+```shell
+west build -b [pearl_security | diamond_security] -- -DBOARD_ROOT=../sec_board
+```
+
+- `pearl_main`: main board v3.2+, used on Pearl Orbs
+- `pearl_security`: security MCU, any version, used on Pearl Orbs
+- `diamond_main`: main board, used on Diamond Orbs
+- `diamond_security`: security MCU, used on Diamond Orbs
+
+- `-DDTC_OVERLAY_FILE=one_slot.overlay`: Use this if you want to flash a Main MCU application with the one-slot
+  configuration. The one-slot configuration is not supported by the Security MCU at the moment!
 
 Flash the bootloader before the application:
 
