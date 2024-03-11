@@ -3,6 +3,10 @@
 #include "compilers.h"
 #include "stdint.h"
 
+#if CONFIG_MEMFAULT
+#include "memfault/panics/assert.h"
+#endif
+
 typedef struct {
     char filename[128];
     uint32_t line_num;
@@ -58,6 +62,15 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
  *
  * @param[in] ERR_CODE Error code supplied to the error handler.
  */
+#if CONFIG_MEMFAULT
+#define ASSERT_HARD(ERR_CODE)                                                  \
+    do {                                                                       \
+        if (ERR_CODE != 0) {                                                   \
+            MEMFAULT_ASSERT_RECORD(ERR_CODE);                                  \
+        }                                                                      \
+    } while (0)
+
+#else
 #define ASSERT_HARD(ERR_CODE)                                                  \
     do {                                                                       \
         if (ERR_CODE != 0) {                                                   \
@@ -65,6 +78,7 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
                                     (uint8_t *)__FILE__);                      \
         }                                                                      \
     } while (0)
+#endif
 
 /**@brief Macro for calling error handler function if supplied boolean value is
  * false.
@@ -72,12 +86,16 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
  *
  * @param[in] BOOLEAN_VALUE Boolean value to be evaluated.
  */
+#ifdef CONFIG_MEMFAULT
+#define ASSERT_HARD_BOOL(ERR_CODE) MEMFAULT_ASSERT(ERR_CODE)
+#else
 #define ASSERT_HARD_BOOL(BOOLEAN_VALUE)                                        \
     do {                                                                       \
         if (!(BOOLEAN_VALUE)) {                                                \
             app_assert_hard_handler(0, __LINE__, (uint8_t *)__FILE__);         \
         }                                                                      \
     } while (0)
+#endif
 
 /**@brief Macro for calling error handler function if supplied boolean value is
  * false.
