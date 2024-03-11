@@ -6,7 +6,7 @@ if (CONFIG_ORB_LIB_ERRORS)
 
     orb_library(
         app_assert.c
-        fatal.c
+        orb_fatal.c
         ${OPTIONAL_SOURCE_FILES}
     )
 endif ()
