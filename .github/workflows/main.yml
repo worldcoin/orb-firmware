@@ -1,4 +1,4 @@
-name: Main
+name: Main MCU
 on: [pull_request]
 
 concurrency:
@@ -8,6 +8,7 @@ concurrency:
 jobs:
   # Main MCU workflow
   build-pearl-main:
+    name: Build for Pearl
     uses: ./.github/workflows/zephyr_build.yml
     with:
       board: pearl_main
@@ -16,6 +17,7 @@ jobs:
       gh_token: ${{ secrets.GIT_HUB_TOKEN }}
 
   build-diamond-main:
+    name: Build for Diamond
     uses: ./.github/workflows/zephyr_build.yml
     with:
       board: diamond_main

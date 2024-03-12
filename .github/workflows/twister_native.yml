@@ -1,0 +1,48 @@
+name: Twister
+
+on: pull_request
+
+jobs:
+  local_twister:
+    name: Native & unit tests
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/worldcoin/${{ vars.DOCKER_IMAGE_NAME }}:${{ vars.DOCKER_IMAGE_TAG }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # pin@v3
+        with:
+          path: "${{ github.job }}/orb"
+      - name: Initialize West repo
+        run: |
+          cd ${{ github.job }}
+          git config --global --add url."https://wc-cicd:${{ secrets.GIT_HUB_TOKEN }}@github.com/worldcoin/".insteadOf "git@github.com:worldcoin/"
+          west init -l orb || echo "Ignoring west init error $?" # might be already initialized
+          west update
+      - name: Twister native POSIX 64
+        run: |
+          cd ${{ github.job }}
+          if ! ./zephyr/scripts/twister -T orb/main_board/app -vv -c -p native_posix_64; then
+            find twister-out/ \( -name 'build.log' -o -name 'handler.log' -o -name 'device.log' \) -exec cat {} \;
+            false
+          fi
+          # keep a copy to be merged with next test
+          cp twister-out/twister_report.xml twister_report_local.xml
+      - name: Twister unit tests
+        run: |
+          cd ${{ github.job }}
+          if ! ./zephyr/scripts/twister -T orb/main_board/app -vv -c -p unit_testing; then
+            find twister-out/ \( -name 'build.log' -o -name 'handler.log' -o -name 'device.log' \) -exec cat {} \;
+            false
+          fi
+          junitparser merge twister-out/twister_report.xml twister_report_local.xml junit.xml
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@ca89ad036b5fcd524c1017287fb01b5139908408 # pin@v2
+        if: always()
+        with:
+          junit_files: "${{ github.job }}/junit.xml"
+          comment_mode: off
+      - name: Clean
+        if: always()
+        run: |
+          rm -rf ${{ github.job }}/twister-out ${{ github.job }}/twister_report_local.xml ${{ github.job }}/junit.xml
