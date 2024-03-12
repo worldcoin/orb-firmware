@@ -6,8 +6,8 @@
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
 
+#include "orb_logs.h"
 #include <can_messaging.h>
-#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(isotp_rx, CONFIG_ISOTP_RX_LOG_LEVEL);
 
 #define ISOTP_FLOWCTRL_BS 8

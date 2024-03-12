@@ -1,10 +1,10 @@
 #include "watchdog.h"
+#include "orb_logs.h"
 #include <app_assert.h>
 #include <errors.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/watchdog.h>
 #include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(watchdog, CONFIG_WATCHDOG_LOG_LEVEL);
 

@@ -2,10 +2,10 @@
 #include "bootutil/bootutil_public.h"
 #include "compilers.h"
 #include "errno.h"
+#include "orb_logs.h"
 #include <errors.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
 #include <zephyr/storage/flash_map.h>
 #include <zephyr/sys/crc.h>
 

@@ -8,7 +8,7 @@
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/kernel.h>
 
-#include "logs_can.h"
+#include "orb_logs.h"
 LOG_MODULE_REGISTER(fan, CONFIG_FAN_LOG_LEVEL);
 
 #define FAN_MAIN_NODE DT_PATH(fan_main)

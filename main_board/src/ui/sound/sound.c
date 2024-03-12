@@ -1,4 +1,4 @@
-#include "logs_can.h"
+#include "orb_logs.h"
 #include "system/diag.h"
 #include <app_assert.h>
 #include <errors.h>

@@ -2,8 +2,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
-#include "logs_can.h"
 #include "ui/rgb_leds/rgb_leds.h"
+#include "orb_logs.h"
+
 LOG_MODULE_REGISTER(user_leds_test);
 
 ZTEST(hil, test_front_leds_patterns)

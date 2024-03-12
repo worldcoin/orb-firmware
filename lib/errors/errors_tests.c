@@ -2,9 +2,9 @@
 #include "watchdog.h"
 #endif
 
+#include "orb_logs.h"
 #include <app_assert.h>
 #include <compilers.h>
-#include <zephyr/logging/log.h>
 #include <zephyr/random/rand32.h>
 
 /// Based on fatal and assert tests, see

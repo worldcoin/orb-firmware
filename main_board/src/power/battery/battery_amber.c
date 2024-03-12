@@ -15,7 +15,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/byteorder.h>
 
-#include "logs_can.h"
+#include "orb_logs.h"
 LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
 
 static bool dev_mode = false;

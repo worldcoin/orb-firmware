@@ -1,8 +1,8 @@
+#include "orb_logs.h"
 #include "storage.h"
 #include <errors.h>
 #include <stdlib.h>
 #include <zephyr/device.h>
-#include <zephyr/logging/log.h>
 #include <zephyr/storage/flash_map.h>
 #include <zephyr/ztest.h>
 

@@ -1,9 +1,9 @@
 #include "uart_messaging.h"
+#include "orb_logs.h"
 #include <app_assert.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
 #include <zephyr/pm/device.h>
 
 LOG_MODULE_REGISTER(uart_messaging, CONFIG_UART_MESSAGING_LOG_LEVEL);

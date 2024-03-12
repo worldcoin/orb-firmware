@@ -3,10 +3,10 @@
 #include <zephyr/kernel.h>
 #include <zephyr/arch/arm/aarch32/exc.h>
 // clang-format on
+#include "orb_logs.h"
 #include <compilers.h>
 #include <orb_fatal.h>
 #include <zephyr/arch/cpu.h>
-#include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
 
 LOG_MODULE_REGISTER(fatal);

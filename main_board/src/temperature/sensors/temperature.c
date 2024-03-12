@@ -1,5 +1,5 @@
 #include "temperature.h"
-#include "logs_can.h"
+#include "orb_logs.h"
 #include "pubsub/pubsub.h"
 #include "system/diag.h"
 #include "temperature/fan/fan.h"

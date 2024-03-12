@@ -163,6 +163,9 @@ set_source_files_properties(${SOURCES_FILES} PROPERTIES COMPILE_OPTIONS "${APP_F
 
 target_sources(${TARGET} PRIVATE ${SOURCES_FILES})
 target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIRS})
+zephyr_include_directories(config)
+
+zephyr_linker_sources(SECTIONS config/compact-logs.ld)
 
 # link with Zephyr modules below
 # - modules/orb-protobuf-definitions: data format definitions and serializer/deserializer for messages between MCU, Jetson and Security MCU

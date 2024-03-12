@@ -1,7 +1,7 @@
 #include "tof_1d.h"
 #include "app_config.h"
-#include "logs_can.h"
 #include "mcu_messaging_main.pb.h"
+#include "orb_logs.h"
 #include "pubsub/pubsub.h"
 #include <errors.h>
 #include <utils.h>

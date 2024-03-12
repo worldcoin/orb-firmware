@@ -3,9 +3,13 @@
 #include <app_assert.h>
 #include <errors.h>
 #include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 
+#if defined(CONFIG_ZTEST)
+#include <zephyr/logging/log.h>
+#else
+#include "orb_logs.h"
+#endif
 LOG_MODULE_REGISTER(diag);
 
 static HardwareDiagnostic_Status

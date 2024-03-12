@@ -1,11 +1,15 @@
 #include "app_assert.h"
 #include "compilers.h"
+#include "orb_logs.h"
 #include "string.h"
 #include "zephyr/kernel.h"
 #include <zephyr/arch/cpu.h>
-#include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
 LOG_MODULE_REGISTER(assert, CONFIG_ASSERT_LOG_LEVEL);
+
+#if defined(CONFIG_MEMFAULT)
+#include <memfault/core/trace_event.h>
+#endif
 
 static uint32_t error_count = 0;
 // user-registered callback that can be called before hard reset
@@ -74,7 +78,12 @@ __WEAK void
 app_assert_soft_handler(int32_t error_code, uint32_t line_num,
                         const uint8_t *p_file_name)
 {
+#if defined(CONFIG_MEMFAULT)
+    MEMFAULT_TRACE_EVENT_WITH_LOG(assert, "%s:%d, error %d", p_file_name,
+                                  line_num, error_code);
+#else
     LOG_ERR("%s:%d, error %d", p_file_name, line_num, error_code);
+#endif
 
     ++error_count;
 

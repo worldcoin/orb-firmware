@@ -1,6 +1,6 @@
 #include "boot.h"
-#include "logs_can.h"
 #include "optics/optics.h"
+#include "orb_logs.h"
 #include "sysflash/sysflash.h"
 #include "system/version/version.h"
 #include "ui/button/button.h"

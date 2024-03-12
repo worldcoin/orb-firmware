@@ -1,6 +1,6 @@
 #include "cone_leds.h"
 #include "app_config.h"
-#include "logs_can.h"
+#include "orb_logs.h"
 #include "ui/rgb_leds/rgb_leds.h"
 #include <app_assert.h>
 #include <utils.h>
