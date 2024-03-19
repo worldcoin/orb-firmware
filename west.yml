@@ -15,13 +15,12 @@ manifest:
           - segger
           - nanopb
           - hal_st
-    - name: open-orb-mcu-messaging
-      revision: 120921587747c712bd454196ac7941af2c2f3497
-      path: modules/orb-mcu-messaging/public
-    - name: orb-mcu-messaging
-      revision: 011ad102a5074675d6551867f7f433f9b3f028ef
-      path: modules/orb-mcu-messaging
-      submodules: true
+    - name: orb-messages
+      revision: 6a2b74da2f390dd927d5172de4cb72a3928814e6
+      path: modules/orb-messages/public
+    - name: priv-orb-messages
+      revision: 0efffdea6c18e4e882981b7f393237d5738b7747
+      path: modules/orb-messages
       groups: [internal]
     - name: orb-security-mcu-firmware
       revision: a74c9b1c2841780d9b13beb792200140f7b9df94
