@@ -1208,6 +1208,19 @@ handle_perform_ir_eye_camera_mirror_sweep(job_t *job)
     }
 }
 
+static void
+handle_sync_diag_data(job_t *job)
+{
+    JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(JetsonToMcu_sync_diag_data_tag);
+
+    LOG_DBG("Got sync diag data message");
+
+    publish_flush();
+
+    job_ack(Ack_ErrorCode_SUCCESS, job);
+}
+
 __maybe_unused static void
 handle_not_supported(job_t *job)
 {
@@ -1271,6 +1284,7 @@ static const hm_callback handle_message_callbacks[] = {
         handle_ir_eye_camera_mirror_sweep_values_polynomial,
     [JetsonToMcu_perform_ir_eye_camera_mirror_sweep_tag] =
         handle_perform_ir_eye_camera_mirror_sweep,
+    [JetsonToMcu_sync_diag_data_tag] = handle_sync_diag_data,
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     [JetsonToMcu_cone_leds_sequence_tag] = handle_cone_leds_sequence,
     [JetsonToMcu_cone_leds_pattern_tag] = handle_cone_leds_pattern,
@@ -1285,7 +1299,7 @@ static const hm_callback handle_message_callbacks[] = {
 };
 
 static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 46,
+    ARRAY_SIZE(handle_message_callbacks) <= 47,
     "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
