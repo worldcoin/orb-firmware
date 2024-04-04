@@ -269,15 +269,20 @@ endif ()
 # PEM file should NOT be tracked using Git
 # Make sure to recreate the same PEM file based on the same private key
 if (CONFIG_BOOT_ENCRYPT_EC256)
-    set(ENC_KEY_FILE ${PROJECT_DIR}/utils/ota/enc-ec256-priv.pem)
+    # use environment variable if it exists
+    if (DEFINED ENV{ENC_KEY_FILE})
+        set(ENC_KEY_FILE $ENV{ENC_KEY_FILE})
+    else ()
+        set(ENC_KEY_FILE ${PROJECT_DIR}/utils/ota/enc-ec256-priv.pem)
+    endif ()
 
     if (NOT EXISTS ${ENC_KEY_FILE})
-        message(FATAL_ERROR "Cannot find private key file, you can generate local dev keys by running ./generate_dev_keys WHILE IN the ${PROJECT_DIR}/utils/ota/ directory")
+        message(FATAL_ERROR "Cannot find private key file, you can generate local dev keys by running 'generate_dev_keys' script")
     else ()
         set(GENERATED_ENC_PRIVKEY ${CMAKE_CURRENT_SOURCE_DIR}/share/autogen-enc-privkey.c)
         add_custom_command(
                 OUTPUT ${GENERATED_ENC_PRIVKEY}
-                COMMAND imgtool getpriv -k ${ENC_KEY_FILE} --minimal > ${GENERATED_ENC_PRIVKEY}
+                COMMAND imgtool getpriv -k "${ENC_KEY_FILE}" --minimal > ${GENERATED_ENC_PRIVKEY}
         )
         zephyr_library_sources(${GENERATED_ENC_PRIVKEY})
     endif ()
