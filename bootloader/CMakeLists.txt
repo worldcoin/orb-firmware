@@ -50,6 +50,12 @@ get_filename_component(WORKSPACE_DIR ${PROJECT_DIR} DIRECTORY)
 list(APPEND BOARD_ROOT ${PROJECT_DIR})
 list(APPEND DTS_ROOT ${PROJECT_DIR})
 
+set(SEC_BOARD_ROOT ${PROJECT_DIR}/sec_board)
+if (EXISTS ${SEC_BOARD_ROOT})
+    list(APPEND BOARD_ROOT ${SEC_BOARD_ROOT})
+    list(APPEND DTS_ROOT ${SEC_BOARD_ROOT})
+endif ()
+
 # find_package(Zephyr) in order to load application boilerplate:
 # http://docs.zephyrproject.org/application/application.html
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
