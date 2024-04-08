@@ -533,11 +533,8 @@ dfu_init(void)
         return RET_ERROR_INVALID_STATE;
     }
 
-    ret = dfu_version_secondary_get(&ih_version_dummy);
-    if (ret) {
-        LOG_ERR("Unable to fetch secondary slot image version");
-        return RET_ERROR_INVALID_STATE;
-    }
+    // don't care if no image in secondary slot
+    (void)dfu_version_secondary_get(&ih_version_dummy);
 
     ret = k_sem_take(&sem_headers, K_FOREVER);
     if (ret != 0) {
@@ -561,10 +558,9 @@ dfu_init(void)
 
         if (secondary_slot_header.ih_img_size != 0 &&
             secondary_slot_header.ih_magic != IMAGE_MAGIC) {
-            // no valid image in secondary slot
-            LOG_WRN("Invalid image in secondary slot (image magic not found)");
+            // no valid image in secondary slot, brand new device?
+            LOG_WRN("Secondary-slot image magic not found, new device?");
             memset(&secondary_slot_header, 0, sizeof(secondary_slot_header));
-            ret = RET_ERROR_INVALID_STATE;
         } else {
             img_size = secondary_slot_header.ih_hdr_size +
                        secondary_slot_header.ih_img_size;
