@@ -16,14 +16,14 @@ manifest:
           - nanopb
           - hal_st
     - name: orb-messages
-      revision: 6a2b74da2f390dd927d5172de4cb72a3928814e6
+      revision: 0cf4636b99211cdbebba3948776cbb8c351d45af
       path: modules/orb-messages/public
     - name: priv-orb-messages
-      revision: 0efffdea6c18e4e882981b7f393237d5738b7747
+      revision: b2e01ac2c617cdbb1f1dc77ab49a4561d855cb11
       path: modules/orb-messages
       groups: [internal]
     - name: orb-security-mcu-firmware
-      revision: a74c9b1c2841780d9b13beb792200140f7b9df94
+      revision: ff0870edb667cfee4cdebd151f1fa45654bb94f2
       path: orb/sec_board
       groups: [internal]
     - name: plug-and-trust
