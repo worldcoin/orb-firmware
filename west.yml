@@ -23,7 +23,7 @@ manifest:
       path: modules/orb-messages
       groups: [internal]
     - name: orb-security-mcu-firmware
-      revision: cbc2ab68e2a13070e40decd8543171a32ba27196
+      revision: cf4b52407536873ade6cfbdd91da8957cb932b33
       path: orb/sec_board
       groups: [internal]
     - name: plug-and-trust
