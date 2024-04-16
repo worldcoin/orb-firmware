@@ -443,7 +443,7 @@ dfu_version_primary_get(struct image_version *ih_ver)
     ret = flash_area_open(DT_FIXED_PARTITION_ID(DT_NODELABEL(slot0_partition)),
                           &flash_area_p);
     if (ret) {
-        LOG_ERR("Unable to open primary slot");
+        LOG_ERR("Unable to open primary slot: %d", ret);
         ret = RET_ERROR_INTERNAL;
         goto exit;
     }
@@ -451,7 +451,7 @@ dfu_version_primary_get(struct image_version *ih_ver)
     ret = flash_area_read(flash_area_p, 0, &primary_slot_header,
                           sizeof(primary_slot_header));
     if (ret) {
-        LOG_ERR("Unable to read primary slot header");
+        LOG_ERR("Unable to read primary slot header: %d", ret);
         ret = RET_ERROR_INTERNAL;
         goto exit;
     }
@@ -486,7 +486,7 @@ dfu_version_secondary_get(struct image_version *ih_ver)
     ret = flash_area_open(DT_FIXED_PARTITION_ID(DT_ALIAS(secondary_slot)),
                           &flash_area_p);
     if (ret) {
-        LOG_ERR("Unable to open secondary slot");
+        LOG_ERR("Unable to open secondary slot: %d", ret);
         ret = RET_ERROR_INTERNAL;
         goto exit;
     }
@@ -494,7 +494,7 @@ dfu_version_secondary_get(struct image_version *ih_ver)
     ret = flash_area_read(flash_area_p, 0, &secondary_slot_header,
                           sizeof(secondary_slot_header));
     if (ret) {
-        LOG_ERR("Unable to read secondary slot");
+        LOG_ERR("Unable to read secondary slot: %d", ret);
         ret = RET_ERROR_INTERNAL;
         goto exit;
     }
@@ -502,6 +502,7 @@ dfu_version_secondary_get(struct image_version *ih_ver)
     // if flash is erased, no image present
     if (secondary_slot_header.ih_ver.iv_build_num == 0xFFFFFFFFLU &&
         secondary_slot_header.ih_ver.iv_revision == 0xFFFFLU) {
+        LOG_ERR("Secondary slot is erased");
         ret = RET_ERROR_NOT_FOUND;
         goto exit;
     }
