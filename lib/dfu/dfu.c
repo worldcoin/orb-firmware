@@ -323,6 +323,9 @@ dfu_secondary_activate_temporarily(void)
 int
 dfu_secondary_check(uint32_t crc32)
 {
+    // buffer needed to read external Flash (diamond) and compute CRC32
+    uint8_t buf[DFU_FLASH_PAGE_SIZE];
+    uint32_t computed_crc = 0;
     int ret;
 
     // update header before checking
@@ -362,8 +365,6 @@ dfu_secondary_check(uint32_t crc32)
         img_size += tlv_magic.it_tlv_tot;
     }
 
-    uint8_t buf[DFU_FLASH_PAGE_SIZE];
-    uint32_t computed_crc = 0;
     // read entire flash area content to calculate CRC32
     for (size_t off = 0; off < img_size; off += DFU_FLASH_PAGE_SIZE) {
         size_t len = (img_size - off < DFU_FLASH_PAGE_SIZE)

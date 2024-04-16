@@ -1,7 +1,7 @@
 #pragma once
 
 ///////////////////////////////////////
-/// Threads ordered by priorities   ///
+/// Threads config                  ///
 ///////////////////////////////////////
 
 // work queue CONFIG_SYSTEM_WORKQUEUE_PRIORITY = -1
@@ -13,8 +13,9 @@
 #define THREAD_STACK_SIZE_POWER_MANAGEMENT 2048
 
 // Runner / default message processing
+// ⚠️ flash page buffer allocated on stack for CRC32 calculation
 #define THREAD_PRIORITY_RUNNER   6
-#define THREAD_STACK_SIZE_RUNNER 2048
+#define THREAD_STACK_SIZE_RUNNER 4096
 
 // Front unit RGB LEDs
 #define THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS 7

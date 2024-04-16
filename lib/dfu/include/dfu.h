@@ -76,6 +76,10 @@ dfu_secondary_activate_temporarily(void);
 /**
  * Check image in secondary slot against a CRC32.
  * Use it to validate a new image has correctly been written on Flash.
+ *
+ * @warning this function allocates a flash-page sized buffer on the stack,
+ *          which may be large
+ *
  * @param crc32
  * @retval RET_ERROR_INVALID_STATE secondary slot not initialized or CRC32 does
  * not match
