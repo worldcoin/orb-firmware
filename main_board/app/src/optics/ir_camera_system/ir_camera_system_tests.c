@@ -392,7 +392,8 @@ ZTEST(hil, test_ir_eye_camera_focus_sweep)
     send_msg(&msg);
 
     int ret = k_sem_take(&camera_sweep_sem, K_MSEC(FOCUS_SWEEP_WAIT_TIME_MS));
-    zassert_ok(ret, "Timed out! Waited for %ums", FOCUS_SWEEP_WAIT_TIME_MS);
+    zassert_ok(ret, "Timed out! Waited for %ums. Semaphore count: %u",
+               FOCUS_SWEEP_WAIT_TIME_MS, k_sem_count_get(&camera_sweep_sem));
     zassert_equal(ir_camera_system_get_status(), RET_SUCCESS);
 }
 

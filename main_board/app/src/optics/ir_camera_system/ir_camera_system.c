@@ -284,6 +284,8 @@ ir_camera_system_perform_focus_sweep(void)
             ir_camera_system_perform_focus_sweep_hw();
             ret = RET_SUCCESS;
         }
+    } else {
+        LOG_ERR("Focus sweep not performed, status: %d", ret);
     }
 
     return ret;

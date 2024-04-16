@@ -323,6 +323,9 @@ dfu_secondary_activate_temporarily(void)
 int
 dfu_secondary_check(uint32_t crc32)
 {
+    // buffer needed to read external Flash (diamond) and compute CRC32
+    uint8_t buf[DFU_FLASH_PAGE_SIZE];
+    uint32_t computed_crc = 0;
     int ret;
 
     // update header before checking
@@ -362,8 +365,6 @@ dfu_secondary_check(uint32_t crc32)
         img_size += tlv_magic.it_tlv_tot;
     }
 
-    uint8_t buf[DFU_FLASH_PAGE_SIZE];
-    uint32_t computed_crc = 0;
     // read entire flash area content to calculate CRC32
     for (size_t off = 0; off < img_size; off += DFU_FLASH_PAGE_SIZE) {
         size_t len = (img_size - off < DFU_FLASH_PAGE_SIZE)
@@ -443,7 +444,7 @@ dfu_version_primary_get(struct image_version *ih_ver)
     ret = flash_area_open(DT_FIXED_PARTITION_ID(DT_NODELABEL(slot0_partition)),
                           &flash_area_p);
     if (ret) {
-        LOG_ERR("Unable to open primary slot");
+        LOG_ERR("Unable to open primary slot: %d", ret);
         ret = RET_ERROR_INTERNAL;
         goto exit;
     }
@@ -451,7 +452,7 @@ dfu_version_primary_get(struct image_version *ih_ver)
     ret = flash_area_read(flash_area_p, 0, &primary_slot_header,
                           sizeof(primary_slot_header));
     if (ret) {
-        LOG_ERR("Unable to read primary slot header");
+        LOG_ERR("Unable to read primary slot header: %d", ret);
         ret = RET_ERROR_INTERNAL;
         goto exit;
     }
@@ -486,7 +487,7 @@ dfu_version_secondary_get(struct image_version *ih_ver)
     ret = flash_area_open(DT_FIXED_PARTITION_ID(DT_ALIAS(secondary_slot)),
                           &flash_area_p);
     if (ret) {
-        LOG_ERR("Unable to open secondary slot");
+        LOG_ERR("Unable to open secondary slot: %d", ret);
         ret = RET_ERROR_INTERNAL;
         goto exit;
     }
@@ -494,7 +495,7 @@ dfu_version_secondary_get(struct image_version *ih_ver)
     ret = flash_area_read(flash_area_p, 0, &secondary_slot_header,
                           sizeof(secondary_slot_header));
     if (ret) {
-        LOG_ERR("Unable to read secondary slot");
+        LOG_ERR("Unable to read secondary slot: %d", ret);
         ret = RET_ERROR_INTERNAL;
         goto exit;
     }
@@ -502,6 +503,7 @@ dfu_version_secondary_get(struct image_version *ih_ver)
     // if flash is erased, no image present
     if (secondary_slot_header.ih_ver.iv_build_num == 0xFFFFFFFFLU &&
         secondary_slot_header.ih_ver.iv_revision == 0xFFFFLU) {
+        LOG_ERR("Secondary slot is erased");
         ret = RET_ERROR_NOT_FOUND;
         goto exit;
     }

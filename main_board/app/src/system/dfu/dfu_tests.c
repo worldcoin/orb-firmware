@@ -158,3 +158,43 @@ ZTEST(hil, test_crc_over_flash)
 #error fix the test for any other board
 #endif
 }
+
+ZTEST(hil, test_get_versions)
+{
+    int ret;
+    struct image_header ih = {0};
+    ih.ih_ver.iv_major = 1;
+    ih.ih_ver.iv_minor = 2;
+    ih.ih_ver.iv_revision = 3;
+    ih.ih_ver.iv_build_num = 4;
+
+    /* initialize the version on Flash */
+    const struct flash_area *flash_area_p = NULL;
+    ret = flash_area_open(DT_FIXED_PARTITION_ID(DT_ALIAS(secondary_slot)),
+                          &flash_area_p);
+    zassert_equal(ret, 0, "Unable to open secondary slot");
+
+    ret = flash_area_erase(flash_area_p, 0, flash_area_p->fa_size);
+    zassert_equal(ret, 0, "Unable to erase secondary slot");
+
+    ret = flash_area_write(flash_area_p, 0, (void *)&ih, sizeof(ih));
+    zassert_equal(ret, 0, "Unable to write version to secondary slot");
+
+    flash_area_close(flash_area_p);
+
+    ret = dfu_version_secondary_get(NULL);
+    zassert_equal(ret, RET_ERROR_INVALID_PARAM,
+                  "NULL is an invalid input and must be treated like that");
+
+    memset(&ih, 0, sizeof(ih));
+    ret = dfu_version_secondary_get(&ih.ih_ver);
+    zassert_equal(ret, 0, "Unable to get version from secondary slot");
+
+    zassert_equal(ih.ih_ver.iv_major, 1, "Major version mismatch");
+    zassert_equal(ih.ih_ver.iv_minor, 2, "Minor version mismatch");
+    zassert_equal(ih.ih_ver.iv_revision, 3, "Revision version mismatch");
+    zassert_equal(ih.ih_ver.iv_build_num, 4, "Build number mismatch");
+
+    ret = dfu_version_primary_get(&ih.ih_ver);
+    zassert_equal(ret, 0, "Unable to get version from primary slot");
+}
