@@ -30,6 +30,7 @@ _htmresc/
 
 ## Environement
 .envrc
+.direnv/
 
 ## board-specific OpenOCD config that shouldn't be tracked
 ## copy-pasted from utils/debug/my_board.cfg.template
