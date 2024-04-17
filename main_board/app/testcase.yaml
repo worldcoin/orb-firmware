@@ -1,6 +1,8 @@
 tests:
   orb.hil:
-    extra_args: OVERLAY_CONFIG=tests.conf
+    extra_args:
+      - OVERLAY_CONFIG=tests.conf
+      - DTC_OVERLAY_FILE=one_slot.overlay
     platform_allow:
       - pearl_main
       - diamond_main

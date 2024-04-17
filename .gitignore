@@ -46,3 +46,6 @@ cscope.*
 
 ## Debugging
 .gdb_history
+
+## Pre-commit
+.pre-commit-config.yaml

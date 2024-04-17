@@ -157,7 +157,8 @@ ir_camera_system_get_fps(void);
 
 /**
  * Set IR LEDs on duration for 940nm and 850nm LEDs
- * Settings are computed to keep duty cycle <= 10%, or maximum on-time of 5ms
+ * Settings are computed to keep duty cycle <= 15% (Perl)/ 25% (Diamond),
+ * or maximum on-time of 5ms (pearl) / 8ms (diamond)
  * If LEDs are turned off, a duty cycle of 10% will be applied to set the FPS.
  * The FPS is modified accordingly to keep a duty cycle <= 10% in case
  * @c on_time_us is too large to keep the duty cycle <= 10%

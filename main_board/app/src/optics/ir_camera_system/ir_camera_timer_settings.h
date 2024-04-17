@@ -2,11 +2,17 @@
 
 #include <errors.h>
 #include <stdint.h>
-
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 #define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US 5000
-#define IR_CAMERA_SYSTEM_MAX_FPS               60
-#define ASSUMED_TIMER_CLOCK_FREQ_MHZ           170
-#define ASSUMED_TIMER_CLOCK_FREQ               (ASSUMED_TIMER_CLOCK_FREQ_MHZ * 1000000)
+#define IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE 0.15
+#else
+#define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US 8000
+#define IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE 0.25
+#endif
+#define IR_CAMERA_SYSTEM_MAX_FPS 60
+#define TIMER_CLOCK_FREQ_MHZ     170L
+#define TIMER_CLOCK_FREQ_HZ      (TIMER_CLOCK_FREQ_MHZ * 1000000)
+#define TIMER_COUNTER_WITDH_BITS 16
 
 struct ir_camera_timer_settings {
     uint16_t fps;

@@ -167,15 +167,62 @@ ZTEST(ir_740nm_tests, test_on_time_within_45_percent_duty_cycle_740nm)
                    settings.ccr_740nm);
 }
 
+ZTEST(ir_740nm_tests, test_on_time_740nm_when_on_time_is_not_zero)
+{
+    struct ir_camera_timer_settings ts = {0};
+    uint32_t on_time_us, on_time_us_740nm, fps;
+    ret_code_t ret;
+
+    fps = 60;
+    on_time_us = 1000;
+    on_time_us_740nm = 500;
+    // write a test to reach line 147 in ir_camera_timer_settings.c
+    ret = timer_settings_from_on_time_us(on_time_us, &ts, &ts);
+    zassert_equal(RET_SUCCESS, ret, "");
+    zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
+    zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
+    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
+    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
+    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.ccr_740nm, "must be 0, actual %u", ts.ccr_740nm);
+
+    ret = timer_740nm_ccr_from_on_time_us(on_time_us_740nm, &ts, &ts);
+    zassert_equal(RET_SUCCESS, ret, "");
+    zassert_equal(ts.on_time_in_us_740nm, on_time_us_740nm,
+                  "must be on_time_us_740nm");
+    zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
+    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
+    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
+    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.ccr_740nm, "must be 0, actual %u", ts.ccr_740nm);
+
+    ret = timer_settings_from_fps(fps, &ts, &ts);
+    zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
+    zassert_equal(ts.on_time_in_us_740nm, on_time_us_740nm,
+                  "must be on_time_us_740nm");
+    zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
+    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
+    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
+    zassert_not_equal(0, ts.ccr, "must not be 0, actual %u", ts.ccr);
+    zassert_not_equal(0, ts.ccr_740nm, "must not be 0, actual %u",
+                      ts.ccr_740nm);
+}
+
 ZTEST(timer_settings_on_time, test_on_time_with_corresponding_max_fps)
 {
     struct ir_camera_timer_settings settings = {0};
     struct ir_camera_timer_settings ts = {0};
     uint32_t on_time_us, fps;
     ret_code_t ret;
+    double duty_cycle;
 
     fps = 59;
-    on_time_us = ((1000000.0 / fps) * 0.1); // 10%
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    duty_cycle = 0.15; // 15%
+#else
+    duty_cycle = 0.25; // 25%
+#endif
+    on_time_us = (1000000.0 / fps) * duty_cycle;
 
     ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
@@ -200,10 +247,16 @@ ZTEST(timer_settings_on_time, test_on_time_with_corresponding_max_fps_plus_1)
     struct ir_camera_timer_settings ts = {0};
     uint32_t on_time_us, fps;
     ret_code_t ret;
+    double duty_cycle;
 
     fps = 59;
-    on_time_us = ((1000000.0 / fps) * 0.1); // 10%
-    fps++;                                  // too high
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    duty_cycle = 0.15; // 15%
+#else
+    duty_cycle = 0.25; // 25%
+#endif
+    on_time_us = (1000000.0 / fps) * duty_cycle;
+    fps++; // too high
 
     ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
@@ -365,9 +418,15 @@ ZTEST(timer_settings_on_time,
     struct ir_camera_timer_settings ts = {0};
     uint32_t on_time_us, fps;
     ret_code_t ret;
+    double duty_cycle;
 
     fps = 60;
-    on_time_us = (1000000.0 / fps) * 0.10; // 10%
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    duty_cycle = 0.15; // 15%
+#else
+    duty_cycle = 0.25; // 25%
+#endif
+    on_time_us = (1000000.0 / fps) * duty_cycle;
 
     ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
@@ -377,7 +436,8 @@ ZTEST(timer_settings_on_time,
     zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
     zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
 
-    // 60 fps is the minimum FPS which is valid for an on-time of 1666
+    // 60 fps is the minimum FPS which is valid for an on-time of 2500 (Pearl),
+    // 4166 (Diamond)
     ret = timer_settings_from_fps(fps, &ts, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
@@ -403,6 +463,43 @@ ZTEST(timer_settings_on_time,
     zassert_equal(settings.ccr, ts.ccr,
                   "must be 120%% of original, changed from %u to %u",
                   settings.ccr, ts.ccr);
+}
+
+ZTEST(timer_settings_on_time, test_on_time_set_very_low_when_fps_is_at_minimum)
+{
+    struct ir_camera_timer_settings settings = {0};
+    struct ir_camera_timer_settings ts = {0};
+    uint32_t on_time_us, fps;
+    ret_code_t ret;
+
+    fps = 1;
+    on_time_us = 10;
+
+    ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
+    zassert_equal(RET_SUCCESS, ret, "");
+    zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
+    zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
+    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
+    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
+    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+
+    // the calculated ccr would be 0 but it should be capped to 1
+    ret = timer_settings_from_fps(fps, &ts, &ts);
+    zassert_equal(RET_SUCCESS, ret, "");
+    zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
+    zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
+    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
+    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
+    zassert_equal(1, ts.ccr, "must be 1, actual %u", ts.ccr);
+
+    // same should apply for setting the on-time at 1 fps
+    ret = timer_settings_from_on_time_us(on_time_us, &ts, &ts);
+    zassert_equal(RET_SUCCESS, ret, "");
+    zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
+    zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
+    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
+    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
+    zassert_equal(1, ts.ccr, "must be 1, actual %u", ts.ccr);
 }
 
 ZTEST(timer_settings_fps, test_fps_under_max_fps_0_on_time)
@@ -471,11 +568,18 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_increase_to_an_invalid_fps)
     struct ir_camera_timer_settings ts = {0};
     uint32_t on_time_us, fps;
     ret_code_t ret;
+    double duty_cycle;
 
     fps = 60;
-    on_time_us = (1000000.0 / fps) * 0.10; // 10%
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    duty_cycle = 0.15; // 15%
+#else
+    duty_cycle = 0.25; // 25%
+#endif
+    on_time_us = (1000000.0 / fps) * duty_cycle;
 
-    // 60 fps is the minimum FPS which is valid for an on-time of 1666
+    // 60 fps is the minimum FPS which is valid for an on-time of 2500 (Pearl),
+    // 4166 (Diamond)
     ret = timer_settings_from_fps(fps, &settings, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, 0, "must be 0");
@@ -575,9 +679,15 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_lower_fps)
     struct ir_camera_timer_settings ts = {0};
     uint32_t on_time_us, fps;
     ret_code_t ret;
+    double duty_cycle;
 
     fps = 60;
-    on_time_us = (1000000.0 / fps) * 0.10; // 10%
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    duty_cycle = 0.15; // 15%
+#else
+    duty_cycle = 0.25; // 25%
+#endif
+    on_time_us = (1000000.0 / fps) * duty_cycle;
 
     ret = timer_settings_from_fps(fps, &settings, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
@@ -618,9 +728,15 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_invalid_on_time)
     struct ir_camera_timer_settings ts = {0};
     uint32_t on_time_us, fps;
     ret_code_t ret;
+    double duty_cycle;
 
     fps = 60;
-    on_time_us = (1000000.0 / fps) * 0.11; // 11%
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    duty_cycle = 0.16; // 16%
+#else
+    duty_cycle = 0.26; // 26%
+#endif
+    on_time_us = (1000000.0 / fps) * duty_cycle;
 
     ret = timer_settings_from_fps(60, &settings, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
