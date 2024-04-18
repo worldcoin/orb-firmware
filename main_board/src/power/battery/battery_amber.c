@@ -585,7 +585,9 @@ battery_rx_thread()
                 BatteryStateOfHealth state_of_health = {0};
                 state_of_health.percentage = state_of_health_percentage;
 
-                publish_new(&state_of_health, sizeof(state_of_health), McuToJetson_battery_state_of_health_tag, CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                publish_new(&state_of_health, sizeof(state_of_health),
+                            McuToJetson_battery_state_of_health_tag,
+                            CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
             }
         }
 
