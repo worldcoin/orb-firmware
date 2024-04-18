@@ -42,6 +42,7 @@ static_assert(
 #define BQ4050_CMD_CYCLE_COUNT               0x17
 #define BQ4050_CMD_SERIAL_NUMBER             0x1C
 #define BQ4050_CMD_MANUFACTURER_BLOCK_ACCESS 0x44
+#define BQ4050_CMD_STATE_OF_HEALTH           0x4F
 
 #define BQ4050_BLK_CMD_FIRMWARE_VERSION  0x0002
 #define BQ4050_BLK_CMD_LIFETIME_DATA_1   0x0060
@@ -246,6 +247,24 @@ bq4050_read_serial_number(uint16_t *serial_number)
 
     if (ret == 0) {
         *serial_number = word;
+        return RET_SUCCESS;
+    } else {
+        return RET_ERROR_INTERNAL;
+    }
+}
+
+static ret_code_t
+bq4050_read_state_of_health(uint8_t *state_of_health_percentage)
+{
+    if (state_of_health_percentage == NULL) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    uint16_t word = 0;
+    int ret = bq4050_read_word(BQ4050_CMD_STATE_OF_HEALTH, &word);
+
+    if (ret == 0) {
+        *state_of_health_percentage = (uint8_t)word;
         return RET_SUCCESS;
     } else {
         return RET_ERROR_INTERNAL;
@@ -553,6 +572,20 @@ battery_rx_thread()
                 publish_new(&info_max_values, sizeof(info_max_values),
                             McuToJetson_battery_info_max_values_tag,
                             CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+            }
+        }
+
+        {
+            uint8_t state_of_health_percentage;
+            ret = bq4050_read_state_of_health(&state_of_health_percentage);
+
+            if (ret == 0) {
+                LOG_DBG("Battery SoH: %d %%", state_of_health_percentage);
+
+                BatteryStateOfHealth state_of_health = {0};
+                state_of_health.percentage = state_of_health_percentage;
+
+                publish_new(&state_of_health, sizeof(state_of_health), McuToJetson_battery_state_of_health_tag, CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
             }
         }
 
