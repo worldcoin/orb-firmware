@@ -157,14 +157,14 @@ ir_camera_system_get_fps(void);
 
 /**
  * Set IR LEDs on duration for 940nm and 850nm LEDs
- * Settings are computed to keep duty cycle <= 15% (Perl)/ 25% (Diamond),
- * or maximum on-time of 5ms (pearl) / 8ms (diamond)
- * If LEDs are turned off, a duty cycle of 10% will be applied to set the FPS.
- * The FPS is modified accordingly to keep a duty cycle <= 10% in case
- * @c on_time_us is too large to keep the duty cycle <= 10%
+ * Settings are computed if a duty cycle <= 15% (Pearl)/ 25% (Diamond) and a
+ * maximum on-time of 5000 us (pearl) / 8000 us (diamond) is not exceeded.
+ * Exceeding the maximum on-time will result in unchanged settings and an
+ * RET_ERROR_INVALID_PARAM.
  *
- * @param on_time_us LED on duration, maximum is 5000
- * @retval RET_ERROR_INVALID_PARAM: \c on_time_us isn't valid (> 5000?)
+ * @param on_time_us LED on duration, maximum is 5000 (pearl) / 8000 (diamond)
+ * @retval RET_ERROR_INVALID_PARAM: \c on_time_us isn't valid, max duty cycle or
+ * max on-time exceeded
  * @retval RET_SUCCESS: new settings applied
  */
 ret_code_t

@@ -1,9 +1,15 @@
 tests:
-  orb.hil:
+  orb.hil_diamond:
+    extra_args:
+      - OVERLAY_CONFIG=tests.conf
+    platform_allow:
+      - diamond_main
+    timeout: 480
+
+  orb.hil_pearl:
     extra_args:
       - OVERLAY_CONFIG=tests.conf
       - DTC_OVERLAY_FILE=one_slot.overlay
     platform_allow:
       - pearl_main
-      - diamond_main
     timeout: 480

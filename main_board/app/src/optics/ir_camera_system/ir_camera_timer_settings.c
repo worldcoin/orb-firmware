@@ -116,7 +116,7 @@ timer_settings_from_fps(uint16_t fps,
         ts = *current_settings;
         ts.fps = fps;
         ts.psc =
-            TIMER_CLOCK_FREQ_HZ / ((1 << TIMER_COUNTER_WITDH_BITS) * ts.fps);
+            TIMER_CLOCK_FREQ_HZ / ((1 << TIMER_COUNTER_WIDTH_BITS) * ts.fps);
         ts.arr = TIMER_CLOCK_FREQ_HZ / ((ts.psc + 1) * ts.fps);
 
         if (current_settings->on_time_in_us != 0) {
@@ -204,7 +204,7 @@ timer_740nm_ccr_from_on_time_us(
         // but it is easier just to recalculate than to remember the last FPS
         // setting
         ts.psc =
-            TIMER_CLOCK_FREQ_HZ / ((1 << TIMER_COUNTER_WITDH_BITS) * ts.fps);
+            TIMER_CLOCK_FREQ_HZ / ((1 << TIMER_COUNTER_WIDTH_BITS) * ts.fps);
         ts.arr = TIMER_CLOCK_FREQ_HZ / ((ts.psc + 1) * ts.fps);
         ts.ccr_740nm = calc_ccr_740nm(&ts);
     }
