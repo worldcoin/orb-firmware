@@ -532,6 +532,106 @@ ZTEST(hil, test_invalid_ir_wavelengths_msgs)
 #endif
 }
 
+ZTEST(hil, test_invalid_ir_wavelengths_functions)
+{
+    ret_code_t ret;
+    // 740nm is deprecated
+    ret = ir_camera_system_enable_leds(
+        InfraredLEDs_Wavelength_WAVELENGTH_740NM); // should fail
+    zassert_equal(ret, RET_ERROR_INVALID_PARAM);
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    // for diamond board 850 left right is not supported
+    ret = ir_camera_system_enable_leds(
+        InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT); // should fail
+    zassert_equal(ret, RET_ERROR_INVALID_PARAM);
+
+    ret = ir_camera_system_enable_leds(
+        InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT); // should fail
+    zassert_equal(ret, RET_ERROR_INVALID_PARAM);
+
+#elif defined(CONFIG_BOARD_PEARL_MAIN)
+    // for pearl board 850 side, center and 940 single are not supported
+    ret = ir_camera_system_enable_leds(
+        InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER); // should fail
+    zassert_equal(ret, RET_ERROR_INVALID_PARAM);
+
+    ret = ir_camera_system_enable_leds(
+        InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE); // should fail
+    zassert_equal(ret, RET_ERROR_INVALID_PARAM);
+
+    ret = ir_camera_system_enable_leds(
+        InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE); // should fail
+    zassert_equal(ret, RET_ERROR_INVALID_PARAM);
+
+#endif
+}
+
+ZTEST(hil, test_invalid_ir_wavelengths_msgs)
+{
+    McuMessage msg;
+    msg = (McuMessage)McuMessage_init_zero;
+    msg.version = Version_VERSION_0;
+    msg.which_message = McuMessage_j_message_tag;
+    msg.message.j_message.ack_number = 0;
+    msg.message.j_message.which_payload = JetsonToMcu_infrared_leds_tag;
+    msg->payload.infrared_leds.wavelength =
+        InfraredLEDs_Wavelength_WAVELENGTH_940NM;
+
+    send_msg(&msg);
+    // should pass
+    zassert_equal(ir_camera_system_get_enabled_leds(),
+                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+
+    // try setting 740nm wavelength which is deprecated
+    msg->payload.infrared_leds.wavelength =
+        InfraredLEDs_Wavelength_WAVELENGTH_740NM;
+
+    send_msg(&msg);
+    // should fail with INVALID_PARAM no changes should be observed
+    zassert_equal(ir_camera_system_get_enabled_leds(),
+                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    // for diamond board 850 left right is not supported
+    msg->payload.infrared_leds.wavelength =
+        InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT;
+    send_msg(&msg);
+    // should fail with INVALID_PARAM no changes should be observed
+    zassert_equal(ir_camera_system_get_enabled_leds(),
+                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+
+    msg->payload.infrared_leds.wavelength =
+        InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT;
+    send_msg(&msg);
+    // should fail with INVALID_PARAM no changes should be observed
+    zassert_equal(ir_camera_system_get_enabled_leds(),
+                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+#elif defined(CONFIG_BOARD_PEARL_MAIN)
+    // for pearl board 850 side, center and 940 single are not supported
+    msg->payload.infrared_leds.wavelength =
+        InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER;
+    send_msg(&msg);
+    // should fail with INVALID_PARAM no changes should be observed
+    zassert_equal(ir_camera_system_get_enabled_leds(),
+                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+
+    msg->payload.infrared_leds.wavelength =
+        InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE;
+    send_msg(&msg);
+    // should fail with INVALID_PARAM no changes should be observed
+    zassert_equal(ir_camera_system_get_enabled_leds(),
+                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+
+    msg->payload.infrared_leds.wavelength =
+        InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE;
+    send_msg(&msg);
+    // should fail with INVALID_PARAM no changes should be observed
+    zassert_equal(ir_camera_system_get_enabled_leds(),
+                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+#endif
+}
+
 ZTEST(hil, test_ir_eye_camera_focus_sweep)
 {
     McuMessage msg;
