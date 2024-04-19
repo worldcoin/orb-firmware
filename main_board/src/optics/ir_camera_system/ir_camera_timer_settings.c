@@ -185,34 +185,3 @@ timer_settings_print(const struct ir_camera_timer_settings *settings)
     LOG_DBG("on_time_in_us       = %5u", settings->on_time_in_us);
     LOG_DBG("on_time_in_us_740nm = %5u", settings->on_time_in_us_740nm);
 }
-
-ret_code_t
-timer_740nm_ccr_from_on_time_us(
-    uint32_t on_time_us,
-    const struct ir_camera_timer_settings *current_settings,
-    struct ir_camera_timer_settings *new_settings)
-{
-    struct ir_camera_timer_settings ts = {0};
-
-    ts = *current_settings;
-    ts.on_time_in_us_740nm = on_time_us;
-
-    // can't compute new settings if FPS is not set
-    if (current_settings->fps != 0) {
-        // apply psc and arr for current FPS
-        // psc and arr only need to be re-computed in case fps was previously 0
-        // but it is easier just to recalculate than to remember the last FPS
-        // setting
-        ts.psc =
-            TIMER_CLOCK_FREQ_HZ / ((1 << TIMER_COUNTER_WIDTH_BITS) * ts.fps);
-        ts.arr = TIMER_CLOCK_FREQ_HZ / ((ts.psc + 1) * ts.fps);
-        ts.ccr_740nm = calc_ccr_740nm(&ts);
-    }
-
-    // make copy operation atomic
-    CRITICAL_SECTION_ENTER(k);
-    *new_settings = ts;
-    CRITICAL_SECTION_EXIT(k);
-
-    return RET_SUCCESS;
-}

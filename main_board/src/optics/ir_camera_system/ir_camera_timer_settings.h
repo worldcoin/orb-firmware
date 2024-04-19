@@ -71,18 +71,3 @@ ret_code_t
 timer_settings_from_fps(uint16_t fps,
                         const struct ir_camera_timer_settings *current_settings,
                         struct ir_camera_timer_settings *new_settings);
-
-/**
- * Compute CCR to apply on 740nm LEDs based on current settings
- * If on_time_us > 45% duty cycle, on_time_us is truncated
- * ⚠️ FPS must be set
- * @param on_time_us 740nm LED on time value in microseconds
- * @param current_settings Current setting with FPS value
- * @param new_settings Settings to use
- * @return err code
- */
-ret_code_t
-timer_740nm_ccr_from_on_time_us(
-    uint32_t on_time_us,
-    const struct ir_camera_timer_settings *current_settings,
-    struct ir_camera_timer_settings *new_settings);

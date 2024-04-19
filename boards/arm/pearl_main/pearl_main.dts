@@ -462,13 +462,6 @@
 &timers3 {
     status = "okay";
 
-    led_740nm: led_740nm {
-        compatible = "worldcoin,stm32-pwm";
-        pinctrl-0 = <&tim3_ch3_pb0>;
-        pinctrl-names = "default";
-        channels = <3>;
-    };
-
     led_940nm: led_940nm {
         compatible = "worldcoin,stm32-pwm";
         pinctrl-0 = <&tim3_ch1_pe2 &tim3_ch4_pe5>;

@@ -171,17 +171,6 @@ ret_code_t
 ir_camera_system_set_on_time_us(uint16_t on_time_us);
 
 /**
- * Set IR LEDs on duration for the 740nm LEDs
- * Settings are computed to keep duty cycle <= 45%, with no maximum on-time
- * (effectively 450ms at an FPS of 1).
- * The on time will be clamped at 45% duty cycle if on_time_us is too large.
- * @param on_time_us LED on duration
- * @return return value of ir_camera_system_set_on_time_740nm_us_hw(uint16_t)
- */
-ret_code_t
-ir_camera_system_set_on_time_740nm_us(uint16_t on_time_us);
-
-/**
  * Set the focus values (target current in mA) for the liquid lens to be used
  * during a focus sweep operation.
  * The maximum number of values may not exceed MAX_NUMBER_OF_FOCUS_VALUES.
