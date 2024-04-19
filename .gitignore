@@ -5,8 +5,7 @@ CMakeCache.txt
 CMakeFiles/
 app_version.conf
 
-# handled by west
-sec_board/
+private/
 
 build/
 twister-out/
