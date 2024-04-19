@@ -46,11 +46,12 @@ endmacro()
 
 # Get our custom boards definitions before loading Zephyr
 get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
-get_filename_component(WORKSPACE_DIR ${PROJECT_DIR} DIRECTORY)
+get_filename_component(WORKSPACE_DIR ${PROJECT_DIR}/../../ ABSOLUTE)
+
 list(APPEND BOARD_ROOT ${PROJECT_DIR})
 list(APPEND DTS_ROOT ${PROJECT_DIR})
 
-set(SEC_BOARD_ROOT ${PROJECT_DIR}/private/sec_board)
+set(SEC_BOARD_ROOT ${WORKSPACE_DIR}/orb/private)
 if (EXISTS ${SEC_BOARD_ROOT})
     list(APPEND BOARD_ROOT ${SEC_BOARD_ROOT})
     list(APPEND DTS_ROOT ${SEC_BOARD_ROOT})

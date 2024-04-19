@@ -29,14 +29,14 @@ Let's build and run the application, you have several options:
 > 💡 Important notes:
 >
 > - Firmware images are signed and encrypted. If you don't have development keys already created locally, then run
->   `./generate_dev_keys` while in the directory `"$REPO_DIR"/orb/utils/ota/`.
+>   `./generate_dev_keys` while in the directory `"$REPO_DIR"/orb/public/utils/ota/`.
 > - Make sure to have the [bootloader flashed](../../bootloader/README.md) _before_ flashing the application.
 > - If you want to use the one-slot configuration (`-DDTC_OVERLAY_FILE=one_slot.overlay`) then the bootloader must have
 >   been built with this option as well.
 
 #### With Makefile
 
-- Go to `${REPO_DIR}/orb/utils/docker`.
+- Go to `${REPO_DIR}/orb/public/utils/docker`.
 - Run `make help` to see all options
 
 To Build: `make main_board-build`
@@ -45,7 +45,7 @@ To Flash: `make mcu-flash`
 
 #### Manually
 
-Make sure you are in `"$REPO_DIR"/orb/main_board/app/` directory. Compile the app:
+Make sure you are in `"$REPO_DIR"/orb/public/main_board` directory. Compile the app:
 
 ```shell
 # 'west build' defaults to pearl_main and Debug build
@@ -99,7 +99,7 @@ Twister can be used to compile and flash test configurations defined in `testcas
 with `pyocd` runner:
 
 ```shell
-# From the `main_board/app` directory
+# From the `main_board` directory
 # Load path to twister
 source ../../../zephyr/zephyr-env.sh
 # Run the test suites available in the current directory for board `pearl_main`:
@@ -116,7 +116,7 @@ Twister can be used to compile and flash test configurations defined in `testcas
 with `pyocd` runner:
 
 ```shell
-twister -vv -T . -A ./../../boards/ -p pearl_main -c --test orb/main_board/app/orb.hil \
+twister -vv -T . -A ./../../boards/ -p pearl_main -c --test orb/public/main_board/orb.hil \
 --device-serial /dev/ttyXXX --device-testing --west-flash="-i=<UNIQUE_ID>"
 ```
 
@@ -126,7 +126,7 @@ twister -vv -T . -A ./../../boards/ -p pearl_main -c --test orb/main_board/app/o
 #### Unit tests
 
 ```shell
-# From the `main_board/app` directory
+# From the `main_board` directory
 # Load path to twister
 source ../../../zephyr/zephyr-env.sh
 # Run the test suites available in the current directory for board `pearl_main`:

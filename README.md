@@ -65,7 +65,7 @@ enumerated in the [west.yml](west.yml) file.
 
 5. If you prefer to use Docker, you can use the provided [Dockerfile](utils/docker/Dockerfile).
    ```shell
-    cd "$REPO_DIR"/orb/utils/docker
+    cd "$REPO_DIR"/orb/public/utils/docker
     make build
     make shell
    ```
@@ -85,7 +85,7 @@ the [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting
        ```
    - Or install the Conda environment provided [here](utils/env/environment.yml).
      ```shell
-     conda env create -f orb/utils/env/environment.yml
+     conda env create -f orb/public/utils/env/environment.yml
      conda activate worldcoin
      ```
 
@@ -187,7 +187,7 @@ firmware
 
 #### Finally, to Build and Flash
 
-See the board-specific documentation for the [main board](main_board/app/README.md).
+See the board-specific documentation for the [main board](main_board/README.md).
 
 #### Debugging
 
@@ -207,7 +207,7 @@ Print out the bootloader and main MCU application logs using:
 
 ```shell
 # replace /dev/ttyxxx with your UART device
-python "$REPO_DIR"/orb/utils/debug/uart_dump.py -p /dev/ttyxxx -b 115200
+python "$REPO_DIR"/orb/public/utils/debug/uart_dump.py -p /dev/ttyxxx -b 115200
 ```
 
 ## Contributing

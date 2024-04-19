@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.20.0)
 set(TARGET app)
 
-get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../ ABSOLUTE)
-get_filename_component(WORKSPACE_DIR ${PROJECT_DIR} DIRECTORY)
+get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/.. ABSOLUTE)
+get_filename_component(WORKSPACE_DIR ${PROJECT_DIR}/../../ ABSOLUTE)
+
+message(STATUS "Project directory: ${PROJECT_DIR}")
+message(STATUS "Workspace directory: ${WORKSPACE_DIR}")
 
 set(APP_FILES_COMPILE_OPTIONS -Wextra)
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
@@ -183,7 +186,7 @@ set(SIGNED_ENCRYPTED_BINARY ${CMAKE_BINARY_DIR}/zephyr/zephyr.signed.encrypted.b
 add_custom_target(
     openocd_load_encrypted_sec_slot
     DEPENDS zephyr_final
-    COMMAND openocd -f ${WORKSPACE_DIR}/orb/boards/arm/pearl_main/support/openocd.cfg -c "tcl_port disabled" -c "gdb_port disabled" -c "tcl_port disabled" -c "program \"${SIGNED_ENCRYPTED_BINARY}\" 0x8044000" -c reset -c shutdown
+    COMMAND openocd -f ${WORKSPACE_DIR}/public/orb/boards/arm/pearl_main/support/openocd.cfg -c "tcl_port disabled" -c "gdb_port disabled" -c "tcl_port disabled" -c "program \"${SIGNED_ENCRYPTED_BINARY}\" 0x8044000" -c reset -c shutdown
     # TODO flash "image OK" flags at the end of the secondary slot to mark image as pending
     COMMENT "Loading signed+encrypted binary into secondary slot"
 )
