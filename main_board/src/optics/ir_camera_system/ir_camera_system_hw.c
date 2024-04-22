@@ -8,6 +8,7 @@
 #include "optics/1d_tof/tof_1d.h"
 #include "optics/liquid_lens/liquid_lens.h"
 #include "optics/mirror/mirror.h"
+#include "system/version/version.h"
 #include "ui/rgb_leds/front_leds/front_leds.h"
 #include <app_assert.h>
 #include <app_config.h>
@@ -1031,6 +1032,7 @@ ir_camera_system_get_time_until_update_us_internal(void)
 }
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
+// Fuse available on Front Unit versions 6.0 and 6.1 only!
 static ret_code_t
 reset_fuse(void)
 {
@@ -1068,6 +1070,24 @@ reset_fuse(void)
             ASSERT_SOFT(err_code);
             return RET_ERROR_INTERNAL;
         }
+    }
+
+    return RET_SUCCESS;
+}
+
+// 5V switch not available on Front Unit versions 6.0 and 6.1!
+static ret_code_t
+enable_5v_switched(void)
+{
+    int err_code;
+
+    const struct gpio_dt_spec en_5v_switched =
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_en_5v_switched_gpios);
+
+    err_code = gpio_pin_configure_dt(&en_5v_switched, GPIO_OUTPUT_ACTIVE);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
     }
 
     return RET_SUCCESS;
@@ -1213,7 +1233,14 @@ ir_camera_system_hw_init(void)
 #endif
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    reset_fuse();
+    Hardware_OrbVersion version = version_get_hardware_rev();
+
+    if (version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 ||
+        version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
+        reset_fuse();
+    } else {
+        enable_5v_switched();
+    }
 #endif
 
     return RET_SUCCESS;
