@@ -21,6 +21,7 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * Hardware version can be fetched using IO expander on the main board:
  * - v4.0 p10 = 0
  * - v4.1 p10 = 1
+ * - v4.2 p10 = 2
  **/
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
@@ -153,6 +154,9 @@ version_fetch_hardware_rev(Hardware *hw_version)
             break;
         case 1:
             version = Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2;
+            break;
+        case 2:
+            version = Hardware_OrbVersion_HW_VERSION_DIAMOND_B3;
             break;
         default:
             LOG_ERR("Unknown main board from IO expander: %d", hw_bits);
