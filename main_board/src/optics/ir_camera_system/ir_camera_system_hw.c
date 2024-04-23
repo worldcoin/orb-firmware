@@ -126,12 +126,21 @@ static struct stm32_pclken led_850nm_pclken =
 // START --- 940nm LED
 #define LED_940NM_NODE DT_NODELABEL(led_940nm)
 PINCTRL_DT_DEFINE(LED_940NM_NODE);
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+BUILD_ASSERT(
+    DT_PROP_LEN(LED_940NM_NODE, channels) == 3,
+    "For the 940nm LED, we expect three channels in the device tree node");
+BUILD_ASSERT(DT_PROP_LEN(LED_940NM_NODE, pinctrl_0) == 3,
+             "For the 940nm LED, we expect the pinctrl-0 property to contain "
+             "three entries in the device tree node");
+#else
 BUILD_ASSERT(
     DT_PROP_LEN(LED_940NM_NODE, channels) == 2,
     "For the 940nm LED, we expect two channels in the device tree node");
 BUILD_ASSERT(DT_PROP_LEN(LED_940NM_NODE, pinctrl_0) == 2,
              "For the 940nm LED, we expect the pinctrl-0 property to contain "
              "two entries in the device tree node");
+#endif
 static struct stm32_pclken led_940nm_pclken = DT_INST_CLK(LED_940NM_NODE);
 #define LED_940NM_TIMER ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(LED_940NM_NODE)))
 #define LED_940NM_TIMER_LEFT_CHANNEL                                           \
@@ -445,12 +454,12 @@ ir_camera_system_perform_mirror_sweep_hw(void)
     }
 }
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 static void
 ir_leds_pulse_finished_isr(void *arg)
 {
     ARG_UNUSED(arg);
 
-#if defined(CONFIG_BOARD_PEARL_MAIN)
     front_leds_notify_ir_leds_off();
 
     clear_ccr_interrupt_flag[LED_850NM_TIMER_LEFT_CHANNEL - 1](LED_850NM_TIMER);
@@ -459,8 +468,8 @@ ir_leds_pulse_finished_isr(void *arg)
     clear_ccr_interrupt_flag[LED_940NM_TIMER_LEFT_CHANNEL - 1](LED_940NM_TIMER);
     clear_ccr_interrupt_flag[LED_940NM_TIMER_RIGHT_CHANNEL - 1](
         LED_940NM_TIMER);
-#endif
 }
+#endif
 
 static bool
 ir_leds_are_on(void)
