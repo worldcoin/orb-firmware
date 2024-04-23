@@ -169,6 +169,8 @@ ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength)
                                                             // deprecated
             wavelength == InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT ||
             wavelength == InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT
+#else
+            false
 #endif
         ) {
             ret = RET_ERROR_INVALID_PARAM;

@@ -107,6 +107,13 @@ optics_usable(void)
            distance_is_safe();
 }
 
+bool
+optics_safety_circuit_triggered(void)
+{
+    atomic_val_t pvcc_enabled = atomic_get(fu_pvcc_enabled);
+    return !pvcc_enabled;
+}
+
 int
 optics_init(const Hardware *hw_version)
 {

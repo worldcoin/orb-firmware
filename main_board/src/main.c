@@ -43,8 +43,6 @@ static K_MUTEX_DEFINE(analog_and_i2c_mutex);
 
 #ifdef CONFIG_ZTEST_NEW_API
 #include <zephyr/ztest.h>
-
-ZTEST_SUITE(hil, NULL, NULL, NULL, NULL, NULL);
 #endif
 
 /**
