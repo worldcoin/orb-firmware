@@ -182,15 +182,3 @@ if (CONFIG_MCUBOOT_BOOTUTIL_LIB)
     endif ()
     zephyr_link_libraries(MCUBOOT_BOOTUTIL)
 endif ()
-
-# specific target to test firmware update
-# this target loads the new image in secondary slot and resets the target
-# the bootloader will then swap the images before launching the new image as a Test
-set(SIGNED_ENCRYPTED_BINARY ${CMAKE_BINARY_DIR}/zephyr/zephyr.signed.encrypted.bin)
-add_custom_target(
-    openocd_load_encrypted_sec_slot
-    DEPENDS zephyr_final
-    COMMAND openocd -f ${WORKSPACE_DIR}/public/orb/boards/arm/pearl_main/support/openocd.cfg -c "tcl_port disabled" -c "gdb_port disabled" -c "tcl_port disabled" -c "program \"${SIGNED_ENCRYPTED_BINARY}\" 0x8044000" -c reset -c shutdown
-    # TODO flash "image OK" flags at the end of the secondary slot to mark image as pending
-    COMMENT "Loading signed+encrypted binary into secondary slot"
-)
