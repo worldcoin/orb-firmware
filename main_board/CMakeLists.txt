@@ -33,14 +33,15 @@ set_property(
 
 set_property(GLOBAL PROPERTY CSTD gnu11)
 
-# default board is orb
-if (DEFINED ENV{BOARD})
-    set(BOARD $ENV{BOARD})
-else ()
-    set(BOARD pearl_main)
+# Load board before Zephyr loads it to get some custom/private board configuration.
+# Private config is not available publicly as the name suggests and contains
+# paths to private keys.
+cmake_parse_arguments(CACHE_VAR "REQUIRED;WATCH" "" "" BOARD)
+set (PRIV_CONF_FILE ${WORKSPACE_DIR}/orb/private/${BOARD}.conf)
+if (EXISTS ${PRIV_CONF_FILE})
+    message(STATUS "Using private board configuration file: ${PRIV_CONF_FILE}")
+    list(APPEND EXTRA_CONF_FILE ${PRIV_CONF_FILE})
 endif ()
-
-# Get our custom boards definitions before loading Zephyr
 list(APPEND BOARD_ROOT ${PROJECT_DIR})
 list(APPEND DTS_ROOT ${PROJECT_DIR})
 
@@ -175,6 +176,9 @@ if (CONFIG_MCUBOOT_BOOTUTIL_LIB)
     # check if files exist
     if (NOT EXISTS "${MCUBOOT_SIGNATURE_KEY_FILE}" OR NOT EXISTS "${MCUBOOT_ENCRYPTION_KEY_FILE}")
         message(FATAL_ERROR "Missing signature files, use 'generate_dev_keys'")
+    else ()
+        message(STATUS "Using signature key file: ${MCUBOOT_SIGNATURE_KEY_FILE}")
+        message(STATUS "Using encryption key file: ${MCUBOOT_ENCRYPTION_KEY_FILE}")
     endif ()
     zephyr_link_libraries(MCUBOOT_BOOTUTIL)
 endif ()
