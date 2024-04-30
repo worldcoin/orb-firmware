@@ -12,17 +12,17 @@ jobs:
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # pin@v3
         with:
-          path: "${{ github.job }}/orb"
+          path: "${{ github.job }}/orb/public"
       - name: Initialize West repo
         run: |
           cd ${{ github.job }}
           git config --global --add url."https://wc-cicd:${{ secrets.GIT_HUB_TOKEN }}@github.com/worldcoin/".insteadOf "git@github.com:worldcoin/"
-          west init -l orb || echo "Ignoring west init error $?" # might be already initialized
+          cd orb && west init -l --mf public/west.yml . || echo "Ignoring west init error $?" # might be already initialized
           west update
       - name: Twister native POSIX 64
         run: |
           cd ${{ github.job }}
-          if ! ./zephyr/scripts/twister -T orb/main_board/app -vv -c -p native_posix_64; then
+          if ! ./zephyr/scripts/twister -T orb/public/main_board -vv -c -p native_posix_64; then
             find twister-out/ \( -name 'build.log' -o -name 'handler.log' -o -name 'device.log' \) -exec cat {} \;
             false
           fi
@@ -31,7 +31,7 @@ jobs:
       - name: Twister unit tests
         run: |
           cd ${{ github.job }}
-          if ! ./zephyr/scripts/twister -T orb/main_board/app -vv -c -p unit_testing; then
+          if ! ./zephyr/scripts/twister -T orb/public/main_board -vv -c -p unit_testing; then
             find twister-out/ \( -name 'build.log' -o -name 'handler.log' -o -name 'device.log' \) -exec cat {} \;
             false
           fi
