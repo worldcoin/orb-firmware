@@ -789,6 +789,17 @@
     };
 };
 
+&timers4 {
+    status = "okay";
+
+    ir_camera_system_master_timer: ir_camera_system_master_timer {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-names = "default";
+        pinctrl-0 = <>;
+        channels = <1>;
+    };
+};
+
 &timers5 {
     status = "okay";
 

@@ -327,8 +327,7 @@ send_msg(McuMessage *msg)
 #define FOCUS_SWEEP_NUM_FRAMES 50
 #define FOCUS_SWEEP_FPS        30
 #define FOCUS_SWEEP_WAIT_TIME_MS                                               \
-    ((uint32_t)((((float)(FOCUS_SWEEP_NUM_FRAMES) / FOCUS_SWEEP_FPS) * 1000) + \
-                ((1.0f / (FOCUS_SWEEP_FPS) * 2))))
+    ((uint32_t)(((float)(FOCUS_SWEEP_NUM_FRAMES + 1) / FOCUS_SWEEP_FPS) * 1000))
 
 ZTEST(hil, test_invalid_ir_wavelengths_functions)
 {

@@ -45,17 +45,31 @@ BUILD_ASSERT(DT_PROP(DT_NODELABEL(rcc), apb1_prescaler) ==
              "If this is not the case, use different macros for APB1 and APB2 "
              "prescaler values.");
 #endif
-#define TIMER_COUNTER_WIDTH_BITS 16
+#define TIMER_COUNTER_WIDTH_BITS    16
+#define IR_CAMERA_SYSTEM_IR_LED_PSC (TIMER_CLOCK_FREQ_MHZ - 1) // 1us per tick
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#define IR_LED_TURN_ON_DELAY_US 70
+#else
+#define IR_LED_TURN_ON_DELAY_US 0
+#endif
+
+#define IR_LED_TIMER_START_DELAY_US         1 // 1 timer tick delay to start PWM pulse
+#define CAMERA_TRIGGER_TIMER_START_DELAY_US (IR_LED_TURN_ON_DELAY_US + 1)
+
+#if !defined(CONFIG_ZTEST)
+BUILD_ASSERT(CAMERA_TRIGGER_TIMER_START_DELAY_US > 0 &&
+                 IR_LED_TIMER_START_DELAY_US > 0,
+             "XXX_TIMER_START_DELAY_US must be greater than 0, so that the "
+             "output is low in idle state");
+#endif
 
 struct ir_camera_timer_settings {
     uint16_t fps;
-    uint16_t psc;
-    uint16_t arr; // full period to trigger the camera (1/FPS), in timer unit
-                  // (FREQ/(PSC+1))
-    uint16_t ccr; // on-time in timer unit (FREQ/(PSC+1)), 940nm & 850nm LEDs
-    uint16_t ccr_740nm; // 740nm LEDs w/ different duty cycle constraints
+    uint16_t master_psc;
+    uint16_t master_arr; // full period to trigger the camera (1/FPS), in timer
+                         // unit (FREQ/(PSC+1))
     uint16_t on_time_in_us;
-    uint32_t on_time_in_us_740nm;
 };
 
 void

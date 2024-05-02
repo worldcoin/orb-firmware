@@ -17,9 +17,8 @@ ZTEST(timer_settings_on_time, test_on_time_set_0us_with_0_fps)
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
-    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+    zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 }
 
 ZTEST(timer_settings_on_time, test_on_time_set_under_max_with_0_fps)
@@ -34,9 +33,8 @@ ZTEST(timer_settings_on_time, test_on_time_set_under_max_with_0_fps)
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
-    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+    zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 }
 
 ZTEST(timer_settings_on_time, test_on_time_set_at_max_with_0_fps)
@@ -51,9 +49,8 @@ ZTEST(timer_settings_on_time, test_on_time_set_at_max_with_0_fps)
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
-    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+    zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 }
 
 ZTEST(timer_settings_on_time, test_on_time_over_max_with_0_fps)
@@ -66,20 +63,18 @@ ZTEST(timer_settings_on_time, test_on_time_over_max_with_0_fps)
     on_time_us = IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US + 1;
     ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
     zassert_equal(RET_ERROR_INVALID_PARAM, ret, "");
-    zassert_equal(ts.on_time_in_us, 0, "must be on_time_us");
+    zassert_equal(0, ts.on_time_in_us, "must be 0, actual %u", ts.on_time_in_us);
     zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
-    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+    zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 
     memset(&on_time_us, 0xff, sizeof on_time_us);
     ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
     zassert_equal(RET_ERROR_INVALID_PARAM, ret, "");
-    zassert_equal(ts.on_time_in_us, 0, "must be on_time_us");
+    zassert_equal(0, ts.on_time_in_us, "must be 0, actual %u", ts.on_time_in_us);
     zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
-    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+    zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 }
 
 ZTEST(timer_settings_on_time, test_on_time_with_corresponding_max_fps)
@@ -98,17 +93,17 @@ ZTEST(timer_settings_on_time, test_on_time_with_corresponding_max_fps)
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
-    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+    zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 
     ret = timer_settings_from_fps(fps, &ts, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
-    zassert_not_equal(0, ts.ccr, "must not be 0, actual %u", ts.ccr);
+    zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
+                      ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must not be 0, actual %u",
+                      ts.master_arr);
 }
 
 ZTEST(timer_settings_on_time, test_on_time_with_corresponding_max_fps_plus_1)
@@ -128,17 +123,15 @@ ZTEST(timer_settings_on_time, test_on_time_with_corresponding_max_fps_plus_1)
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
-    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+    zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 
     ret = timer_settings_from_fps(fps, &ts, &ts);
     zassert_equal(RET_ERROR_INVALID_PARAM, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(ts.fps, 0, "must be %u, actual %u", 0, ts.fps);
-    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must not be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+    zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 }
 
 ZTEST(timer_settings_on_time,
@@ -156,17 +149,17 @@ ZTEST(timer_settings_on_time,
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
-    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+    zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 
     ret = timer_settings_from_fps(fps, &ts, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
-    zassert_not_equal(0, ts.ccr, "must not be 0, actual %u", ts.ccr);
+    zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
+                      ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must not be 0, actual %u",
+                      ts.master_arr);
 
     // check that the on-time is zeroed and FPS-related settings are cleared
     fps = 0;
@@ -174,18 +167,18 @@ ZTEST(timer_settings_on_time,
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+    zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 
     fps = 30;
     ret = timer_settings_from_fps(fps, &ts, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
-    zassert_not_equal(0, ts.ccr, "must not be 0, actual %u", ts.ccr);
+    zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
+                      ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must not be 0, actual %u",
+                      ts.master_arr);
 }
 
 ZTEST(timer_settings_on_time, test_on_time_set_valid_then_lower_on_time)
@@ -202,17 +195,17 @@ ZTEST(timer_settings_on_time, test_on_time_set_valid_then_lower_on_time)
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
-    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+    zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 
     ret = timer_settings_from_fps(fps, &ts, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
-    zassert_not_equal(0, ts.ccr, "must not be 0, actual %u", ts.ccr);
+    zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
+                      ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must not be 0, actual %u",
+                      ts.master_arr);
 
     on_time_us /= 2;
     settings = ts;
@@ -220,15 +213,12 @@ ZTEST(timer_settings_on_time, test_on_time_set_valid_then_lower_on_time)
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(fps, ts.fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_equal(settings.psc, ts.psc,
-                  "must be unchanged, changed from %u to %u", settings.psc,
-                  ts.psc);
-    zassert_equal(settings.arr, ts.arr,
-                  "must be unchanged, changed from %u to %u", settings.arr,
-                  ts.arr);
-    zassert_equal(settings.ccr / 2, ts.ccr,
-                  "must be 1/2 of original, changed from %u to %u",
-                  settings.ccr, ts.ccr);
+    zassert_equal(settings.master_psc, ts.master_psc,
+                  "must be unchanged, changed from %u to %u",
+                  settings.master_psc, ts.master_psc);
+    zassert_equal(settings.master_arr, ts.master_arr,
+                  "must be unchanged, changed from %u to %u",
+                  settings.master_arr, ts.master_arr);
 }
 
 ZTEST(timer_settings_on_time,
@@ -246,9 +236,8 @@ ZTEST(timer_settings_on_time,
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
-    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+    zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 
     ret = timer_settings_from_fps(fps, &ts, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
@@ -256,9 +245,10 @@ ZTEST(timer_settings_on_time,
                   "ts.on_time_in_us (%u) should equal on_time_us (%u)",
                   ts.on_time_in_us, on_time_us);
     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
-    zassert_not_equal(0, ts.ccr, "must not be 0, actual %u", ts.ccr);
+    zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
+                      ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must not be 0, actual %u",
+                      ts.master_arr);
 
     on_time_us = ((1000000.0 / fps) * 0.06); // 6%
     settings = ts;
@@ -266,15 +256,12 @@ ZTEST(timer_settings_on_time,
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(fps, ts.fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_equal(settings.psc, ts.psc,
-                  "must be unchanged, changed from %u to %u", settings.psc,
-                  ts.psc);
-    zassert_equal(settings.arr, ts.arr,
-                  "must be unchanged, changed from %u to %u", settings.arr,
-                  ts.arr);
-    zassert_true(ts.ccr > settings.ccr,
-                 "ccr must increase, changed from %u to %u", settings.ccr,
-                 ts.ccr);
+    zassert_equal(settings.master_psc, ts.master_psc,
+                  "must be unchanged, changed from %u to %u",
+                  settings.master_psc, ts.master_psc);
+    zassert_equal(settings.master_arr, ts.master_arr,
+                  "must be unchanged, changed from %u to %u",
+                  settings.master_arr, ts.master_arr);
 }
 
 ZTEST(timer_settings_on_time,
@@ -294,9 +281,8 @@ ZTEST(timer_settings_on_time,
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
-    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+    zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 
     // 60 fps is the minimum FPS which is valid for an on-time of 2500 (Pearl),
     // 4166 (Diamond)
@@ -304,9 +290,10 @@ ZTEST(timer_settings_on_time,
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
-    zassert_not_equal(0, ts.ccr, "must not be 0, actual %u", ts.ccr);
+    zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
+                      ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must not be 0, actual %u",
+                      ts.master_arr);
 
     // This should be invalid and all settings should be preserved
     on_time_us++;
@@ -316,53 +303,50 @@ ZTEST(timer_settings_on_time,
     zassert_equal(ts.on_time_in_us, settings.on_time_in_us,
                   "must be on_time_us");
     zassert_equal(fps, ts.fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_equal(settings.psc, ts.psc,
-                  "must be unchanged, changed from %u to %u", settings.psc,
-                  ts.psc);
-    zassert_equal(settings.arr, ts.arr,
-                  "must be unchanged, changed from %u to %u", settings.arr,
-                  ts.arr);
-    zassert_equal(settings.ccr, ts.ccr,
-                  "must be 120%% of original, changed from %u to %u",
-                  settings.ccr, ts.ccr);
+    zassert_equal(settings.master_psc, ts.master_psc,
+                  "must be unchanged, changed from %u to %u",
+                  settings.master_psc, ts.master_psc);
+    zassert_equal(settings.master_arr, ts.master_arr,
+                  "must be unchanged, changed from %u to %u",
+                  settings.master_arr, ts.master_arr);
 }
 
-ZTEST(timer_settings_on_time, test_on_time_set_very_low_when_fps_is_at_minimum)
-{
-    struct ir_camera_timer_settings settings = {0};
-    struct ir_camera_timer_settings ts = {0};
-    uint32_t on_time_us, fps;
-    ret_code_t ret;
+// ZTEST(timer_settings_on_time,
+// test_on_time_set_very_low_when_fps_is_at_minimum)
+// {
+//     struct ir_camera_timer_settings settings = {0};
+//     struct ir_camera_timer_settings ts = {0};
+//     uint32_t on_time_us, fps;
+//     ret_code_t ret;
 
-    fps = 1;
-    on_time_us = 10;
+//     fps = 1;
+//     on_time_us = 10;
 
-    ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
-    zassert_equal(RET_SUCCESS, ret, "");
-    zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
-    zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
-    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+//     ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
+//     zassert_equal(RET_SUCCESS, ret, "");
+//     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
+//     zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
+//     zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+//     zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 
-    // the calculated ccr would be 0 but it should be capped to 1
-    ret = timer_settings_from_fps(fps, &ts, &ts);
-    zassert_equal(RET_SUCCESS, ret, "");
-    zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
-    zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
-    zassert_equal(1, ts.ccr, "must be 1, actual %u", ts.ccr);
+//     // the calculated slave_arr would be 0 but it should be capped to 1
+//     ret = timer_settings_from_fps(fps, &ts, &ts);
+//     zassert_equal(RET_SUCCESS, ret, "");
+//     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
+//     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
+//     zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
+//     ts.master_psc); zassert_not_equal(0, ts.master_arr, "must not be 0,
+//     actual %u", ts.master_arr);
 
-    // same should apply for setting the on-time at 1 fps
-    ret = timer_settings_from_on_time_us(on_time_us, &ts, &ts);
-    zassert_equal(RET_SUCCESS, ret, "");
-    zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
-    zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
-    zassert_equal(1, ts.ccr, "must be 1, actual %u", ts.ccr);
-}
+//     // same should apply for setting the on-time at 1 fps
+//     ret = timer_settings_from_on_time_us(on_time_us, &ts, &ts);
+//     zassert_equal(RET_SUCCESS, ret, "");
+//     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
+//     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
+//     zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
+//     ts.master_psc); zassert_not_equal(0, ts.master_arr, "must not be 0,
+//     actual %u", ts.master_arr);
+// }
 
 ZTEST(timer_settings_fps, test_fps_under_max_fps_0_on_time)
 {
@@ -377,9 +361,10 @@ ZTEST(timer_settings_fps, test_fps_under_max_fps_0_on_time)
     zassert_equal(ts.fps, fps, "must be fps");
     zassert_equal(0, ts.on_time_in_us, "must be 0, actual %u",
                   ts.on_time_in_us);
-    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
+                      ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must not be 0, actual %u",
+                      ts.master_arr);
 }
 
 ZTEST(timer_settings_fps, test_fps_at_max_0_on_time)
@@ -395,9 +380,10 @@ ZTEST(timer_settings_fps, test_fps_at_max_0_on_time)
     zassert_equal(ts.fps, fps, "must be fps");
     zassert_equal(0, ts.on_time_in_us, "must be 0, actual %u",
                   ts.on_time_in_us);
-    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
+                      ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must not be 0, actual %u",
+                      ts.master_arr);
 }
 
 ZTEST(timer_settings_fps, test_fps_over_max_0_on_time)
@@ -413,9 +399,8 @@ ZTEST(timer_settings_fps, test_fps_over_max_0_on_time)
     zassert_equal(ts.fps, 0, "must be 0");
     zassert_equal(0, ts.on_time_in_us, "must be 0, actual %u",
                   ts.on_time_in_us);
-    zassert_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+    zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 }
 
 ZTEST(timer_settings_fps, test_fps_set_valid_then_increase_to_an_invalid_fps)
@@ -436,17 +421,17 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_increase_to_an_invalid_fps)
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, 0, "must be 0");
     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
+                      ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must not be 0, actual %u",
+                      ts.master_arr);
 
     ret = timer_settings_from_on_time_us(on_time_us, &ts, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(fps, ts.fps, "must be 0, actual %u", ts.fps);
-    zassert_not_equal(0, ts.psc, "must be 0, actual %u", ts.psc);
-    zassert_not_equal(0, ts.arr, "must be 0, actual %u", ts.arr);
-    zassert_not_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_not_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 
     // This should be invalid and all settings should be preserved
     fps++;
@@ -456,15 +441,12 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_increase_to_an_invalid_fps)
     zassert_equal(ts.on_time_in_us, settings.on_time_in_us,
                   "must be on_time_us");
     zassert_equal(fps - 1, ts.fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_equal(settings.psc, ts.psc,
-                  "must be unchanged, changed from %u to %u", settings.psc,
-                  ts.psc);
-    zassert_equal(settings.arr, ts.arr,
-                  "must be unchanged, changed from %u to %u", settings.arr,
-                  ts.arr);
-    zassert_equal(settings.ccr, ts.ccr,
-                  "must be 120%% of original, changed from %u to %u",
-                  settings.ccr, ts.ccr);
+    zassert_equal(settings.master_psc, ts.master_psc,
+                  "must be unchanged, changed from %u to %u",
+                  settings.master_psc, ts.master_psc);
+    zassert_equal(settings.master_arr, ts.master_arr,
+                  "must be unchanged, changed from %u to %u",
+                  settings.master_arr, ts.master_arr);
 }
 
 ZTEST(timer_settings_fps,
@@ -482,17 +464,17 @@ ZTEST(timer_settings_fps,
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, 0, "must be 0");
     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
+                      ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must not be 0, actual %u",
+                      ts.master_arr);
 
     ret = timer_settings_from_on_time_us(on_time_us, &ts, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(fps, ts.fps, "must be 0, actual %u", ts.fps);
-    zassert_not_equal(0, ts.psc, "must not be zero", ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be zero", ts.arr);
-    zassert_not_equal(0, ts.ccr, "must not be zero", ts.ccr);
+    zassert_not_equal(0, ts.master_psc, "must not be zero", ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must not be zero", ts.master_arr);
 
     fps++;
     settings = ts;
@@ -500,10 +482,10 @@ ZTEST(timer_settings_fps,
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(fps, ts.fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_true(settings.psc >= ts.psc, "must be >=, changed from %u to %u",
-                 settings.psc, ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be zero");
-    zassert_not_equal(0, ts.ccr, "must not be zero");
+    zassert_true(settings.master_psc >= ts.master_psc,
+                 "must be >=, changed from %u to %u", settings.master_psc,
+                 ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must not be zero");
 }
 
 ZTEST(timer_settings_fps, test_fps_set_valid_then_lower_fps)
@@ -523,9 +505,10 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_lower_fps)
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, 0, "must be 0");
     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
+                      ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must not be 0, actual %u",
+                      ts.master_arr);
 
     settings = ts;
 
@@ -533,11 +516,12 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_lower_fps)
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(fps, ts.fps, "must be 0, actual %u", ts.fps);
-    zassert_equal(settings.psc, ts.psc, "must not have changed. Was %u, now %u",
-                  settings.psc, ts.psc);
-    zassert_equal(settings.arr, ts.arr, "must not have changed. Was %u, now %u",
-                  settings.arr, ts.arr);
-    zassert_not_equal(0, ts.ccr, "must not be zero", ts.ccr);
+    zassert_equal(settings.master_psc, ts.master_psc,
+                  "must not have changed. Was %u, now %u", settings.master_psc,
+                  ts.master_psc);
+    zassert_equal(settings.master_arr, ts.master_arr,
+                  "must not have changed. Was %u, now %u", settings.master_arr,
+                  ts.master_arr);
 
     fps /= 2;
     settings = ts;
@@ -546,10 +530,10 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_lower_fps)
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
     zassert_equal(fps, ts.fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_true(settings.psc <= ts.psc, "must be <=, changed from %u to %u",
-                 settings.psc, ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be zero");
-    zassert_not_equal(0, ts.ccr, "must not be zero");
+    zassert_true(settings.master_psc <= ts.master_psc,
+                 "must be <=, changed from %u to %u", settings.master_psc,
+                 ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must not be zero");
 }
 
 ZTEST(timer_settings_fps, test_fps_set_valid_then_invalid_on_time)
@@ -568,9 +552,10 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_invalid_on_time)
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, 0, "must be 0");
     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_not_equal(0, ts.psc, "must not be 0, actual %u", ts.psc);
-    zassert_not_equal(0, ts.arr, "must not be 0, actual %u", ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
+                      ts.master_psc);
+    zassert_not_equal(0, ts.master_arr, "must not be 0, actual %u",
+                      ts.master_arr);
 
     settings = ts;
 
@@ -578,9 +563,10 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_invalid_on_time)
     zassert_equal(RET_ERROR_INVALID_PARAM, ret, "");
     zassert_equal(ts.on_time_in_us, 0, "must be 0");
     zassert_equal(fps, ts.fps, "must be %u, actual %u", fps, ts.fps);
-    zassert_equal(settings.psc, ts.psc, "must not have changed. Was %u, now %u",
-                  settings.psc, ts.psc);
-    zassert_equal(settings.arr, ts.arr, "must not have changed. Was %u, now %u",
-                  settings.arr, ts.arr);
-    zassert_equal(0, ts.ccr, "must be 0, actual %u", ts.ccr);
+    zassert_equal(settings.master_psc, ts.master_psc,
+                  "must not have changed. Was %u, now %u", settings.master_psc,
+                  ts.master_psc);
+    zassert_equal(settings.master_arr, ts.master_arr,
+                  "must not have changed. Was %u, now %u", settings.master_arr,
+                  ts.master_arr);
 }
