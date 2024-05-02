@@ -9,9 +9,23 @@
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 #define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US 5000
 #define IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE 0.15
+#if !defined(CONFIG_ZTEST)
+BUILD_ASSERT(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US == 5000 &&
+                 IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE == 0.15,
+             "These limits are to ensure that the hardware safty circuit is "
+             "not triggered. If you change them please test with multiple orbs "
+             "to ensure hardware safty circuit is not triggered.");
+#endif // !defined(CONFIG_ZTEST)
 #else
 #define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US 8000
 #define IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE 0.25
+#if !defined(CONFIG_ZTEST)
+BUILD_ASSERT(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US == 8000 &&
+                 IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE == 0.25,
+             "These limits are to ensure that the hardware safty circuit is "
+             "not triggered. If you change them please test with multiple orbs "
+             "to ensure hardware safty circuit is not triggered.");
+#endif // !defined(CONFIG_ZTEST)
 #endif
 #define IR_CAMERA_SYSTEM_MAX_FPS 60
 #if defined(CONFIG_ZTEST)

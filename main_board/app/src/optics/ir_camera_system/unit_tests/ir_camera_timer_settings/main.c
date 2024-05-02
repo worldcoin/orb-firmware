@@ -217,11 +217,7 @@ ZTEST(timer_settings_on_time, test_on_time_with_corresponding_max_fps)
     double duty_cycle;
 
     fps = 59;
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-    duty_cycle = 0.15; // 15%
-#else
-    duty_cycle = 0.25; // 25%
-#endif
+    duty_cycle = IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE;
     on_time_us = (1000000.0 / fps) * duty_cycle;
 
     ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
@@ -250,11 +246,7 @@ ZTEST(timer_settings_on_time, test_on_time_with_corresponding_max_fps_plus_1)
     double duty_cycle;
 
     fps = 59;
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-    duty_cycle = 0.15; // 15%
-#else
-    duty_cycle = 0.25; // 25%
-#endif
+    duty_cycle = IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE;
     on_time_us = (1000000.0 / fps) * duty_cycle;
     fps++; // too high
 
@@ -421,11 +413,7 @@ ZTEST(timer_settings_on_time,
     double duty_cycle;
 
     fps = 60;
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-    duty_cycle = 0.15; // 15%
-#else
-    duty_cycle = 0.25; // 25%
-#endif
+    duty_cycle = IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE;
     on_time_us = (1000000.0 / fps) * duty_cycle;
 
     ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
@@ -571,11 +559,7 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_increase_to_an_invalid_fps)
     double duty_cycle;
 
     fps = 60;
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-    duty_cycle = 0.15; // 15%
-#else
-    duty_cycle = 0.25; // 25%
-#endif
+    duty_cycle = IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE;
     on_time_us = (1000000.0 / fps) * duty_cycle;
 
     // 60 fps is the minimum FPS which is valid for an on-time of 2500 (Pearl),
@@ -682,11 +666,7 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_lower_fps)
     double duty_cycle;
 
     fps = 60;
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-    duty_cycle = 0.15; // 15%
-#else
-    duty_cycle = 0.25; // 25%
-#endif
+    duty_cycle = IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE;
     on_time_us = (1000000.0 / fps) * duty_cycle;
 
     ret = timer_settings_from_fps(fps, &settings, &ts);
@@ -731,11 +711,7 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_invalid_on_time)
     double duty_cycle;
 
     fps = 60;
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-    duty_cycle = 0.16; // 16%
-#else
-    duty_cycle = 0.26; // 26%
-#endif
+    duty_cycle = IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE + 0.01;
     on_time_us = (1000000.0 / fps) * duty_cycle;
 
     ret = timer_settings_from_fps(60, &settings, &ts);
