@@ -5,8 +5,7 @@ CMakeCache.txt
 CMakeFiles/
 app_version.conf
 
-# handled by west
-sec_board/
+private/
 
 build/
 twister-out/
@@ -31,6 +30,7 @@ _htmresc/
 
 ## Environement
 .envrc
+.direnv/
 
 ## board-specific OpenOCD config that shouldn't be tracked
 ## copy-pasted from utils/debug/my_board.cfg.template

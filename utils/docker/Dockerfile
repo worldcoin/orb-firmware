@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:22.04
 
 # Set default shell during Docker image build to bash
 SHELL ["/bin/bash", "-c"]

@@ -64,18 +64,18 @@ shell:
 
 mcu-build:
 	$(DOCKER_CMD) /bin/bash -c -- \
-		'cd $(REPO_DIR)/orb/main_board/app && west build $(BOARD_CMD)'
+		'cd $(REPO_DIR)/orb/public/main_board && west build $(BOARD_CMD)'
 
 mcu-flash:
 	$(DOCKER_CMD) /bin/bash -c -- \
-		'cd $(REPO_DIR)/orb/main_board/app && west build $(BOARD_CMD) && su-exec root west flash'
+		'cd $(REPO_DIR)/orb/public/main_board && west build $(BOARD_CMD) && su-exec root west flash'
 
 mcu-clean:
-	cd $(REPO_DIR)/orb/main_board/app && rm -rf build
+	cd $(REPO_DIR)/orb/main_board && rm -rf build
 
 mcu-tests:
 	$(DOCKER_CMD) /bin/bash -c -- \
-		'source $(REPO_DIR)/zephyr/zephyr-env.sh && cd $(REPO_DIR)/orb/main_board/app && twister -T . -vv -c -p native_posix_64'
+		'source $(REPO_DIR)/zephyr/zephyr-env.sh && cd $(REPO_DIR)/orb/main_board && twister -T . -vv -c -p native_posix_64'
 
 .PHONY: format
 format:
