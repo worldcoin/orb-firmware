@@ -755,6 +755,18 @@ apply_new_timer_settings()
 
     CRITICAL_SECTION_ENTER(k);
 
+    // If the FPS is zero, we disable the timers. If it is greater than zero, we
+    // enable them.
+    if (global_timer_settings.fps == 0 &&
+        LL_TIM_IsEnabledCounter(CAMERA_TRIGGER_TIMER)) {
+        LL_TIM_DisableCounter(CAMERA_TRIGGER_TIMER);
+        LOG_DBG("Disabling camera trigger timer");
+    } else if (global_timer_settings.fps > 0 &&
+               !LL_TIM_IsEnabledCounter(CAMERA_TRIGGER_TIMER)) {
+        LL_TIM_EnableCounter(CAMERA_TRIGGER_TIMER);
+        LOG_DBG("Enabling camera trigger timer");
+    }
+
     LL_TIM_SetPrescaler(CAMERA_TRIGGER_TIMER, global_timer_settings.psc);
     LL_TIM_SetAutoReload(CAMERA_TRIGGER_TIMER, global_timer_settings.arr);
 
@@ -1014,7 +1026,7 @@ ir_camera_system_get_time_until_update_us_internal(void)
         global_timer_settings.arr - LL_TIM_GetCounter(CAMERA_TRIGGER_TIMER);
     uint32_t time_until_update_us =
         ((global_timer_settings.psc + 1) * time_until_update_ticks) /
-        ASSUMED_TIMER_CLOCK_FREQ_MHZ;
+        TIMER_CLOCK_FREQ_MHZ;
     return time_until_update_us;
 }
 

@@ -2,11 +2,50 @@
 
 #include <errors.h>
 #include <stdint.h>
+#ifndef CONFIG_ZTEST
+#include <zephyr/devicetree.h>
+#endif
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 #define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US 5000
-#define IR_CAMERA_SYSTEM_MAX_FPS               60
-#define ASSUMED_TIMER_CLOCK_FREQ_MHZ           170
-#define ASSUMED_TIMER_CLOCK_FREQ               (ASSUMED_TIMER_CLOCK_FREQ_MHZ * 1000000)
+#define IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE 0.15
+#if !defined(CONFIG_ZTEST)
+BUILD_ASSERT(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US == 5000 &&
+                 IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE == 0.15,
+             "These limits are to ensure that the hardware safty circuit is "
+             "not triggered. If you change them please test with multiple orbs "
+             "to ensure hardware safty circuit is not triggered.");
+#endif // !defined(CONFIG_ZTEST)
+#else
+#define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US 8000
+#define IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE 0.25
+#if !defined(CONFIG_ZTEST)
+BUILD_ASSERT(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US == 8000 &&
+                 IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE == 0.25,
+             "These limits are to ensure that the hardware safty circuit is "
+             "not triggered. If you change them please test with multiple orbs "
+             "to ensure hardware safty circuit is not triggered.");
+#endif // !defined(CONFIG_ZTEST)
+#endif
+#define IR_CAMERA_SYSTEM_MAX_FPS 60
+#if defined(CONFIG_ZTEST)
+#define TIMER_CLOCK_FREQ_MHZ 170L
+#define TIMER_CLOCK_FREQ_HZ  (TIMER_CLOCK_FREQ_MHZ * 1000000)
+#else
+#define TIMER_CLOCK_FREQ_HZ                                                    \
+    (DT_PROP(DT_NODELABEL(rcc), clock_frequency) /                             \
+     DT_PROP(DT_NODELABEL(rcc), ahb_prescaler) /                               \
+     DT_PROP(DT_NODELABEL(rcc), apb1_prescaler))
+#define TIMER_CLOCK_FREQ_MHZ (TIMER_CLOCK_FREQ_HZ / 1000000)
+
+BUILD_ASSERT(DT_PROP(DT_NODELABEL(rcc), apb1_prescaler) ==
+                 DT_PROP(DT_NODELABEL(rcc), apb2_prescaler),
+             "TIM2...7 are on APB1, TIM1,8,15,16,17,20 are on APB2, so they "
+             "should have the same prescaler value.\n"
+             "If this is not the case, use different macros for APB1 and APB2 "
+             "prescaler values.");
+#endif
+#define TIMER_COUNTER_WIDTH_BITS 16
 
 struct ir_camera_timer_settings {
     uint16_t fps;

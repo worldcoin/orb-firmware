@@ -91,6 +91,21 @@ ZTEST(ir_camera_system_api, test_init_fail)
     zassert_false(ir_camera_system_initialized);
 }
 
+ZTEST(ir_camera_system_api, test_init_fail_already_initialized)
+{
+    ret_code_t ret;
+    extern bool ir_camera_system_initialized;
+
+    ir_camera_system_hw_init_fake.return_val = RET_SUCCESS;
+    ret = ir_camera_system_init();
+    zassert_equal(ret, RET_SUCCESS);
+    zassert_true(ir_camera_system_initialized);
+    // second call should fail with RET_ERROR_ALREADY_INITIALIZED
+    ret = ir_camera_system_init();
+    zassert_equal(ret, RET_ERROR_ALREADY_INITIALIZED);
+    zassert_true(ir_camera_system_initialized);
+}
+
 ZTEST(ir_camera_system_api, test_init_success)
 {
     ret_code_t ret;
