@@ -233,7 +233,8 @@ power_configure_gpios(void)
 
     // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
     if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-        version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
+        version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
+        version == Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
         if (!device_is_ready(supply_3v3_ssd_enable_gpio_spec.port) ||
             !device_is_ready(supply_3v3_wifi_enable_gpio_spec.port)) {
             return RET_ERROR_INTERNAL;
@@ -377,7 +378,8 @@ power_turn_on_power_supplies(void)
 
     // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
     if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-        version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
+        version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
+        version == Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
         gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
         LOG_INF("3.3V SSD power supply enabled");
 
@@ -682,7 +684,8 @@ reboot_thread()
             // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and
             // Diamond
             if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-                version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
+                version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
+                version == Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
                 gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 0);
                 gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 0);
             }
