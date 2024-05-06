@@ -20,6 +20,10 @@
 #include <zephyr/drivers/regulator.h>
 #include <zephyr/kernel.h>
 
+#ifdef CONFIG_MEMFAULT
+#include <memfault/core/reboot_tracking.h>
+#endif
+
 #include <zephyr/logging/log_ctrl.h>
 LOG_MODULE_REGISTER(power_sequence, CONFIG_POWER_SEQUENCE_LOG_LEVEL);
 
@@ -646,6 +650,10 @@ shutdown_requested(const struct device *dev, struct gpio_callback *cb,
         k_sem_give(&sem_reboot);
 
         LOG_INF("Jetson shut down");
+
+#ifdef CONFIG_MEMFAULT
+        MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_UserShutdown);
+#endif
     }
 }
 

@@ -9,6 +9,10 @@
 #include <zephyr/storage/flash_map.h>
 #include <zephyr/sys/crc.h>
 
+#ifdef CONFIG_MEMFAULT
+#include <memfault/core/reboot_tracking.h>
+#endif
+
 LOG_MODULE_REGISTER(dfu, CONFIG_DFU_LOG_LEVEL);
 
 static void
@@ -304,6 +308,10 @@ dfu_secondary_activate(bool permanent)
     }
 
     LOG_INF("The second image will be loaded after reset");
+
+#ifdef CONFIG_MEMFAULT
+    MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_FirmwareUpdate);
+#endif
 
     return RET_SUCCESS;
 }

@@ -15,6 +15,10 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/byteorder.h>
 
+#ifdef CONFIG_MEMFAULT
+#include <memfault/core/reboot_tracking.h>
+#endif
+
 #include "orb_logs.h"
 LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
 
@@ -604,6 +608,10 @@ battery_rx_thread()
                 battery_messages_timeout += BATTERY_INFO_SEND_PERIOD_MS;
                 if (battery_messages_timeout >= BATTERY_MESSAGES_TIMEOUT_MS) {
                     LOG_INF("No messages received from battery -> rebooting");
+#ifdef CONFIG_MEMFAULT
+                    MEMFAULT_REBOOT_MARK_RESET_IMMINENT(
+                        kMfltRebootReason_BatteryRemoved);
+#endif
                     reboot(0);
                 }
             }
@@ -677,6 +685,9 @@ battery_init(void)
         operator_leds_indicate_low_battery_blocking();
 
         LOG_ERR_IMM("Low battery voltage, rebooting!");
+#ifdef CONFIG_MEMFAULT
+        MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_LowPower);
+#endif
         NVIC_SystemReset();
     } else {
         LOG_INF("Battery voltage is ok");
