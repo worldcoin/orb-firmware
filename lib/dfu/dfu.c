@@ -511,7 +511,7 @@ dfu_version_secondary_get(struct image_version *ih_ver)
     // if flash is erased, no image present
     if (secondary_slot_header.ih_ver.iv_build_num == 0xFFFFFFFFLU &&
         secondary_slot_header.ih_ver.iv_revision == 0xFFFFLU) {
-        LOG_ERR("Secondary slot is erased");
+        LOG_WRN("Secondary slot is erased");
         ret = RET_ERROR_NOT_FOUND;
         goto exit;
     }
