@@ -1,4 +1,5 @@
 #include "runner.h"
+#include "app_assert.h"
 #include "app_config.h"
 #include "can_messaging.h"
 #include "dfu.h"
@@ -16,7 +17,6 @@
 #include "ui/rgb_leds/rgb_leds.h"
 #include "ui/ui.h"
 #include "voltage_measurement/voltage_measurement.h"
-#include <app_assert.h>
 #include <heartbeat.h>
 #include <pb_decode.h>
 #include <stdlib.h>
@@ -1221,6 +1221,55 @@ handle_sync_diag_data(job_t *job)
     job_ack(Ack_ErrorCode_SUCCESS, job);
 }
 
+static void
+handle_diag_test_data(job_t *job)
+{
+    JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(JetsonToMcu_diag_test_tag);
+
+    LOG_DBG("Got diag test data message");
+
+#if defined(BUILD_FROM_CI)
+    job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+#else
+    job_ack(Ack_ErrorCode_SUCCESS, job);
+
+    // some of these won't return
+    switch (msg->payload.diag_test.action) {
+    case DiagTest_Action_TRIGGER_WATCHDOG:
+        fatal_errors_trigger(FATAL_WATCHDOG);
+        break;
+    case DiagTest_Action_TRIGGER_ASSERT_SOFT:
+        ASSERT_SOFT(RET_ERROR_INTERNAL);
+        break;
+    case DiagTest_Action_TRIGGER_ASSERT_HARD:
+        fatal_errors_trigger(USER_ASSERT_HARD);
+        break;
+    case DiagTest_Action_TRIGGER_LOG:
+        LOG_ERR("Triggered test log");
+        break;
+    case DiagTest_Action_TRIGGER_BUSFAULT:
+        fatal_errors_trigger(FATAL_BUSFAULT);
+        break;
+    case DiagTest_Action_TRIGGER_HARDFAULT:
+        fatal_errors_trigger(FATAL_ILLEGAL_INSTRUCTION);
+        break;
+    case DiagTest_Action_TRIGGER_MEMMANAGE:
+        fatal_errors_trigger(FATAL_MEMMANAGE);
+        break;
+    case DiagTest_Action_TRIGGER_USAGEFAULT:
+        fatal_errors_trigger(FATAL_ACCESS);
+        break;
+    case DiagTest_Action_TRIGGER_K_PANIC:
+        fatal_errors_trigger(FATAL_K_PANIC);
+        break;
+    case DiagTest_Action_TRIGGER_K_OOPS:
+        fatal_errors_trigger(FATAL_K_OOPS);
+        break;
+    }
+#endif
+}
+
 __maybe_unused static void
 handle_not_supported(job_t *job)
 {
@@ -1285,6 +1334,7 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_perform_ir_eye_camera_mirror_sweep_tag] =
         handle_perform_ir_eye_camera_mirror_sweep,
     [JetsonToMcu_sync_diag_data_tag] = handle_sync_diag_data,
+    [JetsonToMcu_diag_test_tag] = handle_diag_test_data,
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     [JetsonToMcu_cone_leds_sequence_tag] = handle_cone_leds_sequence,
     [JetsonToMcu_cone_leds_pattern_tag] = handle_cone_leds_pattern,
@@ -1299,7 +1349,7 @@ static const hm_callback handle_message_callbacks[] = {
 };
 
 static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 47,
+    ARRAY_SIZE(handle_message_callbacks) <= 48,
     "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void

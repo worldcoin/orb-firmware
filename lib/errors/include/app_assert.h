@@ -116,14 +116,44 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
 #define ASSERT_SOFT_BOOL(ERR_CODE) UNUSED_VARIABLE(ERR_CODE)
 #endif
 
-#ifdef CONFIG_ORB_LIB_ERRORS_TESTS
+#if defined(CONFIG_ORB_LIB_ERRORS) && !defined(BUILD_FROM_CI)
+
+/// Based on fatal and assert tests, see
+/// zephyr/tests/ztest/error_hook/README.txt
+
+/* test case type */
+enum error_case_e {
+    FATAL_RANDOM = 0, // random fatal error among the following:
+    FATAL_ACCESS,
+    FATAL_ILLEGAL_INSTRUCTION,
+    FATAL_BUSFAULT,
+    FATAL_MEMMANAGE,
+    FATAL_DIVIDE_ZERO,
+    FATAL_K_PANIC,
+    FATAL_K_OOPS,
+    FATAL_IN_ISR,
+    ASSERT_FAIL,
+    USER_ASSERT_HARD,
+#if defined(CONFIG_IRQ_OFFLOAD)
+    ASSERT_IN_ISR,
+    USER_ASSERT_HARD_IN_ISR,
+#endif
+#if defined(CONFIG_USERSPACE)
+    USER_FATAL_Z_OOPS,
+#endif
+#if defined(CONFIG_WATCHDOG)
+    FATAL_WATCHDOG,
+#endif
+    TEST_ERROR_CASE_COUNT
+};
 
 /**
  * Test a fatal error condition
  * Does not return: make sure the microcontroller resets after
  * hitting the fatal error
+ * @param type see enum error_case_e, use FATAL_RANDOM for random
  */
 void
-fatal_errors_test(void);
+fatal_errors_trigger(enum error_case_e type);
 
 #endif

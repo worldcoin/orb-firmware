@@ -81,7 +81,7 @@ run_tests()
 #endif
 
 #if defined(CONFIG_ORB_LIB_ERRORS_TESTS)
-    fatal_errors_test();
+    fatal_errors_trigger(FATAL_RANDOM);
 #endif
 }
 
