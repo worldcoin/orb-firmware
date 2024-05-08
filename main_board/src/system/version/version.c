@@ -350,13 +350,7 @@ static const char *software_type = "diamond-main-app";
 void
 memfault_platform_get_device_info(sMemfaultDeviceInfo *info)
 {
-    static char version_str[32] = {0};
-    struct image_version version = {0};
-    dfu_version_primary_get(&version);
-
-    snprintf(version_str, sizeof(version_str), "%u.%u.%u.%u", version.iv_major,
-             version.iv_minor, version.iv_revision, version.iv_build_num);
-
+    const char *version_str = STRINGIFY(FW_VERSION_FULL);
     Hardware_OrbVersion hw_version = version_get_hardware_rev();
     size_t hardware_version_idx = (size_t)hw_version;
 #if CONFIG_BOARD_DIAMOND_MAIN
