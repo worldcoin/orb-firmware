@@ -35,8 +35,10 @@ set_property(GLOBAL PROPERTY CSTD gnu11)
 
 # optional Orb variable allows to select the board
 if ("$ENV{ORB}" STREQUAL "pearl")
+    unset(BOARD CACHE)
     set(ENV{BOARD} pearl_main)
 elseif ("$ENV{ORB}" STREQUAL "diamond")
+    unset(BOARD CACHE)
     set(ENV{BOARD} diamond_main)
 endif ()
 
