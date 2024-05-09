@@ -511,7 +511,6 @@ dfu_version_secondary_get(struct image_version *ih_ver)
     // if flash is erased, no image present
     if (secondary_slot_header.ih_ver.iv_build_num == 0xFFFFFFFFLU &&
         secondary_slot_header.ih_ver.iv_revision == 0xFFFFLU) {
-        LOG_WRN("Secondary slot is erased");
         ret = RET_ERROR_NOT_FOUND;
         goto exit;
     }
@@ -568,7 +567,7 @@ dfu_init(void)
 
         if (secondary_slot_header.ih_img_size != 0 &&
             secondary_slot_header.ih_magic != IMAGE_MAGIC) {
-            // no valid image in secondary slot, brand new device?
+            // no valid image in secondary slot, brand-new device?
             LOG_WRN("Secondary-slot image magic not found, new device?");
             memset(&secondary_slot_header, 0, sizeof(secondary_slot_header));
         } else {
@@ -578,7 +577,7 @@ dfu_init(void)
             if (img_size > partition_size) {
                 memset(&secondary_slot_header, 0,
                        sizeof(secondary_slot_header));
-                LOG_WRN("Invalid image in secondary slot. Partition size %uB. "
+                LOG_ERR("Invalid image in secondary slot. Partition size %uB. "
                         "Image "
                         "size %uB",
                         partition_size, img_size);
