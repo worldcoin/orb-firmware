@@ -75,6 +75,9 @@ trigger_fault_divide_zero(void)
 __maybe_unused static void
 kernel_assert_in_isr(const void *p)
 {
+    // unused if CONFIG_ASSERT is not enabled
+    UNUSED_PARAMETER(p);
+
     __ASSERT(p != NULL, "parameter a should not be NULL!");
 }
 
