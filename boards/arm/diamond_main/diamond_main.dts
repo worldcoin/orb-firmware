@@ -470,7 +470,7 @@
                 // not actually used by the SPI driver
                 duplex = <SPI_HALF_DUPLEX>;
 
-                num-leds = <72>;
+                num-leds = <136>;
             };
         };
 

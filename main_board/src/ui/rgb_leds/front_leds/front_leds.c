@@ -31,8 +31,8 @@ static const struct device *const led_strip =
 // an LED strip update until the next IR LED pulse
 #define LED_STRIP_MAXIMUM_UPDATE_TIME_US 10000
 #else
-#define NUM_CENTER_LEDS 23
-#define INDEX_RING_ZERO 19 // 0º is at 19th LED
+#define NUM_CENTER_LEDS 64
+#define INDEX_RING_ZERO 0 // 0º is at 0th LED
 #endif
 #define NUM_RING_LEDS (NUM_LEDS - NUM_CENTER_LEDS)
 
