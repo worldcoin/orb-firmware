@@ -69,8 +69,12 @@
         supply-super-cap-enable-gpios = <&gpio_exp_pwr_brd 6 GPIO_ACTIVE_HIGH>;
         supply-vbat-sw-enable-gpios = <&gpio_exp_pwr_brd 12 GPIO_ACTIVE_HIGH>;
         front-unit-pvcc-enabled-gpios = <&gpio_exp_front_unit 0 GPIO_ACTIVE_HIGH>;
-        front-unit-fuse-reset-gpios = <&gpio_exp_front_unit 2 GPIO_ACTIVE_LOW>;
-        front-unit-fuse-active-gpios = <&gpio_exp_front_unit 6 GPIO_ACTIVE_LOW>;
+
+        // The signals FUSE_RST and FUSE_ACTIVE are available only on Front Unit 6.0 (PoC1) and 6.1 (PoC2)
+        // On Front Unit 6.2 (B3) the signal EN_5V_SWITCHED is connected to the port expander pin P02 instead.
+        front-unit-fuse-reset-gpios = <&gpio_exp_front_unit 2 GPIO_ACTIVE_LOW>;     // PoC1 & PoC2 only
+        front-unit-fuse-active-gpios = <&gpio_exp_front_unit 6 GPIO_ACTIVE_LOW>;    // PoC1 & PoC2 only
+        front-unit-en-5v-switched-gpios = <&gpio_exp_front_unit 2 GPIO_ACTIVE_HIGH>;      // B3 only
 
         supply-12v-caps-enable-gpios = <&gpio_exp_pwr_brd 4 GPIO_ACTIVE_LOW>;
         supply-5v-rgb-enable-gpios = <&gpio_exp1 2 GPIO_ACTIVE_HIGH>;

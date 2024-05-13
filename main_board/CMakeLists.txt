@@ -33,6 +33,15 @@ set_property(
 
 set_property(GLOBAL PROPERTY CSTD gnu11)
 
+# optional Orb variable allows to select the board
+if ("$ENV{ORB}" STREQUAL "pearl")
+    unset(BOARD CACHE)
+    set(ENV{BOARD} pearl_main)
+elseif ("$ENV{ORB}" STREQUAL "diamond")
+    unset(BOARD CACHE)
+    set(ENV{BOARD} diamond_main)
+endif ()
+
 # Load board before Zephyr loads it to get some custom/private board configuration.
 # Private config is not available publicly as the name suggests and contains
 # paths to private keys.
