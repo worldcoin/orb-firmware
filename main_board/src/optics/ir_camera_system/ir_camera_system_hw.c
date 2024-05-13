@@ -1049,14 +1049,14 @@ reset_fuse(void)
         return RET_ERROR_INTERNAL;
     }
 
+    err_code = gpio_pin_configure_dt(&fuse_reset, GPIO_OUTPUT_INACTIVE);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+
     if (gpio_pin_get_dt(&fuse_active) == 0) {
         LOG_WRN("Resetting blown fuse");
-
-        err_code = gpio_pin_configure_dt(&fuse_reset, GPIO_OUTPUT_INACTIVE);
-        if (err_code) {
-            ASSERT_SOFT(err_code);
-            return RET_ERROR_INTERNAL;
-        }
 
         err_code = gpio_pin_set_dt(&fuse_reset, 1);
         if (err_code) {
