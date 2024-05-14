@@ -135,10 +135,9 @@ ir_camera_system_get_time_until_update_us(void);
 
 /**
  * Set cameras' Frames-Per-Second value
- * Settings are computed to turn on IR LEDs with a duty cycle of 10% and maximum
- * on-time of 5ms
- * If LED are turned off, a duty cycle of 10% will be applied or max 5ms
- * LED on-time is modified accordingly to keep a duty cycle <= 10%, max 5ms.
+ * Settings are computed if a duty cycle <= 15% (Pearl)/ 25% (Diamond) and the
+ * maximum Frames-Per-Second of 60Hz is not exceeded. Exceeding the duty cycle
+ * or the fps will result in unchanged settings and an RET_ERROR_INVALID_PARAM.
  * @param fps Frames-Per-Second, maximum is 60
  * @retval RET_ERROR_INVALID_PARAM: FPS value isn't valid
  * @retval RET_ERROR_BUSY: Some other operation (like a focus sweep) is in
