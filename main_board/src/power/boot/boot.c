@@ -85,6 +85,9 @@ static const struct gpio_dt_spec supply_3v6_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v6_enable_gpios);
 static const struct gpio_dt_spec supply_5v_rgb_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_5v_rgb_enable_gpios);
+
+static const struct gpio_dt_spec usb_hub_reset_gpio_spec =
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), usb_hub_reset_gpios);
 #endif
 
 K_SEM_DEFINE(sem_reboot, 0, 1);
@@ -261,7 +264,8 @@ power_configure_gpios(void)
         !device_is_ready(supply_1v2_enable_gpio_spec.port) ||
         !device_is_ready(supply_2v8_enable_gpio_spec.port) ||
         !device_is_ready(supply_3v6_enable_gpio_spec.port) ||
-        !device_is_ready(supply_5v_rgb_enable_gpio_spec.port)) {
+        !device_is_ready(supply_5v_rgb_enable_gpio_spec.port) ||
+        !device_is_ready(usb_hub_reset_gpio_spec.port)) {
         return RET_ERROR_INTERNAL;
     }
 
@@ -302,6 +306,13 @@ power_configure_gpios(void)
 
     ret = gpio_pin_configure_dt(&supply_5v_rgb_enable_gpio_spec,
                                 GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+
+    ret = gpio_pin_configure_dt(&usb_hub_reset_gpio_spec,
+                                GPIO_OUTPUT_ACTIVE);
     if (ret != 0) {
         ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
@@ -776,6 +787,9 @@ boot_turn_on_jetson(void)
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     LOG_INF("Enabling LTE, GPS, and USB");
     gpio_pin_set_dt(&lte_gps_usb_reset_gpio_spec, 0);
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    LOG_INF("Enabling USB");
+    gpio_pin_set_dt(&usb_hub_reset_gpio_spec, 0);
 #endif
 
     shutdown_req_init();

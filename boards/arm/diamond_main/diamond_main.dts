@@ -97,6 +97,8 @@
         cone-button-gpios = <&gpio_exp_cone 12 GPIO_ACTIVE_LOW>;
         cone-5v-enable-gpios = <&gpio_exp_cone 0 GPIO_ACTIVE_HIGH>;
 
+        usb-hub-reset-gpios = <&gpio_exp2 2 GPIO_ACTIVE_LOW>;
+
         // Voltage at VREF+ pin of STM32
         vref-mv = <2048>;
     };
