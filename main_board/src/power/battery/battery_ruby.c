@@ -19,6 +19,9 @@
 
 #ifdef CONFIG_MEMFAULT
 #include <memfault/core/reboot_tracking.h>
+#if defined(CONFIG_MEMFAULT_METRICS)
+#include <memfault/metrics/metrics.h>
+#endif
 #endif
 
 #include "orb_logs.h"
@@ -144,6 +147,12 @@ publish_battery_capacity(BatteryCapacity *battery_cap)
     publish_new(battery_cap, sizeof(BatteryCapacity),
                 McuToJetson_battery_capacity_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+
+#if defined(MEMFAULT_METRICS)
+    memfault_metrics_heartbeat_set_signed(
+        MEMFAULT_METRICS_KEY(Battery_ChargeLevel),
+        battery_cap->percentage * 100);
+#endif
 }
 
 static void
