@@ -25,14 +25,15 @@ static const struct device *const led_strip =
 #define NUM_LEDS DT_PROP(DT_NODELABEL(front_unit_rgb_leds), num_leds)
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 #define NUM_CENTER_LEDS 9
-#define INDEX_RING_ZERO ((NUM_RING_LEDS * 3 / 4))
+#define INDEX_RING_ZERO ((NUM_RING_LEDS * 3 / 4)) // 0º is at the 3 o'clock position
 // Maximum amount of time for LED strip update
 // It's also the minimum amount of time we need to trigger
 // an LED strip update until the next IR LED pulse
 #define LED_STRIP_MAXIMUM_UPDATE_TIME_US 10000
 #else
-#define NUM_CENTER_LEDS 23
-#define INDEX_RING_ZERO 19 // 0º is at 19th LED
+#define NUM_CENTER_LEDS 64
+// 0º (3 o'clock position) is at 53rd LED on Front Unit 6.2
+#define INDEX_RING_ZERO 53
 #endif
 #define NUM_RING_LEDS (NUM_LEDS - NUM_CENTER_LEDS)
 

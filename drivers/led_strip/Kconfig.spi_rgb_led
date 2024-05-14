@@ -15,7 +15,7 @@ config SPI_RGB_LED_DIMMING
 config SPI_RGB_LED_BUFFER_SIZE
     int "Size of SPI RGB LED buffer"
     depends on SPI_RGB_LED
-    default 396
+    default 544
     help
       Size of the SPI RGB LED buffer in bytes. This is the maximum
       number of bytes that can be sent to the LED strip in one go.
