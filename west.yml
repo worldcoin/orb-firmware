@@ -16,7 +16,7 @@ manifest:
           - nanopb
           - hal_st
     - name: orb-messages
-      revision: 523a6c01dedb51d8fdbb8d59bab5cdf807439fed
+      revision: ea731c597ddf77c02e4f544453e73c90f195ed2c
       path: modules/orb-messages/public
     - name: priv-orb-messages
       revision: b2e01ac2c617cdbb1f1dc77ab49a4561d855cb11

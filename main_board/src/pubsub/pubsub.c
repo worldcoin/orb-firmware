@@ -86,6 +86,9 @@ const struct sub_message_s sub_prios[] = {
     [McuToJetson_battery_info_max_values_tag] = {.priority = SUB_PRIO_STORE},
     [McuToJetson_battery_info_soc_and_statistics_tag] = {.priority =
                                                              SUB_PRIO_STORE},
+    [McuToJetson_cone_present_tag] = {.priority = SUB_PRIO_DISCARD},
+    [McuToJetson_memfault_event_tag] = {.priority = SUB_PRIO_DISCARD},
+    [McuToJetson_battery_state_of_health_tag] = {.priority = SUB_PRIO_DISCARD},
 };
 
 /* ISO-TP addresses + one CAN-FD address */
