@@ -216,7 +216,7 @@ disable_all_led_cc_channels(void)
 #endif
 }
 
-static struct ir_camera_timer_settings global_timer_settings;
+static struct ir_camera_timer_settings global_timer_settings = {0};
 
 /// Drive super capacitors charging mode:
 ///    * physical low: usage of PWM which allows for fast response to massive
@@ -1184,6 +1184,11 @@ ir_camera_system_set_fps_hw(uint16_t fps)
 {
     ret_code_t ret;
 
+    if(fps == global_timer_settings.fps){
+        LOG_DBG("no change in fps");
+        return RET_SUCCESS;
+    }
+
     ret = timer_settings_from_fps(fps, &global_timer_settings,
                                   &global_timer_settings);
     if (ret != RET_SUCCESS) {
@@ -1202,6 +1207,11 @@ ret_code_t
 ir_camera_system_set_on_time_us_hw(uint16_t on_time_us)
 {
     ret_code_t ret;
+
+    if(on_time_us == global_timer_settings.on_time_in_us){
+        LOG_DBG("no change in on-time");
+        return RET_SUCCESS;
+    }
 
     ret = timer_settings_from_on_time_us(on_time_us, &global_timer_settings,
                                          &global_timer_settings);
