@@ -87,7 +87,7 @@ static const struct gpio_dt_spec supply_5v_rgb_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_5v_rgb_enable_gpios);
 
 static const struct gpio_dt_spec usb_hub_reset_gpio_spec =
-        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), usb_hub_reset_gpios);
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), usb_hub_reset_gpios);
 #endif
 
 K_SEM_DEFINE(sem_reboot, 0, 1);
@@ -311,8 +311,7 @@ power_configure_gpios(void)
         return RET_ERROR_INTERNAL;
     }
 
-    ret = gpio_pin_configure_dt(&usb_hub_reset_gpio_spec,
-                                GPIO_OUTPUT_ACTIVE);
+    ret = gpio_pin_configure_dt(&usb_hub_reset_gpio_spec, GPIO_OUTPUT_ACTIVE);
     if (ret != 0) {
         ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;

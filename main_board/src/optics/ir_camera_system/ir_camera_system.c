@@ -152,7 +152,7 @@ ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength)
 {
     ret_code_t ret;
 
-    if(enabled_led_wavelength == wavelength){
+    if (enabled_led_wavelength == wavelength) {
         LOG_DBG("wavelength not changed");
         return RET_SUCCESS;
     }

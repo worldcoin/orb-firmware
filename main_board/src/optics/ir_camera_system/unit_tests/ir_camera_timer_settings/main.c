@@ -63,7 +63,8 @@ ZTEST(timer_settings_on_time, test_on_time_over_max_with_0_fps)
     on_time_us = IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US + 1;
     ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
     zassert_equal(RET_ERROR_INVALID_PARAM, ret, "");
-    zassert_equal(0, ts.on_time_in_us, "must be 0, actual %u", ts.on_time_in_us);
+    zassert_equal(0, ts.on_time_in_us, "must be 0, actual %u",
+                  ts.on_time_in_us);
     zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
     zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
     zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
@@ -71,7 +72,8 @@ ZTEST(timer_settings_on_time, test_on_time_over_max_with_0_fps)
     memset(&on_time_us, 0xff, sizeof on_time_us);
     ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
     zassert_equal(RET_ERROR_INVALID_PARAM, ret, "");
-    zassert_equal(0, ts.on_time_in_us, "must be 0, actual %u", ts.on_time_in_us);
+    zassert_equal(0, ts.on_time_in_us, "must be 0, actual %u",
+                  ts.on_time_in_us);
     zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
     zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
     zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
