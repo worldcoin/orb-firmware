@@ -43,7 +43,9 @@ The timer structure ensures synchronization of IR LEDs and camera triggers acros
         Pearl: Timer 8 - Channels 1 (TOF), 3 (IR_EYE), 4 (IR_FACE)
         Diamond: Timer 20 - Channels 1 (TOF), 3 (IR_EYE), 4 (IR_FACE)
 
-All timers are configured in single-shot mode, triggered by the master timer, with pulses ranging from 0us to the max on-time of each configuration (5000us for Pearl, 8000us for Diamond). Timers operate with a prescaler such that 1 tick equals 1us, and are set in PWM mode 2 (output transitions from 0 to 1 t Compare-Capture events). The Capture Compare Register (CCR) is set to the start delay value, and the Auto Reload Register (ARR) is configured to on_time_us + start_delay.
+All slave timers are configured in single-shot mode, triggered by the master timer, with pulses ranging from 0us to the max on-time of each configuration (5000us for Pearl, 8000us for Diamond). Timers operate with a prescaler such that 1 tick equals 1us, and are set in PWM mode 2 (output transitions from 0 to 1 t Compare-Capture events). The Capture Compare Register (CCR) is set to the start delay value, and the Auto Reload Register (ARR) is configured to on_time_us + start_delay.
+
+On the Diamond Orb the start delay of the camera triggers (CAMERA_TRIGGER_TIMER_START_DELAY_US) is configured as a larger value than the start delay of the IR LEDs (IR_LED_TIMER_START_DELAY_US). This is done because the constant current sources need approximately 70 us to ramp up the LED current.
 
 ### Timer Configuration:
 
@@ -112,8 +114,8 @@ All timers are configured in single-shot mode, triggered by the master timer, wi
     |   |<----------------------ARR--------------->|                                  |
     |                                                                                 |
     |   Timer 8 / 20 (Camera Trigger Timer)                                           |
-    |         ┌────────────────────────────────────┐                                  |
-    |    _____|                 Pulse              |______________________________    |
+    |             ┌────────────────────────────────┐                                  |
+    |    _________|                 Pulse          |______________________________    |
     |   |<CCR>|                                                                       |
     |   |<----------------------ARR--------------->|                                  |
     |                                                                                 |
