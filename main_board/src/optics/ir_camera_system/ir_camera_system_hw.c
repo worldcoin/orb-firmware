@@ -200,15 +200,15 @@ static const uint32_t ch2ll[TIMER_MAX_CH] = {
 
 static struct ir_camera_timer_settings global_timer_settings = {0};
 
-/// Drive super capacitors charging mode:
+/// Drive PVCC converter PWM mode:
 ///    * physical low: usage of PWM which allows for fast response to massive
 ///    power draw by the IR LEDs, drawback is a passive draw of 2 by default
 ///    forced by hardware when disconnected
-///    * physical high: diode-emulation mode, still charge super caps but
-///    doesn't allow high power demands. This mode is set during boot, see
-///    `ir_camera_system_init`
-static const struct gpio_dt_spec super_caps_charging_mode =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), super_caps_charging_mode_gpios);
+///    * physical high: diode-emulation mode, PVCC is still enabled but
+///    voltage drops occur if the load current changes rapidly.
+///     This mode is set during boot, see ir_camera_system_init`
+static const struct gpio_dt_spec front_unit_pvcc_pwm_mode =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_pvcc_pwm_mode_gpios);
 
 // Focus sweep stuff
 static int16_t global_focus_values[MAX_NUMBER_OF_FOCUS_VALUES];
@@ -218,27 +218,25 @@ static bool use_focus_sweep_polynomial;
 static IREyeCameraFocusSweepValuesPolynomial focus_sweep_polynomial;
 
 static void
-ir_camera_set_super_cap_charger_into_low_power_mode(void) {
-    if (gpio_pin_get_dt(&super_caps_charging_mode) == 1) {
-        LOG_INF("Super caps charger set for low power demand");
-        int ret = gpio_pin_configure_dt(&super_caps_charging_mode,
+set_pvcc_converter_into_low_power_mode(void) {
+    if (gpio_pin_get_dt(&front_unit_pvcc_pwm_mode) == 1) {
+        LOG_INF("PVCC converter set for low power demand");
+        int ret = gpio_pin_configure_dt(&front_unit_pvcc_pwm_mode,
                                         GPIO_OUTPUT_INACTIVE);
         ASSERT_SOFT(ret);
     }
 }
 
 static void
-ir_camera_set_super_cap_charger_into_high_demand_mode(void) {
-    // activate super caps charger for high demand when driving IR LEDs
-    // from logic low to logic high
+set_pvcc_converter_into_high_demand_mode(void) {
     if (ir_camera_system_get_enabled_leds() !=
         InfraredLEDs_Wavelength_WAVELENGTH_NONE &&
-        gpio_pin_get_dt(&super_caps_charging_mode) == 0) {
-        int ret = gpio_pin_configure_dt(&super_caps_charging_mode,
+        gpio_pin_get_dt(&front_unit_pvcc_pwm_mode) == 0) {
+        int ret = gpio_pin_configure_dt(&front_unit_pvcc_pwm_mode,
                                         GPIO_OUTPUT_ACTIVE);
         ASSERT_SOFT(ret);
 
-        LOG_INF("Super caps charger set for high power demand");
+        LOG_INF("PVCC converter set for high power demand");
 
         // time to settle before driving LEDs
         k_msleep(1);
@@ -262,7 +260,7 @@ disable_all_led_cc_channels(void)
                              ch2ll[LED_940NM_TIMER_SINGLE_CHANNEL - 1]);
 #endif
 
-    ir_camera_set_super_cap_charger_into_low_power_mode();
+    set_pvcc_converter_into_low_power_mode();
 }
 
 void
@@ -724,7 +722,102 @@ setup_camera_triggers(void)
 }
 
 static void
-ir_camera_system_enable_cc_channels(void);
+ir_camera_system_enable_cc_channels(void) {
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    switch (ir_camera_system_get_enabled_leds()) {
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
+        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                ch2ll[LED_850NM_TIMER_LEFT_CHANNEL - 1]);
+        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                ch2ll[LED_850NM_TIMER_RIGHT_CHANNEL - 1]);
+        LL_TIM_EnableIT_UPDATE(LED_850NM_TIMER);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
+        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                ch2ll[LED_850NM_TIMER_LEFT_CHANNEL - 1]);
+        LL_TIM_EnableIT_UPDATE(LED_850NM_TIMER);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
+        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                ch2ll[LED_850NM_TIMER_RIGHT_CHANNEL - 1]);
+        LL_TIM_EnableIT_UPDATE(LED_850NM_TIMER);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM:
+        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
+        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
+        LL_TIM_EnableIT_UPDATE(LED_940NM_TIMER);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
+        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
+        LL_TIM_EnableIT_UPDATE(LED_940NM_TIMER);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:
+        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
+        LL_TIM_EnableIT_UPDATE(LED_940NM_TIMER);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
+        ASSERT_SOFT(1); // not supported
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
+        set_pvcc_converter_into_low_power_mode();
+        // RGB LEDs could wait for a trigger, otherwise no action is taken
+        ir_leds_pulse_finished_isr(NULL);
+        break;
+    }
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    switch (ir_camera_system_get_enabled_leds()) {
+        case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
+            LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                    ch2ll[LED_850NM_TIMER_CENTER_CHANNEL - 1]);
+            LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                    ch2ll[LED_850NM_TIMER_SIDE_CHANNEL - 1]);
+            break;
+        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
+            LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                    ch2ll[LED_850NM_TIMER_CENTER_CHANNEL - 1]);
+            break;
+        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
+            LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                    ch2ll[LED_850NM_TIMER_SIDE_CHANNEL - 1]);
+            break;
+        case InfraredLEDs_Wavelength_WAVELENGTH_940NM:
+            LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                    ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
+            LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                    ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
+            LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                    ch2ll[LED_940NM_TIMER_SINGLE_CHANNEL - 1]);
+            break;
+        case InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
+            LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                    ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
+            break;
+        case InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:
+            LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                    ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
+            break;
+        case InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
+            LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                    ch2ll[LED_940NM_TIMER_SINGLE_CHANNEL - 1]);
+            break;
+        case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
+        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
+        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
+            ASSERT_SOFT(1); // not supported
+            break;
+        case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
+            set_pvcc_converter_into_low_power_mode();
+            break;
+    }
+#endif
+}
 
 static void
 set_arr_ir_leds(void)
@@ -755,9 +848,9 @@ set_arr_ir_leds(void)
                                  IR_LED_TIMER_START_DELAY_US));
 
     if(global_timer_settings.on_time_in_us > 0 && global_timer_settings.fps > 0){
-        ir_camera_set_super_cap_charger_into_high_demand_mode();
+        set_pvcc_converter_into_high_demand_mode();
     }else {
-        ir_camera_set_super_cap_charger_into_low_power_mode();
+        set_pvcc_converter_into_low_power_mode();
     }
 
     if(!led_cc_channels_enabled && global_timer_settings.on_time_in_us > 0) {
@@ -1151,104 +1244,6 @@ ir_camera_system_set_on_time_us_hw(uint16_t on_time_us)
     return ret;
 }
 
-static void
-ir_camera_system_enable_cc_channels(void) {
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-    switch (ir_camera_system_get_enabled_leds()) {
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
-        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
-                                ch2ll[LED_850NM_TIMER_LEFT_CHANNEL - 1]);
-        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
-                                ch2ll[LED_850NM_TIMER_RIGHT_CHANNEL - 1]);
-        LL_TIM_EnableIT_UPDATE(LED_850NM_TIMER);
-        break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
-        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
-                                ch2ll[LED_850NM_TIMER_LEFT_CHANNEL - 1]);
-        LL_TIM_EnableIT_UPDATE(LED_850NM_TIMER);
-        break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
-        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
-                                ch2ll[LED_850NM_TIMER_RIGHT_CHANNEL - 1]);
-        LL_TIM_EnableIT_UPDATE(LED_850NM_TIMER);
-        break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM:
-        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
-                                ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
-        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
-                                ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
-        LL_TIM_EnableIT_UPDATE(LED_940NM_TIMER);
-        break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
-        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
-                                ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
-        LL_TIM_EnableIT_UPDATE(LED_940NM_TIMER);
-        break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:
-        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
-                                ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
-        LL_TIM_EnableIT_UPDATE(LED_940NM_TIMER);
-        break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
-        ASSERT_SOFT(1); // not supported
-        break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
-        ir_camera_set_super_cap_charger_into_low_power_mode();
-        // RGB LEDs could wait for a trigger, otherwise no action is taken
-        ir_leds_pulse_finished_isr(NULL);
-        break;
-    }
-#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-    switch (ir_camera_system_get_enabled_leds()) {
-        case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
-            LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
-                                    ch2ll[LED_850NM_TIMER_CENTER_CHANNEL - 1]);
-            LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
-                                    ch2ll[LED_850NM_TIMER_SIDE_CHANNEL - 1]);
-            break;
-        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
-            LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
-                                    ch2ll[LED_850NM_TIMER_CENTER_CHANNEL - 1]);
-            break;
-        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
-            LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
-                                    ch2ll[LED_850NM_TIMER_SIDE_CHANNEL - 1]);
-            break;
-        case InfraredLEDs_Wavelength_WAVELENGTH_940NM:
-            LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
-                                    ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
-            LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
-                                    ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
-            LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
-                                    ch2ll[LED_940NM_TIMER_SINGLE_CHANNEL - 1]);
-            break;
-        case InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
-            LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
-                                    ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
-            break;
-        case InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:
-            LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
-                                    ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
-            break;
-        case InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
-            LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
-                                    ch2ll[LED_940NM_TIMER_SINGLE_CHANNEL - 1]);
-            break;
-        case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
-        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
-        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
-            ASSERT_SOFT(1); // not supported
-            break;
-        case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
-            ir_camera_set_super_cap_charger_into_low_power_mode();
-            break;
-    }
-#endif
-}
-
 void
 ir_camera_system_enable_leds_hw(void)
 {
@@ -1267,7 +1262,7 @@ ir_camera_system_enable_leds_hw(void)
     LL_TIM_DisableIT_UPDATE(LED_940NM_TIMER);
 
     if(global_timer_settings.on_time_in_us > 0 && global_timer_settings.fps > 0){
-        ir_camera_set_super_cap_charger_into_high_demand_mode();
+        set_pvcc_converter_into_high_demand_mode();
     }
 
     if(global_timer_settings.on_time_in_us > 0){
@@ -1291,15 +1286,13 @@ ir_camera_system_hw_init(void)
 {
     int err_code = 0;
 
-    if (!device_is_ready(super_caps_charging_mode.port)) {
+    if (!device_is_ready(front_unit_pvcc_pwm_mode.port)) {
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
 
-    // super caps charger to draw less current than default
-    // this mode is enabled when IR LEDs are not used
     err_code =
-        gpio_pin_configure_dt(&super_caps_charging_mode, GPIO_OUTPUT_INACTIVE);
+        gpio_pin_configure_dt(&front_unit_pvcc_pwm_mode, GPIO_OUTPUT_INACTIVE);
     if (err_code) {
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;

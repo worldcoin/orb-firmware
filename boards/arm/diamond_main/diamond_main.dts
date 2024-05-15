@@ -56,7 +56,7 @@
         hw-version-gpios = <&gpio_exp2 8 GPIO_ACTIVE_HIGH>, <&gpio_exp2 9 GPIO_ACTIVE_HIGH>, <&gpio_exp2 10 GPIO_ACTIVE_HIGH>, <&gpio_exp2 11 GPIO_ACTIVE_HIGH>; // todo: replaced by digital configuration at IO expander; also add hw versions of Front Unit and Power Board
         sound-amp-mux-gpios = <&gpio_exp1 5 GPIO_ACTIVE_HIGH>;
         i2c_clock_gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
-        super-caps-charging-mode-gpios = <&gpio_exp_pwr_brd 3 GPIO_ACTIVE_LOW>;
+        front-unit-pvcc-pwm-mode-gpios = <&gpio_exp_pwr_brd 3 GPIO_ACTIVE_LOW>;
         level-shifter-enable-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
 
         supply-3v3-ssd-enable-gpios = <&gpio_exp_pwr_brd 2 GPIO_ACTIVE_HIGH>;
