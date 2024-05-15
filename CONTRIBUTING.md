@@ -15,7 +15,7 @@ the [conda environment](utils/env/environment.yml).
 Configure `pre-commit` using the config in the repo:
 
 ```shell
-cd "$REPO_DIR"/orb
+cd "$REPO_DIR"/orb/public
 pre-commit install -c utils/format/pre-commit-config.yaml --hook-type commit-msg
 ```
 
@@ -24,13 +24,13 @@ pre-commit install -c utils/format/pre-commit-config.yaml --hook-type commit-msg
 Manually:
 
 ```shell
-cd "$REPO_DIR"/orb && pre-commit run --all-files --config utils/format/pre-commit-config.yaml
+cd "$REPO_DIR"/orb/public && pre-commit run --all-files --config utils/format/pre-commit-config.yaml
 ```
 
 Using Docker:
 
 ```shell
-cd "$REPO_DIR"/orb/utils/docker
+cd "$REPO_DIR"/orb/public/utils/docker
 make format
 ```
 
