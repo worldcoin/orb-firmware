@@ -18,10 +18,24 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * GPIO logic level can then be used to get the hardware version
  *
  * # Diamond Orbs
+ * ## Main board
  * Hardware version can be fetched using IO expander on the main board:
- * - v4.0 p10 = 0
- * - v4.1 p10 = 1
- * - v4.2 p10 = 2
+ * - v4.0 p[13..10] = 0
+ * - v4.1 p[13..10] = 1
+ * - v4.2 p[13..10] = 2
+ *
+ * ## Front unit
+ * Hardware version can be fetched using IO expander on the front unit:
+ * - v6.0 p[13..10] = 0
+ * - v6.1 p[13..10] = 1
+ * - v6.2A p[13..10] = 2
+ * - v6.2B p[13..10] = 3
+ *
+ * ## Power board
+ * Hardware version can be fetched using IO expander on the power board:
+ * - v1.0: p[13..10] = 0
+ * - v1.1: p[13..10] = 1
+ * - v1.2: p[13..10] = 2
  **/
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
@@ -32,14 +46,33 @@ const struct adc_dt_spec adc_dt_spec = ADC_DT_SPEC_GET(DT_PATH(board_version));
 #define ADC_REFERENCE        ADC_REF_INTERNAL
 #define ADC_ACQUISITION_TIME ADC_ACQ_TIME_DEFAULT
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-static const struct gpio_dt_spec hw_bit0 =
-    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_gpios, 0);
-static const struct gpio_dt_spec hw_bit1 =
-    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_gpios, 1);
-static const struct gpio_dt_spec hw_bit2 =
-    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_gpios, 2);
-static const struct gpio_dt_spec hw_bit3 =
-    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_gpios, 3);
+static const struct gpio_dt_spec hw_main_board_bit0 = GPIO_DT_SPEC_GET_BY_IDX(
+    DT_PATH(zephyr_user), hw_version_main_board_gpios, 0);
+static const struct gpio_dt_spec hw_main_board_bit1 = GPIO_DT_SPEC_GET_BY_IDX(
+    DT_PATH(zephyr_user), hw_version_main_board_gpios, 1);
+static const struct gpio_dt_spec hw_main_board_bit2 = GPIO_DT_SPEC_GET_BY_IDX(
+    DT_PATH(zephyr_user), hw_version_main_board_gpios, 2);
+static const struct gpio_dt_spec hw_main_board_bit3 = GPIO_DT_SPEC_GET_BY_IDX(
+    DT_PATH(zephyr_user), hw_version_main_board_gpios, 3);
+
+static const struct gpio_dt_spec hw_front_unit_bit0 = GPIO_DT_SPEC_GET_BY_IDX(
+    DT_PATH(zephyr_user), hw_version_front_unit_gpios, 0);
+static const struct gpio_dt_spec hw_front_unit_bit1 = GPIO_DT_SPEC_GET_BY_IDX(
+    DT_PATH(zephyr_user), hw_version_front_unit_gpios, 1);
+static const struct gpio_dt_spec hw_front_unit_bit2 = GPIO_DT_SPEC_GET_BY_IDX(
+    DT_PATH(zephyr_user), hw_version_front_unit_gpios, 2);
+static const struct gpio_dt_spec hw_front_unit_bit3 = GPIO_DT_SPEC_GET_BY_IDX(
+    DT_PATH(zephyr_user), hw_version_front_unit_gpios, 3);
+
+static const struct gpio_dt_spec hw_pwr_board_bit0 = GPIO_DT_SPEC_GET_BY_IDX(
+    DT_PATH(zephyr_user), hw_version_pwr_board_gpios, 0);
+static const struct gpio_dt_spec hw_pwr_board_bit1 = GPIO_DT_SPEC_GET_BY_IDX(
+    DT_PATH(zephyr_user), hw_version_pwr_board_gpios, 1);
+static const struct gpio_dt_spec hw_pwr_board_bit2 = GPIO_DT_SPEC_GET_BY_IDX(
+    DT_PATH(zephyr_user), hw_version_pwr_board_gpios, 2);
+static const struct gpio_dt_spec hw_pwr_board_bit3 = GPIO_DT_SPEC_GET_BY_IDX(
+    DT_PATH(zephyr_user), hw_version_pwr_board_gpios, 3);
+
 #endif
 
 static Hardware_OrbVersion version = Hardware_OrbVersion_HW_VERSION_UNKNOWN;
@@ -143,10 +176,15 @@ version_fetch_hardware_rev(Hardware *hw_version)
             }
         }
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-        gpio_pin_configure_dt(&hw_bit0, GPIO_INPUT);
-        int hw_bits =
-            gpio_pin_get_dt(&hw_bit3) << 3 | gpio_pin_get_dt(&hw_bit2) << 2 |
-            gpio_pin_get_dt(&hw_bit1) << 1 | gpio_pin_get_dt(&hw_bit0);
+        gpio_pin_configure_dt(&hw_main_board_bit0, GPIO_INPUT);
+        gpio_pin_configure_dt(&hw_main_board_bit1, GPIO_INPUT);
+        gpio_pin_configure_dt(&hw_main_board_bit2, GPIO_INPUT);
+        gpio_pin_configure_dt(&hw_main_board_bit3, GPIO_INPUT);
+
+        int hw_bits = gpio_pin_get_dt(&hw_main_board_bit3) << 3 |
+                      gpio_pin_get_dt(&hw_main_board_bit2) << 2 |
+                      gpio_pin_get_dt(&hw_main_board_bit1) << 1 |
+                      gpio_pin_get_dt(&hw_main_board_bit0);
 
         switch (hw_bits) {
         case 0:
@@ -162,6 +200,13 @@ version_fetch_hardware_rev(Hardware *hw_version)
             LOG_ERR("Unknown main board from IO expander: %d", hw_bits);
             break;
         }
+
+        // on diamond, fill in front unit and power board versions if
+        // hw_version points to a valid memory location
+        if (hw_version != NULL) {
+            hw_version->front_unit = version_get_front_unit_rev();
+            hw_version->power_board = version_get_power_board_rev();
+        }
 #endif
     }
 
@@ -171,6 +216,94 @@ version_fetch_hardware_rev(Hardware *hw_version)
 
     return RET_SUCCESS;
 }
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+Hardware_FrontUnitVersion
+version_get_front_unit_rev(void)
+{
+    static Hardware_FrontUnitVersion front_unit_version =
+        Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_UNKNOWN;
+
+    if (front_unit_version ==
+        Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_UNKNOWN) {
+        gpio_pin_configure_dt(&hw_front_unit_bit0, GPIO_INPUT);
+        gpio_pin_configure_dt(&hw_front_unit_bit1, GPIO_INPUT);
+        gpio_pin_configure_dt(&hw_front_unit_bit2, GPIO_INPUT);
+        gpio_pin_configure_dt(&hw_front_unit_bit3, GPIO_INPUT);
+
+        int hw_bits = gpio_pin_get_dt(&hw_front_unit_bit3) << 3 |
+                      gpio_pin_get_dt(&hw_front_unit_bit2) << 2 |
+                      gpio_pin_get_dt(&hw_front_unit_bit1) << 1 |
+                      gpio_pin_get_dt(&hw_front_unit_bit0);
+
+        switch (hw_bits) {
+        case 0:
+            front_unit_version =
+                Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_0;
+            break;
+        case 1:
+            front_unit_version =
+                Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_1;
+            break;
+        case 2:
+            front_unit_version =
+                Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2A;
+            break;
+        case 3:
+            front_unit_version =
+                Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2B;
+            break;
+        default:
+            LOG_ERR("Unknown front unit from IO expander: %d", hw_bits);
+            front_unit_version =
+                Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_UNKNOWN;
+        }
+    }
+
+    return front_unit_version;
+}
+
+Hardware_PowerBoardVersion
+version_get_power_board_rev(void)
+{
+    static Hardware_PowerBoardVersion power_board_version =
+        Hardware_PowerBoardVersion_POWER_BOARD_VERSION_UNKNOWN;
+
+    if (power_board_version ==
+        Hardware_PowerBoardVersion_POWER_BOARD_VERSION_UNKNOWN) {
+        gpio_pin_configure_dt(&hw_pwr_board_bit0, GPIO_INPUT);
+        gpio_pin_configure_dt(&hw_pwr_board_bit1, GPIO_INPUT);
+        gpio_pin_configure_dt(&hw_pwr_board_bit2, GPIO_INPUT);
+        gpio_pin_configure_dt(&hw_pwr_board_bit3, GPIO_INPUT);
+
+        int hw_bits = gpio_pin_get_dt(&hw_pwr_board_bit3) << 3 |
+                      gpio_pin_get_dt(&hw_pwr_board_bit2) << 2 |
+                      gpio_pin_get_dt(&hw_pwr_board_bit1) << 1 |
+                      gpio_pin_get_dt(&hw_pwr_board_bit0);
+
+        switch (hw_bits) {
+        case 0:
+            power_board_version =
+                Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_0;
+            break;
+        case 1:
+            power_board_version =
+                Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_1;
+            break;
+        case 2:
+            power_board_version =
+                Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_2;
+            break;
+        default:
+            LOG_ERR("Unknown power board from IO expander: %d", hw_bits);
+            power_board_version =
+                Hardware_PowerBoardVersion_POWER_BOARD_VERSION_UNKNOWN;
+        }
+    }
+
+    return power_board_version;
+}
+#endif
 
 Hardware_OrbVersion
 version_get_hardware_rev(void)
