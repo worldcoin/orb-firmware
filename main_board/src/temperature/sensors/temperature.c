@@ -14,6 +14,10 @@
 #include <zephyr/sys/reboot.h>
 #include <zephyr/sys_clock.h>
 
+#if defined(CONFIG_MEMFAULT)
+#include <memfault/core/reboot_tracking.h>
+#endif
+
 LOG_MODULE_REGISTER(temperature, CONFIG_TEMPERATURE_LOG_LEVEL);
 
 // These values are informed by
@@ -810,6 +814,10 @@ overtemp_callback(struct sensor_and_channel *sensor_and_channel)
             (void)publish_store(&error, sizeof(error),
                                 McuToJetson_fatal_error_tag,
                                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+#ifdef CONFIG_MEMFAULT
+            MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_Temperature);
+#endif
+
             sys_reboot(0);
         }
     } else {
