@@ -313,43 +313,6 @@ ZTEST(timer_settings_on_time,
                   settings.master_arr, ts.master_arr);
 }
 
-// ZTEST(timer_settings_on_time,
-// test_on_time_set_very_low_when_fps_is_at_minimum)
-// {
-//     struct ir_camera_timer_settings settings = {0};
-//     struct ir_camera_timer_settings ts = {0};
-//     uint32_t on_time_us, fps;
-//     ret_code_t ret;
-
-//     fps = 1;
-//     on_time_us = 10;
-
-//     ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
-//     zassert_equal(RET_SUCCESS, ret, "");
-//     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
-//     zassert_equal(0, ts.fps, "must be 0, actual %u", ts.fps);
-//     zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
-//     zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
-
-//     // the calculated slave_arr would be 0 but it should be capped to 1
-//     ret = timer_settings_from_fps(fps, &ts, &ts);
-//     zassert_equal(RET_SUCCESS, ret, "");
-//     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
-//     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
-//     zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
-//     ts.master_psc); zassert_not_equal(0, ts.master_arr, "must not be 0,
-//     actual %u", ts.master_arr);
-
-//     // same should apply for setting the on-time at 1 fps
-//     ret = timer_settings_from_on_time_us(on_time_us, &ts, &ts);
-//     zassert_equal(RET_SUCCESS, ret, "");
-//     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
-//     zassert_equal(ts.fps, fps, "must be %u, actual %u", fps, ts.fps);
-//     zassert_not_equal(0, ts.master_psc, "must not be 0, actual %u",
-//     ts.master_psc); zassert_not_equal(0, ts.master_arr, "must not be 0,
-//     actual %u", ts.master_arr);
-// }
-
 ZTEST(timer_settings_fps, test_fps_under_max_fps_0_on_time)
 {
     struct ir_camera_timer_settings settings = {0};
