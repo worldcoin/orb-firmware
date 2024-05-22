@@ -49,7 +49,8 @@ ZTEST_SUITE(hil, NULL, NULL, NULL, NULL, NULL);
 #include "optics/ir_camera_system/ir_camera_system.h"
 
 /**
- * Cleanup function for the test suite, called before & after each ir_camera test
+ * Cleanup function for the test suite, called before & after each ir_camera
+ * test
  * @param fixture
  */
 static void
