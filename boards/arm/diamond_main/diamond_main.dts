@@ -453,14 +453,14 @@
         enable-gpios = <&gpio_exp1 4 GPIO_ACTIVE_HIGH>;
         spi-parent = <&spi4>;
 
-        mux_spi_op: spi@0 {
+        mux_spi_fu: spi@0 {
             compatible = "tfh,spi-mux-gpio-channel";
             status = "okay";
             reg = <0>;
             #address-cells = <1>;
             #size-cells = <0>;
 
-            front_unit_rgb_leds:front_unit_rgb_leds@0
+            front_unit_rgb_leds_w:front_unit_rgb_leds_w@0
             {
                 compatible = "we,spi-rgb-led";
                 reg = <0>;
@@ -471,9 +471,22 @@
 
                 num-leds = <136>;
             };
+
+            front_unit_rgb_leds_apa: front_unit_rgb_leds_apa@1
+            {
+                compatible = "apa,apa102";
+                reg = <1>;
+                spi-max-frequency = <2000000>;
+                // 'duplex' option exists but
+                // not actually used by the SPI driver
+                duplex = <SPI_HALF_DUPLEX>;
+
+                // get num-leds from the Wuerth Elektronik LED strip above
+                // num-leds = <136>;
+            };
         };
 
-        mux_spi_fu: spi@1 {
+        mux_spi_op: spi@1 {
             compatible = "tfh,spi-mux-gpio-channel";
             status = "okay";
             reg = <1>;

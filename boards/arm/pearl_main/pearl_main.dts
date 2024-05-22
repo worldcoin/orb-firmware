@@ -544,7 +544,7 @@
 &timers20 {
     status = "okay";
 
-    front_unit_rgb_leds: front_unit_rgb_leds {
+    front_unit_rgb_leds_w: front_unit_rgb_leds_w {
         compatible = "worldsemi,ws2812-pwm-stm32";
         pinctrl-0 = <&tim20_ch2_pe3>;
         pinctrl-names = "default";
