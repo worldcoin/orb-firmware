@@ -65,7 +65,7 @@ current sources need approximately 50us to ramp up the LED current (measured 36 
   - Single shot mode without retrigger, trigger input from master timer
   - Prescaler set such that 1 tick equals 1us
   - CCR set to a fixed value defining an delay between cameras/IR-LEDs
-  - ARR is adjusted to define the on-time/duty cyle of this output
+  - ARR is adjusted to define the on-time/duty cycle of this output
 
 **Timer Configuration Diagram**
 

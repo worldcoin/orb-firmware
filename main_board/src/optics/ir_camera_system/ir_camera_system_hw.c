@@ -726,6 +726,10 @@ setup_camera_triggers(void)
 static void
 ir_camera_system_enable_cc_channels(void)
 {
+    // disable all UPDATE interrupts, later enable only active channel
+    LL_TIM_DisableIT_UPDATE(LED_850NM_TIMER);
+    LL_TIM_DisableIT_UPDATE(LED_940NM_TIMER);
+
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     switch (ir_camera_system_get_enabled_leds()) {
     case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
@@ -825,19 +829,15 @@ ir_camera_system_enable_cc_channels(void)
 static void
 set_arr_ir_leds(void)
 {
-    static bool led_cc_channels_enabled = false;
-
     // allow usage of IR LEDs if safety conditions are met
     // this overrides Jetson commands
     if (!distance_is_safe()) {
         disable_all_led_cc_channels();
-        led_cc_channels_enabled = false;
         return;
     }
 
     if (global_timer_settings.on_time_in_us == 0) {
         disable_all_led_cc_channels();
-        led_cc_channels_enabled = false;
     }
 
     // set the ARR value for all IR LED timers
@@ -857,10 +857,7 @@ set_arr_ir_leds(void)
         set_pvcc_converter_into_low_power_mode();
     }
 
-    if (!led_cc_channels_enabled && global_timer_settings.on_time_in_us > 0) {
-        ir_camera_system_enable_cc_channels();
-        led_cc_channels_enabled = true;
-    }
+    ir_camera_system_enable_cc_channels();
 }
 
 static inline void
@@ -1250,28 +1247,9 @@ ir_camera_system_set_on_time_us_hw(uint16_t on_time_us)
 void
 ir_camera_system_enable_leds_hw(void)
 {
-    disable_all_led_cc_channels();
-
-    // allow usage of IR LEDs if safety conditions are met
-    // this overrides Jetson commands
-    if (!distance_is_safe()) {
-        return;
-    }
-
     CRITICAL_SECTION_ENTER(k);
 
-    // disable all UPDATE interrupts, later enable only active channel
-    LL_TIM_DisableIT_UPDATE(LED_850NM_TIMER);
-    LL_TIM_DisableIT_UPDATE(LED_940NM_TIMER);
-
-    if (global_timer_settings.on_time_in_us > 0 &&
-        global_timer_settings.fps > 0) {
-        set_pvcc_converter_into_high_demand_mode();
-    }
-
-    if (global_timer_settings.on_time_in_us > 0) {
-        ir_camera_system_enable_cc_channels();
-    }
+    set_arr_ir_leds();
 
     CRITICAL_SECTION_EXIT(k);
 
