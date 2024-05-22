@@ -1250,8 +1250,6 @@ ir_camera_system_set_on_time_us_hw(uint16_t on_time_us)
 void
 ir_camera_system_enable_leds_hw(void)
 {
-    CRITICAL_SECTION_ENTER(k);
-
     disable_all_led_cc_channels();
 
     // allow usage of IR LEDs if safety conditions are met
@@ -1259,6 +1257,8 @@ ir_camera_system_enable_leds_hw(void)
     if (!distance_is_safe()) {
         return;
     }
+
+    CRITICAL_SECTION_ENTER(k);
 
     // disable all UPDATE interrupts, later enable only active channel
     LL_TIM_DisableIT_UPDATE(LED_850NM_TIMER);
