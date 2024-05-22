@@ -23,17 +23,6 @@ LOG_MODULE_REGISTER(ir_camera_system_tests_init);
 #define SEPARATION_TIME_MS 1000
 
 static void
-hil_test_after_t(void *fixture)
-{
-    ARG_UNUSED(fixture);
-    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_NONE);
-    ir_camera_system_set_fps(0);
-    ir_camera_system_set_on_time_us(0);
-}
-
-ZTEST_SUITE(hil, NULL, NULL, NULL, hil_test_after_t, NULL);
-
-static void
 test_camera_triggers(void)
 {
     PRINT_TEST_NAME();
@@ -329,7 +318,7 @@ send_msg(McuMessage *msg)
 #define FOCUS_SWEEP_WAIT_TIME_MS                                               \
     ((uint32_t)(((float)(FOCUS_SWEEP_NUM_FRAMES + 1) / FOCUS_SWEEP_FPS) * 1000))
 
-ZTEST(hil, test_invalid_ir_wavelengths_functions)
+ZTEST(ir_camera, test_ir_camera_invalid_wavelengths)
 {
     ret_code_t ret;
     // 740nm is deprecated
@@ -364,27 +353,25 @@ ZTEST(hil, test_invalid_ir_wavelengths_functions)
 #endif
 }
 
-ZTEST(hil, test_valid_ir_on_time_and_duty_limits)
+ZTEST(ir_camera, test_ir_camera_valid_on_time_and_duty_limits)
 {
     bool safety_circuit_tripped;
-    uint16_t fps;
+    const uint16_t low_fps = 20;
 
     safety_circuit_tripped = optics_safety_circuit_triggered();
     zassert_false(safety_circuit_tripped, "PVCC not available");
 
     // set valid on-time
-    fps = 30;
     ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_940NM);
-    ir_camera_system_set_fps(20);
     ir_camera_system_set_on_time_us(
         1000); // should pass safety circuit shouldn't trip
-    ir_camera_system_set_fps(fps);
+    ir_camera_system_set_fps(low_fps);
     k_msleep(100);
     safety_circuit_tripped = optics_safety_circuit_triggered();
     zassert_false(
         safety_circuit_tripped,
         "safety circuit tripped but shouldn't at %d fps with %d us on-time",
-        fps, 1000);
+        low_fps, 1000);
 
     // set limit values low fps max on-time
     for (InfraredLEDs_Wavelength wavelength =
@@ -407,9 +394,9 @@ ZTEST(hil, test_valid_ir_on_time_and_duty_limits)
         default:
             break;
         }
-        uint16_t fps = 20;
+
         ir_camera_system_enable_leds(wavelength);
-        ir_camera_system_set_fps(20);
+        ir_camera_system_set_fps(low_fps);
         ir_camera_system_set_on_time_us(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US);
         k_msleep(100);
 
@@ -417,7 +404,8 @@ ZTEST(hil, test_valid_ir_on_time_and_duty_limits)
         zassert_false(safety_circuit_tripped,
                       "safety circuit tripped but shouldn't at %d fps with %d "
                       "us on-time, wavelength %d",
-                      fps, IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US, wavelength);
+                      low_fps, IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US,
+                      wavelength);
     }
 
     // set limit values different fps with max duty cycle
@@ -441,6 +429,7 @@ ZTEST(hil, test_valid_ir_on_time_and_duty_limits)
         default:
             break;
         }
+
         for (uint16_t fps = 30; fps <= IR_CAMERA_SYSTEM_MAX_FPS; fps += 10) {
             ir_camera_system_enable_leds(wavelength);
             ir_camera_system_set_fps(20);
@@ -460,7 +449,7 @@ ZTEST(hil, test_valid_ir_on_time_and_duty_limits)
     }
 }
 
-ZTEST(hil, test_invalid_ir_wavelengths_msgs)
+ZTEST(ir_camera, test_ir_camera_invalid_ir_wavelengths_msgs)
 {
     McuMessage msg;
     msg = (McuMessage)McuMessage_init_zero;
@@ -532,107 +521,7 @@ ZTEST(hil, test_invalid_ir_wavelengths_msgs)
 #endif
 }
 
-ZTEST(hil, test_invalid_ir_wavelengths_functions)
-{
-    ret_code_t ret;
-    // 740nm is deprecated
-    ret = ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_740NM); // should fail
-    zassert_equal(ret, RET_ERROR_INVALID_PARAM);
-
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    // for diamond board 850 left right is not supported
-    ret = ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT); // should fail
-    zassert_equal(ret, RET_ERROR_INVALID_PARAM);
-
-    ret = ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT); // should fail
-    zassert_equal(ret, RET_ERROR_INVALID_PARAM);
-
-#elif defined(CONFIG_BOARD_PEARL_MAIN)
-    // for pearl board 850 side, center and 940 single are not supported
-    ret = ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER); // should fail
-    zassert_equal(ret, RET_ERROR_INVALID_PARAM);
-
-    ret = ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE); // should fail
-    zassert_equal(ret, RET_ERROR_INVALID_PARAM);
-
-    ret = ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE); // should fail
-    zassert_equal(ret, RET_ERROR_INVALID_PARAM);
-
-#endif
-}
-
-ZTEST(hil, test_invalid_ir_wavelengths_msgs)
-{
-    McuMessage msg;
-    msg = (McuMessage)McuMessage_init_zero;
-    msg.version = Version_VERSION_0;
-    msg.which_message = McuMessage_j_message_tag;
-    msg.message.j_message.ack_number = 0;
-    msg.message.j_message.which_payload = JetsonToMcu_infrared_leds_tag;
-    msg->payload.infrared_leds.wavelength =
-        InfraredLEDs_Wavelength_WAVELENGTH_940NM;
-
-    send_msg(&msg);
-    // should pass
-    zassert_equal(ir_camera_system_get_enabled_leds(),
-                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
-
-    // try setting 740nm wavelength which is deprecated
-    msg->payload.infrared_leds.wavelength =
-        InfraredLEDs_Wavelength_WAVELENGTH_740NM;
-
-    send_msg(&msg);
-    // should fail with INVALID_PARAM no changes should be observed
-    zassert_equal(ir_camera_system_get_enabled_leds(),
-                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
-
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    // for diamond board 850 left right is not supported
-    msg->payload.infrared_leds.wavelength =
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT;
-    send_msg(&msg);
-    // should fail with INVALID_PARAM no changes should be observed
-    zassert_equal(ir_camera_system_get_enabled_leds(),
-                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
-
-    msg->payload.infrared_leds.wavelength =
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT;
-    send_msg(&msg);
-    // should fail with INVALID_PARAM no changes should be observed
-    zassert_equal(ir_camera_system_get_enabled_leds(),
-                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
-#elif defined(CONFIG_BOARD_PEARL_MAIN)
-    // for pearl board 850 side, center and 940 single are not supported
-    msg->payload.infrared_leds.wavelength =
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER;
-    send_msg(&msg);
-    // should fail with INVALID_PARAM no changes should be observed
-    zassert_equal(ir_camera_system_get_enabled_leds(),
-                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
-
-    msg->payload.infrared_leds.wavelength =
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE;
-    send_msg(&msg);
-    // should fail with INVALID_PARAM no changes should be observed
-    zassert_equal(ir_camera_system_get_enabled_leds(),
-                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
-
-    msg->payload.infrared_leds.wavelength =
-        InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE;
-    send_msg(&msg);
-    // should fail with INVALID_PARAM no changes should be observed
-    zassert_equal(ir_camera_system_get_enabled_leds(),
-                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
-#endif
-}
-
-ZTEST(hil, test_ir_eye_camera_focus_sweep)
+ZTEST(ir_camera, test_ir_camera_ir_eye_camera_focus_sweep)
 {
     McuMessage msg;
 
@@ -711,7 +600,7 @@ ZTEST(hil, test_ir_eye_camera_focus_sweep)
                  1000) +                                                       \
                 1000))
 
-ZTEST(hil, test_ir_eye_camera_mirror_sweep)
+ZTEST(ir_camera, test_ir_camera_ir_eye_camera_mirror_sweep)
 {
     McuMessage msg;
 
@@ -806,7 +695,7 @@ ZTEST(hil, test_ir_eye_camera_mirror_sweep)
     zassert_equal(ir_camera_system_get_status(), RET_SUCCESS);
 }
 
-ZTEST(hil, test_ir_camera_sys_logic_analyzer)
+ZTEST(ir_camera, test_ir_camera_sys_logic_analyzer)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_IR_CAMERA_SYSTEM_WITH_PROBE);
 
