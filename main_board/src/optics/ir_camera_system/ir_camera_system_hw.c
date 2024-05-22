@@ -261,8 +261,6 @@ disable_all_led_cc_channels(void)
     LL_TIM_CC_DisableChannel(LED_940NM_TIMER,
                              ch2ll[LED_940NM_TIMER_SINGLE_CHANNEL - 1]);
 #endif
-
-    set_pvcc_converter_into_low_power_mode();
 }
 
 void
@@ -770,10 +768,9 @@ ir_camera_system_enable_cc_channels(void)
     case InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
     case InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
     case InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
-        ASSERT_SOFT(1); // not supported
-        break;
+        ASSERT_SOFT(RET_ERROR_FORBIDDEN); // not supported
+        __fallthrough;
     case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
-        set_pvcc_converter_into_low_power_mode();
         // RGB LEDs could wait for a trigger, otherwise no action is taken
         ir_leds_pulse_finished_isr(NULL);
         break;
@@ -817,10 +814,9 @@ ir_camera_system_enable_cc_channels(void)
     case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
     case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
     case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
-        ASSERT_SOFT(1); // not supported
-        break;
+        ASSERT_SOFT(RET_ERROR_FORBIDDEN); // not supported
+        __fallthrough;
     case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
-        set_pvcc_converter_into_low_power_mode();
         break;
     }
 #endif
@@ -833,12 +829,14 @@ set_arr_ir_leds(void)
     // this overrides Jetson commands
     if (!distance_is_safe()) {
         disable_all_led_cc_channels();
+        set_pvcc_converter_into_low_power_mode();
         return;
     }
 
-    if (global_timer_settings.on_time_in_us == 0) {
-        disable_all_led_cc_channels();
-    }
+    // reset states
+    // so that we can selectively enable the active channels
+    // from scratch
+    disable_all_led_cc_channels();
 
     // set the ARR value for all IR LED timers
     LL_TIM_SetAutoReload(LED_850NM_TIMER,
@@ -1200,12 +1198,6 @@ ret_code_t
 ir_camera_system_set_fps_hw(uint16_t fps)
 {
     ret_code_t ret;
-
-    if (fps == global_timer_settings.fps) {
-        LOG_DBG("no change in fps");
-        return RET_SUCCESS;
-    }
-
     ret = timer_settings_from_fps(fps, &global_timer_settings,
                                   &global_timer_settings);
     if (ret != RET_SUCCESS) {
@@ -1224,12 +1216,6 @@ ret_code_t
 ir_camera_system_set_on_time_us_hw(uint16_t on_time_us)
 {
     ret_code_t ret;
-
-    if (on_time_us == global_timer_settings.on_time_in_us) {
-        LOG_DBG("no change in on-time");
-        return RET_SUCCESS;
-    }
-
     ret = timer_settings_from_on_time_us(on_time_us, &global_timer_settings,
                                          &global_timer_settings);
     if (ret != RET_SUCCESS) {
