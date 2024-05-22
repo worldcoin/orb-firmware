@@ -49,7 +49,7 @@ BUILD_ASSERT(DT_PROP(DT_NODELABEL(rcc), apb1_prescaler) ==
 #define IR_CAMERA_SYSTEM_IR_LED_PSC (TIMER_CLOCK_FREQ_MHZ - 1) // 1us per tick
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-#define IR_LED_TURN_ON_DELAY_US 40
+#define IR_LED_TURN_ON_DELAY_US 50
 #else
 #define IR_LED_TURN_ON_DELAY_US 0
 #endif
