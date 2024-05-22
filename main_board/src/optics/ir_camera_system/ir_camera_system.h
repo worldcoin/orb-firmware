@@ -135,14 +135,15 @@ ir_camera_system_get_time_until_update_us(void);
 
 /**
  * Set cameras' Frames-Per-Second value
- * Settings are computed to turn on IR LEDs with a duty cycle of 10% and maximum
- * on-time of 5ms
- * If LED are turned off, a duty cycle of 10% will be applied or max 5ms
- * LED on-time is modified accordingly to keep a duty cycle <= 10%, max 5ms.
+ * Settings are computed if:
+ * - IR-LEDs duty cycle (on-time) <= 15% (Pearl) OR <= 25% (Diamond)
+ * AND
+ * - the maximum Frames-Per-Second of 60Hz is not exceeded.
  * @param fps Frames-Per-Second, maximum is 60
- * @retval RET_ERROR_INVALID_PARAM: FPS value isn't valid
+ * @retval RET_ERROR_INVALID_PARAM: FPS value isn't valid: max FPS or max duty
+ *         cycle exceeded
  * @retval RET_ERROR_BUSY: Some other operation (like a focus sweep) is in
- * progress
+ *         progress
  * @retval RET_SUCCESS: new settings applied
  */
 ret_code_t
@@ -169,17 +170,6 @@ ir_camera_system_get_fps(void);
  */
 ret_code_t
 ir_camera_system_set_on_time_us(uint16_t on_time_us);
-
-/**
- * Set IR LEDs on duration for the 740nm LEDs
- * Settings are computed to keep duty cycle <= 45%, with no maximum on-time
- * (effectively 450ms at an FPS of 1).
- * The on time will be clamped at 45% duty cycle if on_time_us is too large.
- * @param on_time_us LED on duration
- * @return return value of ir_camera_system_set_on_time_740nm_us_hw(uint16_t)
- */
-ret_code_t
-ir_camera_system_set_on_time_740nm_us(uint16_t on_time_us);
 
 /**
  * Set the focus values (target current in mA) for the liquid lens to be used

@@ -16,6 +16,14 @@ bool
 optics_usable(void);
 
 /**
+ * @brief Check if the eye safety circuitry has been tripped
+ *
+ * @return true if tripped, false otherwise
+ */
+bool
+optics_safety_circuit_triggered(void);
+
+/**
  * @brief Initialize the optics components
  * @param *hw_version Mainboard hardware version
  * @return error code

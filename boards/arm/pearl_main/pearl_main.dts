@@ -41,7 +41,7 @@
     };
 
     zephyr,user {
-        super-caps-charging-mode-gpios = <&gpiof 9 GPIO_ACTIVE_LOW>;
+        front-unit-pvcc-pwm-mode-gpios = <&gpiof 9 GPIO_ACTIVE_LOW>;
         // This is a mux for who controls the audio amp
         // 1 == MCU
 
@@ -462,18 +462,22 @@
 &timers3 {
     status = "okay";
 
-    led_740nm: led_740nm {
-        compatible = "worldcoin,stm32-pwm";
-        pinctrl-0 = <&tim3_ch3_pb0>;
-        pinctrl-names = "default";
-        channels = <3>;
-    };
-
     led_940nm: led_940nm {
         compatible = "worldcoin,stm32-pwm";
         pinctrl-0 = <&tim3_ch1_pe2 &tim3_ch4_pe5>;
         pinctrl-names = "default";
         channels = <1 4>;
+    };
+};
+
+&timers4 {
+    status = "okay";
+
+    ir_camera_system_master_timer: ir_camera_system_master_timer {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-names = "default";
+        pinctrl-0 = <>;
+        channels = <1>;
     };
 };
 

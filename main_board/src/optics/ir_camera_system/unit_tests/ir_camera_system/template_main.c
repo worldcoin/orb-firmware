@@ -19,7 +19,6 @@ FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_disable_2d_tof_camera_hw);
 FAKE_VOID_FUNC(ir_camera_system_enable_leds_hw);
 FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_set_fps_hw, uint16_t);
 FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_set_on_time_us_hw, uint16_t);
-FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_set_on_time_740nm_us_hw, uint16_t);
 
 FAKE_VALUE_FUNC(uint32_t, ir_camera_system_get_time_until_update_us_internal);
 
@@ -68,7 +67,6 @@ before_each_test(void *fixture)
     RESET_FAKE(ir_camera_system_enable_leds_hw);
     RESET_FAKE(ir_camera_system_set_fps_hw);
     RESET_FAKE(ir_camera_system_set_on_time_us_hw);
-    RESET_FAKE(ir_camera_system_set_on_time_740nm_us_hw);
     RESET_FAKE(ir_camera_system_get_time_until_update_us_internal);
     RESET_FAKE(ir_camera_system_set_polynomial_coefficients_for_focus_sweep_hw);
     RESET_FAKE(ir_camera_system_set_focus_values_for_focus_sweep_hw);
@@ -558,69 +556,6 @@ ZTEST(ir_camera_system_api, test_set_on_time_fail_because_hw_call_failed)
 
     ir_camera_system_set_on_time_us_hw_fake.return_val = RET_ERROR_INTERNAL;
     ret = ir_camera_system_set_on_time_us(2);
-    zassert_equal(ret, RET_ERROR_INTERNAL);
-}
-
-ZTEST(ir_camera_system_api, test_set_on_time_740nm_success)
-{
-    ret_code_t ret;
-
-    ir_camera_system_hw_init_fake.return_val = RET_SUCCESS;
-    ir_camera_system_init();
-
-    ret = ir_camera_system_set_on_time_740nm_us(100);
-    zassert_equal(ret, RET_SUCCESS);
-}
-
-ZTEST(ir_camera_system_api, test_set_on_time_740nm_success_while_focus_sweep_in_progress)
-{
-    ret_code_t ret;
-
-    ir_camera_system_hw_init_fake.return_val = RET_SUCCESS;
-    ir_camera_system_init();
-
-    set_focus_sweep_in_progress();
-
-    ret = ir_camera_system_set_on_time_740nm_us(100);
-    zassert_equal(ret, RET_SUCCESS);
-}
-
-ZTEST(ir_camera_system_api, test_set_on_time_740nm_fail_because_no_init)
-{
-    ret_code_t ret;
-
-    // Oops, we forgot to call init
-    // ir_camera_system_hw_init_fake.return_val = RET_SUCCESS;
-    // ir_camera_system_init();
-
-    ret = ir_camera_system_set_on_time_740nm_us(100);
-    zassert_equal(ret, RET_ERROR_NOT_INITIALIZED);
-}
-
-ZTEST(ir_camera_system_api, test_set_on_time_740nm_fail_because_init_failed)
-{
-    ret_code_t ret;
-
-    // Oops, init failed
-    ir_camera_system_hw_init_fake.return_val = RET_ERROR_INTERNAL;
-    ir_camera_system_init();
-
-    ret = ir_camera_system_set_on_time_740nm_us(100);
-    zassert_equal(ret, RET_ERROR_NOT_INITIALIZED);
-}
-
-ZTEST(ir_camera_system_api, test_set_on_time_740nm_fail_because_hw_call_failed)
-{
-    ret_code_t ret;
-
-    ir_camera_system_hw_init_fake.return_val = RET_SUCCESS;
-    ir_camera_system_init();
-
-    ret = ir_camera_system_set_on_time_740nm_us(1);
-    zassert_equal(ret, RET_SUCCESS);
-
-    ir_camera_system_set_on_time_740nm_us_hw_fake.return_val = RET_ERROR_INTERNAL;
-    ret = ir_camera_system_set_on_time_740nm_us(2);
     zassert_equal(ret, RET_ERROR_INTERNAL);
 }
 

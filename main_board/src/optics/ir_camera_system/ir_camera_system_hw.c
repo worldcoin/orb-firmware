@@ -37,6 +37,21 @@ LOG_MODULE_DECLARE(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
         .enr = DT_CLOCKS_CELL(DT_PARENT(inst), bits)                           \
     }
 
+// START --- IR camera system master timer
+#define MASTER_TIMER_NODE DT_NODELABEL(ir_camera_system_master_timer)
+PINCTRL_DT_DEFINE(MASTER_TIMER_NODE);
+BUILD_ASSERT(
+    DT_PROP_LEN(MASTER_TIMER_NODE, channels) == 1,
+    "For ir_camera_system_master_timer, we expect one channel in the device "
+    "tree node");
+BUILD_ASSERT(DT_PROP_LEN(MASTER_TIMER_NODE, pinctrl_0) == 0,
+             "For ir_camera_system_master_timer, we expect the pinctrl-0 "
+             "property to contain zero entries in the device tree node");
+static struct stm32_pclken master_timer_pclken = DT_INST_CLK(MASTER_TIMER_NODE);
+#define MASTER_TIMER         ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(MASTER_TIMER_NODE)))
+#define MASTER_TIMER_CHANNEL (DT_PROP_BY_IDX(MASTER_TIMER_NODE, channels, 0))
+// END --- IR camera system master timer
+
 // I expect all camera triggers to be on the same timer, but with different
 // channels
 
@@ -55,6 +70,7 @@ static struct stm32_pclken tof_2d_camera_trigger_pclken =
     ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(TOF_NODE)))
 #define TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL                                    \
     (DT_PROP_BY_IDX(TOF_NODE, channels, 0))
+// END --- 2D ToF
 
 // START --- IR eye camera trigger
 #define IR_EYE_CAMERA_NODE DT_NODELABEL(ir_eye_camera_trigger)
@@ -98,8 +114,8 @@ BUILD_ASSERT(TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER &&
              "the same timer");
 
 #define CAMERA_TRIGGER_TIMER IR_FACE_CAMERA_TRIGGER_TIMER
-#define CAMERA_TRIGGER_TIMER_CC_IRQn                                           \
-    DT_IRQ_BY_NAME(DT_PARENT(IR_FACE_CAMERA_NODE), cc, irq)
+#define CAMERA_TRIGGER_TIMER_UPDATE_IRQn                                       \
+    DT_IRQ_BY_NAME(DT_PARENT(IR_FACE_CAMERA_NODE), up, irq)
 
 // START --- 850nm LEDs
 #define LED_850NM_NODE DT_NODELABEL(led_850nm)
@@ -115,8 +131,10 @@ static struct stm32_pclken led_850nm_pclken =
 #define LED_850NM_TIMER ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(LED_850NM_NODE)))
 #define LED_850NM_TIMER_LEFT_CHANNEL                                           \
     (DT_PROP_BY_IDX(LED_850NM_NODE, channels, 0))
+#define LED_850NM_TIMER_CENTER_CHANNEL LED_850NM_TIMER_LEFT_CHANNEL
 #define LED_850NM_TIMER_RIGHT_CHANNEL                                          \
     (DT_PROP_BY_IDX(LED_850NM_NODE, channels, 1))
+#define LED_850NM_TIMER_SIDE_CHANNEL LED_850NM_TIMER_RIGHT_CHANNEL
 #define LED_850NM_TIMER_GLOBAL_IRQn                                            \
     DT_IRQ_BY_NAME(DT_PARENT(LED_850NM_NODE), global, irq)
 // END --- 850nm LEDs
@@ -124,60 +142,50 @@ static struct stm32_pclken led_850nm_pclken =
 // START --- 940nm LED
 #define LED_940NM_NODE DT_NODELABEL(led_940nm)
 PINCTRL_DT_DEFINE(LED_940NM_NODE);
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+BUILD_ASSERT(
+    DT_PROP_LEN(LED_940NM_NODE, channels) == 3,
+    "For the 940nm LED, we expect three channels in the device tree node");
+BUILD_ASSERT(DT_PROP_LEN(LED_940NM_NODE, pinctrl_0) == 3,
+             "For the 940nm LED, we expect the pinctrl-0 property to contain "
+             "three entries in the device tree node");
+#else
 BUILD_ASSERT(
     DT_PROP_LEN(LED_940NM_NODE, channels) == 2,
     "For the 940nm LED, we expect two channels in the device tree node");
 BUILD_ASSERT(DT_PROP_LEN(LED_940NM_NODE, pinctrl_0) == 2,
              "For the 940nm LED, we expect the pinctrl-0 property to contain "
              "two entries in the device tree node");
+#endif
 static struct stm32_pclken led_940nm_pclken = DT_INST_CLK(LED_940NM_NODE);
 #define LED_940NM_TIMER ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(LED_940NM_NODE)))
 #define LED_940NM_TIMER_LEFT_CHANNEL                                           \
     (DT_PROP_BY_IDX(LED_940NM_NODE, channels, 0))
 #define LED_940NM_TIMER_RIGHT_CHANNEL                                          \
     (DT_PROP_BY_IDX(LED_940NM_NODE, channels, 1))
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#define LED_940NM_TIMER_SINGLE_CHANNEL                                         \
+    (DT_PROP_BY_IDX(LED_940NM_NODE, channels, 2))
+#endif
 #define LED_940NM_GLOBAL_IRQn                                                  \
     DT_IRQ_BY_NAME(DT_PARENT(LED_940NM_NODE), global, irq)
 // END --- 940nm LED
 
-// START --- 740nm LED
-#define LED_740NM_NODE DT_NODELABEL(led_740nm)
-PINCTRL_DT_DEFINE(LED_740NM_NODE);
-BUILD_ASSERT(
-    DT_PROP_LEN(LED_740NM_NODE, channels) == 1,
-    "For the 740nm LED, we expect one channel in the device tree node");
-BUILD_ASSERT(DT_PROP_LEN(LED_740NM_NODE, pinctrl_0) == 1,
-             "For the 740nm LED, we expect the pinctrl-0 property to contain "
-             "one entry in the device tree node");
-
-static struct stm32_pclken led_740nm_pclken = DT_INST_CLK(LED_740NM_NODE);
-#define LED_740NM_TIMER         ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(LED_740NM_NODE)))
-#define LED_740NM_TIMER_CHANNEL (DT_PROP_BY_IDX(LED_740NM_NODE, channels, 0))
-// END --- 740nm LED
-
-BUILD_ASSERT(LED_740NM_TIMER == LED_940NM_TIMER,
-             "The 740nm timer and the 940nm timer must be the same");
-
-#define LED_740NM_940NM_COMMON_TIMER LED_740NM_TIMER
-
 // START -- combined: for easy initialization of the above
-static struct stm32_pclken *all_pclken[] = {
-    &led_850nm_pclken,
-    &led_740nm_pclken,
-    &led_940nm_pclken,
-    &tof_2d_camera_trigger_pclken,
-    &ir_eye_camera_trigger_pclken,
-    &ir_face_camera_trigger_pclken,
-};
+static struct stm32_pclken *all_pclken[] = {&led_850nm_pclken,
+                                            &led_940nm_pclken,
+                                            &tof_2d_camera_trigger_pclken,
+                                            &ir_eye_camera_trigger_pclken,
+                                            &ir_face_camera_trigger_pclken,
+                                            &master_timer_pclken};
 
 static const struct pinctrl_dev_config *pin_controls[] = {
     PINCTRL_DT_DEV_CONFIG_GET(LED_850NM_NODE),
-    PINCTRL_DT_DEV_CONFIG_GET(LED_740NM_NODE),
     PINCTRL_DT_DEV_CONFIG_GET(LED_940NM_NODE),
     PINCTRL_DT_DEV_CONFIG_GET(TOF_NODE),
     PINCTRL_DT_DEV_CONFIG_GET(IR_EYE_CAMERA_NODE),
     PINCTRL_DT_DEV_CONFIG_GET(IR_FACE_CAMERA_NODE),
-};
+    PINCTRL_DT_DEV_CONFIG_GET(MASTER_TIMER_NODE)};
 
 BUILD_ASSERT(ARRAY_SIZE(pin_controls) == ARRAY_SIZE(all_pclken),
              "Each array must be the same length");
@@ -190,51 +198,17 @@ static const uint32_t ch2ll[TIMER_MAX_CH] = {
     LL_TIM_CHANNEL_CH1, LL_TIM_CHANNEL_CH2, LL_TIM_CHANNEL_CH3,
     LL_TIM_CHANNEL_CH4};
 
-/** Channel to compare set function mapping. */
-static void (*const set_timer_compare[TIMER_MAX_CH])(TIM_TypeDef *,
-                                                     uint32_t) = {
-    LL_TIM_OC_SetCompareCH1,
-    LL_TIM_OC_SetCompareCH2,
-    LL_TIM_OC_SetCompareCH3,
-    LL_TIM_OC_SetCompareCH4,
-};
+static struct ir_camera_timer_settings global_timer_settings = {0};
 
-/* Channel to enable ccr interrupt function */
-static void (*const enable_ccr_interrupt[TIMER_MAX_CH])(TIM_TypeDef *) = {
-    LL_TIM_EnableIT_CC1, LL_TIM_EnableIT_CC2, LL_TIM_EnableIT_CC3,
-    LL_TIM_EnableIT_CC4};
-
-/* Channel to disable ccr interrupt function */
-static void (*const disable_ccr_interrupt[TIMER_MAX_CH])(TIM_TypeDef *) = {
-    LL_TIM_DisableIT_CC1, LL_TIM_DisableIT_CC2, LL_TIM_DisableIT_CC3,
-    LL_TIM_DisableIT_CC4};
-
-/* Channel to clear ccr interrupt flag function */
-static void (*const clear_ccr_interrupt_flag[TIMER_MAX_CH])(TIM_TypeDef *) = {
-    LL_TIM_ClearFlag_CC1, LL_TIM_ClearFlag_CC2, LL_TIM_ClearFlag_CC3,
-    LL_TIM_ClearFlag_CC4};
-
-static void
-zero_led_ccrs(void)
-{
-    set_timer_compare[LED_850NM_TIMER_LEFT_CHANNEL - 1](LED_850NM_TIMER, 0);
-    set_timer_compare[LED_850NM_TIMER_RIGHT_CHANNEL - 1](LED_850NM_TIMER, 0);
-    set_timer_compare[LED_940NM_TIMER_LEFT_CHANNEL - 1](LED_940NM_TIMER, 0);
-    set_timer_compare[LED_940NM_TIMER_RIGHT_CHANNEL - 1](LED_940NM_TIMER, 0);
-    set_timer_compare[LED_740NM_TIMER_CHANNEL - 1](LED_740NM_TIMER, 0);
-}
-
-static struct ir_camera_timer_settings global_timer_settings;
-
-/// Drive super capacitors charging mode:
+/// Drive PVCC converter PWM mode:
 ///    * physical low: usage of PWM which allows for fast response to massive
 ///    power draw by the IR LEDs, drawback is a passive draw of 2 by default
 ///    forced by hardware when disconnected
-///    * physical high: diode-emulation mode, still charge super caps but
-///    doesn't allow high power demands. This mode is set during boot, see
-///    `ir_camera_system_init`
-static const struct gpio_dt_spec super_caps_charging_mode =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), super_caps_charging_mode_gpios);
+///    * physical high: diode-emulation mode, PVCC is still enabled but
+///    voltage drops occur if the load current changes rapidly.
+///     This mode is set during boot, see ir_camera_system_init`
+static const struct gpio_dt_spec front_unit_pvcc_pwm_mode =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_pvcc_pwm_mode_gpios);
 
 // Focus sweep stuff
 static int16_t global_focus_values[MAX_NUMBER_OF_FOCUS_VALUES];
@@ -242,6 +216,52 @@ static size_t global_num_focus_values;
 static volatile size_t sweep_index;
 static bool use_focus_sweep_polynomial;
 static IREyeCameraFocusSweepValuesPolynomial focus_sweep_polynomial;
+
+static void
+set_pvcc_converter_into_low_power_mode(void)
+{
+    if (gpio_pin_get_dt(&front_unit_pvcc_pwm_mode) == 1) {
+        LOG_INF("PVCC converter set for low power demand");
+        int ret = gpio_pin_configure_dt(&front_unit_pvcc_pwm_mode,
+                                        GPIO_OUTPUT_INACTIVE);
+        ASSERT_SOFT(ret);
+    }
+}
+
+static void
+set_pvcc_converter_into_high_demand_mode(void)
+{
+    if (ir_camera_system_get_enabled_leds() !=
+            InfraredLEDs_Wavelength_WAVELENGTH_NONE &&
+        gpio_pin_get_dt(&front_unit_pvcc_pwm_mode) == 0) {
+        int ret = gpio_pin_configure_dt(&front_unit_pvcc_pwm_mode,
+                                        GPIO_OUTPUT_ACTIVE);
+        ASSERT_SOFT(ret);
+
+        LOG_INF("PVCC converter set for high power demand");
+
+        // time to settle before driving LEDs
+        k_msleep(1);
+    }
+}
+
+static void
+disable_all_led_cc_channels(void)
+{
+    // disable all CC channels of the LED timers
+    LL_TIM_CC_DisableChannel(LED_850NM_TIMER,
+                             ch2ll[LED_850NM_TIMER_LEFT_CHANNEL - 1]);
+    LL_TIM_CC_DisableChannel(LED_850NM_TIMER,
+                             ch2ll[LED_850NM_TIMER_RIGHT_CHANNEL - 1]);
+    LL_TIM_CC_DisableChannel(LED_940NM_TIMER,
+                             ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
+    LL_TIM_CC_DisableChannel(LED_940NM_TIMER,
+                             ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    LL_TIM_CC_DisableChannel(LED_940NM_TIMER,
+                             ch2ll[LED_940NM_TIMER_SINGLE_CHANNEL - 1]);
+#endif
+}
 
 void
 ir_camera_system_set_polynomial_coefficients_for_focus_sweep_hw(
@@ -337,53 +357,53 @@ static void
 camera_sweep_isr(void *arg)
 {
     ARG_UNUSED(arg);
+    LL_TIM_ClearFlag_UPDATE(CAMERA_TRIGGER_TIMER);
+    // check if CAMERA_TRIGGER_TIMER is off to only catch the end of a pulse
+    if (!LL_TIM_IsEnabledCounter(CAMERA_TRIGGER_TIMER)) {
 
-    clear_ccr_interrupt_flag[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
-        CAMERA_TRIGGER_TIMER);
-
-    if (get_focus_sweep_in_progress() == true) {
-        if (sweep_index == global_num_focus_values) {
-            disable_ccr_interrupt[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
-                CAMERA_TRIGGER_TIMER);
-            LOG_DBG("Focus sweep complete!");
-            ir_camera_system_disable_ir_eye_camera_force();
-            clear_focus_sweep_in_progress();
+        if (get_focus_sweep_in_progress() == true) {
+            if (sweep_index == global_num_focus_values) {
+                LL_TIM_DisableIT_UPDATE(CAMERA_TRIGGER_TIMER);
+                LOG_DBG("Focus sweep complete!");
+                ir_camera_system_disable_ir_eye_camera_force();
+                clear_focus_sweep_in_progress();
 #ifdef HIL_TEST
-            k_sem_give(&camera_sweep_sem);
+                k_sem_give(&camera_sweep_sem);
 #endif
-        } else {
-            if (use_focus_sweep_polynomial) {
-                liquid_set_target_current_ma(
-                    evaluate_focus_sweep_polynomial(sweep_index));
             } else {
-                liquid_set_target_current_ma(global_focus_values[sweep_index]);
+                if (use_focus_sweep_polynomial) {
+                    liquid_set_target_current_ma(
+                        evaluate_focus_sweep_polynomial(sweep_index));
+                } else {
+                    liquid_set_target_current_ma(
+                        global_focus_values[sweep_index]);
+                }
             }
-        }
-    } else if (get_mirror_sweep_in_progress() == true) {
-        if (sweep_index == mirror_sweep_polynomial.number_of_frames) {
-            disable_ccr_interrupt[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
-                CAMERA_TRIGGER_TIMER);
-            LOG_DBG("Mirror sweep complete!");
-            ir_camera_system_disable_ir_eye_camera_force();
-            clear_mirror_sweep_in_progress();
+        } else if (get_mirror_sweep_in_progress() == true) {
+            if (sweep_index == mirror_sweep_polynomial.number_of_frames) {
+                LL_TIM_DisableIT_UPDATE(CAMERA_TRIGGER_TIMER);
+                LOG_DBG("Mirror sweep complete!");
+                ir_camera_system_disable_ir_eye_camera_force();
+                clear_mirror_sweep_in_progress();
 #ifdef HIL_TEST
-            k_sem_give(&camera_sweep_sem);
+                k_sem_give(&camera_sweep_sem);
 #endif
+            } else {
+                struct mirror_delta md =
+                    evaluate_mirror_sweep_polynomials(sweep_index);
+                mirror_set_angle_phi_async(
+                    md.delta_phi_millidegrees +
+                    (int32_t)initial_mirror_angle_phi_millidegrees);
+                mirror_set_angle_theta_async(
+                    md.delta_theta_millidegrees +
+                    (int32_t)initial_mirror_angle_theta_millidegrees);
+            }
         } else {
-            struct mirror_delta md =
-                evaluate_mirror_sweep_polynomials(sweep_index);
-            mirror_set_angle_phi_async(
-                md.delta_phi_millidegrees +
-                (int32_t)initial_mirror_angle_phi_millidegrees);
-            mirror_set_angle_theta_async(
-                md.delta_theta_millidegrees +
-                (int32_t)initial_mirror_angle_theta_millidegrees);
+            LOG_ERR("Nothing is in progress, this should not be possible!");
         }
-    } else {
-        LOG_ERR("Nothing is in progress, this should not be possible!");
-    }
 
-    sweep_index++;
+        sweep_index++;
+    }
 }
 
 static void
@@ -397,10 +417,8 @@ initialize_focus_sweep(void)
 
     sweep_index = 1;
 
-    clear_ccr_interrupt_flag[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
-        CAMERA_TRIGGER_TIMER);
-    enable_ccr_interrupt[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
-        CAMERA_TRIGGER_TIMER);
+    LL_TIM_ClearFlag_UPDATE(CAMERA_TRIGGER_TIMER);
+    LL_TIM_EnableIT_UPDATE(CAMERA_TRIGGER_TIMER);
 
     LOG_DBG("Starting focus sweep!");
 
@@ -434,10 +452,8 @@ initialize_mirror_sweep(void)
     LOG_DBG("Initial mirror angle theta: %d",
             initial_mirror_angle_theta_millidegrees);
 
-    clear_ccr_interrupt_flag[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
-        CAMERA_TRIGGER_TIMER);
-    enable_ccr_interrupt[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1](
-        CAMERA_TRIGGER_TIMER);
+    LL_TIM_ClearFlag_UPDATE(CAMERA_TRIGGER_TIMER);
+    LL_TIM_EnableIT_UPDATE(CAMERA_TRIGGER_TIMER);
 
     LOG_DBG("Starting mirror sweep!");
 
@@ -459,22 +475,23 @@ ir_camera_system_perform_mirror_sweep_hw(void)
     }
 }
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 static void
 ir_leds_pulse_finished_isr(void *arg)
 {
     ARG_UNUSED(arg);
+    // check if both LED timers are off to only catch the end of a pulse
+    if (!LL_TIM_IsEnabledCounter(LED_850NM_TIMER) &&
+        !LL_TIM_IsEnabledCounter(LED_940NM_TIMER)) {
 
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-    front_leds_notify_ir_leds_off();
+        // notify front LEDs
+        front_leds_notify_ir_leds_off();
+    }
 
-    clear_ccr_interrupt_flag[LED_850NM_TIMER_LEFT_CHANNEL - 1](LED_850NM_TIMER);
-    clear_ccr_interrupt_flag[LED_850NM_TIMER_RIGHT_CHANNEL - 1](
-        LED_850NM_TIMER);
-    clear_ccr_interrupt_flag[LED_940NM_TIMER_LEFT_CHANNEL - 1](LED_940NM_TIMER);
-    clear_ccr_interrupt_flag[LED_940NM_TIMER_RIGHT_CHANNEL - 1](
-        LED_940NM_TIMER);
-#endif
+    LL_TIM_ClearFlag_UPDATE(LED_850NM_TIMER);
+    LL_TIM_ClearFlag_UPDATE(LED_940NM_TIMER);
 }
+#endif
 
 static bool
 ir_leds_are_on(void)
@@ -484,11 +501,11 @@ ir_leds_are_on(void)
         return false;
     } else if (ir_camera_system_get_enabled_leds() ==
                InfraredLEDs_Wavelength_WAVELENGTH_740NM) {
-        return (global_timer_settings.fps > 0) &&
-               (global_timer_settings.ccr_740nm > 0);
+        ASSERT_SOFT(1); // not supported
+        return false;
     } else {
         return (global_timer_settings.fps > 0) &&
-               (global_timer_settings.ccr > 0);
+               (global_timer_settings.on_time_in_us > 0);
     }
 }
 
@@ -518,6 +535,15 @@ print_wavelength(void)
         break;
     case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
         s = "740nm";
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
+        s = "850nm C";
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
+        s = "850nm S";
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
+        s = "940nm S";
         break;
     case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
         s = "None";
@@ -580,6 +606,32 @@ configure_timeout(void)
 }
 
 static int
+setup_master_timer(void)
+{
+    LL_TIM_InitTypeDef init;
+
+    LL_TIM_StructInit(&init);
+
+    init.Prescaler = 0;
+    init.CounterMode = LL_TIM_COUNTERMODE_UP;
+    init.Autoreload = 0;
+    init.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
+
+    if (LL_TIM_Init(MASTER_TIMER, &init) != SUCCESS) {
+        LOG_ERR("Could not initialize master timer");
+        return -EIO;
+    }
+
+    LL_TIM_EnableARRPreload(MASTER_TIMER);
+
+    LL_TIM_SetTriggerOutput(MASTER_TIMER, LL_TIM_TRGO_UPDATE);
+
+    LL_TIM_EnableCounter(MASTER_TIMER);
+
+    return 0;
+}
+
+static int
 setup_camera_triggers(void)
 {
     LL_TIM_InitTypeDef init;
@@ -587,7 +639,7 @@ setup_camera_triggers(void)
 
     LL_TIM_StructInit(&init);
 
-    init.Prescaler = 0;
+    init.Prescaler = IR_CAMERA_SYSTEM_IR_LED_PSC;
     init.CounterMode = LL_TIM_COUNTERMODE_UP;
     init.Autoreload = 0;
     init.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
@@ -603,9 +655,9 @@ setup_camera_triggers(void)
     }
 
     LL_TIM_OC_StructInit(&oc_init);
-    oc_init.OCMode = LL_TIM_OCMODE_PWM1;
+    oc_init.OCMode = LL_TIM_OCMODE_PWM2;
     oc_init.OCState = LL_TIM_OCSTATE_ENABLE;
-    oc_init.CompareValue = 0;
+    oc_init.CompareValue = CAMERA_TRIGGER_TIMER_START_DELAY_US;
     oc_init.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
 
     if (LL_TIM_OC_Init(CAMERA_TRIGGER_TIMER,
@@ -636,11 +688,33 @@ setup_camera_triggers(void)
     LL_TIM_OC_EnablePreload(CAMERA_TRIGGER_TIMER,
                             ch2ll[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
 
-    LL_TIM_SetTriggerOutput(CAMERA_TRIGGER_TIMER, LL_TIM_TRGO_UPDATE);
+    LL_TIM_SetOnePulseMode(CAMERA_TRIGGER_TIMER, LL_TIM_ONEPULSEMODE_SINGLE);
 
-    IRQ_CONNECT(CAMERA_TRIGGER_TIMER_CC_IRQn, CAMERA_SWEEP_INTERRUPT_PRIO,
+    LL_TIM_SetUpdateSource(CAMERA_TRIGGER_TIMER, LL_TIM_UPDATESOURCE_REGULAR);
+
+    LL_TIM_SetSlaveMode(CAMERA_TRIGGER_TIMER,
+                        LL_TIM_SLAVEMODE_COMBINED_RESETTRIGGER);
+
+    // see reference manual RM0440
+    // 11.3 Interconnection details
+    //    11.3.1 From timer (TIMx, HRTIM) to timer (TIMx)
+    //      - from TIM 8 to TIM 4: ITR3
+    //      - from TIM 20 to TIM 4: ITR3
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    BUILD_ASSERT(CAMERA_TRIGGER_TIMER == TIM8 && MASTER_TIMER == TIM4,
+                 "The slave mode trigger input source needs to be changed "
+                 "here if MASTER_TIMER is not longer timer 4");
+    LL_TIM_SetTriggerInput(CAMERA_TRIGGER_TIMER, LL_TIM_TS_ITR3); // timer 4
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    BUILD_ASSERT(CAMERA_TRIGGER_TIMER == TIM20 && MASTER_TIMER == TIM4,
+                 "The slave mode trigger input source needs to be changed "
+                 "here if MASTER_TIMER is not longer timer 4");
+    LL_TIM_SetTriggerInput(CAMERA_TRIGGER_TIMER, LL_TIM_TS_ITR3); // timer 4
+#endif
+
+    IRQ_CONNECT(CAMERA_TRIGGER_TIMER_UPDATE_IRQn, CAMERA_SWEEP_INTERRUPT_PRIO,
                 camera_sweep_isr, NULL, 0);
-    irq_enable(CAMERA_TRIGGER_TIMER_CC_IRQn);
+    irq_enable(CAMERA_TRIGGER_TIMER_UPDATE_IRQn);
 
     LL_TIM_EnableCounter(CAMERA_TRIGGER_TIMER);
 
@@ -648,104 +722,156 @@ setup_camera_triggers(void)
 }
 
 static void
-set_ccr_ir_leds(void)
+ir_camera_system_enable_cc_channels(void)
 {
-    int ret;
-    zero_led_ccrs();
+    // disable all UPDATE interrupts, later enable only active channel
+    LL_TIM_DisableIT_UPDATE(LED_850NM_TIMER);
+    LL_TIM_DisableIT_UPDATE(LED_940NM_TIMER);
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    switch (ir_camera_system_get_enabled_leds()) {
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
+        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                ch2ll[LED_850NM_TIMER_LEFT_CHANNEL - 1]);
+        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                ch2ll[LED_850NM_TIMER_RIGHT_CHANNEL - 1]);
+        LL_TIM_EnableIT_UPDATE(LED_850NM_TIMER);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
+        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                ch2ll[LED_850NM_TIMER_LEFT_CHANNEL - 1]);
+        LL_TIM_EnableIT_UPDATE(LED_850NM_TIMER);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
+        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                ch2ll[LED_850NM_TIMER_RIGHT_CHANNEL - 1]);
+        LL_TIM_EnableIT_UPDATE(LED_850NM_TIMER);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM:
+        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
+        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
+        LL_TIM_EnableIT_UPDATE(LED_940NM_TIMER);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
+        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
+        LL_TIM_EnableIT_UPDATE(LED_940NM_TIMER);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:
+        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
+        LL_TIM_EnableIT_UPDATE(LED_940NM_TIMER);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
+        ASSERT_SOFT(RET_ERROR_FORBIDDEN); // not supported
+        __fallthrough;
+    case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
+        // RGB LEDs could wait for a trigger, otherwise no action is taken
+        ir_leds_pulse_finished_isr(NULL);
+        break;
+    }
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    switch (ir_camera_system_get_enabled_leds()) {
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
+        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                ch2ll[LED_850NM_TIMER_CENTER_CHANNEL - 1]);
+        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                ch2ll[LED_850NM_TIMER_SIDE_CHANNEL - 1]);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
+        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                ch2ll[LED_850NM_TIMER_CENTER_CHANNEL - 1]);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
+        LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
+                                ch2ll[LED_850NM_TIMER_SIDE_CHANNEL - 1]);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM:
+        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
+        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
+        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                ch2ll[LED_940NM_TIMER_SINGLE_CHANNEL - 1]);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
+        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:
+        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
+        LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
+                                ch2ll[LED_940NM_TIMER_SINGLE_CHANNEL - 1]);
+        break;
+    case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
+    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
+        ASSERT_SOFT(RET_ERROR_FORBIDDEN); // not supported
+        __fallthrough;
+    case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
+        break;
+    }
+#endif
+}
+
+static void
+set_arr_ir_leds(void)
+{
     // allow usage of IR LEDs if safety conditions are met
     // this overrides Jetson commands
     if (!distance_is_safe()) {
+        disable_all_led_cc_channels();
+        set_pvcc_converter_into_low_power_mode();
         return;
     }
 
-    // activate super caps charger for high demand when driving IR LEDs
-    // from logic low to logic high
-    if (ir_camera_system_get_enabled_leds() !=
-            InfraredLEDs_Wavelength_WAVELENGTH_NONE &&
-        gpio_pin_get_dt(&super_caps_charging_mode) == 0) {
-        ret = gpio_pin_configure_dt(&super_caps_charging_mode,
-                                    GPIO_OUTPUT_ACTIVE);
-        ASSERT_SOFT(ret);
+    // reset states
+    // so that we can selectively enable the active channels
+    // from scratch
+    disable_all_led_cc_channels();
 
-        LOG_INF("Super caps charger set for high power demand");
+    // set the ARR value for all IR LED timers
+    LL_TIM_SetAutoReload(LED_850NM_TIMER,
+                         global_timer_settings.on_time_in_us +
+                             MAX(CAMERA_TRIGGER_TIMER_START_DELAY_US,
+                                 IR_LED_TIMER_START_DELAY_US));
+    LL_TIM_SetAutoReload(LED_940NM_TIMER,
+                         global_timer_settings.on_time_in_us +
+                             MAX(CAMERA_TRIGGER_TIMER_START_DELAY_US,
+                                 IR_LED_TIMER_START_DELAY_US));
 
-        // time to settle before driving LEDs
-        k_msleep(1);
+    if (global_timer_settings.on_time_in_us > 0 &&
+        global_timer_settings.fps > 0) {
+        set_pvcc_converter_into_high_demand_mode();
+    } else {
+        set_pvcc_converter_into_low_power_mode();
     }
 
-    // disable all CCR interrupts, later enable only active channel
-    disable_ccr_interrupt[LED_850NM_TIMER_RIGHT_CHANNEL - 1](LED_850NM_TIMER);
-    disable_ccr_interrupt[LED_850NM_TIMER_LEFT_CHANNEL - 1](LED_850NM_TIMER);
-    disable_ccr_interrupt[LED_940NM_TIMER_RIGHT_CHANNEL - 1](LED_940NM_TIMER);
-    disable_ccr_interrupt[LED_940NM_TIMER_LEFT_CHANNEL - 1](LED_940NM_TIMER);
-
-    switch (ir_camera_system_get_enabled_leds()) {
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
-        set_timer_compare[LED_850NM_TIMER_LEFT_CHANNEL - 1](
-            LED_850NM_TIMER, global_timer_settings.ccr);
-        set_timer_compare[LED_850NM_TIMER_RIGHT_CHANNEL - 1](
-            LED_850NM_TIMER, global_timer_settings.ccr);
-        // single interrupt is sufficient for both 850nm channels
-        enable_ccr_interrupt[LED_850NM_TIMER_LEFT_CHANNEL - 1](LED_850NM_TIMER);
-        break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
-        set_timer_compare[LED_850NM_TIMER_LEFT_CHANNEL - 1](
-            LED_850NM_TIMER, global_timer_settings.ccr);
-        enable_ccr_interrupt[LED_850NM_TIMER_LEFT_CHANNEL - 1](LED_850NM_TIMER);
-        break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
-        set_timer_compare[LED_850NM_TIMER_RIGHT_CHANNEL - 1](
-            LED_850NM_TIMER, global_timer_settings.ccr);
-        enable_ccr_interrupt[LED_850NM_TIMER_RIGHT_CHANNEL - 1](
-            LED_850NM_TIMER);
-        break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM:
-        set_timer_compare[LED_940NM_TIMER_LEFT_CHANNEL - 1](
-            LED_940NM_TIMER, global_timer_settings.ccr);
-        set_timer_compare[LED_940NM_TIMER_RIGHT_CHANNEL - 1](
-            LED_940NM_TIMER, global_timer_settings.ccr);
-        // single interrupt is sufficient for both 940nm channels
-        enable_ccr_interrupt[LED_940NM_TIMER_LEFT_CHANNEL - 1](LED_940NM_TIMER);
-        break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
-        set_timer_compare[LED_940NM_TIMER_LEFT_CHANNEL - 1](
-            LED_940NM_TIMER, global_timer_settings.ccr);
-        enable_ccr_interrupt[LED_940NM_TIMER_LEFT_CHANNEL - 1](LED_940NM_TIMER);
-        break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:
-        set_timer_compare[LED_940NM_TIMER_RIGHT_CHANNEL - 1](
-            LED_940NM_TIMER, global_timer_settings.ccr);
-        enable_ccr_interrupt[LED_940NM_TIMER_RIGHT_CHANNEL - 1](
-            LED_940NM_TIMER);
-        break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
-        set_timer_compare[LED_740NM_TIMER_CHANNEL - 1](
-            LED_740NM_TIMER, global_timer_settings.ccr_740nm);
-        // RGB LEDs could wait for a trigger, otherwise no action is taken
-        ir_leds_pulse_finished_isr(NULL);
-        break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
-        if (gpio_pin_get_dt(&super_caps_charging_mode) == 1) {
-            LOG_INF("Super caps charger set for low power demand");
-            ret = gpio_pin_configure_dt(&super_caps_charging_mode,
-                                        GPIO_OUTPUT_INACTIVE);
-            ASSERT_SOFT(ret);
-        }
-        // RGB LEDs could wait for a trigger, otherwise no action is taken
-        ir_leds_pulse_finished_isr(NULL);
-        break;
-    }
+    ir_camera_system_enable_cc_channels();
 }
 
 static inline void
-set_trigger_cc(bool enabled, int channel)
+set_trigger_arr(bool enabled, int channel)
 {
+    // set the ARR value for the camera trigger timer
+    LL_TIM_SetAutoReload(CAMERA_TRIGGER_TIMER,
+                         global_timer_settings.on_time_in_us +
+                             MAX(CAMERA_TRIGGER_TIMER_START_DELAY_US,
+                                 IR_LED_TIMER_START_DELAY_US));
+
+    // enable only the active channel
     if (enabled && global_timer_settings.fps > 0) {
-        set_timer_compare[channel - 1](CAMERA_TRIGGER_TIMER,
-                                       global_timer_settings.ccr);
+        LL_TIM_CC_EnableChannel(CAMERA_TRIGGER_TIMER, ch2ll[channel - 1]);
     } else {
-        set_timer_compare[channel - 1](CAMERA_TRIGGER_TIMER, 0);
+        LL_TIM_CC_DisableChannel(CAMERA_TRIGGER_TIMER, ch2ll[channel - 1]);
     }
 }
 
@@ -759,40 +885,26 @@ apply_new_timer_settings()
     // If the FPS is zero, we disable the timers. If it is greater than zero, we
     // enable them.
     if (global_timer_settings.fps == 0 &&
-        LL_TIM_IsEnabledCounter(CAMERA_TRIGGER_TIMER)) {
-        LL_TIM_DisableCounter(CAMERA_TRIGGER_TIMER);
+        LL_TIM_IsEnabledCounter(MASTER_TIMER)) {
+        LL_TIM_DisableCounter(MASTER_TIMER);
         LOG_DBG("Disabling camera trigger timer");
     } else if (global_timer_settings.fps > 0 &&
-               !LL_TIM_IsEnabledCounter(CAMERA_TRIGGER_TIMER)) {
-        LL_TIM_EnableCounter(CAMERA_TRIGGER_TIMER);
+               !LL_TIM_IsEnabledCounter(MASTER_TIMER)) {
+        LL_TIM_EnableCounter(MASTER_TIMER);
         LOG_DBG("Enabling camera trigger timer");
     }
 
-    LL_TIM_SetPrescaler(CAMERA_TRIGGER_TIMER, global_timer_settings.psc);
-    LL_TIM_SetAutoReload(CAMERA_TRIGGER_TIMER, global_timer_settings.arr);
+    LL_TIM_SetPrescaler(MASTER_TIMER, global_timer_settings.master_psc);
+    LL_TIM_SetAutoReload(MASTER_TIMER, global_timer_settings.master_arr);
 
-    LL_TIM_SetPrescaler(LED_850NM_TIMER, global_timer_settings.psc);
-    LL_TIM_SetAutoReload(LED_850NM_TIMER, global_timer_settings.arr);
+    set_trigger_arr(ir_camera_system_ir_eye_camera_is_enabled(),
+                    IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    set_trigger_arr(ir_camera_system_ir_face_camera_is_enabled(),
+                    IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    set_trigger_arr(ir_camera_system_2d_tof_camera_is_enabled(),
+                    TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
 
-    LL_TIM_SetPrescaler(LED_740NM_940NM_COMMON_TIMER,
-                        global_timer_settings.psc);
-    if (ir_camera_system_get_enabled_leds() ==
-        InfraredLEDs_Wavelength_WAVELENGTH_740NM) {
-        LL_TIM_SetAutoReload(LED_740NM_940NM_COMMON_TIMER,
-                             global_timer_settings.arr / 2);
-    } else {
-        LL_TIM_SetAutoReload(LED_740NM_940NM_COMMON_TIMER,
-                             global_timer_settings.arr);
-    }
-
-    set_trigger_cc(ir_camera_system_ir_eye_camera_is_enabled(),
-                   IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
-    set_trigger_cc(ir_camera_system_ir_face_camera_is_enabled(),
-                   IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
-    set_trigger_cc(ir_camera_system_2d_tof_camera_is_enabled(),
-                   TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
-
-    set_ccr_ir_leds();
+    set_arr_ir_leds();
 
     CRITICAL_SECTION_EXIT(k);
 
@@ -800,8 +912,9 @@ apply_new_timer_settings()
     // register is deposited into the auto-reload register only on a timer
     // update, which will never occur if the auto-reload value was previously
     // zero. So in that case, we manually issue an update event.
-    if (old_timer_settings.arr == 0) {
-        LL_TIM_GenerateEvent_UPDATE(CAMERA_TRIGGER_TIMER);
+    if ((old_timer_settings.master_arr == 0) &&
+        (global_timer_settings.master_arr > 0)) {
+        LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
     }
 
     old_timer_settings = global_timer_settings;
@@ -815,7 +928,7 @@ setup_850nm_led_timer(void)
 
     LL_TIM_StructInit(&init);
 
-    init.Prescaler = 0;
+    init.Prescaler = IR_CAMERA_SYSTEM_IR_LED_PSC;
     init.CounterMode = LL_TIM_COUNTERMODE_UP;
     init.Autoreload = 0;
     init.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
@@ -830,9 +943,9 @@ setup_850nm_led_timer(void)
     }
 
     LL_TIM_OC_StructInit(&oc_init);
-    oc_init.OCMode = LL_TIM_OCMODE_PWM1;
+    oc_init.OCMode = LL_TIM_OCMODE_PWM2;
     oc_init.OCState = LL_TIM_OCSTATE_ENABLE;
-    oc_init.CompareValue = 0;
+    oc_init.CompareValue = IR_LED_TIMER_START_DELAY_US;
     oc_init.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
 
     if (LL_TIM_OC_Init(LED_850NM_TIMER, ch2ll[LED_850NM_TIMER_LEFT_CHANNEL - 1],
@@ -852,7 +965,7 @@ setup_850nm_led_timer(void)
 
     LL_TIM_SetOnePulseMode(LED_850NM_TIMER, LL_TIM_ONEPULSEMODE_SINGLE);
 
-    LL_TIM_SetUpdateSource(LED_850NM_TIMER, LL_TIM_UPDATESOURCE_COUNTER);
+    LL_TIM_SetUpdateSource(LED_850NM_TIMER, LL_TIM_UPDATESOURCE_REGULAR);
 
     LL_TIM_SetSlaveMode(LED_850NM_TIMER,
                         LL_TIM_SLAVEMODE_COMBINED_RESETTRIGGER);
@@ -860,19 +973,12 @@ setup_850nm_led_timer(void)
     // see reference manual RM0440
     // 11.3 Interconnection details
     //    11.3.1 From timer (TIMx, HRTIM) to timer (TIMx)
-    //      - from TIM 15 to 8: ITR5
-    //      - from TIM 15 to 20: ITR9
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-    BUILD_ASSERT(LED_850NM_TIMER == TIM15 && CAMERA_TRIGGER_TIMER == TIM8,
+    //      - from TIM 15 to 4: ITR3
+
+    BUILD_ASSERT(LED_850NM_TIMER == TIM15 && MASTER_TIMER == TIM4,
                  "The slave mode trigger input source needs to be changed "
-                 "here if CAMERA_TRIGGER_TIMER is not longer timer 8");
-    LL_TIM_SetTriggerInput(LED_850NM_TIMER, LL_TIM_TS_ITR5); // timer 8
-#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-    BUILD_ASSERT(LED_850NM_TIMER == TIM15 && CAMERA_TRIGGER_TIMER == TIM20,
-                 "The slave mode trigger input source needs to be changed "
-                 "here if CAMERA_TRIGGER_TIMER is not longer timer 20");
-    LL_TIM_SetTriggerInput(LED_850NM_TIMER, LL_TIM_TS_ITR9); // timer 20
-#endif
+                 "here if MASTER_TIMER is not longer timer 4");
+    LL_TIM_SetTriggerInput(LED_850NM_TIMER, LL_TIM_TS_ITR3); // timer 4
 
     LL_TIM_EnableARRPreload(LED_850NM_TIMER);
 
@@ -885,95 +991,89 @@ setup_850nm_led_timer(void)
 }
 
 static int
-setup_740nm_940nm_led_timer(void)
+setup_940nm_led_timer(void)
 {
     LL_TIM_InitTypeDef init;
     LL_TIM_OC_InitTypeDef oc_init;
 
     LL_TIM_StructInit(&init);
 
-    init.Prescaler = 0;
+    init.Prescaler = IR_CAMERA_SYSTEM_IR_LED_PSC;
     init.CounterMode = LL_TIM_COUNTERMODE_UP;
     init.Autoreload = 0;
     init.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
 
-    if (LL_TIM_Init(LED_740NM_940NM_COMMON_TIMER, &init) != SUCCESS) {
-        LOG_ERR("Could not initialize the 740nm/940nm timer");
+    if (LL_TIM_Init(LED_940NM_TIMER, &init) != SUCCESS) {
+        LOG_ERR("Could not initialize the 940nm timer");
         return -EIO;
     }
 
-    if (IS_TIM_BREAK_INSTANCE(LED_740NM_940NM_COMMON_TIMER)) {
-        LL_TIM_EnableAllOutputs(LED_740NM_940NM_COMMON_TIMER);
+    if (IS_TIM_BREAK_INSTANCE(LED_940NM_TIMER)) {
+        LL_TIM_EnableAllOutputs(LED_940NM_TIMER);
     }
 
     LL_TIM_OC_StructInit(&oc_init);
-    oc_init.OCMode = LL_TIM_OCMODE_PWM1;
+    oc_init.OCMode = LL_TIM_OCMODE_PWM2;
     oc_init.OCState = LL_TIM_OCSTATE_ENABLE;
-    oc_init.CompareValue = 0;
+    oc_init.CompareValue = IR_LED_TIMER_START_DELAY_US;
     oc_init.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
 
-    if (LL_TIM_OC_Init(LED_740NM_940NM_COMMON_TIMER,
-                       ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1],
+    if (LL_TIM_OC_Init(LED_940NM_TIMER, ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1],
                        &oc_init) != SUCCESS) {
-        LOG_ERR("Could not initialize the 940nm timer's left channel output");
+        LOG_ERR("Could not initialize the 940nm timer's "
+                "left"
+                " channel output");
         return -EIO;
     }
 
-    if (LL_TIM_OC_Init(LED_740NM_940NM_COMMON_TIMER,
+    if (LL_TIM_OC_Init(LED_940NM_TIMER,
                        ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1],
                        &oc_init) != SUCCESS) {
-        LOG_ERR("Could not initialize the 940nm LED_740NM_940NM_COMMON_TIMER's "
-                "right "
-                "channel output");
+        LOG_ERR("Could not initialize the 940nm timers's "
+                "right"
+                " channel output");
         return -EIO;
     }
 
-    if (LL_TIM_OC_Init(LED_740NM_940NM_COMMON_TIMER,
-                       ch2ll[LED_740NM_TIMER_CHANNEL - 1],
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    // init OC for 940 single channel
+    if (LL_TIM_OC_Init(LED_940NM_TIMER,
+                       ch2ll[LED_940NM_TIMER_SINGLE_CHANNEL - 1],
                        &oc_init) != SUCCESS) {
-        LOG_ERR("Could not initialize the 740nm LED_740NM_940NM_COMMON_TIMER's "
-                "channel output");
+        LOG_ERR("Could not initialize the 940nm timer's "
+                "single"
+                " channel output");
         return -EIO;
     }
+#endif
 
-    LL_TIM_SetOnePulseMode(LED_740NM_940NM_COMMON_TIMER,
-                           LL_TIM_ONEPULSEMODE_REPETITIVE);
+    LL_TIM_SetOnePulseMode(LED_940NM_TIMER, LL_TIM_ONEPULSEMODE_SINGLE);
 
-    LL_TIM_SetUpdateSource(LED_740NM_940NM_COMMON_TIMER,
-                           LL_TIM_UPDATESOURCE_COUNTER);
+    LL_TIM_SetUpdateSource(LED_940NM_TIMER, LL_TIM_UPDATESOURCE_REGULAR);
 
-    LL_TIM_SetSlaveMode(LED_740NM_940NM_COMMON_TIMER,
+    LL_TIM_SetSlaveMode(LED_940NM_TIMER,
                         LL_TIM_SLAVEMODE_COMBINED_RESETTRIGGER);
 
     // see reference manual RM0440
     // 11.3 Interconnection details
     //    11.3.1 From timer (TIMx, HRTIM) to timer (TIMx)
-    //      - from TIM 3 to 8: ITR5
-    //      - from TIM 3 to 20: ITR9
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-    BUILD_ASSERT(LED_740NM_940NM_COMMON_TIMER == TIM3 &&
-                     CAMERA_TRIGGER_TIMER == TIM8,
+    //      - from TIM 3 to 4: ITR3
+    BUILD_ASSERT(LED_940NM_TIMER == TIM3 && MASTER_TIMER == TIM4,
                  "The slave mode trigger input source needs to be changed "
-                 "here if CAMERA_TRIGGER_TIMER is not longer timer 8");
-    LL_TIM_SetTriggerInput(LED_740NM_940NM_COMMON_TIMER,
-                           LL_TIM_TS_ITR5); // timer 8
-#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-    BUILD_ASSERT(LED_740NM_940NM_COMMON_TIMER == TIM3 &&
-                     CAMERA_TRIGGER_TIMER == TIM20,
-                 "The slave mode trigger input source needs to be changed "
-                 "here if CAMERA_TRIGGER_TIMER is not longer timer 8");
-    LL_TIM_SetTriggerInput(LED_740NM_940NM_COMMON_TIMER,
-                           LL_TIM_TS_ITR9); // timer 20
-#endif
+                 "here if MASTER_TIMER is not longer timer 4");
+    LL_TIM_SetTriggerInput(LED_940NM_TIMER,
+                           LL_TIM_TS_ITR3); // timer 4
 
-    LL_TIM_EnableARRPreload(LED_740NM_940NM_COMMON_TIMER);
+    LL_TIM_EnableARRPreload(LED_940NM_TIMER);
 
-    LL_TIM_OC_EnablePreload(LED_740NM_940NM_COMMON_TIMER,
+    LL_TIM_OC_EnablePreload(LED_940NM_TIMER,
                             ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
-    LL_TIM_OC_EnablePreload(LED_740NM_940NM_COMMON_TIMER,
+    LL_TIM_OC_EnablePreload(LED_940NM_TIMER,
                             ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
-    LL_TIM_OC_EnablePreload(LED_740NM_940NM_COMMON_TIMER,
-                            ch2ll[LED_740NM_TIMER_CHANNEL - 1]);
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    LL_TIM_OC_EnablePreload(LED_940NM_TIMER,
+                            ch2ll[LED_940NM_TIMER_SINGLE_CHANNEL - 1]);
+#endif
 
     return 0;
 }
@@ -981,42 +1081,42 @@ setup_740nm_940nm_led_timer(void)
 void
 ir_camera_system_enable_ir_eye_camera_hw(void)
 {
-    set_trigger_cc(true, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    set_trigger_arr(true, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
 }
 
 void
 ir_camera_system_disable_ir_eye_camera_hw(void)
 {
-    set_trigger_cc(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    set_trigger_arr(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
 }
 
 void
 ir_camera_system_enable_ir_face_camera_hw(void)
 {
-    set_trigger_cc(true, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    set_trigger_arr(true, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
 }
 
 void
 ir_camera_system_disable_ir_face_camera_hw(void)
 {
-    set_trigger_cc(false, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    set_trigger_arr(false, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
 }
 
 void
 ir_camera_system_enable_2d_tof_camera_hw(void)
 {
-    set_trigger_cc(true, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+    set_trigger_arr(true, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
 }
 
 void
 ir_camera_system_disable_2d_tof_camera_hw(void)
 {
-    set_trigger_cc(false, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+    set_trigger_arr(false, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
 }
 
@@ -1024,9 +1124,9 @@ __maybe_unused uint32_t
 ir_camera_system_get_time_until_update_us_internal(void)
 {
     uint32_t time_until_update_ticks =
-        global_timer_settings.arr - LL_TIM_GetCounter(CAMERA_TRIGGER_TIMER);
+        global_timer_settings.master_arr - LL_TIM_GetCounter(MASTER_TIMER);
     uint32_t time_until_update_us =
-        ((global_timer_settings.psc + 1) * time_until_update_ticks) /
+        ((global_timer_settings.master_psc + 1) * time_until_update_ticks) /
         TIMER_CLOCK_FREQ_MHZ;
     return time_until_update_us;
 }
@@ -1098,7 +1198,6 @@ ret_code_t
 ir_camera_system_set_fps_hw(uint16_t fps)
 {
     ret_code_t ret;
-
     ret = timer_settings_from_fps(fps, &global_timer_settings,
                                   &global_timer_settings);
     if (ret != RET_SUCCESS) {
@@ -1117,7 +1216,6 @@ ret_code_t
 ir_camera_system_set_on_time_us_hw(uint16_t on_time_us)
 {
     ret_code_t ret;
-
     ret = timer_settings_from_on_time_us(on_time_us, &global_timer_settings,
                                          &global_timer_settings);
     if (ret != RET_SUCCESS) {
@@ -1132,37 +1230,12 @@ ir_camera_system_set_on_time_us_hw(uint16_t on_time_us)
     return ret;
 }
 
-ret_code_t
-ir_camera_system_set_on_time_740nm_us_hw(uint16_t on_time_us)
-{
-    ret_code_t ret = timer_740nm_ccr_from_on_time_us(
-        on_time_us, &global_timer_settings, &global_timer_settings);
-
-    if (ret == RET_SUCCESS) {
-        apply_new_timer_settings();
-    }
-
-    debug_print();
-    configure_timeout();
-
-    return ret;
-}
-
 void
 ir_camera_system_enable_leds_hw(void)
 {
     CRITICAL_SECTION_ENTER(k);
 
-    if (ir_camera_system_get_enabled_leds() ==
-        InfraredLEDs_Wavelength_WAVELENGTH_740NM) {
-        LL_TIM_SetAutoReload(LED_740NM_940NM_COMMON_TIMER,
-                             global_timer_settings.arr / 2);
-    } else {
-        LL_TIM_SetAutoReload(LED_740NM_940NM_COMMON_TIMER,
-                             global_timer_settings.arr);
-    }
-
-    set_ccr_ir_leds();
+    set_arr_ir_leds();
 
     CRITICAL_SECTION_EXIT(k);
 
@@ -1181,15 +1254,13 @@ ir_camera_system_hw_init(void)
 {
     int err_code = 0;
 
-    if (!device_is_ready(super_caps_charging_mode.port)) {
+    if (!device_is_ready(front_unit_pvcc_pwm_mode.port)) {
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
 
-    // super caps charger to draw less current than default
-    // this mode is enabled when IR LEDs are not used
     err_code =
-        gpio_pin_configure_dt(&super_caps_charging_mode, GPIO_OUTPUT_INACTIVE);
+        gpio_pin_configure_dt(&front_unit_pvcc_pwm_mode, GPIO_OUTPUT_INACTIVE);
     if (err_code) {
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
@@ -1204,7 +1275,7 @@ ir_camera_system_hw_init(void)
         return RET_ERROR_INTERNAL;
     }
 
-    err_code = setup_740nm_940nm_led_timer();
+    err_code = setup_940nm_led_timer();
     if (err_code < 0) {
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
@@ -1217,6 +1288,12 @@ ir_camera_system_hw_init(void)
     }
 
     err_code = setup_camera_triggers();
+    if (err_code < 0) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+
+    err_code = setup_master_timer();
     if (err_code < 0) {
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;

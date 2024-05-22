@@ -33,8 +33,6 @@ ret_code_t
 ir_camera_system_set_fps_hw(uint16_t fps);
 ret_code_t
 ir_camera_system_set_on_time_us_hw(uint16_t on_time_us);
-ret_code_t
-ir_camera_system_set_on_time_740nm_us_hw(uint16_t on_time_us);
 
 #if defined(ZTEST)
 // mock the function to avoid including the ir_camera_system_hw module

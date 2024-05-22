@@ -155,9 +155,30 @@ ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength)
     ret = ir_camera_system_get_status();
 
     if (ret == RET_SUCCESS) {
-        enabled_led_wavelength = wavelength;
-        ir_camera_system_enable_leds_hw();
-        ret = RET_SUCCESS;
+        if (
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+            wavelength ==
+                InfraredLEDs_Wavelength_WAVELENGTH_740NM || // 740nm is
+                                                            // deprecated
+            wavelength == InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER ||
+            wavelength == InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE ||
+            wavelength == InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+            wavelength ==
+                InfraredLEDs_Wavelength_WAVELENGTH_740NM || // 740nm is
+                                                            // deprecated
+            wavelength == InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT ||
+            wavelength == InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT
+#else
+            false
+#endif
+        ) {
+            ret = RET_ERROR_INVALID_PARAM;
+        } else {
+            enabled_led_wavelength = wavelength;
+            ir_camera_system_enable_leds_hw();
+            ret = RET_SUCCESS;
+        }
     }
 
     return ret;
@@ -213,18 +234,6 @@ ir_camera_system_set_on_time_us(uint16_t on_time_us)
         ret = RET_ERROR_INVALID_PARAM;
     } else {
         ret = ir_camera_system_set_on_time_us_hw(on_time_us);
-    }
-
-    return ret;
-}
-
-ret_code_t
-ir_camera_system_set_on_time_740nm_us(uint16_t on_time_us)
-{
-    ret_code_t ret = RET_ERROR_NOT_INITIALIZED;
-
-    if (ir_camera_system_initialized) {
-        ret = ir_camera_system_set_on_time_740nm_us_hw(on_time_us);
     }
 
     return ret;

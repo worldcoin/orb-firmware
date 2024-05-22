@@ -156,6 +156,9 @@ handle_infrared_leds_message(job_t *job)
     case RET_ERROR_BUSY:
         job_ack(Ack_ErrorCode_INVALID_STATE, job);
         break;
+    case RET_ERROR_INVALID_PARAM:
+        job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+        break;
     default:
         job_ack(Ack_ErrorCode_FAIL, job);
         LOG_ERR("Unhandled error (%d)!", err);
@@ -176,23 +179,6 @@ handle_led_on_time_message(job_t *job)
         job_ack(Ack_ErrorCode_SUCCESS, job);
     } else if (ret == RET_ERROR_INVALID_PARAM) {
         job_ack(Ack_ErrorCode_RANGE, job);
-    } else {
-        job_ack(Ack_ErrorCode_FAIL, job);
-    }
-}
-
-static void
-handle_led_on_time_740nm_message(job_t *job)
-{
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_led_on_time_740nm_tag);
-
-    uint32_t on_time_us = msg->payload.led_on_time_740nm.on_duration_us;
-
-    LOG_DBG("Got LED on time for 740nm message = %uus", on_time_us);
-    ret_code_t ret = ir_camera_system_set_on_time_740nm_us(on_time_us);
-    if (ret == RET_SUCCESS) {
-        job_ack(Ack_ErrorCode_SUCCESS, job);
     } else {
         job_ack(Ack_ErrorCode_FAIL, job);
     }
@@ -1258,7 +1244,6 @@ static const hm_callback handle_message_callbacks[] = {
     [JetsonToMcu_fw_image_check_tag] = handle_fw_img_crc,
     [JetsonToMcu_fw_image_secondary_activate_tag] = handle_fw_img_sec_activate,
     [JetsonToMcu_heartbeat_tag] = handle_heartbeat,
-    [JetsonToMcu_led_on_time_740nm_tag] = handle_led_on_time_740nm_message,
     [JetsonToMcu_mirror_angle_relative_tag] =
         handle_mirror_angle_relative_message,
     [JetsonToMcu_value_get_tag] = handle_value_get_message,
