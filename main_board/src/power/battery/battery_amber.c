@@ -297,7 +297,7 @@ publish_battery_capacity(BatteryCapacity *battery_cap)
                 McuToJetson_battery_capacity_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 
-#if defined(MEMFAULT_METRICS)
+#if defined(CONFIG_MEMFAULT_METRICS)
     memfault_metrics_heartbeat_set_signed(
         MEMFAULT_METRICS_KEY(Battery_ChargeLevel),
         battery_cap->percentage * 100);
