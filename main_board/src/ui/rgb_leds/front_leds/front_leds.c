@@ -2,6 +2,7 @@
 #include "app_config.h"
 #include "logs_can.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
+#include "system/version/version.h"
 #include "ui/rgb_leds/rgb_leds.h"
 #include <app_assert.h>
 #include <assert.h>
@@ -19,10 +20,12 @@ static K_THREAD_STACK_DEFINE(front_leds_stack_area,
 static struct k_thread front_led_thread_data;
 static K_SEM_DEFINE(sem, 1, 1); // init to 1 to use default values below
 
-static const struct device *const led_strip =
-    DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds));
+static const struct device *const led_strip_w =
+    DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds_w));
 
-#define NUM_LEDS DT_PROP(DT_NODELABEL(front_unit_rgb_leds), num_leds)
+static const struct device *led_strip = led_strip_w;
+
+#define NUM_LEDS DT_PROP(DT_NODELABEL(front_unit_rgb_leds_w), num_leds)
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 #define NUM_CENTER_LEDS 9
 #define INDEX_RING_ZERO                                                        \
@@ -32,6 +35,10 @@ static const struct device *const led_strip =
 // an LED strip update until the next IR LED pulse
 #define LED_STRIP_MAXIMUM_UPDATE_TIME_US 10000
 #else
+
+static const struct device *const led_strip_apa =
+    DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds_apa));
+
 #define NUM_CENTER_LEDS 64
 // 0º (3 o'clock position) is at 53rd LED on Front Unit 6.2
 #define INDEX_RING_ZERO 53
@@ -327,7 +334,6 @@ front_leds_thread()
         // update LEDs
         k_mutex_lock(&leds_update_mutex, K_FOREVER);
         if (!final_done) {
-            ASSERT_CONST_POINTER_NOT_NULL(led_strip);
 #if defined(CONFIG_BOARD_PEARL_MAIN)
             // 850nm and 940nm IR leds mustn't be on when the RGB strip
             // is updated to prevent the LED from flickering.
@@ -517,8 +523,6 @@ front_leds_set_brightness(uint32_t brightness)
 void
 front_leds_turn_off_blocking(void)
 {
-    ASSERT_CONST_POINTER_NOT_NULL(led_strip);
-
     k_mutex_lock(&leds_update_mutex, K_FOREVER);
     final_done = true;
     memset(leds.all, 0, sizeof leds.all);
@@ -530,6 +534,13 @@ front_leds_turn_off_blocking(void)
 ret_code_t
 front_leds_init(void)
 {
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    Hardware_FrontUnitVersion fu_version = version_get_front_unit_rev();
+    if (fu_version == Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2B) {
+        led_strip = led_strip_apa;
+    }
+#endif
+
     if (!device_is_ready(led_strip)) {
         LOG_ERR("Front unit LED strip not ready!");
         return RET_ERROR_INTERNAL;
@@ -552,7 +563,15 @@ front_leds_init(void)
 int
 front_leds_initial_state(void)
 {
-    ASSERT_CONST_POINTER_NOT_NULL(led_strip);
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    ASSERT_CONST_POINTER_NOT_NULL(led_strip_apa);
+    ASSERT_CONST_POINTER_NOT_NULL(led_strip_w);
+
+    Hardware_FrontUnitVersion fu_version = version_get_front_unit_rev();
+    if (fu_version == Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2B) {
+        led_strip = led_strip_apa;
+    }
+#endif
 
     if (!device_is_ready(led_strip)) {
         LOG_ERR("Front unit LED strip not ready!");
