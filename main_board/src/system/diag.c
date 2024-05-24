@@ -5,6 +5,20 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/util.h>
 
+#if defined(CONFIG_MEMFAULT)
+#include <memfault/core/data_packetizer.h>
+#include <memfault/core/event_storage.h>
+#include <memfault/core/trace_event.h>
+
+static MemfaultEvent mflt_evt = MemfaultEvent_init_zero;
+static bool mflt_evt_synced = true;
+
+/// check that the buffer is big enough to hold the minimum chunk size required
+/// by the Memfault packetizer
+BUILD_ASSERT(ARRAY_SIZE(mflt_evt.chunk.bytes) >
+             MEMFAULT_PACKETIZER_MIN_BUF_LEN);
+#endif
+
 #if defined(CONFIG_ZTEST)
 #include <zephyr/logging/log.h>
 #else
@@ -14,13 +28,19 @@ LOG_MODULE_REGISTER(diag);
 
 static HardwareDiagnostic_Status
     hw_statuses[HardwareDiagnostic_Source_MAIN_BOARD_SENTINEL];
-
 static bool has_changed;
 
 bool
 diag_has_data(void)
 {
-    return has_changed;
+    bool sync_memfault = false;
+
+#if defined(CONFIG_MEMFAULT)
+    sync_memfault =
+        (memfault_packetizer_data_available() > 0) || !mflt_evt_synced;
+#endif
+
+    return has_changed || sync_memfault;
 }
 
 ret_code_t
@@ -64,6 +84,46 @@ diag_sync(uint32_t remote)
     if (error_counter == 0) {
         has_changed = false;
     }
+
+#if defined(CONFIG_MEMFAULT)
+    static uint32_t memfault_counter = 0;
+
+    if (memfault_packetizer_data_available()) {
+        LOG_INF("Sending Memfault events");
+
+        bool more_data = false;
+        do {
+            if (mflt_evt_synced) {
+                mflt_evt_synced = false;
+                size_t buf_size = ARRAY_SIZE(mflt_evt.chunk.bytes);
+                more_data = memfault_packetizer_get_chunk(mflt_evt.chunk.bytes,
+                                                          &buf_size);
+                mflt_evt.chunk.size = buf_size;
+                mflt_evt.counter = memfault_counter;
+            }
+
+            ret = publish_new(&mflt_evt, sizeof(mflt_evt),
+                              McuToJetson_memfault_event_tag, remote);
+#ifdef CONFIG_ZTEST
+            // don't care about tx failures in tests
+            ret = RET_SUCCESS;
+#endif
+            if (ret) {
+                // come back later to send the same chunk
+                return ret;
+            }
+
+            memfault_counter++;
+            mflt_evt_synced = true;
+
+            // throttle the sending of statuses to avoid flooding the CAN bus
+            // and CAN controller
+            if (!IS_ENABLED(CONFIG_ZTEST) && more_data) {
+                k_msleep(10);
+            }
+        } while (more_data);
+    }
+#endif
 
     return ret;
 }
