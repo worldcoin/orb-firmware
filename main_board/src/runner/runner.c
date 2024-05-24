@@ -601,6 +601,11 @@ handle_cone_leds_sequence(job_t *job)
     uint8_t *bytes;
     uint32_t size;
 
+#if !defined(CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
+    job_ack(Ack_ErrorCode_FAIL, job);
+    return;
+#endif
+
     switch (data_format) {
     case ConeLEDsSequence_rgb_uncompressed_tag:;
         bytes =
@@ -634,6 +639,9 @@ handle_cone_leds_pattern(job_t *job)
     JetsonToMcu *msg = &job->message;
     MAKE_ASSERTS(JetsonToMcu_cone_leds_pattern_tag);
 
+#if !defined(CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
+    job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+#else
     ConeLEDsPattern_ConeRgbLedPattern pattern =
         msg->payload.cone_leds_pattern.pattern;
     LOG_DBG("Got cone LED pattern: %u", pattern);
@@ -642,6 +650,7 @@ handle_cone_leds_pattern(job_t *job)
                          : (RgbColor){20, 20, 20};
     cone_leds_set_pattern(pattern, &color);
     job_ack(Ack_ErrorCode_SUCCESS, job);
+#endif
 }
 
 static void

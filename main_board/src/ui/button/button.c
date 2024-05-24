@@ -27,7 +27,8 @@ button_pressed(struct k_work *item);
 static K_WORK_DEFINE(button_pressed_work, button_pressed);
 static K_WORK_DEFINE(button_released_work, button_released);
 
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#if defined(CONFIG_BOARD_DIAMOND_MAIN) &&                                      \
+    defined(CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
 K_THREAD_STACK_DEFINE(cone_button_thread_stack, THREAD_STACK_SIZE_CONE_BUTTON);
 static struct k_thread cone_button_thread_data = {0};
 
@@ -105,7 +106,8 @@ button_uninit(void)
     return ret;
 }
 
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#if defined(CONFIG_BOARD_DIAMOND_MAIN) &&                                      \
+    defined(CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
 _Noreturn static void
 cone_button_thread()
 {
@@ -165,7 +167,8 @@ button_init(void)
         return RET_ERROR_INTERNAL;
     }
 
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#if defined(CONFIG_BOARD_DIAMOND_MAIN) &&                                      \
+    defined(CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
     if (!device_is_ready(cone_button_gpio_spec.port)) {
         LOG_WRN("cone button device not ready");
     } else {
