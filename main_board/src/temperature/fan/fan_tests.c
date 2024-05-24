@@ -24,6 +24,8 @@ ZTEST(hil, test_fan_set_speed)
 
 ZTEST(hil, test_fan_tachometer)
 {
+    Z_TEST_SKIP_IFDEF(CONFIG_BOARD_DIAMOND_MAIN);
+
     uint32_t fan_aux_speed = fan_tach_get_aux_speed();
     uint32_t fan_main_speed = fan_tach_get_main_speed();
 

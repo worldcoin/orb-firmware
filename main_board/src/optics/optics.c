@@ -148,8 +148,6 @@ optics_init(const Hardware *hw_version)
     }
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-
-    // TODO poll pvcc-enable pin on Diamond
     err_code = configure_front_unit_3v3_detection();
     if (err_code) {
         ASSERT_SOFT(err_code);
@@ -167,6 +165,10 @@ optics_init(const Hardware *hw_version)
     } else {
         LOG_WRN("Eye safety circuitry tripped");
     }
+
+    LOG_ERR(
+        "Eye safety circuitry detection not implemented on Diamond hardware");
+    atomic_set_bit(fu_pvcc_enabled, ATOMIC_FU_PVCC_ENABLED_BIT);
 
     UNUSED_PARAMETER(hw_version);
 #endif

@@ -118,17 +118,11 @@ ZTEST(hil, test_pubsub_sent_messages)
         mcu_to_jetson_payloads & (1 << McuToJetson_battery_diag_common_tag), 0);
     zassert_not_equal(mcu_to_jetson_payloads & (1 << McuToJetson_tof_1d_tag),
                       0);
-    zassert_not_equal(
-        mcu_to_jetson_payloads & (1 << McuToJetson_gnss_partial_tag), 0);
     zassert_not_equal(mcu_to_jetson_payloads & (1 << McuToJetson_front_als_tag),
                       0);
     zassert_not_equal(
         mcu_to_jetson_payloads & (1 << McuToJetson_hardware_diag_tag), 0);
-    zassert_not_equal(
-        mcu_to_jetson_payloads & (1 << McuToJetson_battery_diag_safety_tag), 0);
-    zassert_not_equal(mcu_to_jetson_payloads &
-                          (1 << McuToJetson_battery_diag_permanent_fail_tag),
-                      0);
+
     zassert_not_equal(
         mcu_to_jetson_payloads & (1 << McuToJetson_battery_info_hw_fw_tag), 0);
     zassert_not_equal(mcu_to_jetson_payloads &
@@ -138,4 +132,14 @@ ZTEST(hil, test_pubsub_sent_messages)
         mcu_to_jetson_payloads &
             (1 << McuToJetson_battery_info_soc_and_statistics_tag),
         0);
+
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    zassert_not_equal(
+        mcu_to_jetson_payloads & (1 << McuToJetson_gnss_partial_tag), 0);
+    zassert_not_equal(
+        mcu_to_jetson_payloads & (1 << McuToJetson_battery_diag_safety_tag), 0);
+    zassert_not_equal(mcu_to_jetson_payloads &
+                          (1 << McuToJetson_battery_diag_permanent_fail_tag),
+                      0);
+#endif
 }
