@@ -1,4 +1,4 @@
-#ifdef CONFIG_WATCHDOG
+#ifdef CONFIG_ORB_LIB_WATCHDOG
 #include "watchdog.h"
 #endif
 
@@ -151,7 +151,7 @@ fatal_errors_trigger(enum error_case_e type)
         trigger_z_oops();
         break;
 #endif
-#ifdef CONFIG_WATCHDOG
+#ifdef CONFIG_ORB_LIB_WATCHDOG
     case FATAL_WATCHDOG:
         (void)watchdog_init();
         break;
