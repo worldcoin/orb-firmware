@@ -1,0 +1,49 @@
+// /!\ Old cone design, to be updated /!\
+
+/ {
+    zephyr,user {
+        cone-button-gpios = <&gpio_exp_cone 12 GPIO_ACTIVE_LOW>;
+        cone-5v-enable-gpios = <&gpio_exp_cone 0 GPIO_ACTIVE_HIGH>;
+    }
+};
+
+&i2c4 {
+    gpio_exp_cone: pca95xx@20 {
+        compatible = "nxp,pca95xx";
+        reg = <0x20>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        ngpios = <16>;
+        status = "okay";
+    };
+
+    cone_spi_bridge: sc18is606@28{
+        status = "okay";
+        reg = <0x28>;
+        compatible = "nxp,sc18is606";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        reset-gpios = <&gpio_exp_cone 1 GPIO_ACTIVE_LOW>;
+
+        cone_spi_bus: spi@0{
+            status = "okay";
+            compatible = "nxp,sc18is606-spi-master";
+            reg = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            clock-frequency = <455000>;
+
+            cone_rgb_leds:cone_rgb_leds@0{
+                status = "okay";
+                compatible = "we,spi-rgb-led";
+                reg = <0>;
+                spi-max-frequency = <455000>;
+                // 'duplex' option exists but
+                // not actually used by the SPI driver
+                duplex = <SPI_HALF_DUPLEX>;
+
+                num-leds = <64>;
+            };
+        };
+    };
+};

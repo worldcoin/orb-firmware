@@ -4,6 +4,12 @@ menu "Log levels"
 rsource "log_levels.Kconfig"
 endmenu
 
+comment "Diamond options"
+
+config DT_HAS_DIAMOND_CONE_ENABLED
+	def_bool $(dt_nodelabel_enabled,cone_spi_bridge)
+	select SC18IS606
+
 comment "Developer options"
 
 config INSTA_BOOT
