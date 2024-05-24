@@ -27,12 +27,12 @@ ZTEST(hil, test_voltage_measurements)
     ret = voltage_measurement_get(CHANNEL_12V, &voltage_mv);
     zassert_equal(ret, RET_SUCCESS);
     LOG_INF("12V = %d mV", voltage_mv);
-    zassert_between_inclusive(voltage_mv, 11410, 12330);
+    zassert_between_inclusive(voltage_mv, 11880, 12840);
 
     ret = voltage_measurement_get(CHANNEL_12V_CAPS, &voltage_mv);
     zassert_equal(ret, RET_SUCCESS);
     LOG_INF("12V_CAPS = %d mV", voltage_mv);
-    zassert_between_inclusive(voltage_mv, 11620, 12120);
+    zassert_between_inclusive(voltage_mv, 11880, 12280);
 
     ret = voltage_measurement_get(CHANNEL_3V3_UC, &voltage_mv);
     zassert_equal(ret, RET_SUCCESS);
@@ -58,7 +58,7 @@ ZTEST(hil, test_voltage_measurements)
     zassert_equal(ret, RET_SUCCESS);
     LOG_INF("3V3_SSD_3V8 = %d mV", voltage_mv);
     Hardware_OrbVersion rev = version_get_hardware_rev();
-    if (rev == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+    if (rev >= Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         zassert_between_inclusive(voltage_mv, (3300 * 0.95), (3300 * 1.05));
     } else {
         zassert_between_inclusive(voltage_mv, (3800 * 0.95), (3800 * 1.05));

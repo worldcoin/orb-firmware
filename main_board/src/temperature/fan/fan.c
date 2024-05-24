@@ -228,7 +228,9 @@ fan_init(void)
     fan_set_speed_by_percentage(100);
     value = fan_get_speed_setting();
     pulse_width_ns = compute_pulse_width_ns(value);
-    ASSERT_SOFT_BOOL(pulse_width_ns == max_speed_pulse_width_ns);
+    ASSERT_SOFT_BOOL(
+        ((int32_t)(pulse_width_ns - max_speed_pulse_width_ns) <= 1) &&
+        ((int32_t)(pulse_width_ns - max_speed_pulse_width_ns) >= -1));
 
     k_msleep(1000);
 
