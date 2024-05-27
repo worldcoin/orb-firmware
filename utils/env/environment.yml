@@ -4,7 +4,7 @@ dependencies:
   - python=3.9
   - pyserial
   - ccache
-  - protobuf
+  - conda-forge::protobuf
   - ninja
   - pthread-stubs
   - gperf
@@ -22,7 +22,7 @@ dependencies:
       - anytree==2.8.0 # rom_report fails with 2.9.0
       - identify>=2.5.32
       - -r ../test/requirements.txt
-      - -r ../../../bootloader/mcuboot/scripts/requirements.txt
-      - -r ../../../zephyr/scripts/requirements.txt
+      - -r ../../../../bootloader/mcuboot/scripts/requirements.txt
+      - -r ../../../../zephyr/scripts/requirements.txt
 variables:
   ZEPHYR_TOOLCHAIN_VARIANT: zephyr
