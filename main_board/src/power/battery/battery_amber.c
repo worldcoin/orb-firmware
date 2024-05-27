@@ -15,10 +15,11 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/byteorder.h>
 
-#ifdef CONFIG_MEMFAULT
+#if defined(CONFIG_MEMFAULT)
 #include <memfault/core/reboot_tracking.h>
-#if defined(CONFIG_MEMFAULT_METRICS)
-#include <memfault/metrics/metrics.h>
+#if defined(CONFIG_MEMFAULT_METRICS_BATTERY_ENABLE)
+#include <memfault/metrics/battery.h>
+#include <memfault/metrics/platform/battery.h>
 #endif
 #endif
 
@@ -32,6 +33,9 @@ static struct k_thread rx_thread_data = {0};
 
 static const struct i2c_dt_spec i2c_device_spec =
     I2C_DT_SPEC_GET(DT_NODELABEL(bq4050));
+
+static BatteryCapacity battery_cap;
+static BatteryIsCharging is_charging;
 
 #define BATTERY_INFO_SEND_PERIOD_MS 1000
 
@@ -296,12 +300,6 @@ publish_battery_capacity(BatteryCapacity *battery_cap)
     publish_new(battery_cap, sizeof(BatteryCapacity),
                 McuToJetson_battery_capacity_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-
-#if defined(CONFIG_MEMFAULT_METRICS)
-    memfault_metrics_heartbeat_set_signed(
-        MEMFAULT_METRICS_KEY(Battery_ChargeLevel),
-        battery_cap->percentage * 100);
-#endif
 }
 
 static void
@@ -398,8 +396,6 @@ battery_rx_thread()
             ret = bq4050_read_relative_state_of_charge(&relative_soc);
 
             if (ret == 0) {
-                static BatteryCapacity battery_cap;
-
                 if (battery_cap.percentage != relative_soc) {
                     LOG_INF("Main battery: %u%%", relative_soc);
                 }
@@ -443,10 +439,14 @@ battery_rx_thread()
                 diag_common.current_ma = current_ma;
                 publish_battery_diagnostics_common(&diag_common);
 
-                static BatteryIsCharging is_charging;
-
                 if (is_charging.battery_is_charging != (current_ma > 0)) {
                     LOG_INF("Is charging: %s", (current_ma > 0) ? "yes" : "no");
+
+#ifdef CONFIG_MEMFAULT_METRICS_BATTERY_ENABLE
+                    if (current_ma > 0) {
+                        memfault_metrics_battery_stopped_discharging();
+                    }
+#endif
                 }
 
                 is_charging.battery_is_charging = (current_ma > 0);
@@ -710,3 +710,23 @@ battery_init(void)
 
     return RET_SUCCESS;
 }
+
+#if defined(CONFIG_MEMFAULT_METRICS_BATTERY_ENABLE)
+
+// This function is called by the Memfault SDK at each Heartbeat interval end,
+// to get the current battery state-of-charge and discharging state.
+int
+memfault_platform_get_stateofcharge(sMfltPlatformBatterySoc *soc)
+{
+    CRITICAL_SECTION_ENTER(k);
+
+    *soc = (sMfltPlatformBatterySoc){
+        .soc = battery_cap.percentage,
+        .discharging = (is_charging.battery_is_charging == false),
+    };
+
+    CRITICAL_SECTION_EXIT(k);
+    return 0;
+}
+
+#endif
