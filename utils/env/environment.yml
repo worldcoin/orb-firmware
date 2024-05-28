@@ -4,7 +4,7 @@ dependencies:
   - python=3.9
   - pyserial
   - ccache
-  - protobuf
+  - conda-forge::protobuf
   - ninja
   - pthread-stubs
   - gperf
@@ -23,7 +23,7 @@ dependencies:
       - identify>=2.5.32
       - mflt-compact-log
       - -r ../test/requirements.txt
-      - -r ../../../bootloader/mcuboot/scripts/requirements.txt
-      - -r ../../../zephyr/scripts/requirements.txt
+      - -r ../../../../bootloader/mcuboot/scripts/requirements.txt
+      - -r ../../../../zephyr/scripts/requirements.txt
 variables:
   ZEPHYR_TOOLCHAIN_VARIANT: zephyr
