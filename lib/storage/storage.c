@@ -126,7 +126,8 @@ storage_peek(char *buffer, size_t *size)
     k_sem_take(&sem_storage, K_FOREVER);
 
     if (storage_area.fa == NULL) {
-        return RET_ERROR_NOT_INITIALIZED;
+        ret = RET_ERROR_NOT_INITIALIZED;
+        goto exit;
     }
 
     // verify storage is not empty
@@ -175,7 +176,8 @@ storage_free(void)
     k_sem_take(&sem_storage, K_FOREVER);
 
     if (storage_area.fa == NULL) {
-        return RET_ERROR_NOT_INITIALIZED;
+        ret = RET_ERROR_NOT_INITIALIZED;
+        goto exit;
     }
 
     storage_header_t header = {0};
@@ -259,7 +261,8 @@ storage_push(char *record, size_t size)
     k_sem_take(&sem_storage, K_FOREVER);
 
     if (storage_area.fa == NULL) {
-        return RET_ERROR_NOT_INITIALIZED;
+        ret = RET_ERROR_NOT_INITIALIZED;
+        goto exit;
     }
 
     if (((uint32_t)storage_area.wr_idx + size_in_flash) >
