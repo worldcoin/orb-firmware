@@ -3,7 +3,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
-#include "logs_can.h"
+#include "orb_logs.h"
 LOG_MODULE_REGISTER(mirror_test);
 
 ZTEST(hil, test_motors_ah_past_the_end)

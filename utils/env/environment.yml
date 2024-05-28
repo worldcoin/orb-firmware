@@ -21,6 +21,7 @@ dependencies:
       - puncover
       - anytree==2.8.0 # rom_report fails with 2.9.0
       - identify>=2.5.32
+      - mflt-compact-log
       - -r ../test/requirements.txt
       - -r ../../../bootloader/mcuboot/scripts/requirements.txt
       - -r ../../../zephyr/scripts/requirements.txt

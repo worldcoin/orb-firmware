@@ -78,3 +78,11 @@ publish_store(void *payload, size_t size, uint32_t which_payload,
 int
 publish_new(void *payload, size_t size, uint32_t which_payload,
             uint32_t remote_addr);
+
+/**
+ * @brief Publish all the stored messages and events
+ *
+ * Can be logs, diag, memfault, etc.
+ */
+void
+publish_flush(void);

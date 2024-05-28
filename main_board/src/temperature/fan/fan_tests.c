@@ -3,7 +3,7 @@
 #include "system/version/version.h"
 #include <zephyr/ztest.h>
 
-#include "logs_can.h"
+#include "orb_logs.h"
 LOG_MODULE_REGISTER(fan_test);
 
 ZTEST(hil, test_fan_set_speed)

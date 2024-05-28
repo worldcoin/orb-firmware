@@ -1,11 +1,11 @@
 #include "can_messaging.h"
+#include "orb_logs.h"
 #include <app_assert.h>
 #include <assert.h>
 #include <pb_encode.h>
 #include <utils.h>
 #include <zephyr/drivers/can.h>
 #include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(can_tx, CONFIG_CAN_TX_LOG_LEVEL);
 

@@ -2,7 +2,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
-#include "logs_can.h"
+#include "orb_logs.h"
 LOG_MODULE_REGISTER(operator_leds_test);
 
 #define RGB_ORANGE_TEST                                                        \

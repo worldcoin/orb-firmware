@@ -2,6 +2,8 @@ manifest:
   remotes:
     - name: worldcoin
       url-base: git@github.com:worldcoin
+    - name: memfault
+      url-base: https://github.com/memfault
   defaults:
     remote: worldcoin
   projects:
@@ -15,11 +17,15 @@ manifest:
           - segger
           - nanopb
           - hal_st
+    - name: memfault-firmware-sdk
+      path: modules/lib/memfault-firmware-sdk
+      remote: memfault
+      revision: 1.9.1
     - name: orb-messages
       revision: 1ebc148383587f9944bbb628bf4e8cbdea49058f
       path: modules/orb-messages/public
     - name: priv-orb-messages
-      revision: b2e01ac2c617cdbb1f1dc77ab49a4561d855cb11
+      revision: 9c6ec2abb926ee3b428f1982fd6b1a8586834991
       path: modules/orb-messages
       groups: [internal]
     - name: plug-and-trust

@@ -3,6 +3,10 @@
 #include "compilers.h"
 #include "stdint.h"
 
+#if CONFIG_MEMFAULT
+#include "memfault/panics/assert.h"
+#endif
+
 typedef struct {
     char filename[128];
     uint32_t line_num;
@@ -58,6 +62,15 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
  *
  * @param[in] ERR_CODE Error code supplied to the error handler.
  */
+#if CONFIG_MEMFAULT
+#define ASSERT_HARD(ERR_CODE)                                                  \
+    do {                                                                       \
+        if (ERR_CODE != 0) {                                                   \
+            MEMFAULT_ASSERT_RECORD(ERR_CODE);                                  \
+        }                                                                      \
+    } while (0)
+
+#else
 #define ASSERT_HARD(ERR_CODE)                                                  \
     do {                                                                       \
         if (ERR_CODE != 0) {                                                   \
@@ -65,6 +78,7 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
                                     (uint8_t *)__FILE__);                      \
         }                                                                      \
     } while (0)
+#endif
 
 /**@brief Macro for calling error handler function if supplied boolean value is
  * false.
@@ -72,12 +86,16 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
  *
  * @param[in] BOOLEAN_VALUE Boolean value to be evaluated.
  */
+#ifdef CONFIG_MEMFAULT
+#define ASSERT_HARD_BOOL(ERR_CODE) MEMFAULT_ASSERT(ERR_CODE)
+#else
 #define ASSERT_HARD_BOOL(BOOLEAN_VALUE)                                        \
     do {                                                                       \
         if (!(BOOLEAN_VALUE)) {                                                \
             app_assert_hard_handler(0, __LINE__, (uint8_t *)__FILE__);         \
         }                                                                      \
     } while (0)
+#endif
 
 /**@brief Macro for calling error handler function if supplied boolean value is
  * false.
@@ -98,14 +116,44 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
 #define ASSERT_SOFT_BOOL(ERR_CODE) UNUSED_VARIABLE(ERR_CODE)
 #endif
 
-#ifdef CONFIG_ORB_LIB_ERRORS_TESTS
+#if defined(CONFIG_ORB_LIB_ERRORS) && !defined(BUILD_FROM_CI)
+
+/// Based on fatal and assert tests, see
+/// zephyr/tests/ztest/error_hook/README.txt
+
+/* test case type */
+enum error_case_e {
+    FATAL_RANDOM = 0, // random fatal error among the following:
+    FATAL_ACCESS,
+    FATAL_ILLEGAL_INSTRUCTION,
+    FATAL_BUSFAULT,
+    FATAL_MEMMANAGE,
+    FATAL_DIVIDE_ZERO,
+    FATAL_K_PANIC,
+    FATAL_K_OOPS,
+    FATAL_IN_ISR,
+    ASSERT_FAIL,
+    USER_ASSERT_HARD,
+#if defined(CONFIG_IRQ_OFFLOAD)
+    ASSERT_IN_ISR,
+    USER_ASSERT_HARD_IN_ISR,
+#endif
+#if defined(CONFIG_USERSPACE)
+    USER_FATAL_Z_OOPS,
+#endif
+#if defined(CONFIG_WATCHDOG)
+    FATAL_WATCHDOG,
+#endif
+    TEST_ERROR_CASE_COUNT
+};
 
 /**
  * Test a fatal error condition
  * Does not return: make sure the microcontroller resets after
  * hitting the fatal error
+ * @param type see enum error_case_e, use FATAL_RANDOM for random
  */
 void
-fatal_errors_test(void);
+fatal_errors_trigger(enum error_case_e type);
 
 #endif

@@ -1,10 +1,10 @@
 #include "can_messaging.h"
 #include "canbus_rx.h"
 #include "canbus_tx.h"
+#include "orb_logs.h"
 #include <app_assert.h>
 #include <zephyr/drivers/can.h>
 #include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(can_messaging, CONFIG_CAN_MESSAGING_LOG_LEVEL);
 
 static const struct device *can_dev =

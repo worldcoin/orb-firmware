@@ -1,8 +1,8 @@
 #include "front_leds.h"
 #include "app_config.h"
-#include "logs_can.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
 #include "system/version/version.h"
+#include "orb_logs.h"
 #include "ui/rgb_leds/rgb_leds.h"
 #include <app_assert.h>
 #include <assert.h>

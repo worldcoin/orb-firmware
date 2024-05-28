@@ -1,14 +1,13 @@
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 #include "gnss/gnss.h"
 #endif
-#include "logs_can.h"
 #include "optics/optics.h"
+#include "orb_logs.h"
 #include "power/battery/battery.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "runner/runner.h"
 #include "system/diag.h"
-#include "system/logs.h"
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "temperature/fan/fan_tach.h"
@@ -21,7 +20,7 @@
 #include <app_assert.h>
 #include <can_messaging.h>
 #include <dfu.h>
-#include <fatal.h>
+#include <orb_fatal.h>
 #include <pb_encode.h>
 #include <storage.h>
 #include <zephyr/device.h>
@@ -33,6 +32,7 @@
 
 #ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
 #include "heartbeat.h"
+#include "system/logs.h"
 #endif
 
 LOG_MODULE_REGISTER(main);
@@ -81,7 +81,7 @@ run_tests()
 #endif
 
 #if defined(CONFIG_ORB_LIB_ERRORS_TESTS)
-    fatal_errors_test();
+    fatal_errors_trigger(FATAL_RANDOM);
 #endif
 }
 

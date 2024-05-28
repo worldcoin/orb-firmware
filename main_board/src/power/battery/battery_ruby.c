@@ -17,12 +17,23 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/byteorder.h>
 
-#include "logs_can.h"
+#ifdef CONFIG_MEMFAULT
+#include <memfault/core/reboot_tracking.h>
+#if defined(CONFIG_MEMFAULT_METRICS_BATTERY_ENABLE)
+#include <memfault/metrics/battery.h>
+#include <memfault/metrics/platform/battery.h>
+#endif
+#endif
+
+#include "orb_logs.h"
 LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
 
 static const struct device *can_dev = DEVICE_DT_GET(DT_ALIAS(battery_can_bus));
 K_THREAD_STACK_DEFINE(battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
 static struct k_thread rx_thread_data = {0};
+
+static BatteryCapacity battery_cap;
+static BatteryIsCharging is_charging;
 
 // the time between sends of battery data to the Jetson
 // We selected 1100 ms because the battery publishes its data with 1000 ms
@@ -500,6 +511,9 @@ check_battery_voltage(uint16_t battery_voltage_mv)
 {
     if (battery_voltage_mv < BATTERY_MINIMUM_VOLTAGE_RUNTIME_MV) {
         operator_leds_indicate_low_battery_blocking();
+#ifdef CONFIG_MEMFAULT
+        MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_LowPower);
+#endif
         reboot(1);
     }
 }
@@ -588,8 +602,6 @@ battery_rx_thread()
             publish_battery_voltages(&voltages);
         }
         if (can_message_499_received) {
-            static BatteryCapacity battery_cap;
-
             if (battery_cap.percentage != state_499.state_of_charge) {
                 LOG_INF("Main battery: %u%%", state_499.state_of_charge);
                 request_battery_info_left_attempts =
@@ -601,12 +613,16 @@ battery_rx_thread()
             CRITICAL_SECTION_EXIT(k);
             publish_battery_capacity(&battery_cap);
 
-            static BatteryIsCharging is_charging;
-
             if (is_charging.battery_is_charging !=
                 (state_499.flags & BIT(IS_CHARGING_BIT))) {
                 LOG_INF("Is charging: %s",
                         state_499.flags & BIT(IS_CHARGING_BIT) ? "yes" : "no");
+
+#ifdef CONFIG_MEMFAULT_METRICS_BATTERY_ENABLE
+                if ((state_499.flags & BIT(IS_CHARGING_BIT)) != 0) {
+                    memfault_metrics_battery_stopped_discharging();
+                }
+#endif
             }
 
             CRITICAL_SECTION_ENTER(k);
@@ -697,8 +713,8 @@ battery_rx_thread()
                 if (request_battery_info_left_attempts &&
                     publish_is_started(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE)) {
 
-                    // clear all can message buffers because they might contain
-                    // data from the previously inserted battery
+                    // clear all can message buffers because they might
+                    // contain data from the previously inserted battery
                     clear_can_message_buffers();
                     battery_mcu_id_request_pending = true;
                     request_battery_info();
@@ -714,6 +730,10 @@ battery_rx_thread()
                     BATTERY_ID_REQUEST_ATTEMPTS;
                 if (battery_messages_timeout >= BATTERY_MESSAGES_TIMEOUT_MS) {
                     LOG_INF("No messages received from battery -> rebooting");
+#ifdef CONFIG_MEMFAULT
+                    MEMFAULT_REBOOT_MARK_RESET_IMMINENT(
+                        kMfltRebootReason_BatteryRemoved);
+#endif
                     reboot(0);
                 }
             }
@@ -820,6 +840,9 @@ battery_init(void)
         operator_leds_indicate_low_battery_blocking();
 
         LOG_ERR_IMM("Low battery voltage, rebooting!");
+#ifdef CONFIG_MEMFAULT
+        MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_LowPower);
+#endif
         NVIC_SystemReset();
     } else {
         LOG_INF("Battery voltage is ok");
@@ -833,3 +856,23 @@ battery_init(void)
 
     return RET_SUCCESS;
 }
+
+#if defined(CONFIG_MEMFAULT_METRICS_BATTERY_ENABLE)
+
+// This function is called by the Memfault SDK at each Heartbeat interval
+// end, to get the current battery state-of-charge and discharging state.
+int
+memfault_platform_get_stateofcharge(sMfltPlatformBatterySoc *soc)
+{
+    CRITICAL_SECTION_ENTER(k);
+
+    *soc = (sMfltPlatformBatterySoc){
+        .soc = battery_cap.percentage,
+        .discharging = (is_charging.battery_is_charging == false),
+    };
+
+    CRITICAL_SECTION_EXIT(k);
+    return 0;
+}
+
+#endif

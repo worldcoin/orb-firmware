@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #define IS_WATCHDOG(reg)                                                       \
     ((reg & RCC_CSR_WWDGRSTF) != 0 || (reg & RCC_CSR_IWDGRSTF) != 0)

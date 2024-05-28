@@ -1,0 +1,6 @@
+// File for holding custom error traces:
+//   https://mflt.io/error-tracing
+
+MEMFAULT_TRACE_REASON_DEFINE(assert)
+MEMFAULT_TRACE_REASON_DEFINE(log_wrn)
+MEMFAULT_TRACE_REASON_DEFINE(log_err)

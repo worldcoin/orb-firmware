@@ -1,6 +1,6 @@
 #include "mirror.h"
-#include "logs_can.h"
 #include "mcu_messaging_main.pb.h"
+#include "orb_logs.h"
 #include "pubsub/pubsub.h"
 #include "system/version/version.h"
 #include <app_assert.h>

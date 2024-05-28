@@ -1,33 +1,11 @@
-#ifdef CONFIG_WATCHDOG
+#ifdef CONFIG_ORB_LIB_WATCHDOG
 #include "watchdog.h"
 #endif
 
+#include "orb_logs.h"
 #include <app_assert.h>
 #include <compilers.h>
-#include <zephyr/logging/log.h>
 #include <zephyr/random/rand32.h>
-
-/// Based on fatal and assert tests, see
-/// zephyr/tests/ztest/error_hook/README.txt
-
-/* test case type */
-enum error_case_e {
-    FATAL_ACCESS,
-    FATAL_ILLEGAL_INSTRUCTION,
-    FATAL_DIVIDE_ZERO,
-    FATAL_K_PANIC,
-    FATAL_K_OOPS,
-    /* FATAL_IN_ISR, not implemented */
-    ASSERT_FAIL,
-    ASSERT_IN_ISR,
-    USER_ASSERT_HARD,
-    USER_ASSERT_HARD_IN_ISR,
-#if defined(CONFIG_USERSPACE)
-    USER_FATAL_Z_OOPS,
-#endif
-    WATCHDOG,
-    TEST_ERROR_CASE_COUNT
-};
 
 /*
  * Do not optimize to prevent GCC from generating invalid
@@ -52,6 +30,32 @@ trigger_fault_illegal_instruction(void)
     ((void (*)(void)) & a)();
 }
 
+__no_optimization static void
+trigger_fault_bus()
+{
+    /** see Memfault's SDK: components/demo/src/panics/memfault_demo_panics.c */
+    void (*unaligned_func)(void) = (void (*)(void))0x50000001;
+    unaligned_func();
+}
+
+__no_optimization static void
+trigger_fault_memmanage()
+{
+    /** see Memfault's SDK: components/demo/src/panics/memfault_demo_panics.c */
+    // Per "Relation of the MPU to the system memory map" in ARMv7-M reference
+    // manual:
+    //
+    // "The MPU is restricted in how it can change the default memory map
+    // attributes associated with
+    //  System space, that is, for addresses 0xE0000000 and higher. System space
+    //  is always marked as XN, Execute Never."
+    //
+    // So we can trip a MemManage exception by simply attempting to execute any
+    // addresss >= 0xE000.0000
+    void (*bad_func)(void) = (void (*)(void))0xEEEEDEAD;
+    bad_func();
+}
+
 /*
  * Do not optimize the divide instruction. GCC will generate invalid
  * opcode exception instruction instead of real divide instruction.
@@ -68,13 +72,16 @@ trigger_fault_divide_zero(void)
 }
 
 /* a handler using by irq_offload  */
-static void
+__maybe_unused static void
 kernel_assert_in_isr(const void *p)
 {
+    // unused if CONFIG_ASSERT is not enabled
+    UNUSED_PARAMETER(p);
+
     __ASSERT(p != NULL, "parameter a should not be NULL!");
 }
 
-static void
+__maybe_unused static void
 user_assert_in_isr(const void *p)
 {
     UNUSED_PARAMETER(p);
@@ -94,19 +101,27 @@ trigger_z_oops(void)
 #endif
 
 void
-fatal_errors_test(void)
+fatal_errors_trigger(enum error_case_e type)
 {
-    uint32_t sub_type = sys_rand32_get() % TEST_ERROR_CASE_COUNT;
+    if (type == FATAL_RANDOM) {
+        type = sys_rand32_get() % TEST_ERROR_CASE_COUNT;
+    }
 
-    printk("Triggering error: %u/%u\n", sub_type, TEST_ERROR_CASE_COUNT);
+    printk("Triggering error: %u/%u\n", type, TEST_ERROR_CASE_COUNT);
     k_msleep(100);
 
-    switch (sub_type) {
+    switch (type) {
     case FATAL_ACCESS:
         trigger_fault_access();
         break;
     case FATAL_ILLEGAL_INSTRUCTION:
         trigger_fault_illegal_instruction();
+        break;
+    case FATAL_BUSFAULT:
+        trigger_fault_bus();
+        break;
+    case FATAL_MEMMANAGE:
+        trigger_fault_memmanage();
         break;
     case FATAL_DIVIDE_ZERO:
         trigger_fault_divide_zero();
@@ -118,20 +133,17 @@ fatal_errors_test(void)
         k_oops();
         break;
     case ASSERT_FAIL:
-        __ASSERT(sub_type != ASSERT_FAIL, "Explicitly triggered assert");
-        break;
-    case ASSERT_IN_ISR:
-        irq_offload(kernel_assert_in_isr, NULL);
+        __ASSERT(type != ASSERT_FAIL, "Explicitly triggered assert");
         break;
     case USER_ASSERT_HARD:
         ASSERT_HARD_BOOL(false);
         break;
+#if defined(CONFIG_IRQ_OFFLOAD)
+    case ASSERT_IN_ISR:
+        irq_offload(kernel_assert_in_isr, NULL);
+        break;
     case USER_ASSERT_HARD_IN_ISR:
         irq_offload(user_assert_in_isr, NULL);
-        break;
-#ifdef CONFIG_WATCHDOG
-    case WATCHDOG:
-        (void)watchdog_init();
         break;
 #endif
 #if defined(CONFIG_USERSPACE)
@@ -139,6 +151,12 @@ fatal_errors_test(void)
         trigger_z_oops();
         break;
 #endif
+#ifdef CONFIG_ORB_LIB_WATCHDOG
+    case FATAL_WATCHDOG:
+        (void)watchdog_init();
+        break;
+#endif
+
     default:
         printk("Unimplemented\n");
     }

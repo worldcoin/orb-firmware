@@ -1,6 +1,6 @@
 #include "voltage_measurement.h"
 #include "app_config.h"
-#include "logs_can.h"
+#include "orb_logs.h"
 #include "pubsub/pubsub.h"
 #include "utils.h"
 #include <app_assert.h>
