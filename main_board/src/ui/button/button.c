@@ -8,7 +8,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 
-#include "logs_can.h"
+#include "orb_logs.h"
 LOG_MODULE_REGISTER(button, CONFIG_BUTTON_LOG_LEVEL);
 
 #define POWER_BUTTON_NODE DT_PATH(buttons, power_button)

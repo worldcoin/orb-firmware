@@ -1,5 +1,5 @@
 #include "white_leds.h"
-#include "logs_can.h"
+#include "orb_logs.h"
 #include <app_config.h>
 #include <utils.h>
 #include <zephyr/device.h>

@@ -12,7 +12,7 @@
 #if defined(CONFIG_ZTEST)
 #include <zephyr/logging/log.h>
 #else
-#include "logs_can.h"
+#include "orb_logs.h"
 #endif
 LOG_MODULE_REGISTER(ir_camera_system_tests_init);
 

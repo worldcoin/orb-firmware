@@ -1,6 +1,6 @@
 #include "log_backend_can.h"
 #include "mcu_messaging_common.pb.h"
-#include <zephyr/logging/log.h>
+#include "orb_logs.h"
 #include <zephyr/logging/log_backend.h>
 LOG_MODULE_REGISTER(log_can, CONFIG_LOGS_CAN_LOG_LEVEL);
 

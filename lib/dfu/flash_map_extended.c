@@ -11,7 +11,7 @@
 #include <flash_map_backend/flash_map_backend.h>
 #include <sysflash/sysflash.h>
 
-#include <zephyr/logging/log.h>
+#include "orb_logs.h"
 LOG_MODULE_REGISTER(dfu_flash, CONFIG_DFU_FLASH_LOG_LEVEL);
 
 #if (!defined(CONFIG_XTENSA) && DT_HAS_CHOSEN(zephyr_flash_controller))

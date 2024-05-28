@@ -27,7 +27,7 @@
 #if defined(CONFIG_ZTEST)
 #include <zephyr/logging/log.h>
 #else
-#include "logs_can.h"
+#include "orb_logs.h"
 #endif
 LOG_MODULE_DECLARE(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
 

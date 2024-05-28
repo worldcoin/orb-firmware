@@ -1,0 +1,6 @@
+// see metrics types in
+// modules/lib/memfault-firmware-sdk/components/include/memfault/metrics/metrics.h
+
+MEMFAULT_METRICS_KEY_DEFINE_WITH_RANGE(Battery_ChargeLevel,
+                                       kMemfaultMetricType_Signed,
+                                       0, 10000)

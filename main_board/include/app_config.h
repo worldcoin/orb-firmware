@@ -15,7 +15,7 @@
 // Runner / default message processing
 // ⚠️ flash page buffer allocated on stack for CRC32 calculation
 #define THREAD_PRIORITY_RUNNER   6
-#define THREAD_STACK_SIZE_RUNNER 4096
+#define THREAD_STACK_SIZE_RUNNER 3500
 
 // Front unit RGB LEDs
 #define THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS 7

@@ -1,5 +1,5 @@
 #include "dfu.h"
-#include "logs_can.h"
+#include "orb_logs.h"
 #include "runner/runner.h"
 #include <can_messaging.h>
 #include <flash_map_backend/flash_map_backend.h>

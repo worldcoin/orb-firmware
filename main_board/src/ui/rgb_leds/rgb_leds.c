@@ -1,6 +1,6 @@
 #include "rgb_leds.h"
 #include "errors.h"
-#include "logs_can.h"
+#include "orb_logs.h"
 #include <utils.h>
 #include <zephyr/drivers/led_strip.h>
 #include <zephyr/kernel.h>

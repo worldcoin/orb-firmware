@@ -1,5 +1,6 @@
 #include "gnss.h"
 #include "mcu_messaging_main.pb.h"
+#include "orb_logs.h"
 #include "utils.h"
 #include <app_assert.h>
 #include <app_config.h>
@@ -10,7 +11,6 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/byteorder.h>
 
-#include "logs_can.h"
 LOG_MODULE_REGISTER(gnss, CONFIG_GNSS_LOG_LEVEL);
 
 #define NMEA_MAX_SIZE 82 // Includes starting '$' and '\r' '\n'

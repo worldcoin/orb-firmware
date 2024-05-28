@@ -1,5 +1,5 @@
 #include "liquid_lens.h"
-#include "logs_can.h"
+#include "orb_logs.h"
 #include "system/version/version.h"
 #include "voltage_measurement/voltage_measurement.h"
 #include <app_assert.h>
@@ -14,6 +14,7 @@
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys_clock.h>
+
 LOG_MODULE_REGISTER(liquid_lens, CONFIG_LIQUID_LENS_LOG_LEVEL);
 
 #define HR_TIMER (HRTIM_TypeDef *)HRTIM1_BASE

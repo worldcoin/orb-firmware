@@ -1,7 +1,7 @@
 #include "pubsub.h"
 #include "app_config.h"
-#include "logs_can.h"
 #include "mcu_messaging_main.pb.h"
+#include "orb_logs.h"
 #include "system/diag.h"
 #include <app_assert.h>
 #include <can_messaging.h>
@@ -186,12 +186,27 @@ pub_stored_thread()
     }
 }
 
+void
+publish_flush(void)
+{
+    static bool started_once = false;
+
+    if ((started_once == false ||
+         (k_thread_join(&pub_stored_thread_data, K_NO_WAIT) == 0)) &&
+        (storage_has_data() || diag_has_data())) {
+        k_thread_create(&pub_stored_thread_data, pub_stored_stack_area,
+                        K_THREAD_STACK_SIZEOF(pub_stored_stack_area),
+                        pub_stored_thread, NULL, NULL, NULL,
+                        THREAD_PRIORITY_PUB_STORED, 0, K_NO_WAIT);
+        k_thread_name_set(&pub_stored_thread_data, "pub_stored");
+        started_once = true;
+    }
+}
+
 // This function may only be called from one thread
 int
 subscribe_add(uint32_t remote_addr)
 {
-    static bool started_once = false;
-
     bool added = false;
     for (size_t i = 0; i < ARRAY_SIZE(active_remotes); i++) {
         if (active_remotes[i] == 0 || active_remotes[i] == remote_addr) {
@@ -203,20 +218,10 @@ subscribe_add(uint32_t remote_addr)
             break;
         }
     }
+
     if (!added) {
         ASSERT_SOFT(RET_ERROR_NO_MEM);
         return RET_ERROR_NO_MEM;
-    }
-
-    if ((started_once == false ||
-         (k_thread_join(&pub_stored_thread_data, K_NO_WAIT) == 0)) &&
-        (storage_has_data() || diag_has_data())) {
-        k_thread_create(&pub_stored_thread_data, pub_stored_stack_area,
-                        K_THREAD_STACK_SIZEOF(pub_stored_stack_area),
-                        pub_stored_thread, NULL, NULL, NULL,
-                        THREAD_PRIORITY_PUB_STORED, 0, K_NO_WAIT);
-        k_thread_name_set(&pub_stored_thread_data, "pub_stored");
-        started_once = true;
     }
 
     return RET_SUCCESS;

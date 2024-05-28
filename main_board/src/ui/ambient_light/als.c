@@ -1,7 +1,7 @@
 #include "als.h"
 #include "app_config.h"
-#include "logs_can.h"
 #include "mcu_messaging_main.pb.h"
+#include "orb_logs.h"
 #include "pubsub/pubsub.h"
 #include "system/diag.h"
 #include <errors.h>

@@ -1,5 +1,5 @@
 #include "version.h"
-#include "logs_can.h"
+#include "orb_logs.h"
 #include "pubsub/pubsub.h"
 #include <app_assert.h>
 #include <can_messaging.h>
@@ -328,3 +328,42 @@ version_init(void)
 {
     return version_fetch_hardware_rev(NULL);
 }
+
+#if CONFIG_MEMFAULT
+#include <memfault/core/platform/device_info.h>
+#include <stdio.h>
+
+#ifdef CONFIG_BOARD_PEARL_MAIN
+static const char hardware_versions_str[][14] = {
+    "UNKNOWN", "PEARL_EV1", "PEARL_EV2", "PEARL_EV3", "PEARL_EV4", "PEARL_EV5",
+};
+static const char *software_type = "pearl-main-app";
+#elif CONFIG_BOARD_DIAMOND_MAIN
+static const char hardware_versions_str[][14] = {
+    "UNKNOWN",
+    "DIAMOND_POC1",
+    "DIAMOND_POC2",
+};
+static const char *software_type = "diamond-main-app";
+#endif
+
+void
+memfault_platform_get_device_info(sMemfaultDeviceInfo *info)
+{
+    const char *version_str = STRINGIFY(FW_VERSION_FULL);
+    Hardware_OrbVersion hw_version = version_get_hardware_rev();
+    size_t hardware_version_idx = (size_t)hw_version;
+#if CONFIG_BOARD_DIAMOND_MAIN
+    hardware_version_idx =
+        hardware_version_idx - Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 + 1;
+#endif
+
+    // platform specific version information
+    *info = (sMemfaultDeviceInfo){
+        .device_serial = "0000",
+        .software_type = software_type,
+        .hardware_version = hardware_versions_str[hardware_version_idx],
+        .software_version = version_str,
+    };
+}
+#endif

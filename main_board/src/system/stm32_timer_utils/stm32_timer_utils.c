@@ -1,5 +1,5 @@
 #include "stm32_timer_utils.h"
-#include "logs_can.h"
+#include "orb_logs.h"
 LOG_MODULE_REGISTER(stm32_timer_utils);
 
 int
