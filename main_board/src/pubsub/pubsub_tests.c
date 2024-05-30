@@ -31,6 +31,12 @@ publish_is_started(uint32_t remote_addr)
     return true;
 }
 
+void
+publish_flush(void)
+{
+    // nothing to do
+}
+
 // redefinition of publish_new for tests
 int
 publish_new(void *payload, size_t size, uint32_t which_payload,
