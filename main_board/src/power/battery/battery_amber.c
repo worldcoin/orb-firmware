@@ -37,11 +37,12 @@ static const struct i2c_dt_spec i2c_device_spec =
 static BatteryCapacity battery_cap;
 static BatteryIsCharging is_charging;
 
-#define BATTERY_INFO_SEND_PERIOD_MS 1000
-
-#define BATTERY_MESSAGES_TIMEOUT_MS (BATTERY_INFO_SEND_PERIOD_MS * 8)
+#define BATTERY_INFO_SEND_PERIOD_MS         1000
+#define BATTERY_MESSAGES_REMOVED_TIMEOUT_MS (BATTERY_INFO_SEND_PERIOD_MS * 3)
+#define BATTERY_MESSAGES_FORCE_REBOOT_TIMEOUT_MS                               \
+    (BATTERY_INFO_SEND_PERIOD_MS * 10)
 static_assert(
-    BATTERY_MESSAGES_TIMEOUT_MS > BATTERY_INFO_SEND_PERIOD_MS * 3,
+    BATTERY_MESSAGES_FORCE_REBOOT_TIMEOUT_MS > BATTERY_INFO_SEND_PERIOD_MS * 3,
     "Coarse timing resolution to check if battery is still sending messages");
 
 #define WAIT_FOR_VOLTAGES_TOTAL_PERIOD_MS 2000
@@ -352,6 +353,7 @@ _Noreturn static void
 battery_rx_thread()
 {
     uint32_t battery_messages_timeout = 0;
+    int shutdown_schuduled_sent = RET_ERROR_NOT_INITIALIZED;
 
     while (1) {
         bool got_battery_voltage_message_local = false;
@@ -611,11 +613,30 @@ battery_rx_thread()
 
             if (got_battery_voltage_message_local) {
                 battery_messages_timeout = 0;
+                shutdown_schuduled_sent = RET_ERROR_NOT_INITIALIZED;
             } else {
                 // no messages received from battery
-                LOG_WRN("Battery removed?");
                 battery_messages_timeout += BATTERY_INFO_SEND_PERIOD_MS;
-                if (battery_messages_timeout >= BATTERY_MESSAGES_TIMEOUT_MS) {
+
+                // consider battery removed after
+                // BATTERY_MESSAGES_REMOVED_TIMEOUT_MS
+                if (battery_messages_timeout >=
+                        BATTERY_MESSAGES_REMOVED_TIMEOUT_MS &&
+                    shutdown_schuduled_sent != RET_SUCCESS) {
+                    ShutdownScheduled shutdown;
+                    shutdown.shutdown_reason =
+                        ShutdownScheduled_ShutdownReason_BATTERY_REMOVED;
+                    shutdown.has_ms_until_shutdown = true;
+                    shutdown.ms_until_shutdown =
+                        (BATTERY_MESSAGES_FORCE_REBOOT_TIMEOUT_MS -
+                         battery_messages_timeout);
+                    shutdown_schuduled_sent = publish_new(
+                        &shutdown, sizeof(shutdown), McuToJetson_shutdown_tag,
+                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                    LOG_WRN("Battery removed: %d", shutdown_schuduled_sent);
+                }
+                if (battery_messages_timeout >=
+                    BATTERY_MESSAGES_FORCE_REBOOT_TIMEOUT_MS) {
                     LOG_INF("No messages received from battery -> rebooting");
 #ifdef CONFIG_MEMFAULT
                     MEMFAULT_REBOOT_MARK_RESET_IMMINENT(
