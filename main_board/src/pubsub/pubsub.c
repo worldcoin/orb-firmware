@@ -89,6 +89,7 @@ const struct sub_message_s sub_prios[] = {
     [McuToJetson_cone_present_tag] = {.priority = SUB_PRIO_DISCARD},
     [McuToJetson_memfault_event_tag] = {.priority = SUB_PRIO_DISCARD},
     [McuToJetson_battery_state_of_health_tag] = {.priority = SUB_PRIO_DISCARD},
+    [McuToJetson_shutdown_tag] = {.priority = SUB_PRIO_TRY_SENDING},
 };
 
 /* ISO-TP addresses + one CAN-FD address */

@@ -22,10 +22,10 @@ manifest:
       remote: memfault
       revision: 1.9.1
     - name: orb-messages
-      revision: 1ebc148383587f9944bbb628bf4e8cbdea49058f
+      revision: dd255ea4fcab8c0587a3a4892b9d6064c57e1634
       path: modules/orb-messages/public
     - name: priv-orb-messages
-      revision: 7e54d4b0d344eb49552ee62891f55f37f5194e0d
+      revision: 62e024982e458b9a89c530f05b947de4f9d8213d
       path: modules/orb-messages
       groups: [internal]
     - name: plug-and-trust
