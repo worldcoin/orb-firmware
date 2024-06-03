@@ -228,8 +228,10 @@ initialize(void)
     ASSERT_SOFT(err_code);
 
     // logs over CAN must be initialized after CAN-messaging module
+#if defined(CONFIG_ORB_LIB_LOGS_CAN) && !defined(CONFIG_ZTEST)
     err_code = logs_init(logs_can);
     ASSERT_SOFT(err_code);
+#endif
 
     // check battery state early on
     err_code = battery_init();
