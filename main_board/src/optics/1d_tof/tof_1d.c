@@ -30,7 +30,7 @@ BUILD_ASSERT(
 BUILD_ASSERT(INTER_MEASUREMENT_FREQ_HZ > 0,
              "INTER_MEASUREMENT_FREQ_HZ must be greater than 0");
 
-static void (*safety_cb)(bool is_safe) = NULL;
+static void (*unsafe_cb)(void) = NULL;
 
 bool
 distance_is_safe(void)
@@ -109,14 +109,14 @@ tof_1d_thread()
         atomic_set(&too_close_counter, counter);
         CRITICAL_SECTION_EXIT(k);
 
-        if (safety_cb) {
-            safety_cb(distance_is_safe());
+        if (unsafe_cb && !distance_is_safe()) {
+            unsafe_cb();
         }
     }
 }
 
 int
-tof_1d_init(void (*distance_safe_cb)(bool is_safe))
+tof_1d_init(void (*distance_unsafe_cb)(void))
 {
     if (!device_is_ready(tof_1d_device)) {
         LOG_ERR("VL53L1 not ready!");
@@ -133,8 +133,8 @@ tof_1d_init(void (*distance_safe_cb)(bool is_safe))
     sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
                     SENSOR_ATTR_CONFIGURATION, &distance_config);
 
-    if (distance_safe_cb) {
-        safety_cb = distance_safe_cb;
+    if (distance_unsafe_cb) {
+        unsafe_cb = distance_unsafe_cb;
     }
 
     // set to autonomous mode by setting sampling frequency / inter measurement
