@@ -114,6 +114,21 @@ optics_safety_circuit_triggered(void)
     return !pvcc_enabled;
 }
 
+/**
+ * This callback is called by the 1D ToF sensor if
+ * the distance is *not* safe for IR-LEDs to be turned on
+ * The on-time is set to 0 because it can be changed in any ir-camera
+ * state.
+ * Any new value being set in the IR camera system will
+ * check the distance safety so this function only serves
+ * in case the ir-leds are not actuated anymore.
+ */
+static void
+distance_is_unsafe_cb(void)
+{
+    ir_camera_system_set_on_time_us(0);
+}
+
 int
 optics_init(const Hardware *hw_version)
 {
@@ -141,7 +156,7 @@ optics_init(const Hardware *hw_version)
         return err_code;
     }
 
-    err_code = tof_1d_init();
+    err_code = tof_1d_init(distance_is_unsafe_cb);
     if (err_code) {
         ASSERT_SOFT(err_code);
         return err_code;
