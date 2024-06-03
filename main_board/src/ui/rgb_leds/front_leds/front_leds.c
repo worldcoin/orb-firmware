@@ -1,8 +1,8 @@
 #include "front_leds.h"
 #include "app_config.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
-#include "system/version/version.h"
 #include "orb_logs.h"
+#include "system/version/version.h"
 #include "ui/rgb_leds/rgb_leds.h"
 #include <app_assert.h>
 #include <assert.h>
@@ -34,7 +34,7 @@ static const struct device *led_strip = led_strip_w;
 // It's also the minimum amount of time we need to trigger
 // an LED strip update until the next IR LED pulse
 #define LED_STRIP_MAXIMUM_UPDATE_TIME_US 10000
-#else
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
 
 static const struct device *const led_strip_apa =
     DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds_apa));
@@ -52,7 +52,7 @@ struct center_ring_leds {
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     struct led_rgb center_leds[NUM_CENTER_LEDS];
     struct led_rgb ring_leds[NUM_RING_LEDS];
-#else
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
     // on Diamond, the ring LEDs are the first LEDs
     // connected to the LED strip
     struct led_rgb ring_leds[NUM_RING_LEDS];
