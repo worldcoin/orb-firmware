@@ -30,17 +30,14 @@ BUILD_ASSERT(
 BUILD_ASSERT(INTER_MEASUREMENT_FREQ_HZ > 0,
              "INTER_MEASUREMENT_FREQ_HZ must be greater than 0");
 
+static void (*safety_cb)(bool is_safe) = NULL;
+
 bool
 distance_is_safe(void)
 {
-#ifdef CONFIG_BOARD_DIAMOND_MAIN
-    // fixme: find a way to use 1d tof on diamond
-    return true;
-#else
     long counter = atomic_get(&too_close_counter);
     bool is_safe = counter < TOO_CLOSE_THRESHOLD;
     return is_safe;
-#endif
 }
 
 _Noreturn void
@@ -111,11 +108,15 @@ tof_1d_thread()
         }
         atomic_set(&too_close_counter, counter);
         CRITICAL_SECTION_EXIT(k);
+
+        if (safety_cb) {
+            safety_cb(distance_is_safe());
+        }
     }
 }
 
 int
-tof_1d_init(void)
+tof_1d_init(void (*distance_safe_cb)(bool is_safe))
 {
     if (!device_is_ready(tof_1d_device)) {
         LOG_ERR("VL53L1 not ready!");
@@ -131,6 +132,10 @@ tof_1d_init(void)
     struct sensor_value distance_config = {.val1 = 1 /* short */, .val2 = 0};
     sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
                     SENSOR_ATTR_CONFIGURATION, &distance_config);
+
+    if (distance_safe_cb) {
+        safety_cb = distance_safe_cb;
+    }
 
     // set to autonomous mode by setting sampling frequency / inter measurement
     // period
