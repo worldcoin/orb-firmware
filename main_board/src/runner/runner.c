@@ -29,6 +29,10 @@
 #include "ui/white_leds/white_leds.h"
 #endif
 
+#if defined(CONFIG_MEMFAULT_METRICS_CONNECTIVITY_CONNECTED_TIME)
+#include <memfault/metrics/connectivity.h>
+#endif
+
 LOG_MODULE_REGISTER(runner, CONFIG_RUNNER_LOG_LEVEL);
 
 K_THREAD_STACK_DEFINE(runner_process_stack, THREAD_STACK_SIZE_RUNNER);
@@ -1208,6 +1212,36 @@ handle_perform_ir_eye_camera_mirror_sweep(job_t *job)
     }
 }
 
+#if defined(CONFIG_MEMFAULT_METRICS_CONNECTIVITY_CONNECTED_TIME)
+/**
+ * @brief Sets the Orb connection state to disconnected.
+ *
+ * Timer expires when the Orb is disconnected from the internet
+ * (Memfault backend not reachable) because the SyncDiagData
+ * message is not received within a few intervals.
+ *
+ * @param timer not used
+ */
+static void
+diag_disconnected(struct k_timer *timer)
+{
+    UNUSED_PARAMETER(timer);
+
+    memfault_metrics_connectivity_connected_state_change(
+        kMemfaultMetricsConnectivityState_ConnectionLost);
+}
+#endif
+
+/**
+ * Handle the sync diag data message
+ *
+ * Note. Sync diag message is only sent when the Orb is connected to
+ * the Internet (to be exact: Memfault backend is reachable)
+ * When connectivity metrics is enabled, use this function to track internet
+ * connectivity status to Memfault device vitals
+ *
+ * @param job
+ */
 static void
 handle_sync_diag_data(job_t *job)
 {
@@ -1215,6 +1249,25 @@ handle_sync_diag_data(job_t *job)
     MAKE_ASSERTS(JetsonToMcu_sync_diag_data_tag);
 
     LOG_DBG("Got sync diag data message");
+
+#if defined(CONFIG_MEMFAULT_METRICS_CONNECTIVITY_CONNECTED_TIME)
+    static K_TIMER_DEFINE(orb_connection_timer, diag_disconnected, NULL);
+
+    uint32_t interval = msg->payload.sync_diag_data.interval;
+    if (interval) {
+
+        // start / reload the timer, acting as a heartbeat
+        // and use it to detect orb's internet
+        // connectivity
+        k_timer_start(&orb_connection_timer, K_SECONDS(interval * 3),
+                      K_SECONDS(interval * 3));
+    } else {
+        k_timer_stop(&orb_connection_timer);
+    }
+
+    memfault_metrics_connectivity_connected_state_change(
+        kMemfaultMetricsConnectivityState_Connected);
+#endif
 
     publish_flush();
 
@@ -1557,4 +1610,9 @@ runner_init(void)
                                  runner_process_jobs_thread, NULL, NULL, NULL,
                                  THREAD_PRIORITY_RUNNER, 0, K_NO_WAIT);
     k_thread_name_set(runner_tid, "runner");
+
+#if defined(CONFIG_MEMFAULT_METRICS_CONNECTIVITY_CONNECTED_TIME)
+    // The Orb is disconnected from the Internet when starting
+    diag_disconnected(NULL);
+#endif
 }
