@@ -5,14 +5,13 @@
 #include <app_assert.h>
 LOG_MODULE_REGISTER(heartbeat, CONFIG_HEARTBEAT_LOG_LEVEL);
 
-#define THREAD_PRIORITY_HEARTBEAT   8
-#define THREAD_STACK_SIZE_HEARTBEAT 512
 K_THREAD_STACK_DEFINE(heartbeat_stack_area, THREAD_STACK_SIZE_HEARTBEAT);
 static struct k_thread health_monitoring_thread_data;
 static k_tid_t thread_id;
 
 static int (*heartbeat_timeout_cb)(void) = NULL;
 static volatile uint32_t global_delay_s;
+static K_SEM_DEFINE(heartbeat_sem, 0, 1);
 
 static int
 timeout_default_handler(void)
@@ -23,14 +22,10 @@ timeout_default_handler(void)
 }
 
 static void
-thread_entry_point()
+heartbeat_thread()
 {
     for (;;) {
-        // k_sleep returns the time in milliseconds left to sleep
-        // if 0, it means the delay before the next heartbeat is
-        // over, and the timeout handler has to be called.
-        // Otherwise, it means the thread has been waked up via `k_wakeup()`
-        if (k_sleep(K_SECONDS(global_delay_s)) == 0) {
+        if (k_sem_take(&heartbeat_sem, K_SECONDS(global_delay_s)) == -EAGAIN) {
             // turn off heartbeat monitoring
             global_delay_s = 0;
             heartbeat_timeout_cb();
@@ -48,22 +43,28 @@ thread_entry_point()
 int
 heartbeat_boom(uint32_t delay_s)
 {
+    if (delay_s == 0 && global_delay_s != 0) {
+        LOG_INF("stopped");
+    } else if (delay_s) {
+        LOG_INF("boom [%us.]", delay_s);
+    }
+
     global_delay_s = delay_s;
 
     if (thread_id == NULL && global_delay_s != 0) {
-        k_tid_t tid = k_thread_create(
+        thread_id = k_thread_create(
             &health_monitoring_thread_data, heartbeat_stack_area,
-            K_THREAD_STACK_SIZEOF(heartbeat_stack_area), thread_entry_point,
-            NULL, NULL, NULL, THREAD_PRIORITY_HEARTBEAT, 0, K_NO_WAIT);
-        k_thread_name_set(tid, "heartbeat");
+            K_THREAD_STACK_SIZEOF(heartbeat_stack_area), heartbeat_thread, NULL,
+            NULL, NULL, THREAD_PRIORITY_HEARTBEAT, 0, K_NO_WAIT);
+        k_thread_name_set(thread_id, "heartbeat");
 
         // make sure timeout handler is initialized
         if (heartbeat_timeout_cb == NULL) {
             heartbeat_timeout_cb = timeout_default_handler;
         }
-    } else if (thread_id != NULL) {
-        k_wakeup(thread_id);
     }
+
+    k_sem_give(&heartbeat_sem);
 
     return RET_SUCCESS;
 }
