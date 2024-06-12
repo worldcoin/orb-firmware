@@ -18,7 +18,7 @@ jobs:
           cd ${{ github.job }}
           git config --global --add url."https://wc-cicd:${{ secrets.GIT_HUB_TOKEN }}@github.com/worldcoin/".insteadOf "git@github.com:worldcoin/"
           cd orb && west init -l --mf public/west.yml . || echo "Ignoring west init error $?" # might be already initialized
-          west update
+          west update --narrow --fetch-opt=--depth=1
       - name: Twister native POSIX 64
         run: |
           cd ${{ github.job }}
