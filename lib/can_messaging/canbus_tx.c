@@ -66,10 +66,16 @@ send(const char *data, size_t len,
     memcpy(frame.data, data, len);
 
     int ret = can_send(can_dev, &frame, K_MSEC(1000), tx_complete_cb, NULL);
-    if (ret == -ENETDOWN) {
-        // CAN bus in off state
-        if (can_dev != NULL && can_recover(can_dev, K_MSEC(2000)) != 0) {
-            ASSERT_HARD(RET_ERROR_OFFLINE);
+    if (ret) {
+        // -ENETDOWN(-115) can happen if 3v3 lost during transmission
+        // CAN will recover when 3v3 back on
+        LOG_ERR("err: %i", ret);
+        if (ret == -ENETUNREACH) {
+            // CAN bus in off state
+            if (can_dev != NULL) {
+                ret = can_recover(can_dev, K_MSEC(2000));
+                ASSERT_HARD(ret);
+            }
         }
     }
 
