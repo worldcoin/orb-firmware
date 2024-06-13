@@ -50,9 +50,10 @@ state_change_work_handler(struct k_work *work)
     if (current_state == CAN_STATE_BUS_OFF) {
         LOG_WRN("CAN recovery from bus-off");
 
-        if (can_dev != NULL && can_recover(can_dev, K_MSEC(2000)) != 0) {
-            ASSERT_HARD(RET_ERROR_OFFLINE);
-        } else {
+        if (can_dev != NULL) {
+            int ret = can_recover(can_dev, K_MSEC(2000));
+            ASSERT_HARD(ret);
+
             // reset TX queues and buffers
             canbus_tx_init();
             canbus_isotp_tx_init();
