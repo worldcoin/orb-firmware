@@ -183,7 +183,7 @@ wait_jetson_up(void)
     }
 }
 
-void
+static void
 initialize(void)
 {
     int err_code;
