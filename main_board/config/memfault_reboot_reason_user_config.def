@@ -1,2 +1,3 @@
 // Defines "unexpected" reboots
 MEMFAULT_UNEXPECTED_REBOOT_REASON_DEFINE(BatteryRemoved)
+MEMFAULT_UNEXPECTED_REBOOT_REASON_DEFINE(HeartbeatFromJetsonTimeout)

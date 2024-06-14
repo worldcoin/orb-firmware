@@ -3,6 +3,11 @@
 #include "orb_logs.h"
 #include "zephyr/kernel.h"
 #include <app_assert.h>
+
+#ifdef CONFIG_MEMFAULT
+#include <memfault/core/reboot_tracking.h>
+#endif
+
 LOG_MODULE_REGISTER(heartbeat, CONFIG_HEARTBEAT_LOG_LEVEL);
 
 K_THREAD_STACK_DEFINE(heartbeat_stack_area, THREAD_STACK_SIZE_HEARTBEAT);
@@ -17,6 +22,11 @@ static int
 timeout_default_handler(void)
 {
     // ☠️
+#ifdef CONFIG_MEMFAULT
+    MEMFAULT_REBOOT_MARK_RESET_IMMINENT(
+        kMfltRebootReason_HeartbeatFromJetsonTimeout);
+#endif
+
     ASSERT_HARD(RET_ERROR_TIMEOUT);
     return RET_ERROR_ASSERT_FAILS;
 }
