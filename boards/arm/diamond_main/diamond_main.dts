@@ -37,9 +37,6 @@
         // app in slot0_partition by default
         // the bootloader uses an overlay to redefine this
         zephyr,code-partition = &slot0_partition;
-
-        zephyr,console = &usart2;
-        zephyr,shell-uart = &usart2;
         zephyr,canbus = &can1;
     };
 
@@ -930,7 +927,7 @@
     pinctrl-0 = <&usart2_tx_pd5 &usart2_rx_pd6>;
     pinctrl-names = "default";
     current-speed = <115200>;
-    status = "okay";
+    status = "disabled"; // enable with overlay
 };
 
 &rtc {
