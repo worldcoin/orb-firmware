@@ -52,7 +52,7 @@ Make sure you are in `"$REPO_DIR"/orb/public/main_board` directory. Compile the 
 # overlays might be applied to change any device or configuration
 # below the partition table with `one_slot.overlay` and the test configuration with `tests.conf`
 # can be combined
-west build [-b pearl_main | diamond_main] [-- -DCMAKE_BUILD_TYPE=Release -DDTC_OVERLAY_FILE=one_slot.overlay -DOVERLAY_CONFIG="tests.conf"]
+west build [-b pearl_main | diamond_main] [-- -DCMAKE_BUILD_TYPE=Release -DDTC_OVERLAY_FILE="one_slot.overlay;debug_uart_dts.overlay" -DOVERLAY_CONFIG="tests.conf"]
 ```
 
 Flash the app:
