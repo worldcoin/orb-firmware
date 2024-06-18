@@ -1308,6 +1308,11 @@ mirror_init(void)
         LOG_INF("Motion controller SPI ready");
     }
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    // write TMC5041_REG_GCONF to 0x300 to invert motor direction (bit 8 & 9)
+    motor_controller_spi_write(spi_bus_controller, TMC5041_REG_GCONF, 0x300);
+#endif
+
     read_value =
         motor_controller_spi_read(spi_bus_controller, TMC5041_REG_GCONF);
     LOG_INF("GCONF: 0x%08x", read_value);
