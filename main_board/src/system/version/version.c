@@ -335,7 +335,8 @@ version_init(void)
 
 #ifdef CONFIG_BOARD_PEARL_MAIN
 static const char hardware_versions_str[][14] = {
-    "UNKNOWN", "PEARL_EV1", "PEARL_EV2", "PEARL_EV3", "PEARL_EV4", "PEARL_EV5",
+    "UNKNOWN",   "PEARL_EV1", "PEARL_EV2", "PEARL_EV3",
+    "PEARL_EV4", "PEARL_EV5", "PEARL_EV6",
 };
 static const char *software_type = "pearl-main-app";
 #elif CONFIG_BOARD_DIAMOND_MAIN
@@ -343,6 +344,7 @@ static const char hardware_versions_str[][14] = {
     "UNKNOWN",
     "DIAMOND_POC1",
     "DIAMOND_POC2",
+    "DIAMOND_B3",
 };
 static const char *software_type = "diamond-main-app";
 #endif
