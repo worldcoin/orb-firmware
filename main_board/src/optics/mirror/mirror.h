@@ -17,7 +17,11 @@
  * movement. (If the current theta angle is different from 90° you also see a
  * small up/down movement).
  */
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 typedef enum { MOTOR_THETA_ANGLE = 0, MOTOR_PHI_ANGLE, MOTORS_COUNT } motor_t;
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+typedef enum { MOTOR_PHI_ANGLE = 0, MOTOR_THETA_ANGLE, MOTORS_COUNT } motor_t;
+#endif
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 #define MIRROR_ANGLE_PHI_MIN_MILLIDEGREES (45000 - 9500)

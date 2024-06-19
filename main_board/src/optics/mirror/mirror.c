@@ -84,8 +84,8 @@ static struct spi_buf_set tx_bufs = {.buffers = &tx, .count = 1};
 
 // initial values [IRUN, SGT]
 const uint8_t motor_irun_sgt[MOTORS_COUNT][2] = {
-    {0x13, 6}, // motor for theta angle
-    {0x13, 6}, // motor for phi angle
+    [MOTOR_THETA_ANGLE] = {0x13, 6},
+    [MOTOR_PHI_ANGLE] = {0x13, 6},
 };
 
 typedef enum tmc5041_registers_e {
@@ -119,10 +119,10 @@ const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][MOTORS_COUNT] = {
 
 // a bit more than mechanical range
 static const uint32_t motors_full_course_maximum_steps[MOTORS_COUNT] = {
-    (500 * 256), (700 * 256)};
+    [MOTOR_THETA_ANGLE] = (500 * 256), [MOTOR_PHI_ANGLE] = (700 * 256)};
 static const int32_t mirror_center_angles[MOTORS_COUNT] = {
-    MIRROR_ANGLE_THETA_CENTER_MILLIDEGREES,
-    MIRROR_ANGLE_PHI_CENTER_MILLIDEGREES};
+    [MOTOR_THETA_ANGLE] = MIRROR_ANGLE_THETA_CENTER_MILLIDEGREES,
+    [MOTOR_PHI_ANGLE] = MIRROR_ANGLE_PHI_CENTER_MILLIDEGREES};
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 // EV2 and later
@@ -145,11 +145,14 @@ static const int32_t mirror_center_angles[MOTORS_COUNT] = {
 #endif
 
 static const uint32_t motors_center_from_end_steps[MOTORS_COUNT] = {
-    MOTOR_THETA_CENTER_FROM_END_STEPS, MOTOR_PHI_CENTER_FROM_END_STEPS};
+    [MOTOR_THETA_ANGLE] = MOTOR_THETA_CENTER_FROM_END_STEPS,
+    [MOTOR_PHI_ANGLE] = MOTOR_PHI_CENTER_FROM_END_STEPS};
 static const uint32_t motors_full_range_steps[MOTORS_COUNT] = {
-    MOTOR_THETA_FULL_RANGE_STEPS, MOTOR_PHI_FULL_RANGE_STEPS};
-const float motors_arm_length_mm[MOTORS_COUNT] = {MOTOR_THETA_ARM_LENGTH_MM,
-                                                  MOTOR_PHI_ARM_LENGTH_MM};
+    [MOTOR_THETA_ANGLE] = MOTOR_THETA_FULL_RANGE_STEPS,
+    [MOTOR_PHI_ANGLE] = MOTOR_PHI_FULL_RANGE_STEPS};
+const float motors_arm_length_mm[MOTORS_COUNT] = {
+    [MOTOR_THETA_ANGLE] = MOTOR_THETA_ARM_LENGTH_MM,
+    [MOTOR_PHI_ANGLE] = MOTOR_PHI_ARM_LENGTH_MM};
 
 const uint32_t microsteps_per_mm = 12800; // 1mm / 0.4mm (pitch) * (360° / 18°
                                           // (per step)) * 256 micro-steps
@@ -185,35 +188,35 @@ static const uint32_t motors_full_course_minimum_steps[MOTORS_COUNT] = {
 /// One direction with stall guard detection
 /// Velocity mode
 const uint64_t motor_init_for_velocity_mode[MOTORS_COUNT][8] = {
-    // motor for theta angle
-    {
-        0xEC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
-                      // (spreadCycle)
-        0xAC00000010, // TZEROWAIT
-        0x90000401C8, // PWMCONF
-        0xB200061A80,
-        0xB100000000 + (MOTOR_INIT_VMAX * 9 /
-                        10), // VCOOLTHRS: StallGuard enabled when motor
-                             // reaches that velocity
-        0xA600000000 + MOTOR_INIT_AMAX, // AMAX = acceleration and deceleration
-                                        // in velocity mode
-        0xA700000000 + MOTOR_INIT_VMAX, // VMAX target velocity
-        0xB400000000 /* | MOTOR_DRV_SW_MODE_SG_STOP */, // SW_MODE sg_stop
-                                                        // disabled, motors are
-        // stopped using software
-        // command
-    },
+    [0] =
+        {
+            0xEC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
+                          // (spreadCycle)
+            0xAC00000010, // TZEROWAIT
+            0x90000401C8, // PWMCONF
+            0xB200061A80,
+            0xB100000000 +
+                (MOTOR_INIT_VMAX * 9 / 10), // VCOOLTHRS: StallGuard enabled
+                                            // when motor reaches that velocity
+            0xA600000000 + MOTOR_INIT_AMAX, // AMAX = acceleration and
+                                            // deceleration in velocity mode
+            0xA700000000 + MOTOR_INIT_VMAX, // VMAX target velocity
+            0xB400000000 /* | MOTOR_DRV_SW_MODE_SG_STOP */, // SW_MODE sg_stop
+                                                            // disabled, motors
+                                                            // are
+            // stopped using software
+            // command
+        },
 
-    // motor for phi angle
-    {
+    [1] = {
         0xFC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
                       // (spreadCycle)
         0xCC00000010, // TZEROWAIT
         0x98000401C8, // PWMCONF
         0xD200061A80,
-        0xD100000000 + (MOTOR_INIT_VMAX * 9 /
-                        10), // VCOOLTHRS: StallGuard enabled when motor
-                             // reaches that velocity
+        0xD100000000 +
+            (MOTOR_INIT_VMAX * 9 / 10), // VCOOLTHRS: StallGuard enabled when
+                                        // motor reaches that velocity
         0xC600000000 + MOTOR_INIT_AMAX, // AMAX = acceleration and deceleration
                                         // in velocity mode
         0xC700000000 + MOTOR_INIT_VMAX, // VMAX target velocity
@@ -224,20 +227,21 @@ const uint64_t motor_init_for_velocity_mode[MOTORS_COUNT][8] = {
     }}; // RAMPMODE velocity mode to +VMAX using AMAX
 
 const uint64_t position_mode_initial_phase[MOTORS_COUNT][10] = {
-    {
-        0xEC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
-                      // (spreadCycle)
-        0xB000011000, // IHOLD_IRUN reg, bytes: [IHOLDDELAY|IRUN|IHOLD]
-        0xA4000003E8, // A1 = 1000 first acceleration
-        0xA50000C350, // V1 = 50 000 Acceleration threshold, velocity V1
-        0xA6000001F4, // AMAX = 500 Acceleration above V1
-        0xA700000000 + MOTOR_INIT_VMAX, // VMAX
-        0xA8000002BC,                   // DMAX Deceleration above V1
-        0xAA00000578,                   // D1 Deceleration below V1
-        0xAB0000000A,                   // VSTOP stop velocity
-        0xA000000000,                   // RAMPMODE = 0 position move
-    },
-    {
+    [0] =
+        {
+            0xEC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
+                          // (spreadCycle)
+            0xB000011000, // IHOLD_IRUN reg, bytes: [IHOLDDELAY|IRUN|IHOLD]
+            0xA4000003E8, // A1 = 1000 first acceleration
+            0xA50000C350, // V1 = 50 000 Acceleration threshold, velocity V1
+            0xA6000001F4, // AMAX = 500 Acceleration above V1
+            0xA700000000 + MOTOR_INIT_VMAX, // VMAX
+            0xA8000002BC,                   // DMAX Deceleration above V1
+            0xAA00000578,                   // D1 Deceleration below V1
+            0xAB0000000A,                   // VSTOP stop velocity
+            0xA000000000,                   // RAMPMODE = 0 position move
+        },
+    [1] = {
         0xFC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
                       // (spreadCycle)
         0xD000011000, // IHOLD_IRUN reg, bytes: [IHOLDDELAY|IRUN|IHOLD]
@@ -255,21 +259,22 @@ const uint64_t position_mode_initial_phase[MOTORS_COUNT][10] = {
 #endif
 
 const uint64_t position_mode_full_speed[MOTORS_COUNT][10] = {
-    {
-        0xEC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
-                      // (spreadCycle)
-        0xB000011000, // IHOLD_IRUN reg, bytes: [IHOLDDELAY|IRUN|IHOLD]
-        0xA400008000, // A1 first acceleration
-        0xA500000000 +
-            MOTOR_FS_VMAX * 3 / 4,    // V1 Acceleration threshold, velocity V1
-        0xA600001000,                 // Acceleration above V1
-        0xA700000000 + MOTOR_FS_VMAX, // VMAX
-        0xA800001000,                 // DMAX Deceleration above V1
-        0xAA00008000,                 // D1 Deceleration below V1
-        0xAB00000010,                 // VSTOP stop velocity
-        0xA000000000,                 // RAMPMODE = 0 position move
-    },
-    {
+    [0] =
+        {
+            0xEC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
+                          // (spreadCycle)
+            0xB000011000, // IHOLD_IRUN reg, bytes: [IHOLDDELAY|IRUN|IHOLD]
+            0xA400008000, // A1 first acceleration
+            0xA500000000 +
+                MOTOR_FS_VMAX * 3 / 4, // V1 Acceleration threshold, velocity V1
+            0xA600001000,              // Acceleration above V1
+            0xA700000000 + MOTOR_FS_VMAX, // VMAX
+            0xA800001000,                 // DMAX Deceleration above V1
+            0xAA00008000,                 // D1 Deceleration below V1
+            0xAB00000010,                 // VSTOP stop velocity
+            0xA000000000,                 // RAMPMODE = 0 position move
+        },
+    [1] = {
         0xFC000100C5, // CHOPCONF TOFF=5, HSTRT=4, HEND=1, TBL=2, CHM=0
                       // (spreadCycle)
         0xD000011000, // IHOLD_IRUN reg, bytes: [IHOLDDELAY|IRUN|IHOLD]
@@ -995,7 +1000,7 @@ motors_auto_homing_thread(void *p1, void *p2, void *p3)
                     LOG_ERR(
                         "Motor %u range: %u microsteps, must be more than %u",
                         motor, abs(x),
-                        abs(motors_full_course_minimum_steps[motor] *
+                        abs((int32_t)motors_full_course_minimum_steps[motor] *
                             first_direction));
 
                     motors_refs[motor].auto_homing_state = AH_FAIL;
