@@ -12,8 +12,9 @@ function(application_version app_version)
             message(FATAL_ERROR "Expected short hash length is 8, actually ${short_hash_len} (hash: ${short_hash})")
         endif()
         math(EXPR SHORT_HASH_DEC "0x${short_hash}" OUTPUT_FORMAT DECIMAL)
+        set(SHORT_HASH_HEX ${short_hash})
     else()
-        set(SHORT_HASH_DEC 0)
+        set(SHORT_HASH_HEX 0)
         message(STATUS "Not embedding commit hash in image version")
     endif()
 
@@ -29,13 +30,14 @@ function(application_version app_version)
     set(PROJECT_VERSION_PATCH ${CMAKE_MATCH_1})
 
     # use short hash as build number
-    set(CURRENT_VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}+${SHORT_HASH_DEC})
+    set(CURRENT_VERSION_HEX_BUILD ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}+${SHORT_HASH_HEX})
+    set(CURRENT_VERSION_DEC_BUILD ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}+${SHORT_HASH_DEC})
     set(${app_version} ${CURRENT_VERSION} PARENT_SCOPE)
 
-    add_compile_definitions(FW_VERSION_FULL=${CURRENT_VERSION})
+    add_compile_definitions(FW_VERSION_FULL=${CURRENT_VERSION_HEX_BUILD})
 
     # append `--pad` to CONFIG_MCUBOOT_EXTRA_IMGTOOL_ARGS to mark the image as pending right from the binary
     # if not used, the primary slot app has to mark the secondary slot as pending (ready to be used)
     file(WRITE ${CMAKE_BINARY_DIR}/app_version.conf
-            "# generated from utils/cmake/version.cmake\r\nCONFIG_MCUBOOT_EXTRA_IMGTOOL_ARGS=\"--version ${CURRENT_VERSION}\"")
+            "# generated from utils/cmake/version.cmake\r\nCONFIG_MCUBOOT_EXTRA_IMGTOOL_ARGS=\"--version ${CURRENT_VERSION_DEC_BUILD}\"")
 endfunction()
