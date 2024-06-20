@@ -11,10 +11,18 @@ ret_code_t
 rgb_leds_set_leds_sequence(const uint8_t *input_bytes, size_t input_size_bytes,
                            enum led_format led_format,
                            struct led_rgb *led_buffer, size_t leds_count,
-                           bool *use_sequence, struct k_sem *update_leds_sem,
                            struct k_mutex *write_mutex)
 {
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    bool found_a_difference =
+        true; // force update the LEDs by not returning
+              // RET_ERROR_ALREADY_INITIALIZED below
+              // this variable is used, instead of forcing the return value,
+              // to optimize execution of this function in the `for` loop
+#elif defined(CONFIG_BOARD_PEARL_MAIN)
     bool found_a_difference = false;
+#endif
+
     size_t rgb_offset = led_format == LED_FORMAT_ARGB ? 1 : 0;
 
     if (led_format != LED_FORMAT_RGB && led_format != LED_FORMAT_ARGB) {
@@ -30,9 +38,13 @@ rgb_leds_set_leds_sequence(const uint8_t *input_bytes, size_t input_size_bytes,
     input_size_bytes = MIN(input_size_bytes, leds_count * led_format);
 
     if (write_mutex != NULL) {
-        k_mutex_lock(write_mutex, K_FOREVER);
+        int ret = k_mutex_lock(write_mutex, K_FOREVER);
+        if (ret != 0) {
+            LOG_ERR("Failed to lock mutex: %d", ret);
+            return RET_ERROR_INTERNAL;
+        }
     }
-    CRITICAL_SECTION_ENTER(k);
+
     for (size_t i = 0; i < (input_size_bytes / led_format); ++i) {
         if (!found_a_difference) {
 #if defined(CONFIG_LED_STRIP_RGB_SCRATCH)
@@ -77,15 +89,12 @@ rgb_leds_set_leds_sequence(const uint8_t *input_bytes, size_t input_size_bytes,
         led_buffer[i] = (struct led_rgb)RGB_OFF;
     }
 
-    *use_sequence = true;
-
     if (write_mutex != NULL) {
         k_mutex_unlock(write_mutex);
     }
-    CRITICAL_SECTION_EXIT(k);
 
-    if (found_a_difference) {
-        k_sem_give(update_leds_sem);
+    if (!found_a_difference) {
+        return RET_ERROR_ALREADY_INITIALIZED;
     }
 
     return RET_SUCCESS;

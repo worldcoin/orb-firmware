@@ -16,7 +16,7 @@ LOG_MODULE_REGISTER(operator_leds);
 static K_THREAD_STACK_DEFINE(operator_leds_stack_area,
                              THREAD_STACK_SIZE_OPERATOR_RGB_LEDS);
 static struct k_thread operator_leds_thread_data;
-static K_SEM_DEFINE(sem_new_setting, 0, 1);
+static K_SEM_DEFINE(sem_leds_refresh, 0, 1);
 
 static struct led_rgb leds[OPERATOR_LEDS_COUNT];
 
@@ -64,7 +64,7 @@ operator_leds_thread(void *a, void *b, void *c)
     uint32_t pulsing_index = ARRAY_SIZE(SINE_LUT);
 
     for (;;) {
-        k_sem_take(&sem_new_setting, wait_until);
+        k_sem_take(&sem_leds_refresh, wait_until);
         wait_until = K_MSEC(global_pulsing_delay_time_ms);
 
         // ⚠️ Critical section
@@ -175,7 +175,7 @@ int
 operator_leds_set_brightness(uint8_t brightness)
 {
     global_intensity = brightness;
-    k_sem_give(&sem_new_setting);
+    k_sem_give(&sem_leds_refresh);
 
     return RET_SUCCESS;
 }
@@ -202,7 +202,7 @@ operator_leds_set_pattern(
     use_sequence = false;
     CRITICAL_SECTION_EXIT(k);
 
-    k_sem_give(&sem_new_setting);
+    k_sem_give(&sem_leds_refresh);
 
     return RET_SUCCESS;
 }
@@ -210,20 +210,34 @@ operator_leds_set_pattern(
 ret_code_t
 operator_leds_set_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 {
-    ret_code_t ret = rgb_leds_set_leds_sequence(
-        bytes, size, LED_FORMAT_ARGB, leds, ARRAY_SIZE(leds),
-        (bool *)&use_sequence, &sem_new_setting, NULL);
-    ASSERT_SOFT(ret);
+    ret_code_t ret = rgb_leds_set_leds_sequence(bytes, size, LED_FORMAT_ARGB,
+                                                leds, ARRAY_SIZE(leds), NULL);
+    if (ret == RET_SUCCESS) {
+        use_sequence = true;
+        k_sem_give(&sem_leds_refresh);
+    } else if (ret != RET_ERROR_ALREADY_INITIALIZED) {
+        ASSERT_SOFT(ret);
+    } else {
+        ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
+                           // expected values
+    }
     return ret;
 }
 
 ret_code_t
 operator_leds_set_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
 {
-    ret_code_t ret = rgb_leds_set_leds_sequence(
-        bytes, size, LED_FORMAT_RGB, leds, ARRAY_SIZE(leds),
-        (bool *)&use_sequence, &sem_new_setting, NULL);
-    ASSERT_SOFT(ret);
+    ret_code_t ret = rgb_leds_set_leds_sequence(bytes, size, LED_FORMAT_RGB,
+                                                leds, ARRAY_SIZE(leds), NULL);
+    if (ret == RET_SUCCESS) {
+        use_sequence = true;
+        k_sem_give(&sem_leds_refresh);
+    } else if (ret != RET_ERROR_ALREADY_INITIALIZED) {
+        ASSERT_SOFT(ret);
+    } else {
+        ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
+                           // expected values
+    }
     return ret;
 }
 
