@@ -14,7 +14,11 @@ rgb_leds_set_leds_sequence(const uint8_t *input_bytes, size_t input_size_bytes,
                            struct k_mutex *write_mutex)
 {
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    bool found_a_difference = true; // always update the LEDs
+    bool found_a_difference =
+        true; // force update the LEDs by not returning
+              // RET_ERROR_ALREADY_INITIALIZED below
+              // this variable is used, instead of forcing the return value,
+              // to optimize execution of this function in the `for` loop
 #elif defined(CONFIG_BOARD_PEARL_MAIN)
     bool found_a_difference = false;
 #endif
