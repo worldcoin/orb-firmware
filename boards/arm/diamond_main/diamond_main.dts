@@ -1017,9 +1017,9 @@
      * configuration homogeneous (same Tq on all nodes)
      * 6. Enable TDC for data bit-rates higher than 1 Mbit/s
      */
-    bus-speed = <125000>;
+    bus-speed = <1000000>;
     sjw = <4>;
-    sample-point = <852>;
+    sample-point = <853>;
     bus-speed-data = <1000000>;
     sjw-data = <4>;
     sample-point-data = <853>; // closest value
