@@ -99,17 +99,17 @@ enum led_format {
  * per LED
  * @param led_buffer Buffer to copy the colors into
  * @param leds_count Number of LEDs in the led buffer
- * @param use_sequence Boolean to set to true if the sequence should be used
- * @param update_leds_sem Semaphore to signal when the LEDs should be updated
  * @param write_mutex Mutex to lock when writing to the led buffer (optional)
+ * @retval RET_ERROR_ALREADY_INITIALIZED if the input bytes are the same as the
+ *          led buffer, no update is needed
  * @retval RET_ERROR_INVALID_PARAM if the input_size_bytes is not a multiple of
  * bytes_per_led
  * @retval RET_ERROR_FORBIDDEN if bytes_per_led is not 3 or 4
- * @retval RET_SUCCESS on success
+ * @retval RET_SUCCESS on success: the led buffer has been updated with some
+ * new values to be applied
  */
 ret_code_t
 rgb_leds_set_leds_sequence(const uint8_t *input_bytes, size_t input_size_bytes,
                            enum led_format led_format,
                            struct led_rgb *led_buffer, size_t leds_count,
-                           bool *use_sequence, struct k_sem *update_leds_sem,
                            struct k_mutex *write_mutex);

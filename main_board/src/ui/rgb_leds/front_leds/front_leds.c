@@ -18,7 +18,8 @@ LOG_MODULE_REGISTER(front_unit_rgb_leds, CONFIG_FRONT_UNIT_RGB_LEDS_LOG_LEVEL);
 static K_THREAD_STACK_DEFINE(front_leds_stack_area,
                              THREAD_STACK_SIZE_FRONT_UNIT_RGB_LEDS);
 static struct k_thread front_led_thread_data;
-static K_SEM_DEFINE(sem, 1, 1); // init to 1 to use default values below
+static K_SEM_DEFINE(sem_leds_refresh, 1,
+                    1); // init to 1 to use default values below
 
 static const struct device *const led_strip_w =
     DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds_w));
@@ -60,21 +61,35 @@ struct center_ring_leds {
 #endif
 };
 
+/**
+ * The LED buffer is modified by the led strip driver, so we need to make sure
+ * that we don't update the LEDs with modified data, as the color would be
+ * incorrect. Both the ring and center LEDs must be updated with a new sequence
+ * before updating the LEDs.
+ */
+enum dirty_flags {
+    RING_LEDS_DIRTY = 0x1,
+    CENTER_LEDS_DIRTY = 0x2,
+    ALL_LEDS_DIRTY = 0x3,
+};
+
 typedef union {
     struct center_ring_leds part;
     struct led_rgb all[NUM_LEDS];
+    enum dirty_flags dirty;
 } user_leds_t;
 static user_leds_t leds;
 
-K_MUTEX_DEFINE(leds_update_mutex);
-K_SEM_DEFINE(leds_wait_for_trigger, 0, 1);
+static K_MUTEX_DEFINE(leds_update_mutex);
+static K_SEM_DEFINE(leds_wait_for_trigger, 0, 1);
 static volatile bool final_done = false;
 
-// default values
+static K_MUTEX_DEFINE(ring_write);
+static K_MUTEX_DEFINE(center_write);
 
+// default values
 static volatile UserLEDsPattern_UserRgbLedPattern global_pattern =
     UserLEDsPattern_UserRgbLedPattern_OFF;
-
 static volatile bool use_sequence;
 static volatile uint32_t global_start_angle_degrees = 0;
 static volatile int32_t global_angle_length_degrees = FULL_RING_DEGREES;
@@ -108,14 +123,13 @@ front_leds_notify_ir_leds_off(void)
 static void
 set_center(struct led_rgb color)
 {
-    CRITICAL_SECTION_ENTER(k);
-    for (size_t i = 0; i < ARRAY_SIZE(leds.part.center_leds); ++i) {
-        leds.part.center_leds[i] = color;
+    if (k_mutex_lock(&center_write, K_FOREVER) == 0) {
+        for (size_t i = 0; i < ARRAY_SIZE(leds.part.center_leds); ++i) {
+            leds.part.center_leds[i] = color;
+        }
+        k_mutex_unlock(&center_write);
     }
-    CRITICAL_SECTION_EXIT(k);
 }
-
-K_MUTEX_DEFINE(ring_write);
 
 static void
 set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
@@ -128,25 +142,28 @@ set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
     size_t led_index =
         INDEX_RING_ZERO - NUM_RING_LEDS * start_angle / FULL_RING_DEGREES;
 
-    k_mutex_lock(&ring_write, K_FOREVER);
-    for (size_t i = 0; i < NUM_RING_LEDS; ++i) {
-        if (i <
-            (size_t)(NUM_RING_LEDS * abs(angle_length) / FULL_RING_DEGREES)) {
-            leds.part.ring_leds[led_index] = color;
-        } else {
-            leds.part.ring_leds[led_index] = (struct led_rgb)RGB_OFF;
+    if (k_mutex_lock(&ring_write, K_FOREVER) == 0) {
+        for (size_t i = 0; i < NUM_RING_LEDS; ++i) {
+            if (i < (size_t)(NUM_RING_LEDS * abs(angle_length) /
+                             FULL_RING_DEGREES)) {
+                leds.part.ring_leds[led_index] = color;
+            } else {
+                leds.part.ring_leds[led_index] = (struct led_rgb)RGB_OFF;
+            }
+
+            // depending on angle_length sign, we go through the ring LED in a
+            // different direction
+            if (angle_length >= 0) {
+                led_index = (led_index + 1) % ARRAY_SIZE(leds.part.ring_leds);
+            } else {
+                led_index = led_index == 0
+                                ? (ARRAY_SIZE(leds.part.ring_leds) - 1)
+                                : (led_index - 1);
+            }
         }
 
-        // depending on angle_length sign, we go through the ring LED in a
-        // different direction
-        if (angle_length >= 0) {
-            led_index = (led_index + 1) % ARRAY_SIZE(leds.part.ring_leds);
-        } else {
-            led_index = led_index == 0 ? (ARRAY_SIZE(leds.part.ring_leds) - 1)
-                                       : (led_index - 1);
-        }
+        k_mutex_unlock(&ring_write);
     }
-    k_mutex_unlock(&ring_write);
 }
 
 _Noreturn static void
@@ -166,7 +183,7 @@ front_leds_thread()
 
     for (;;) {
         // wait for next command
-        k_sem_take(&sem, wait_until);
+        k_sem_take(&sem_leds_refresh, wait_until);
 
         wait_until = K_FOREVER;
 
@@ -350,6 +367,7 @@ front_leds_thread()
             }
 #endif
             led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+            leds.dirty = ALL_LEDS_DIRTY;
         }
         k_mutex_unlock(&leds_update_mutex);
     }
@@ -462,7 +480,7 @@ front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
                         pulsing_period_ms, pulsing_scale);
         update_parameters(pattern, start_angle, angle_length, color,
                           pulsing_period_ms, pulsing_scale);
-        k_sem_give(&sem);
+        k_sem_give(&sem_leds_refresh);
     }
 
     return RET_SUCCESS;
@@ -473,8 +491,19 @@ front_leds_set_center_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 {
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_ARGB, leds.part.center_leds,
-        ARRAY_SIZE(leds.part.center_leds), (bool *)&use_sequence, &sem, NULL);
-    ASSERT_SOFT(ret);
+        ARRAY_SIZE(leds.part.center_leds), &center_write);
+    if (ret == RET_SUCCESS) {
+        use_sequence = true;
+        leds.dirty &= ~CENTER_LEDS_DIRTY;
+        if (leds.dirty == 0) {
+            k_sem_give(&sem_leds_refresh);
+        }
+    } else if (ret != RET_ERROR_ALREADY_INITIALIZED) {
+        ASSERT_SOFT(ret);
+    } else {
+        ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
+                           // expected values
+    }
     return ret;
 }
 
@@ -483,8 +512,19 @@ front_leds_set_center_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
 {
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_RGB, leds.part.center_leds,
-        ARRAY_SIZE(leds.part.center_leds), (bool *)&use_sequence, &sem, NULL);
-    ASSERT_SOFT(ret);
+        ARRAY_SIZE(leds.part.center_leds), &center_write);
+    if (ret == RET_SUCCESS) {
+        use_sequence = true;
+        leds.dirty &= ~CENTER_LEDS_DIRTY;
+        if (leds.dirty == 0) {
+            k_sem_give(&sem_leds_refresh);
+        }
+    } else if (ret != RET_ERROR_ALREADY_INITIALIZED) {
+        ASSERT_SOFT(ret);
+    } else {
+        ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
+                           // expected values
+    }
     return ret;
 }
 
@@ -493,9 +533,19 @@ front_leds_set_ring_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 {
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_ARGB, leds.part.ring_leds,
-        ARRAY_SIZE(leds.part.ring_leds), (bool *)&use_sequence, &sem,
-        &ring_write);
-    ASSERT_SOFT(ret);
+        ARRAY_SIZE(leds.part.ring_leds), &ring_write);
+    if (ret == RET_SUCCESS) {
+        use_sequence = true;
+        leds.dirty &= ~RING_LEDS_DIRTY;
+        if (leds.dirty == 0) {
+            k_sem_give(&sem_leds_refresh);
+        }
+    } else if (ret != RET_ERROR_ALREADY_INITIALIZED) {
+        ASSERT_SOFT(ret);
+    } else {
+        ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
+                           // expected values
+    }
     return ret;
 }
 
@@ -504,9 +554,19 @@ front_leds_set_ring_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
 {
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_RGB, leds.part.ring_leds,
-        ARRAY_SIZE(leds.part.ring_leds), (bool *)&use_sequence, &sem,
-        &ring_write);
-    ASSERT_SOFT(ret);
+        ARRAY_SIZE(leds.part.ring_leds), &ring_write);
+    if (ret == RET_SUCCESS) {
+        use_sequence = true;
+        leds.dirty &= ~RING_LEDS_DIRTY;
+        if (leds.dirty == 0) {
+            k_sem_give(&sem_leds_refresh);
+        }
+    } else if (ret != RET_ERROR_ALREADY_INITIALIZED) {
+        ASSERT_SOFT(ret);
+    } else {
+        ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
+                           // expected values
+    }
     return ret;
 }
 
@@ -517,7 +577,7 @@ front_leds_set_brightness(uint32_t brightness)
     global_intensity = MIN(255, brightness);
     CRITICAL_SECTION_EXIT(k);
 
-    k_sem_give(&sem);
+    k_sem_give(&sem_leds_refresh);
 }
 
 void
@@ -528,6 +588,7 @@ front_leds_turn_off_blocking(void)
     memset(leds.all, 0, sizeof leds.all);
     led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
     led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+    leds.dirty = ALL_LEDS_DIRTY;
     k_mutex_unlock(&leds_update_mutex);
 }
 
@@ -581,6 +642,7 @@ front_leds_initial_state(void)
     set_center((struct led_rgb)RGB_OFF);
     set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
     led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+    leds.dirty = ALL_LEDS_DIRTY;
 
     return 0;
 }
