@@ -15,6 +15,7 @@ function(application_version app_version)
         set(SHORT_HASH_HEX ${short_hash})
     else()
         set(SHORT_HASH_HEX 0)
+        set(SHORT_HASH_DEC 0)
         message(STATUS "Not embedding commit hash in image version")
     endif()
 
