@@ -62,10 +62,11 @@ struct center_ring_leds {
 };
 
 /**
- * The LED buffer is modified by the led strip driver, so we need to make sure
- * that we don't update the LEDs with modified data, as the color would be
- * incorrect. Both the ring and center LEDs must be updated with a new sequence
- * before updating the LEDs.
+ * The LED buffer is modified by the led strip driver. If the modified data is
+ * reused by the led driver, the color is going to be incorrect. Both the ring
+ * and center led buffers must be overwritten/updated with a new sequence before
+ * reusing the led buffers with the led strip driver.
+ * A flag is used to keep track of the dirty state of the led buffers.
  */
 enum dirty_flags {
     RING_LEDS_DIRTY = 0x1,
