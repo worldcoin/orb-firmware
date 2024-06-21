@@ -73,11 +73,11 @@ enum dirty_flags {
     CENTER_LEDS_DIRTY = 0x2,
     ALL_LEDS_DIRTY = 0x3,
 };
+static enum dirty_flags leds_dirty;
 
 typedef union {
     struct center_ring_leds part;
     struct led_rgb all[NUM_LEDS];
-    enum dirty_flags dirty;
 } user_leds_t;
 static user_leds_t leds;
 
@@ -368,7 +368,7 @@ front_leds_thread()
             }
 #endif
             led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
-            leds.dirty = ALL_LEDS_DIRTY;
+            leds_dirty = ALL_LEDS_DIRTY;
         }
         k_mutex_unlock(&leds_update_mutex);
     }
@@ -495,8 +495,8 @@ front_leds_set_center_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
         ARRAY_SIZE(leds.part.center_leds), &center_write);
     if (ret == RET_SUCCESS) {
         use_sequence = true;
-        leds.dirty &= ~CENTER_LEDS_DIRTY;
-        if (leds.dirty == 0) {
+        leds_dirty &= ~CENTER_LEDS_DIRTY;
+        if (leds_dirty == 0) {
             k_sem_give(&sem_leds_refresh);
         }
     } else if (ret != RET_ERROR_ALREADY_INITIALIZED) {
@@ -516,8 +516,8 @@ front_leds_set_center_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
         ARRAY_SIZE(leds.part.center_leds), &center_write);
     if (ret == RET_SUCCESS) {
         use_sequence = true;
-        leds.dirty &= ~CENTER_LEDS_DIRTY;
-        if (leds.dirty == 0) {
+        leds_dirty &= ~CENTER_LEDS_DIRTY;
+        if (leds_dirty == 0) {
             k_sem_give(&sem_leds_refresh);
         }
     } else if (ret != RET_ERROR_ALREADY_INITIALIZED) {
@@ -537,8 +537,8 @@ front_leds_set_ring_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
         ARRAY_SIZE(leds.part.ring_leds), &ring_write);
     if (ret == RET_SUCCESS) {
         use_sequence = true;
-        leds.dirty &= ~RING_LEDS_DIRTY;
-        if (leds.dirty == 0) {
+        leds_dirty &= ~RING_LEDS_DIRTY;
+        if (leds_dirty == 0) {
             k_sem_give(&sem_leds_refresh);
         }
     } else if (ret != RET_ERROR_ALREADY_INITIALIZED) {
@@ -558,8 +558,8 @@ front_leds_set_ring_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
         ARRAY_SIZE(leds.part.ring_leds), &ring_write);
     if (ret == RET_SUCCESS) {
         use_sequence = true;
-        leds.dirty &= ~RING_LEDS_DIRTY;
-        if (leds.dirty == 0) {
+        leds_dirty &= ~RING_LEDS_DIRTY;
+        if (leds_dirty == 0) {
             k_sem_give(&sem_leds_refresh);
         }
     } else if (ret != RET_ERROR_ALREADY_INITIALIZED) {
@@ -589,7 +589,7 @@ front_leds_turn_off_blocking(void)
     memset(leds.all, 0, sizeof leds.all);
     led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
     led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
-    leds.dirty = ALL_LEDS_DIRTY;
+    leds_dirty = ALL_LEDS_DIRTY;
     k_mutex_unlock(&leds_update_mutex);
 }
 
@@ -643,7 +643,7 @@ front_leds_initial_state(void)
     set_center((struct led_rgb)RGB_OFF);
     set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
     led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
-    leds.dirty = ALL_LEDS_DIRTY;
+    leds_dirty = ALL_LEDS_DIRTY;
 
     return 0;
 }
