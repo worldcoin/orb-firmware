@@ -4,3 +4,5 @@
 MEMFAULT_METRICS_KEY_DEFINE_WITH_RANGE(Battery_ChargeLevel,
                                        kMemfaultMetricType_Signed,
                                        0, 10000)
+
+MEMFAULT_METRICS_KEY_DEFINE(runner_stack_free_bytes, kMemfaultMetricType_Unsigned)
