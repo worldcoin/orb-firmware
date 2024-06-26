@@ -712,9 +712,9 @@ battery_init(void)
     //   more charge
     if (full_voltage_mv < BATTERY_MINIMUM_VOLTAGE_STARTUP_MV ||
         battery_cap_percentage < BATTERY_MINIMUM_CAPACITY_STARTUP_PERCENT) {
+        LOG_ERR_IMM("Low battery voltage, rebooting!");
         operator_leds_indicate_low_battery_blocking();
 
-        LOG_ERR_IMM("Low battery voltage, rebooting!");
 #ifdef CONFIG_MEMFAULT
         MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_LowPower);
 #endif
