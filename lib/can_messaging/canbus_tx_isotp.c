@@ -99,6 +99,7 @@ process_tx_messages_thread()
         // set addresses and send
         mcu_to_jetson_dst_addr.std_id = new.destination;
         mcu_to_jetson_src_addr.std_id = new.destination & ~CAN_ADDR_IS_DEST;
+        memset(&send_ctx, 0, sizeof(send_ctx));
         ret = isotp_send(&send_ctx, can_dev, new.bytes, new.size,
                          &mcu_to_jetson_dst_addr, &mcu_to_jetson_src_addr,
                          tx_complete_cb, new.bytes);
