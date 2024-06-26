@@ -350,7 +350,7 @@ evaluate_mirror_sweep_polynomials(uint32_t frame_no)
 }
 
 #ifdef HIL_TEST
-K_SEM_DEFINE(camera_sweep_sem, 0, 1);
+static K_SEM_DEFINE(camera_sweep_sem, 0, 1);
 #endif
 
 static void

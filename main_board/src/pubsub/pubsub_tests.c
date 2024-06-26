@@ -11,7 +11,7 @@
 LOG_MODULE_REGISTER(pubsub_test);
 
 static uint32_t mcu_to_jetson_payloads = 0;
-K_SEM_DEFINE(pub_buffers_sem, 1, 1);
+static K_SEM_DEFINE(pub_buffers_sem, 1, 1);
 
 int
 subscribe_add(uint32_t remote_addr)

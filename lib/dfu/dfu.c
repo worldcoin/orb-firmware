@@ -77,8 +77,8 @@ static void (*dfu_block_process_cb)(void *ctx, int err) = NULL;
 
 // 1 producer and 1 consumer sharing dfu_state
 // we need two semaphores
-K_SEM_DEFINE(sem_dfu_free_space, 1, 1);
-K_SEM_DEFINE(sem_dfu_full, 0, 1);
+static K_SEM_DEFINE(sem_dfu_free_space, 1, 1);
+static K_SEM_DEFINE(sem_dfu_full, 0, 1);
 
 int
 dfu_load(uint32_t current_block_number, uint32_t block_count,
