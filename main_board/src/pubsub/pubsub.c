@@ -25,7 +25,7 @@ BUILD_ASSERT(
 #endif
 #endif
 
-K_SEM_DEFINE(pub_buffers_sem, 1, 1);
+static K_SEM_DEFINE(pub_buffers_sem, 1, 1);
 
 static K_THREAD_STACK_DEFINE(pub_stored_stack_area,
                              THREAD_STACK_SIZE_PUB_STORED);

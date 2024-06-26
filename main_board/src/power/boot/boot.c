@@ -94,7 +94,7 @@ static const struct gpio_dt_spec usb_hub_reset_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), usb_hub_reset_gpios);
 #endif
 
-K_SEM_DEFINE(sem_reboot, 0, 1);
+static K_SEM_DEFINE(sem_reboot, 0, 1);
 static atomic_t reboot_delay_s = ATOMIC_INIT(0);
 static k_tid_t reboot_tid = NULL;
 static struct gpio_callback shutdown_cb_data;
