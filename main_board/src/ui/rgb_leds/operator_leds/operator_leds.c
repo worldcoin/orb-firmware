@@ -33,13 +33,25 @@ static const volatile uint32_t global_pulsing_delay_time_ms =
 /// half period <=> from 0 to pi rad <=> 0 to 1 to 0
 extern const float SINE_LUT[SINE_TABLE_LENGTH];
 
+/**
+ * Apply color to LEDs based on mask
+ * @note  On Pearl, the left LED is the most significant bit
+ *        On Diamond, the right LED is the most significant bit
+ * @param mask 5-bit mask
+ * @param color color to apply
+ */
 static void
 apply_pattern(uint32_t mask, struct led_rgb *color)
 {
     // go through mask starting with most significant bit
     // so that mask is applied from left LED to right for the operator
     for (size_t i = 0; i < ARRAY_SIZE_ASSERT(leds); ++i) {
-        if (mask & BIT((OPERATOR_LEDS_COUNT - 1) - i)) {
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+        uint32_t bit = BIT((OPERATOR_LEDS_COUNT - 1) - i);
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+        uint32_t bit = BIT(i);
+#endif
+        if (mask & bit) {
             leds[i] = *color;
         } else {
             leds[i] = (struct led_rgb)RGB_OFF;
