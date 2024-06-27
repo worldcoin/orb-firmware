@@ -18,6 +18,7 @@ else ()
     add_compile_definitions(DEBUG)
 
     list(APPEND OVERLAY_CONFIG "debug.conf")
+    list(APPEND DTC_OVERLAY_FILE "debug.overlay")
 endif ()
 
 # Generate version for the current project
@@ -58,14 +59,7 @@ list(APPEND DTS_ROOT ${PROJECT_DIR})
 # and fits inside, the slot0 partition. (If the user specified a
 # DTC_OVERLAY_FILE on the CMake command line, we need to append onto
 # the list).
-if (DTC_OVERLAY_FILE)
-    set(DTC_OVERLAY_FILE
-        "${DTC_OVERLAY_FILE} ${CMAKE_CURRENT_LIST_DIR}/dts.overlay"
-        CACHE STRING "" FORCE
-        )
-else ()
-    set(DTC_OVERLAY_FILE dts.overlay)
-endif ()
+list(APPEND DTC_OVERLAY_FILE ${CMAKE_CURRENT_LIST_DIR}/dts.overlay)
 
 # In case we don't use West to build, add our local modules to the list
 list(APPEND ZEPHYR_EXTRA_MODULES ${PROJECT_DIR})
