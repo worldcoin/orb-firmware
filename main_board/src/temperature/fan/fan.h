@@ -39,6 +39,20 @@ uint16_t
 fan_get_speed_setting(void);
 
 /**
+ * Turn off fan
+ * only way to turn back on is to use fan_turn_on()
+ */
+void
+fan_turn_off(void);
+
+/**
+ * Turn on fan, back to its original speed.
+ * only way to turn back on is to use fan_turn_off()
+ */
+void
+fan_turn_on(void);
+
+/**
  * Initialize fan
  *
  * @retval 0 on success
