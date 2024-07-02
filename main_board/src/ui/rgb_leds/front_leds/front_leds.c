@@ -493,17 +493,19 @@ front_leds_set_center_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_ARGB, leds.part.center_leds,
         ARRAY_SIZE(leds.part.center_leds), &center_write);
-    if (ret == RET_SUCCESS) {
+    if (ret == RET_SUCCESS || ret == RET_ERROR_ALREADY_INITIALIZED) {
+        // RET_ERROR_ALREADY_INITIALIZED or RET_SUCCESS
+        // update strip if both center and ring have been
+        // set into the led buffer
         use_sequence = true;
         leds_dirty &= ~CENTER_LEDS_DIRTY;
         if (leds_dirty == 0) {
             k_sem_give(&sem_leds_refresh);
         }
-    } else if (ret != RET_ERROR_ALREADY_INITIALIZED) {
-        ASSERT_SOFT(ret);
-    } else {
         ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
                            // expected values
+    } else {
+        ASSERT_SOFT(ret);
     }
     return ret;
 }
@@ -514,17 +516,19 @@ front_leds_set_center_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_RGB, leds.part.center_leds,
         ARRAY_SIZE(leds.part.center_leds), &center_write);
-    if (ret == RET_SUCCESS) {
+    if (ret == RET_SUCCESS || ret == RET_ERROR_ALREADY_INITIALIZED) {
+        // RET_ERROR_ALREADY_INITIALIZED or RET_SUCCESS
+        // update strip if both center and ring have been
+        // set into the led buffer
         use_sequence = true;
         leds_dirty &= ~CENTER_LEDS_DIRTY;
         if (leds_dirty == 0) {
             k_sem_give(&sem_leds_refresh);
         }
-    } else if (ret != RET_ERROR_ALREADY_INITIALIZED) {
-        ASSERT_SOFT(ret);
-    } else {
         ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
                            // expected values
+    } else {
+        ASSERT_SOFT(ret);
     }
     return ret;
 }
@@ -535,17 +539,19 @@ front_leds_set_ring_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_ARGB, leds.part.ring_leds,
         ARRAY_SIZE(leds.part.ring_leds), &ring_write);
-    if (ret == RET_SUCCESS) {
+    if (ret == RET_SUCCESS || ret == RET_ERROR_ALREADY_INITIALIZED) {
+        // RET_ERROR_ALREADY_INITIALIZED or RET_SUCCESS
+        // update strip if both center and ring have been
+        // set into the led buffer
         use_sequence = true;
         leds_dirty &= ~RING_LEDS_DIRTY;
         if (leds_dirty == 0) {
             k_sem_give(&sem_leds_refresh);
         }
-    } else if (ret != RET_ERROR_ALREADY_INITIALIZED) {
-        ASSERT_SOFT(ret);
-    } else {
         ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
                            // expected values
+    } else {
+        ASSERT_SOFT(ret);
     }
     return ret;
 }
@@ -556,17 +562,19 @@ front_leds_set_ring_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_RGB, leds.part.ring_leds,
         ARRAY_SIZE(leds.part.ring_leds), &ring_write);
-    if (ret == RET_SUCCESS) {
+    if (ret == RET_SUCCESS || ret == RET_ERROR_ALREADY_INITIALIZED) {
+        // RET_ERROR_ALREADY_INITIALIZED or RET_SUCCESS
+        // update strip if both center and ring have been
+        // set into the led buffer
         use_sequence = true;
         leds_dirty &= ~RING_LEDS_DIRTY;
         if (leds_dirty == 0) {
             k_sem_give(&sem_leds_refresh);
         }
-    } else if (ret != RET_ERROR_ALREADY_INITIALIZED) {
-        ASSERT_SOFT(ret);
-    } else {
         ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
                            // expected values
+    } else {
+        ASSERT_SOFT(ret);
     }
     return ret;
 }
