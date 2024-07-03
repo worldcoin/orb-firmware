@@ -86,11 +86,12 @@ struct sensor_and_channel {
 #define TEMPERATURE_SENTINEL_VALUE INT32_MIN
 
 enum temperature_sensors {
-    TEMPERATURE_SENSOR_FRONT_UNIT = 0,
-    TEMPERATURE_SENSOR_MAIN_BOARD,
+    TEMPERATURE_SENSOR_MAIN_BOARD = 0,
     TEMPERATURE_SENSOR_LIQUID_LENS,
     TEMPERATURE_SENSOR_DIE,
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    TEMPERATURE_SENSOR_FRONT_UNIT,
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
     TEMPERATURE_SENSOR_MAIN_BOARD_USB_HUB_BOT,
     TEMPERATURE_SENSOR_MAIN_BOARD_USB_HUB_TOP,
     TEMPERATURE_SENSOR_MAIN_BOARD_SECURITY_SUPPLY,
@@ -107,36 +108,36 @@ enum temperature_sensors {
     TEMPERATURE_SENSOR_FRONT_UNIT_940_LEFT_BOTTOM,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_RIGHT_TOP,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_RIGHT_BOTTOM,
-    TEMPERATURE_SENSOR_FRONT_UNIT_940_CENTER_TOP,
-    TEMPERATURE_SENSOR_FRONT_UNIT_940_CENTER_BOTTOM,
+    TEMPERATURE_SENSOR_FRONT_UNIT_850_CENTER_TOP,
+    TEMPERATURE_SENSOR_FRONT_UNIT_850_CENTER_BOTTOM,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_WHITE_TOP,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_SHROUD_RGB_TOP,
 #endif
     TEMPERATURE_SENSOR_COUNT
 };
 
-static struct sensor_and_channel sensors_and_channels[] = {
-    [TEMPERATURE_SENSOR_FRONT_UNIT] =
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-        {.sensor = DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor)),
-#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-        {.sensor =
-             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_shroud_rgb_top)),
-#endif
-         .channel = SENSOR_CHAN_AMBIENT_TEMP,
-         .temperature_source = Temperature_TemperatureSource_FRONT_UNIT,
-         .hardware_diagnostic_source =
-             HardwareDiagnostic_Source_TEMPERATURE_SENSORS_FRONT_UNIT,
-         .cb = overtemp_callback,
-         .cb_data = &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
-                                            .overtemp_drop_c =
-                                                OVERTEMP_TO_NOMINAL_DROP_C,
-                                            .in_overtemp = false,
-                                            .critical_timer = 0},
-         .history = {0},
-         .wr_idx = 0,
-         .average = TEMPERATURE_SENTINEL_VALUE},
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+const struct device fu_virtual = {.name = "fu_sensors_avg_virtual"};
+struct overtemp_info fu_overtemp_data = {.overtemp_c = FRONT_UNIT_OVERTEMP_C,
+                                         .overtemp_drop_c =
+                                             OVERTEMP_TO_NOMINAL_DROP_C,
+                                         .in_overtemp = false,
+                                         .critical_timer = 0};
+static struct sensor_and_channel fu_avg_sensors = {
+    .sensor = &fu_virtual,
+    .channel = SENSOR_CHAN_AMBIENT_TEMP,
+    .temperature_source = Temperature_TemperatureSource_FRONT_UNIT,
+    .hardware_diagnostic_source =
+        HardwareDiagnostic_Source_TEMPERATURE_SENSORS_FRONT_UNIT,
+    .cb = overtemp_callback,
+    .cb_data = &fu_overtemp_data,
+    .history = {0},
+    .wr_idx = 0,
+    .average = TEMPERATURE_SENTINEL_VALUE};
 
+#endif
+
+static struct sensor_and_channel sensors_and_channels[] = {
     [TEMPERATURE_SENSOR_MAIN_BOARD] =
 #if defined(CONFIG_BOARD_PEARL_MAIN)
         {.sensor = DEVICE_DT_GET(DT_NODELABEL(main_board_tmp_sensor)),
@@ -188,7 +189,23 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    [TEMPERATURE_SENSOR_FRONT_UNIT] =
+        {.sensor = DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor)),
+         .channel = SENSOR_CHAN_AMBIENT_TEMP,
+         .temperature_source = Temperature_TemperatureSource_FRONT_UNIT,
+         .hardware_diagnostic_source =
+             HardwareDiagnostic_Source_TEMPERATURE_SENSORS_FRONT_UNIT,
+         .cb = overtemp_callback,
+         .cb_data = &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
+                                            .overtemp_drop_c =
+                                                OVERTEMP_TO_NOMINAL_DROP_C,
+                                            .in_overtemp = false,
+                                            .critical_timer = 0},
+         .history = {0},
+         .wr_idx = 0,
+         .average = TEMPERATURE_SENTINEL_VALUE},
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
     [TEMPERATURE_SENSOR_MAIN_BOARD_USB_HUB_BOT] =
         {.sensor =
              DEVICE_DT_GET(DT_NODELABEL(main_board_tmp_sensor_usb_hub_bot)),
@@ -380,24 +397,24 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
-    [TEMPERATURE_SENSOR_FRONT_UNIT_940_CENTER_TOP] =
+    [TEMPERATURE_SENSOR_FRONT_UNIT_850_CENTER_TOP] =
         {.sensor =
-             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_940_center_top)),
+             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_850_center_top)),
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
-             Temperature_TemperatureSource_FRONT_UNIT_940_CENTER_TOP,
+             Temperature_TemperatureSource_FRONT_UNIT_850_CENTER_TOP,
          .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
-    [TEMPERATURE_SENSOR_FRONT_UNIT_940_CENTER_BOTTOM] =
+    [TEMPERATURE_SENSOR_FRONT_UNIT_850_CENTER_BOTTOM] =
         {.sensor =
-             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_940_center_bot)),
+             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_850_center_bot)),
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
-             Temperature_TemperatureSource_FRONT_UNIT_940_CENTER_BOTTOM,
+             Temperature_TemperatureSource_FRONT_UNIT_850_CENTER_BOTTOM,
          .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
          .cb = NULL,
          .cb_data = NULL,
@@ -574,13 +591,12 @@ average(const int32_t *array)
  * @param sensor_and_channel the sensor to sample along with its metadata
  * @return int64_t time in ticks it took to sample and report
  */
-static int64_t
+static void
 sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
 {
     int ret;
     size_t i;
 
-    int64_t start = k_uptime_ticks();
     for (i = 0; i < TEMPERATURE_SAMPLE_RETRY_COUNT; ++i) {
         ret = get_ambient_temperature(
             sensor_and_channel->sensor,
@@ -617,11 +633,11 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
 
     if (i == TEMPERATURE_SAMPLE_RETRY_COUNT) {
         // We failed after many attempts. Reset the history and try again later
-        LOG_ERR("Failed to sample '%s', after %d retries!",
+        LOG_ERR("Failed to sample '%s' [source %u], after %d retries!",
                 sensor_and_channel->sensor->name,
+                sensor_and_channel->temperature_source,
                 TEMPERATURE_SAMPLE_RETRY_COUNT);
         init_sensor_and_channel(sensor_and_channel);
-        return k_uptime_ticks() - start;
     }
 
     sensor_and_channel->wr_idx =
@@ -634,8 +650,6 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
                 sensor_and_channel->average);
         temperature_report_internal(sensor_and_channel);
     }
-
-    return (k_uptime_ticks() - start);
 }
 
 _Noreturn static void
@@ -647,9 +661,43 @@ temperature_thread()
                                           global_sample_period.ticks - elapsed};
         k_sleep(sleep_duration);
 
+        int64_t start = k_uptime_ticks();
         for (size_t i = 0; i < ARRAY_SIZE(sensors_and_channels); ++i) {
-            elapsed = sample_and_report_temperature(&sensors_and_channels[i]);
+            sample_and_report_temperature(&sensors_and_channels[i]);
         }
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+        // on diamond, there are many temperature sensors on the front unit
+        // so average all the temperature sensors before reporting
+        // and checking for overtemperature conditions
+        int32_t front_unit_avg = 0;
+        int32_t front_unit_count = 0;
+        for (size_t i = 0; i < ARRAY_SIZE(sensors_and_channels); ++i) {
+            if (sensors_and_channels[i].temperature_source >=
+                    Temperature_TemperatureSource_FRONT_UNIT_850_730_LEFT_TOP &&
+                sensors_and_channels[i].temperature_source <=
+                    Temperature_TemperatureSource_FRONT_UNIT_850_CENTER_BOTTOM &&
+                sensors_and_channels[i].average != TEMPERATURE_SENTINEL_VALUE) {
+                front_unit_avg += sensors_and_channels[i].average;
+                front_unit_count++;
+            }
+        }
+        if (front_unit_count > 0) {
+            fu_avg_sensors.history[fu_avg_sensors.wr_idx] =
+                front_unit_avg / front_unit_count;
+            fu_avg_sensors.wr_idx =
+                (fu_avg_sensors.wr_idx + 1) % TEMPERATURE_AVERAGE_SAMPLE_COUNT;
+            if (fu_avg_sensors.wr_idx == 0) {
+                fu_avg_sensors.average = average(fu_avg_sensors.history);
+                LOG_DBG("%s: %d: %iC", fu_avg_sensors.sensor->name,
+                        fu_avg_sensors.temperature_source,
+                        fu_avg_sensors.average);
+                temperature_report_internal(&fu_avg_sensors);
+            }
+        }
+#endif
+
+        elapsed = (k_uptime_ticks() - start);
     }
 }
 
