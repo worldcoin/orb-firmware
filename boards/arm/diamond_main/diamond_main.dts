@@ -385,13 +385,13 @@
                 reg = <0x49>;
             };
 
-            front_unit_tmp_sensor_940_center_top: tmp112@4a {
+            front_unit_tmp_sensor_850_center_top: tmp112@4a {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4a>;
             };
 
-            front_unit_tmp_sensor_940_center_bot: tmp112@4b {
+            front_unit_tmp_sensor_850_center_bot: tmp112@4b {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4b>;

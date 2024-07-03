@@ -107,8 +107,8 @@ enum temperature_sensors {
     TEMPERATURE_SENSOR_FRONT_UNIT_940_LEFT_BOTTOM,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_RIGHT_TOP,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_RIGHT_BOTTOM,
-    TEMPERATURE_SENSOR_FRONT_UNIT_940_CENTER_TOP,
-    TEMPERATURE_SENSOR_FRONT_UNIT_940_CENTER_BOTTOM,
+    TEMPERATURE_SENSOR_FRONT_UNIT_850_CENTER_TOP,
+    TEMPERATURE_SENSOR_FRONT_UNIT_850_CENTER_BOTTOM,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_WHITE_TOP,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_SHROUD_RGB_TOP,
 #endif
@@ -380,24 +380,24 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
-    [TEMPERATURE_SENSOR_FRONT_UNIT_940_CENTER_TOP] =
+    [TEMPERATURE_SENSOR_FRONT_UNIT_850_CENTER_TOP] =
         {.sensor =
-             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_940_center_top)),
+             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_850_center_top)),
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
-             Temperature_TemperatureSource_FRONT_UNIT_940_CENTER_TOP,
+             Temperature_TemperatureSource_FRONT_UNIT_850_CENTER_TOP,
          .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
-    [TEMPERATURE_SENSOR_FRONT_UNIT_940_CENTER_BOTTOM] =
+    [TEMPERATURE_SENSOR_FRONT_UNIT_850_CENTER_BOTTOM] =
         {.sensor =
-             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_940_center_bot)),
+             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_850_center_bot)),
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
-             Temperature_TemperatureSource_FRONT_UNIT_940_CENTER_BOTTOM,
+             Temperature_TemperatureSource_FRONT_UNIT_850_CENTER_BOTTOM,
          .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
          .cb = NULL,
          .cb_data = NULL,
