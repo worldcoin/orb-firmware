@@ -9,6 +9,7 @@
 #include <zephyr/kernel.h>
 
 #include "orb_logs.h"
+#include "temperature/fan/fan.h"
 LOG_MODULE_REGISTER(button, CONFIG_BUTTON_LOG_LEVEL);
 
 #define POWER_BUTTON_NODE DT_PATH(buttons, power_button)
@@ -24,8 +25,12 @@ button_released(struct k_work *item);
 static void
 button_pressed(struct k_work *item);
 
+static void
+button_long_pressed(struct k_work *item);
+
 static K_WORK_DEFINE(button_pressed_work, button_pressed);
 static K_WORK_DEFINE(button_released_work, button_released);
+static K_WORK_DELAYABLE_DEFINE(button_long_press_work, button_long_pressed);
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN) &&                                      \
     defined(CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
@@ -37,6 +42,24 @@ static const struct gpio_dt_spec cone_button_gpio_spec =
 
 #define CONE_BUTTON_POLL_PERIOD_MS 10
 #endif
+
+static void
+button_long_pressed(struct k_work *item)
+{
+    UNUSED_PARAMETER(item);
+
+    int value = gpio_pin_get_dt(&button_spec);
+    if (value == 1) {
+        fan_turn_off();
+
+        // come back every second to check if the button is still pressed
+        // until a hard reset happens. If released, the fan is turned back
+        // on.
+        k_work_schedule(&button_long_press_work, K_MSEC(1000));
+    } else {
+        fan_turn_on();
+    }
+}
 
 static void
 button_released(struct k_work *item)
@@ -74,6 +97,7 @@ button_event_handler(const struct device *dev, struct gpio_callback *cb,
         // queue work depending on button state
         if (ret == 1) {
             k_work_submit(&button_pressed_work);
+            k_work_schedule(&button_long_press_work, K_MSEC(5000));
         } else if (ret == 0) {
             k_work_submit(&button_released_work);
         } else {

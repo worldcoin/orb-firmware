@@ -47,6 +47,29 @@ const struct fan_duty_cycle_specs fan_diamond_specs = {
 
 static uint16_t fan_speed_by_value = 0; // value over UINT16_MAX range
 static struct fan_duty_cycle_specs fan_specs;
+static bool fan_is_off = false;
+
+void
+fan_turn_off(void)
+{
+    gpio_pin_set_dt(&main_fan_enable_spec, 0);
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    gpio_pin_set_dt(&aux_fan_enable_spec, 0);
+#endif
+    fan_is_off = true;
+}
+
+void
+fan_turn_on(void)
+{
+    gpio_pin_set_dt(&main_fan_enable_spec, 1);
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    gpio_pin_set_dt(&aux_fan_enable_spec, 1);
+#endif
+    fan_is_off = false;
+
+    fan_set_speed_by_value(fan_speed_by_value);
+}
 
 uint16_t
 fan_get_speed_setting(void)
@@ -118,7 +141,7 @@ fan_set_speed_by_value(uint16_t value)
 
     // Even at 0%, the fan spins. This will kill power to the fans in the case
     // of 0%.
-    if (value > 0) {
+    if (fan_is_off == false && value > 0) {
         gpio_pin_set_dt(&main_fan_enable_spec, 1);
 #if defined(CONFIG_BOARD_PEARL_MAIN)
         gpio_pin_set_dt(&aux_fan_enable_spec, 1);
