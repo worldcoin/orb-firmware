@@ -38,9 +38,9 @@ rgb_leds_set_leds_sequence(const uint8_t *input_bytes, size_t input_size_bytes,
     input_size_bytes = MIN(input_size_bytes, leds_count * led_format);
 
     if (write_mutex != NULL) {
-        int ret = k_mutex_lock(write_mutex, K_FOREVER);
+        int ret = k_mutex_lock(write_mutex, K_NO_WAIT);
         if (ret != 0) {
-            LOG_ERR("Failed to lock mutex: %d", ret);
+            LOG_ERR("set_leds_sequence: failed to lock mutex: %d", ret);
             return RET_ERROR_INTERNAL;
         }
     }
