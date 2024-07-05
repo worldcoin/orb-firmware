@@ -5,7 +5,6 @@
 #include "system/version/version.h"
 #include "ui/rgb_leds/rgb_leds.h"
 #include <app_assert.h>
-#include <assert.h>
 #include <math.h>
 #include <stdlib.h>
 #include <utils.h>
@@ -21,6 +20,7 @@ static struct k_thread front_led_thread_data;
 static K_SEM_DEFINE(sem_leds_refresh, 1,
                     1); // init to 1 to use default values below
 
+// NOLINTNEXTLINE(cppcoreguidelines-interfaces-global-init)
 static const struct device *const led_strip_w =
     DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds_w));
 
@@ -37,6 +37,7 @@ static const struct device *led_strip = led_strip_w;
 #define LED_STRIP_MAXIMUM_UPDATE_TIME_US 10000
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
 
+// NOLINTNEXTLINE(cppcoreguidelines-interfaces-global-init)
 static const struct device *const led_strip_apa =
     DEVICE_DT_GET(DT_NODELABEL(front_unit_rgb_leds_apa));
 
@@ -73,7 +74,7 @@ enum dirty_flags {
     CENTER_LEDS_DIRTY = 0x2,
     ALL_LEDS_DIRTY = 0x3,
 };
-static enum dirty_flags leds_dirty;
+static atomic_t leds_dirty;
 
 typedef union {
     struct center_ring_leds part;
@@ -81,12 +82,12 @@ typedef union {
 } user_leds_t;
 static user_leds_t leds;
 
+/// Mutex used to protect the LEDs array update from multiple threads
 static K_MUTEX_DEFINE(leds_update_mutex);
+#if defined(CONFIG_BOARD_PEARL_MAIN)
 static K_SEM_DEFINE(leds_wait_for_trigger, 0, 1);
+#endif
 static volatile bool final_done = false;
-
-static K_MUTEX_DEFINE(ring_write);
-static K_MUTEX_DEFINE(center_write);
 
 // default values
 static volatile UserLEDsPattern_UserRgbLedPattern global_pattern =
@@ -124,11 +125,11 @@ front_leds_notify_ir_leds_off(void)
 static void
 set_center(struct led_rgb color)
 {
-    if (k_mutex_lock(&center_write, K_FOREVER) == 0) {
+    if (k_mutex_lock(&leds_update_mutex, K_FOREVER) == 0) {
         for (size_t i = 0; i < ARRAY_SIZE(leds.part.center_leds); ++i) {
             leds.part.center_leds[i] = color;
         }
-        k_mutex_unlock(&center_write);
+        k_mutex_unlock(&leds_update_mutex);
     }
 }
 
@@ -143,7 +144,7 @@ set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
     size_t led_index =
         INDEX_RING_ZERO - NUM_RING_LEDS * start_angle / FULL_RING_DEGREES;
 
-    if (k_mutex_lock(&ring_write, K_FOREVER) == 0) {
+    if (k_mutex_lock(&leds_update_mutex, K_FOREVER) == 0) {
         for (size_t i = 0; i < NUM_RING_LEDS; ++i) {
             if (i < (size_t)(NUM_RING_LEDS * abs(angle_length) /
                              FULL_RING_DEGREES)) {
@@ -163,7 +164,7 @@ set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
             }
         }
 
-        k_mutex_unlock(&ring_write);
+        k_mutex_unlock(&leds_update_mutex);
     }
 }
 
@@ -177,7 +178,6 @@ front_leds_thread()
     uint32_t start_angle_degrees;
     int32_t angle_length_degrees;
     float pulsing_scale;
-    uint32_t pulsing_period_ms;
     float scaler;
     k_timeout_t wait_until = K_FOREVER;
     uint32_t pulsing_index = ARRAY_SIZE(SINE_LUT);
@@ -195,7 +195,6 @@ front_leds_thread()
         start_angle_degrees = global_start_angle_degrees;
         angle_length_degrees = global_angle_length_degrees;
         pulsing_scale = global_pulsing_scale;
-        pulsing_period_ms = global_pulsing_period_ms;
         CRITICAL_SECTION_EXIT(k);
 
         if (!use_sequence) {
@@ -224,8 +223,11 @@ front_leds_thread()
                                           ? SHADES_PER_COLOR
                                           : intensity;
                     for (size_t i = 0; i < ARRAY_SIZE(leds.all); ++i) {
+                        // NOLINTNEXTLINE(cert-msc30-c, cert-msc50-cpp)
                         leds.all[i].r = rand() % shades * (intensity / shades);
+                        // NOLINTNEXTLINE(cert-msc30-c, cert-msc50-cpp)
                         leds.all[i].g = rand() % shades * (intensity / shades);
+                        // NOLINTNEXTLINE(cert-msc30-c, cert-msc50-cpp)
                         leds.all[i].b = rand() % shades * (intensity / shades);
                     }
                     wait_until = K_MSEC(50);
@@ -261,13 +263,13 @@ front_leds_thread()
                 set_ring(color, start_angle_degrees, angle_length_degrees);
                 set_center(color);
                 break;
-            case UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE:;
+            case UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE:
                 color.r = MINIMUM_WHITE_BRIGHTNESS;
                 color.g = MINIMUM_WHITE_BRIGHTNESS;
                 color.b = MINIMUM_WHITE_BRIGHTNESS;
                 pulsing_scale = PULSING_SCALE_DEFAULT;
                 // fallthrough
-            case UserLEDsPattern_UserRgbLedPattern_PULSING_RGB:;
+            case UserLEDsPattern_UserRgbLedPattern_PULSING_RGB:
                 if (pulsing_index < ARRAY_SIZE(SINE_LUT)) {
                     // from 0 to 1.0
                     scaler = SINE_LUT[pulsing_index] * pulsing_scale;
@@ -278,7 +280,7 @@ front_leds_thread()
                     scaler = SINE_LUT[index] * pulsing_scale;
                 }
 #if defined(CONFIG_SPI_RGB_LED_DIMMING)
-                color.scratch = roundf(scaler * color.scratch);
+                color.scratch = lroundf(scaler * (float)color.scratch);
 #else
                 color.r = roundf(scaler * color.r);
                 color.g = roundf(scaler * color.g);
@@ -300,7 +302,7 @@ front_leds_thread()
                     scaler = SINE_LUT[index] * PULSING_SCALE_DEFAULT;
                 }
 #if defined(CONFIG_SPI_RGB_LED_DIMMING)
-                color.scratch = roundf(scaler * color.scratch);
+                color.scratch = lroundf(scaler * (float)color.scratch);
 #else
                 color.r = roundf(scaler * color.r);
                 color.g = roundf(scaler * color.g);
@@ -330,7 +332,7 @@ front_leds_thread()
                     scaler = SINE_LUT[index] * PULSING_SCALE_DEFAULT;
                 }
 #if defined(CONFIG_SPI_RGB_LED_DIMMING)
-                color.scratch = roundf(scaler * color.scratch);
+                color.scratch = lroundf(scaler * (float)color.scratch);
 #else
                 color.r = roundf(scaler * color.r);
                 color.g = roundf(scaler * color.g);
@@ -368,12 +370,13 @@ front_leds_thread()
             }
 #endif
             led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
-            leds_dirty = ALL_LEDS_DIRTY;
+            atomic_set(&leds_dirty, ALL_LEDS_DIRTY);
         }
         k_mutex_unlock(&leds_update_mutex);
     }
 }
 
+#ifdef CONFIG_FRONT_UNIT_RGB_LEDS_LOG_LEVEL_DBG
 static void
 print_new_debug(UserLEDsPattern_UserRgbLedPattern pattern, uint32_t start_angle,
                 int32_t angle_length, RgbColor *color,
@@ -390,13 +393,14 @@ print_new_debug(UserLEDsPattern_UserRgbLedPattern pattern, uint32_t start_angle,
     LOG_DBG("pulsing period = %" PRIu32 "ms", pulsing_period_ms);
     LOG_DBG("pulsing scale = %g", pulsing_scale);
 }
+#endif
 
 static ret_code_t
 pulsing_rgb_check_range(RgbColor *color, float pulsing_scale)
 {
-    if ((roundf(color->red * (pulsing_scale + 1)) > 255) ||
-        (roundf(color->green * (pulsing_scale + 1)) > 255) ||
-        (roundf(color->blue * (pulsing_scale + 1)) > 255)) {
+    if ((lroundf((float)color->red * (pulsing_scale + 1)) > 255) ||
+        (lroundf((float)color->green * (pulsing_scale + 1)) > 255) ||
+        (lroundf((float)color->blue * (pulsing_scale + 1)) > 255)) {
         LOG_ERR("Pulsing scale too large");
         return RET_ERROR_INVALID_PARAM;
     } else {
@@ -477,8 +481,10 @@ front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
     if (!previous_settings_are_identical(pattern, start_angle, angle_length,
                                          color, pulsing_period_ms,
                                          pulsing_scale)) {
+#ifdef CONFIG_FRONT_UNIT_RGB_LEDS_LOG_LEVEL_DBG
         print_new_debug(pattern, start_angle, angle_length, color,
                         pulsing_period_ms, pulsing_scale);
+#endif
         update_parameters(pattern, start_angle, angle_length, color,
                           pulsing_period_ms, pulsing_scale);
         k_sem_give(&sem_leds_refresh);
@@ -492,14 +498,15 @@ front_leds_set_center_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 {
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_ARGB, leds.part.center_leds,
-        ARRAY_SIZE(leds.part.center_leds), &center_write);
+        ARRAY_SIZE(leds.part.center_leds), &leds_update_mutex);
+
     if (ret == RET_SUCCESS || ret == RET_ERROR_ALREADY_INITIALIZED) {
         // RET_ERROR_ALREADY_INITIALIZED or RET_SUCCESS
         // update strip if both center and ring have been
-        // set into the led buffer
+        // set into the LED buffer
         use_sequence = true;
-        leds_dirty &= ~CENTER_LEDS_DIRTY;
-        if (leds_dirty == 0) {
+        atomic_and(&leds_dirty, ~CENTER_LEDS_DIRTY);
+        if (atomic_get(&leds_dirty) == 0) {
             k_sem_give(&sem_leds_refresh);
         }
         ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
@@ -515,14 +522,15 @@ front_leds_set_center_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
 {
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_RGB, leds.part.center_leds,
-        ARRAY_SIZE(leds.part.center_leds), &center_write);
+        ARRAY_SIZE(leds.part.center_leds), &leds_update_mutex);
+
     if (ret == RET_SUCCESS || ret == RET_ERROR_ALREADY_INITIALIZED) {
         // RET_ERROR_ALREADY_INITIALIZED or RET_SUCCESS
         // update strip if both center and ring have been
-        // set into the led buffer
+        // set into the LED buffer
         use_sequence = true;
-        leds_dirty &= ~CENTER_LEDS_DIRTY;
-        if (leds_dirty == 0) {
+        atomic_and(&leds_dirty, ~CENTER_LEDS_DIRTY);
+        if (atomic_get(&leds_dirty) == 0) {
             k_sem_give(&sem_leds_refresh);
         }
         ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
@@ -538,14 +546,15 @@ front_leds_set_ring_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 {
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_ARGB, leds.part.ring_leds,
-        ARRAY_SIZE(leds.part.ring_leds), &ring_write);
+        ARRAY_SIZE(leds.part.ring_leds), &leds_update_mutex);
+
     if (ret == RET_SUCCESS || ret == RET_ERROR_ALREADY_INITIALIZED) {
         // RET_ERROR_ALREADY_INITIALIZED or RET_SUCCESS
         // update strip if both center and ring have been
-        // set into the led buffer
+        // set into the LED buffer
         use_sequence = true;
-        leds_dirty &= ~RING_LEDS_DIRTY;
-        if (leds_dirty == 0) {
+        atomic_and(&leds_dirty, ~RING_LEDS_DIRTY);
+        if (atomic_get(&leds_dirty) == 0) {
             k_sem_give(&sem_leds_refresh);
         }
         ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
@@ -561,14 +570,15 @@ front_leds_set_ring_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
 {
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_RGB, leds.part.ring_leds,
-        ARRAY_SIZE(leds.part.ring_leds), &ring_write);
+        ARRAY_SIZE(leds.part.ring_leds), &leds_update_mutex);
+
     if (ret == RET_SUCCESS || ret == RET_ERROR_ALREADY_INITIALIZED) {
         // RET_ERROR_ALREADY_INITIALIZED or RET_SUCCESS
         // update strip if both center and ring have been
-        // set into the led buffer
+        // set into the LED buffer
         use_sequence = true;
-        leds_dirty &= ~RING_LEDS_DIRTY;
-        if (leds_dirty == 0) {
+        atomic_and(&leds_dirty, ~RING_LEDS_DIRTY);
+        if (atomic_get(&leds_dirty) == 0) {
             k_sem_give(&sem_leds_refresh);
         }
         ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
@@ -597,7 +607,7 @@ front_leds_turn_off_blocking(void)
     memset(leds.all, 0, sizeof leds.all);
     led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
     led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
-    leds_dirty = ALL_LEDS_DIRTY;
+    atomic_set(&leds_dirty, ALL_LEDS_DIRTY);
     k_mutex_unlock(&leds_update_mutex);
 }
 
@@ -634,8 +644,8 @@ int
 front_leds_initial_state(void)
 {
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    ASSERT_CONST_POINTER_NOT_NULL(led_strip_apa);
-    ASSERT_CONST_POINTER_NOT_NULL(led_strip_w);
+    ASSERT_CONST_POINTER_NOT_NULL(led_strip_apa)
+    ASSERT_CONST_POINTER_NOT_NULL(led_strip_w)
 
     Hardware_FrontUnitVersion fu_version = version_get_front_unit_rev();
     if (fu_version == Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2B) {
@@ -650,8 +660,10 @@ front_leds_initial_state(void)
 
     set_center((struct led_rgb)RGB_OFF);
     set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
+    k_mutex_lock(&leds_update_mutex, K_FOREVER);
     led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
-    leds_dirty = ALL_LEDS_DIRTY;
+    atomic_set(&leds_dirty, ALL_LEDS_DIRTY);
+    k_mutex_unlock(&leds_update_mutex);
 
     return 0;
 }
