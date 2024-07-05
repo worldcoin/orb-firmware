@@ -511,9 +511,10 @@ front_leds_set_center_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
         }
         ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
                            // expected values
-    } else {
+    } else if (ret != RET_ERROR_INTERNAL) {
         ASSERT_SOFT(ret);
     }
+
     return ret;
 }
 
@@ -535,9 +536,10 @@ front_leds_set_center_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
         }
         ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
                            // expected values
-    } else {
+    } else if (ret != RET_ERROR_INTERNAL) {
         ASSERT_SOFT(ret);
     }
+
     return ret;
 }
 
@@ -559,9 +561,10 @@ front_leds_set_ring_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
         }
         ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
                            // expected values
-    } else {
+    } else if (ret != RET_ERROR_INTERNAL) {
         ASSERT_SOFT(ret);
     }
+
     return ret;
 }
 
@@ -583,9 +586,10 @@ front_leds_set_ring_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
         }
         ret = RET_SUCCESS; // overwrite the error if LEDs are already set to
                            // expected values
-    } else {
+    } else if (ret != RET_ERROR_INTERNAL) {
         ASSERT_SOFT(ret);
     }
+
     return ret;
 }
 
