@@ -130,7 +130,7 @@ distance_is_unsafe_cb(void)
 }
 
 int
-optics_init(const Hardware *hw_version)
+optics_init(const Hardware *hw_version, struct k_mutex *mutex)
 {
     int err_code;
 
@@ -156,7 +156,7 @@ optics_init(const Hardware *hw_version)
         return err_code;
     }
 
-    err_code = tof_1d_init(distance_is_unsafe_cb);
+    err_code = tof_1d_init(distance_is_unsafe_cb, mutex);
     if (err_code) {
         ASSERT_SOFT(err_code);
         return err_code;
