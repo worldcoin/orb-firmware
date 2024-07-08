@@ -568,7 +568,7 @@ dfu_init(void)
         if (secondary_slot_header.ih_img_size != 0 &&
             secondary_slot_header.ih_magic != IMAGE_MAGIC) {
             // no valid image in secondary slot, brand-new device?
-            LOG_WRN("Secondary-slot image magic not found, new device?");
+            LOG_INF("Secondary-slot image magic not found, new device?");
             memset(&secondary_slot_header, 0, sizeof(secondary_slot_header));
         } else {
             img_size = secondary_slot_header.ih_hdr_size +
