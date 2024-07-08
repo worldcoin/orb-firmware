@@ -525,11 +525,11 @@ get_ambient_temperature(const struct device *dev, int32_t *temp,
         }
     } else {
         if (device_is_ready(dev) == false) {
-            return RET_ERROR_INTERNAL;
+            return RET_ERROR_NOT_INITIALIZED;
         }
         if (k_mutex_lock(temperature_i2c_mux_mutex, K_MSEC(100)) != 0) {
             LOG_ERR("Could not lock mutex.");
-            return RET_ERROR_INTERNAL;
+            return RET_ERROR_BUSY;
         }
         ret = sensor_sample_fetch(dev);
         k_mutex_unlock(temperature_i2c_mux_mutex);
@@ -633,10 +633,11 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
 
     if (i == TEMPERATURE_SAMPLE_RETRY_COUNT) {
         // We failed after many attempts. Reset the history and try again later
-        LOG_ERR("Failed to sample '%s' [source %u], after %d retries!",
-                sensor_and_channel->sensor->name,
-                sensor_and_channel->temperature_source,
-                TEMPERATURE_SAMPLE_RETRY_COUNT);
+        LOG_ERR(
+            "Failed to sample '%s' [source %u], after %d retries. Last ret: %d",
+            sensor_and_channel->sensor->name,
+            sensor_and_channel->temperature_source,
+            TEMPERATURE_SAMPLE_RETRY_COUNT, ret);
         init_sensor_and_channel(sensor_and_channel);
     }
 
