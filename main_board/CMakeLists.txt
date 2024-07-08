@@ -18,7 +18,9 @@ else ()
     add_compile_definitions(DEBUG)
 
     list(APPEND OVERLAY_CONFIG "debug.conf")
-    list(APPEND DTC_OVERLAY_FILE "debug.overlay")
+    set(DTC_OVERLAY_FILE
+            "${DTC_OVERLAY_FILE} debug.overlay"
+            CACHE STRING "" FORCE)
 endif ()
 
 # Generate version for the current project
