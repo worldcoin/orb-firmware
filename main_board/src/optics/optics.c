@@ -181,8 +181,6 @@ optics_init(const Hardware *hw_version, struct k_mutex *mutex)
         LOG_WRN("Eye safety circuitry tripped");
     }
 
-    LOG_ERR(
-        "Eye safety circuitry detection not implemented on Diamond hardware");
     atomic_set_bit(fu_pvcc_enabled, ATOMIC_FU_PVCC_ENABLED_BIT);
 
     UNUSED_PARAMETER(hw_version);
