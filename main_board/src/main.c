@@ -258,7 +258,7 @@ initialize(void)
     if (err_code == RET_SUCCESS) {
         err_code = boot_turn_on_pvcc();
         if (err_code == RET_SUCCESS) {
-            err_code = optics_init(&hw);
+            err_code = optics_init(&hw, &analog_and_i2c_mutex);
             ASSERT_SOFT(err_code);
         } else {
             ASSERT_SOFT(err_code);

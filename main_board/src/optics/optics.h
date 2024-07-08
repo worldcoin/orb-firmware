@@ -2,6 +2,7 @@
 
 #include "mcu_messaging_main.pb.h"
 #include <stdbool.h>
+#include <zephyr/kernel.h>
 
 /**
  * @brief Check whether the optics components are usable
@@ -26,10 +27,11 @@ optics_safety_circuit_triggered(void);
 /**
  * @brief Initialize the optics components
  * @param *hw_version Mainboard hardware version
+ * @param *mutex Mutex for I2C operations
  * @return error code
  */
 int
-optics_init(const Hardware *hw_version);
+optics_init(const Hardware *hw_version, struct k_mutex *mutex);
 
 /**
  * @brief Test that safety circuitry is responding
