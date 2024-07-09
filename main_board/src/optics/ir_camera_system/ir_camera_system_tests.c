@@ -16,6 +16,8 @@
 #endif
 LOG_MODULE_REGISTER(ir_camera_system_tests_init);
 
+static const uint16_t low_fps = 20;
+
 // These tests are intended to be observed with a logic analyzer
 
 #define PRINT_TEST_NAME() LOG_INF("Executing test '%s'", __func__)
@@ -356,7 +358,6 @@ ZTEST(ir_camera, test_ir_camera_invalid_wavelengths)
 ZTEST(ir_camera, test_ir_camera_valid_on_time_and_duty_limits)
 {
     bool safety_circuit_tripped;
-    const uint16_t low_fps = 20;
 
     safety_circuit_tripped = optics_safety_circuit_triggered();
     zassert_false(safety_circuit_tripped, "PVCC not available");
@@ -447,6 +448,29 @@ ZTEST(ir_camera, test_ir_camera_valid_on_time_and_duty_limits)
                           wavelength);
         }
     }
+}
+
+ZTEST(ir_camera, test_ir_led_timeout)
+{
+    ret_code_t ret;
+
+    // set valid on-time
+    ret =
+        ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+    zassert_equal(ret, RET_SUCCESS, "Failed to enable LEDs");
+
+    ret = ir_camera_system_set_on_time_us(
+        1000); // should pass safety circuit shouldn't trip
+    zassert_equal(ret, RET_SUCCESS, "Failed to set on-time");
+
+    ret = ir_camera_system_set_fps(low_fps);
+    zassert_equal(ret, RET_SUCCESS, "Failed to set FPS");
+
+    k_msleep(IR_LED_AUTO_OFF_TIMEOUT_S * 1000 + 100);
+    InfraredLEDs_Wavelength wavelength = ir_camera_system_get_enabled_leds();
+    zassert_equal(wavelength, InfraredLEDs_Wavelength_WAVELENGTH_NONE,
+                  "IR LEDs should be off after %d seconds",
+                  IR_LED_AUTO_OFF_TIMEOUT_S);
 }
 
 ZTEST(ir_camera, test_ir_camera_invalid_ir_wavelengths_msgs)
