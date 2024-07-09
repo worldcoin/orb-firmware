@@ -907,7 +907,7 @@ overtemp_callback(struct sensor_and_channel *sensor_and_channel)
     return RET_SUCCESS;
 }
 
-#ifdef CONFIG_ZTEST
+#if CONFIG_ZTEST
 
 #include <zephyr/ztest.h>
 
@@ -962,6 +962,9 @@ ZTEST(hil, test_overtemp)
     zassert_not_equal(
         num_sensors_in_overtemp_conditions, 0,
         "num_sensors_in_overtemp_conditions should be greater than 0");
+    uint16_t fan_speed = fan_get_speed_setting();
+    zassert_equal(fan_speed, UINT16_MAX,
+                  "fan speed should be UINT16_MAX in overtemp");
 
     // reset in_overtemp to false by setting average to lower than overtemp_c -
     // overtemp_drop_c this will reset the fan to initial speed
@@ -987,6 +990,9 @@ ZTEST(hil, test_overtemp)
         "in_overtemp should be true because average is higher than overtemp_c");
     zassert_not_equal(fake_overtemp_info.critical_timer, 0,
                       "Critical timer should have been reset");
+    fan_speed = fan_get_speed_setting();
+    zassert_equal(fan_speed, UINT16_MAX,
+                  "fan speed should be UINT16_MAX in overtemp");
 
     // wait a bit for the critical temperature timer advance, without expiring
     k_msleep(CRITICAL_TO_SHUTDOWN_DELAY_MS / 2);
