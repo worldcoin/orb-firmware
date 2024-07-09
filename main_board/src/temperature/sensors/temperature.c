@@ -8,6 +8,7 @@
 #include <app_config.h>
 #include <math.h>
 #include <stdlib.h>
+#include <utils.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
@@ -57,16 +58,16 @@ static const uint16_t cal_vref_mv =
 
 struct sensor_and_channel; // forward declaration
 
-typedef void (*temperature_callback)(
+typedef int (*temperature_callback)(
     struct sensor_and_channel *sensor_and_channel);
-static void
+static int
 overtemp_callback(struct sensor_and_channel *sensor_and_channel);
 
 static struct k_mutex *temperature_i2c_mux_mutex;
 
 struct overtemp_info {
-    int32_t overtemp_c;
-    int32_t overtemp_drop_c;
+    const int32_t overtemp_c;
+    const int32_t overtemp_drop_c;
     bool in_overtemp;
     uint32_t critical_timer;
 };
@@ -559,7 +560,8 @@ temperature_report_internal(struct sensor_and_channel *sensor_and_channel)
                        sensor_and_channel->average);
 
     if (sensor_and_channel->cb) {
-        sensor_and_channel->cb(sensor_and_channel);
+        int ret = sensor_and_channel->cb(sensor_and_channel);
+        ASSERT_SOFT(ret);
     }
 }
 
@@ -835,19 +837,27 @@ dec_overtemp_condition(void)
     check_overtemp_conditions();
 }
 
-static void
+static int
 overtemp_callback(struct sensor_and_channel *sensor_and_channel)
 {
+    static uint64_t last_system_time = 0;
+
     struct overtemp_info *overtemp_info =
         (struct overtemp_info *)sensor_and_channel->cb_data;
 
     if (overtemp_info == NULL) {
         LOG_ERR("Over-temperature callback called without data");
-        return;
+        return RET_ERROR_INVALID_PARAM;
     }
 
     if (sensor_and_channel->average >
         overtemp_info->overtemp_c + OVERTEMP_TO_CRITICAL_RISE_C) {
+        if (overtemp_info->critical_timer == 0) {
+            last_system_time = k_uptime_get();
+        } else {
+            overtemp_info->critical_timer += k_uptime_delta(&last_system_time);
+            last_system_time = k_uptime_get();
+        }
         overtemp_info->critical_timer +=
             (global_sample_period.ticks * TEMPERATURE_AVERAGE_SAMPLE_COUNT *
              1000 / CONFIG_SYS_CLOCK_TICKS_PER_SEC);
@@ -866,6 +876,11 @@ overtemp_callback(struct sensor_and_channel *sensor_and_channel)
 #ifdef CONFIG_MEMFAULT
             MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_Temperature);
 #endif
+
+            // return early to avoid system reboot during ztest
+            if (IS_ENABLED(CONFIG_ZTEST)) {
+                return -1;
+            }
 
             sys_reboot(0);
         }
@@ -888,4 +903,117 @@ overtemp_callback(struct sensor_and_channel *sensor_and_channel)
         overtemp_info->in_overtemp = false;
         dec_overtemp_condition();
     }
+
+    return RET_SUCCESS;
 }
+
+#if CONFIG_ZTEST
+
+#include <zephyr/ztest.h>
+
+ZTEST(hil, test_overtemp)
+{
+#define FAKE_SENSOR_OVERTEMP_C 50
+
+    struct sensor_and_channel fake_sensor_and_channel = {
+        .sensor = &(struct device){.name = "fake_sensor"},
+        .channel = SENSOR_CHAN_DIE_TEMP,
+        .temperature_source = Temperature_TemperatureSource_MAIN_MCU,
+        .hardware_diagnostic_source = HardwareDiagnostic_Source_UNKNOWN,
+        .cb = overtemp_callback,
+        .cb_data = NULL,
+        .wr_idx = 0,
+        .average = TEMPERATURE_SENTINEL_VALUE,
+    };
+
+    struct overtemp_info fake_overtemp_info = {
+        .overtemp_c = FAKE_SENSOR_OVERTEMP_C,
+        .overtemp_drop_c = OVERTEMP_TO_NOMINAL_DROP_C,
+        .in_overtemp = false,
+        .critical_timer = 1, // different from 0 to test reset
+    };
+
+    int ret = overtemp_callback(&fake_sensor_and_channel);
+    // cb_data is NULL, so should return RET_ERROR_INVALID_PARAM
+    zassert_equal(ret, RET_ERROR_INVALID_PARAM,
+                  "overtemp_callback should return RET_ERROR_INVALID_PARAM");
+
+    fake_sensor_and_channel.cb_data = &fake_overtemp_info;
+
+    // set average to nominal temperature
+    fake_sensor_and_channel.average = FAKE_SENSOR_OVERTEMP_C - 1;
+    ret = overtemp_callback(&fake_sensor_and_channel);
+    zassert_equal(ret, RET_SUCCESS,
+                  "overtemp_callback should return RET_SUCCESS");
+    zassert_equal(fake_overtemp_info.critical_timer, 0,
+                  "Critical timer should have been reset");
+
+    // set average to over-temperature, not critical
+    // this will put the fan at full speed
+    fake_sensor_and_channel.average = FAKE_SENSOR_OVERTEMP_C + 1;
+    ret = overtemp_callback(&fake_sensor_and_channel);
+    zassert_equal(ret, RET_SUCCESS,
+                  "overtemp_callback should return RET_SUCCESS");
+    zassert_equal(fake_overtemp_info.critical_timer, 0,
+                  "Critical timer should have been reset");
+    zassert_equal(
+        fake_overtemp_info.in_overtemp, true,
+        "in_overtemp should be true because average is higher than overtemp_c");
+    zassert_not_equal(
+        num_sensors_in_overtemp_conditions, 0,
+        "num_sensors_in_overtemp_conditions should be greater than 0");
+    uint16_t fan_speed = fan_get_speed_setting();
+    zassert_equal(fan_speed, UINT16_MAX,
+                  "fan speed should be UINT16_MAX in overtemp");
+
+    // reset in_overtemp to false by setting average to lower than overtemp_c -
+    // overtemp_drop_c this will reset the fan to initial speed
+    fake_sensor_and_channel.average =
+        FAKE_SENSOR_OVERTEMP_C - OVERTEMP_TO_NOMINAL_DROP_C - 1;
+    ret = overtemp_callback(&fake_sensor_and_channel);
+    zassert_equal(ret, RET_SUCCESS,
+                  "overtemp_callback should return RET_SUCCESS");
+    zassert_equal(fake_overtemp_info.in_overtemp, false,
+                  "in_overtemp should be false because average is lower than "
+                  "overtemp_c - overtemp_drop_c");
+    zassert_equal(fake_overtemp_info.critical_timer, 0,
+                  "Critical timer should have been reset");
+
+    // set average to over-temperature, critical
+    fake_sensor_and_channel.average =
+        FAKE_SENSOR_OVERTEMP_C + OVERTEMP_TO_NOMINAL_DROP_C + 1;
+    ret = overtemp_callback(&fake_sensor_and_channel);
+    zassert_equal(ret, RET_SUCCESS,
+                  "overtemp_callback should return RET_SUCCESS");
+    zassert_equal(
+        fake_overtemp_info.in_overtemp, true,
+        "in_overtemp should be true because average is higher than overtemp_c");
+    zassert_not_equal(fake_overtemp_info.critical_timer, 0,
+                      "Critical timer should have been reset");
+    fan_speed = fan_get_speed_setting();
+    zassert_equal(fan_speed, UINT16_MAX,
+                  "fan speed should be UINT16_MAX in overtemp");
+
+    // wait a bit for the critical temperature timer advance, without expiring
+    k_msleep(CRITICAL_TO_SHUTDOWN_DELAY_MS / 2);
+    ret = overtemp_callback(&fake_sensor_and_channel);
+    zassert_equal(ret, RET_SUCCESS,
+                  "overtemp_callback should return RET_SUCCESS because "
+                  "critical temperature timer has not expired");
+
+    // wait a bit to make sure the critical timer has expired
+    k_msleep(CRITICAL_TO_SHUTDOWN_DELAY_MS / 2 + 1);
+    // critial timer has expired, so should return -1 when in ztest
+    ret = overtemp_callback(&fake_sensor_and_channel);
+    zassert_equal(
+        ret, (-1),
+        "overtemp_callback should return -1 (<=> system reboot) when in ztest");
+
+    // reset fan speed
+    fake_sensor_and_channel.average =
+        FAKE_SENSOR_OVERTEMP_C - OVERTEMP_TO_NOMINAL_DROP_C - 1;
+    ret = overtemp_callback(&fake_sensor_and_channel);
+    zassert_equal(ret, RET_SUCCESS,
+                  "overtemp_callback should return RET_SUCCESS");
+}
+#endif
