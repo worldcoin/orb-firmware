@@ -33,8 +33,11 @@ ui_init(void)
     err_code = operator_leds_init();
     ASSERT_SOFT(err_code);
 
-#if defined(CONFIG_BOARD_DIAMOND_MAIN) &&                                      \
-    defined(CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    err_code = white_leds_init();
+    ASSERT_SOFT(err_code);
+
+#if defined(CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
     BUILD_ASSERT(CONFIG_SC18IS606_INIT_PRIO > CONFIG_I2C_INIT_PRIO_INST_2,
                  "I2C4 must be configured before using it by SC16IS606.");
     BUILD_ASSERT(CONFIG_LED_STRIP_INIT_PRIORITY >
@@ -44,9 +47,7 @@ ui_init(void)
 
     cone_present = (cone_leds_init() == RET_SUCCESS);
     ui_cone_present_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-
-    err_code = white_leds_init();
-    ASSERT_SOFT(err_code);
+#endif
 #endif
 
     return RET_SUCCESS;
