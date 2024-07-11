@@ -25,23 +25,14 @@ button_released(struct k_work *item);
 static void
 button_pressed(struct k_work *item);
 
+static K_WORK_DEFINE(button_pressed_work, button_pressed);
+static K_WORK_DEFINE(button_released_work, button_released);
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
 static void
 button_long_pressed(struct k_work *item);
 
-static K_WORK_DEFINE(button_pressed_work, button_pressed);
-static K_WORK_DEFINE(button_released_work, button_released);
 static K_WORK_DELAYABLE_DEFINE(button_long_press_work, button_long_pressed);
-
-#if defined(CONFIG_BOARD_DIAMOND_MAIN) &&                                      \
-    defined(CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
-K_THREAD_STACK_DEFINE(cone_button_thread_stack, THREAD_STACK_SIZE_CONE_BUTTON);
-static struct k_thread cone_button_thread_data = {0};
-
-static const struct gpio_dt_spec cone_button_gpio_spec =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), cone_button_gpios);
-
-#define CONE_BUTTON_POLL_PERIOD_MS 10
-#endif
 
 static void
 button_long_pressed(struct k_work *item)
@@ -60,6 +51,18 @@ button_long_pressed(struct k_work *item)
         fan_turn_on();
     }
 }
+#endif
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN) &&                                      \
+    defined(CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
+K_THREAD_STACK_DEFINE(cone_button_thread_stack, THREAD_STACK_SIZE_CONE_BUTTON);
+static struct k_thread cone_button_thread_data = {0};
+
+static const struct gpio_dt_spec cone_button_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), cone_button_gpios);
+
+#define CONE_BUTTON_POLL_PERIOD_MS 10
+#endif
 
 static void
 button_released(struct k_work *item)
@@ -97,7 +100,9 @@ button_event_handler(const struct device *dev, struct gpio_callback *cb,
         // queue work depending on button state
         if (ret == 1) {
             k_work_submit(&button_pressed_work);
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
             k_work_schedule(&button_long_press_work, K_MSEC(5000));
+#endif
         } else if (ret == 0) {
             k_work_submit(&button_released_work);
         } else {
