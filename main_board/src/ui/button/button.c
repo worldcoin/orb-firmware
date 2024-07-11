@@ -10,6 +10,7 @@
 
 #include "orb_logs.h"
 #include "temperature/fan/fan.h"
+
 LOG_MODULE_REGISTER(button, CONFIG_BUTTON_LOG_LEVEL);
 
 #define POWER_BUTTON_NODE DT_PATH(buttons, power_button)
@@ -29,26 +30,32 @@ static K_WORK_DEFINE(button_pressed_work, button_pressed);
 static K_WORK_DEFINE(button_released_work, button_released);
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
+
+#if defined(CONFIG_MEMFAULT)
+#include <memfault/core/reboot_tracking.h>
+#endif
+
 static void
 button_long_pressed(struct k_work *item);
 
 static K_WORK_DELAYABLE_DEFINE(button_long_press_work, button_long_pressed);
+#define LONG_PRESS_HARD_RESET_TIMEOUT_MS 6000
 
 static void
 button_long_pressed(struct k_work *item)
 {
     UNUSED_PARAMETER(item);
 
+    // check if the button is still pressed
     int value = gpio_pin_get_dt(&button_spec);
     if (value == 1) {
         fan_turn_off();
-
-        // come back every second to check if the button is still pressed
-        // until a hard reset happens. If released, the fan is turned back
-        // on.
-        k_work_schedule(&button_long_press_work, K_MSEC(1000));
-    } else {
-        fan_turn_on();
+#if CONFIG_MEMFAULT
+        MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_ButtonReset);
+#endif
+        if (reboot(1) != RET_SUCCESS) {
+            NVIC_SystemReset();
+        }
     }
 }
 #endif
@@ -101,10 +108,14 @@ button_event_handler(const struct device *dev, struct gpio_callback *cb,
         if (ret == 1) {
             k_work_submit(&button_pressed_work);
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-            k_work_schedule(&button_long_press_work, K_MSEC(5000));
+            k_work_schedule(&button_long_press_work,
+                            K_MSEC(LONG_PRESS_HARD_RESET_TIMEOUT_MS));
 #endif
         } else if (ret == 0) {
             k_work_submit(&button_released_work);
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+            k_work_cancel_delayable(&button_long_press_work);
+#endif
         } else {
             // error, do nothing
         }
