@@ -930,13 +930,15 @@ voltage_measurement_publish_thread()
 
             for (uint8_t i = 0; i < NUMBER_OF_SUPER_CAPS; i++) {
                 if (super_cap_differential_voltages[i] < 0) {
+                    LOG_WRN("super cap voltage #%u below 0: %d", i,
+                            super_cap_differential_voltages[i]);
                     super_cap_differential_voltages[i] = 0;
-                    LOG_WRN("super cap voltage %d below 0", i);
                 }
 
                 if (super_cap_differential_voltages[i] > 20000) {
+                    LOG_WRN("super cap voltage #%u above 20V: %d", i,
+                            super_cap_differential_voltages[i]);
                     super_cap_differential_voltages[i] = 20000;
-                    LOG_WRN("super cap voltage %d above 20 V", i);
                 }
             }
         } else {
