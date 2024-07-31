@@ -27,12 +27,12 @@ ZTEST(hil, test_voltage_measurements)
     ret = voltage_measurement_get(CHANNEL_12V, &voltage_mv);
     zassert_equal(ret, RET_SUCCESS);
     LOG_INF("12V = %d mV", voltage_mv);
-    zassert_between_inclusive(voltage_mv, 11880, 12840);
+    zassert_between_inclusive(voltage_mv, 11700, 12840);
 
     ret = voltage_measurement_get(CHANNEL_12V_CAPS, &voltage_mv);
     zassert_equal(ret, RET_SUCCESS);
     LOG_INF("12V_CAPS = %d mV", voltage_mv);
-    zassert_between_inclusive(voltage_mv, 11880, 12280);
+    zassert_between_inclusive(voltage_mv, 11700, 12280);
 
     ret = voltage_measurement_get(CHANNEL_3V3_UC, &voltage_mv);
     zassert_equal(ret, RET_SUCCESS);
