@@ -4,13 +4,13 @@
 
 ### Download the source
 
-First, follow the instructions in the [top-level README.md](../../README.md).
+First, follow the instructions in the [top-level README.md](../README.md).
 
 Once downloaded, `west` will check out this repository in the `orb` directory with a branch called `manifest-rev`. If
 you want to work on the repo, make sure to check out the `main` branch and branch from there.
 
 ```shell
-cd "$REPO_DIR"/orb
+cd "$REPO_DIR"/orb/public/
 git remote add origin <repo-url.git>
 git fetch
 git checkout main
