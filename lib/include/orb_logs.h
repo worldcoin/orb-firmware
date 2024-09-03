@@ -15,20 +15,23 @@
 
 #include "logs_can.h"
 
-#if defined(CONFIG_MEMFAULT)
+#if defined(CONFIG_MEMFAULT) && defined(CONFIG_MEMFAULT_COMPACT_LOG)
 
+#include <memfault/core/debug_log.h>
 #include <memfault/core/trace_event.h>
 
+/// Log warnings
 #undef LOG_WRN
 #define LOG_WRN(...)                                                           \
     do {                                                                       \
-        MEMFAULT_TRACE_EVENT_WITH_LOG(log_wrn, __VA_ARGS__);                   \
+        MEMFAULT_LOG_WARN(__VA_ARGS__);                                        \
     } while (0)
 
+/// Each Trace Event will be associated with an Issue.
 #undef LOG_ERR
 #define LOG_ERR(...)                                                           \
     do {                                                                       \
-        MEMFAULT_TRACE_EVENT_WITH_LOG(log_err, __VA_ARGS__);                   \
+        MEMFAULT_TRACE_EVENT_WITH_LOG(error, __VA_ARGS__);                     \
     } while (0)
 
 #elif !defined(CONFIG_LOG) && defined(CONFIG_PRINTK)

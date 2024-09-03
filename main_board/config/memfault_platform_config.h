@@ -15,8 +15,6 @@ extern "C" {
 
 #if defined(CONFIG_MEMFAULT)
 
-#define MEMFAULT_COMPACT_LOG_ENABLE 1
-
 // Heartbeat interval is 15 minutes
 // These will be called:
 //  memfault_metrics_heartbeat_collect_sdk_data();
