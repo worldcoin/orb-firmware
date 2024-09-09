@@ -690,6 +690,9 @@ setup_camera_triggers(void)
                             ch2ll[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
 
     LL_TIM_SetOnePulseMode(CAMERA_TRIGGER_TIMER, LL_TIM_ONEPULSEMODE_SINGLE);
+    // FIXME remove next line: 2 triggers per timer tick (FPS-based) to trigger
+    // IR & RGB through FSIN
+    LL_TIM_SetRepetitionCounter(CAMERA_TRIGGER_TIMER, 1);
 
     LL_TIM_SetUpdateSource(CAMERA_TRIGGER_TIMER, LL_TIM_UPDATESOURCE_REGULAR);
 
