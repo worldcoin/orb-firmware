@@ -122,7 +122,12 @@ uart_event_callback(const struct device *dev, struct uart_event *evt,
                 message.length = payload_size;
 
                 ret = k_msgq_put(&uart_recv_queue, &message, K_NO_WAIT);
-                ASSERT_SOFT(ret);
+                // step debugging with SOFT_ASSERT that contains
+                // a software breakpoint is complicated so only print
+                // the error code
+                if (ret != 0) {
+                    LOG_ERR("uart_recv_queue put error: %d", ret);
+                }
 
                 read_index =
                     (read_index + message.length + UART_MESSAGE_HEADER_SIZE) %
