@@ -386,7 +386,12 @@ print_new_debug(UserLEDsPattern_UserRgbLedPattern pattern, uint32_t start_angle,
     LOG_DBG("start angle = %" PRIu32, start_angle);
     LOG_DBG("angle length = %" PRId32, angle_length);
     if (color) {
+#if defined(CONFIG_SPI_RGB_LED_DIMMING)
+        LOG_DBG("color = #%02X%02X%02X%02X", color->dimming, color->red,
+                color->green, color->blue);
+#else
         LOG_DBG("color = #%02X%02X%02X", color->red, color->green, color->blue);
+#endif
     } else {
         LOG_DBG("color = NULL");
     }
@@ -425,7 +430,11 @@ previous_settings_are_identical(UserLEDsPattern_UserRgbLedPattern pattern,
     if (color != NULL) {
         return ret && (global_color.r == color->red) &&
                (global_color.g == color->green) &&
-               (global_color.b == color->blue);
+               (global_color.b == color->blue
+#if defined(CONFIG_SPI_RGB_LED_DIMMING)
+                && (global_color.scratch == color->dimming)
+#endif
+               );
     } else {
         return ret;
     }
@@ -459,6 +468,13 @@ update_parameters(UserLEDsPattern_UserRgbLedPattern pattern,
         global_color.r = color->red;
         global_color.g = color->green;
         global_color.b = color->blue;
+#if defined(CONFIG_SPI_RGB_LED_DIMMING)
+        if (color->dimming != 0) {
+            global_color.scratch = color->dimming;
+        } else {
+            global_color.scratch = RGB_BRIGHTNESS_MAX;
+        }
+#endif
     }
     use_sequence = false;
 
@@ -477,6 +493,18 @@ front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
             return RET_ERROR_INVALID_PARAM;
         }
     }
+
+    if (color == NULL) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+#if defined(CONFIG_SPI_RGB_LED_DIMMING)
+    // if dimming is not set or out of bounds
+    // set it to the maximum brightness
+    if (color->dimming == 0 || color->dimming > RGB_BRIGHTNESS_MAX) {
+        color->dimming = RGB_BRIGHTNESS_MAX;
+    }
+#endif
 
     if (!previous_settings_are_identical(pattern, start_angle, angle_length,
                                          color, pulsing_period_ms,
