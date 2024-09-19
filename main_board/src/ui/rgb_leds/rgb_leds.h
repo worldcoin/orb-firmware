@@ -74,12 +74,12 @@
 
 #define RGB_WHITE_BUTTON_PRESS                                                 \
     {                                                                          \
-        20, 20, 20                                                             \
+        31, 20, 20, 20                                                         \
     }
 
 #define RGB_WHITE_SHUTDOWN                                                     \
     {                                                                          \
-        MINIMUM_WHITE_BRIGHTNESS, MINIMUM_WHITE_BRIGHTNESS,                    \
+        31, MINIMUM_WHITE_BRIGHTNESS, MINIMUM_WHITE_BRIGHTNESS,                \
             MINIMUM_WHITE_BRIGHTNESS                                           \
     }
 
