@@ -205,7 +205,11 @@ operator_leds_set_pattern(
     if (color != NULL) {
         // RgbColor -> struct led_rgb
 #ifdef CONFIG_LED_STRIP_RGB_SCRATCH
-        global_color.scratch = RGB_BRIGHTNESS_MAX;
+        if (color->dimming == 0 || color->dimming > RGB_BRIGHTNESS_MAX) {
+            global_color.scratch = RGB_BRIGHTNESS_MAX;
+        } else {
+            global_color.scratch = color->dimming;
+        }
 #endif
         global_color.r = color->red;
         global_color.g = color->green;
@@ -285,6 +289,11 @@ operator_leds_set_blocking(const RgbColor *color, uint32_t mask)
         return;
     }
 
+    if (color == NULL) {
+        LOG_ERR("Color is NULL");
+        return;
+    }
+
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     // previous_mask initialized to invalid value to force first update
     static uint32_t previous_mask = -1;
@@ -297,9 +306,16 @@ operator_leds_set_blocking(const RgbColor *color, uint32_t mask)
     }
 #endif
 
+#ifdef CONFIG_LED_STRIP_RGB_SCRATCH
+    uint8_t intensity = RGB_BRIGHTNESS_MAX;
+    if (color->dimming != 0 && color->dimming <= RGB_BRIGHTNESS_MAX) {
+        intensity = color->dimming;
+    }
+#endif
+
     struct led_rgb c = {
 #ifdef CONFIG_LED_STRIP_RGB_SCRATCH
-        .scratch = RGB_BRIGHTNESS_MAX,
+        .scratch = intensity,
 #endif
         .r = color->red,
         .g = color->green,
@@ -322,6 +338,10 @@ void
 operator_leds_indicate_low_battery_blocking(void)
 {
     RgbColor color = {.red = 5, .green = 0, .blue = 0};
+#if defined(CONFIG_SPI_RGB_LED_DIMMING)
+    color.dimming = RGB_BRIGHTNESS_MAX;
+#endif
+
     for (int i = 0; i < 3; ++i) {
         operator_leds_set_blocking(&color, 0b11111);
         k_msleep(500);

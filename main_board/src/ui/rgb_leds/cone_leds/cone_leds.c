@@ -83,11 +83,19 @@ cone_leds_set_pattern(ConeLEDsPattern_ConeRgbLedPattern pattern,
 {
     ret_code_t ret = RET_SUCCESS;
 
+    if (color == NULL) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    if (color->dimming == 0 || color->dimming > RGB_BRIGHTNESS_MAX) {
+        color->dimming = RGB_BRIGHTNESS_MAX;
+    }
+
     CRITICAL_SECTION_ENTER(k);
     global_pattern = pattern;
     global_color = (struct led_rgb){
 #ifdef CONFIG_LED_STRIP_RGB_SCRATCH
-        .scratch = RGB_BRIGHTNESS_MAX,
+        .scratch = color->dimming,
 #endif
         .r = color->red,
         .g = color->green,
