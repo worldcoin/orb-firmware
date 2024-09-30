@@ -1258,23 +1258,33 @@ mirror_auto_homing_one_end(motor_t motor)
     }
 
     if (motor == MOTOR_PHI_ANGLE) {
+        // On a cold POR/boot of the Orb; going from a disconnected or
+        // discharged battery to connected/charged, it takes time for the power
+        // rails to come up and stabilize for the LM25117 buck controller and
+        // subsequently the TMC5041 stepper motor driver to be able to act on
+        // SPI commands
+        // TODO ** TUNE DOWN DELAYS AFTER TALKING TO HARDWARE TEAM **
+        k_timeout_t delay_phi = (motors_refs[MOTOR_PHI_ANGLE].motor_state ==
+                                         RET_ERROR_NOT_INITIALIZED
+                                     ? K_MSEC(2000)
+                                     : K_NO_WAIT);
         k_tid_t tid = k_thread_create(
             &thread_data_motor_phi, stack_area_motor_phi_init,
             K_THREAD_STACK_SIZEOF(stack_area_motor_phi_init),
             mirror_auto_homing_one_end_thread, (void *)MOTOR_PHI_ANGLE, NULL,
-            NULL, THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
+            NULL, THREAD_PRIORITY_MOTORS_INIT, 0, delay_phi);
         k_thread_name_set(tid, "motor_ah_phi_one_end");
     } else {
-        k_timeout_t delay = (motors_refs[MOTOR_THETA_ANGLE].motor_state ==
-                                     RET_ERROR_NOT_INITIALIZED
-                                 ? K_MSEC(2000)
-                                 : K_NO_WAIT);
+        k_timeout_t delay_theta = (motors_refs[MOTOR_THETA_ANGLE].motor_state ==
+                                           RET_ERROR_NOT_INITIALIZED
+                                       ? K_MSEC(4000)
+                                       : K_NO_WAIT);
 
         k_tid_t tid = k_thread_create(
             &thread_data_motor_theta, stack_area_motor_theta_init,
             K_THREAD_STACK_SIZEOF(stack_area_motor_theta_init),
             mirror_auto_homing_one_end_thread, (void *)MOTOR_THETA_ANGLE, NULL,
-            NULL, THREAD_PRIORITY_MOTORS_INIT, 0, delay);
+            NULL, THREAD_PRIORITY_MOTORS_INIT, 0, delay_theta);
         k_thread_name_set(tid, "motor_ah_theta_one_end");
     }
 
