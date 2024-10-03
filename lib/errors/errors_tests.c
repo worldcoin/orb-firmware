@@ -1,5 +1,7 @@
 #ifdef CONFIG_ORB_LIB_WATCHDOG
+#if defined(CONFIG_BOARD_PEARL_MAIN) || defined(CONFIG_BOARD_DIAMOND_MAIN)
 #include "watchdog.h"
+#endif
 #endif
 
 #include "orb_logs.h"
@@ -152,9 +154,11 @@ fatal_errors_trigger(enum error_case_e type)
         break;
 #endif
 #ifdef CONFIG_ORB_LIB_WATCHDOG
+#if defined(CONFIG_BOARD_PEARL_MAIN) || defined(CONFIG_BOARD_DIAMOND_MAIN)
     case FATAL_WATCHDOG:
         (void)watchdog_init();
         break;
+#endif
 #endif
 
     default:
