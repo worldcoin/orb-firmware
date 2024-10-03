@@ -15,6 +15,8 @@ static volatile int wdt_channel_id = -1;
 static const struct device *const watchdog_dev =
     DEVICE_DT_GET(DT_ALIAS(watchdog0));
 
+static bool (*watchdog_callback)(void) = NULL;
+
 #ifndef WATCHDOG_RELOAD_MS
 #define WATCHDOG_RELOAD_MS CONFIG_ORB_LIB_WATCHDOG_RELOAD_MS
 #endif
@@ -27,7 +29,9 @@ static void
 watchdog_thread()
 {
     while (wdt_channel_id >= 0) {
-        wdt_feed(watchdog_dev, wdt_channel_id);
+        if (watchdog_callback()) {
+            wdt_feed(watchdog_dev, wdt_channel_id);
+        }
         k_sleep(K_MSEC(WATCHDOG_RELOAD_MS));
     }
 
@@ -35,8 +39,14 @@ watchdog_thread()
 }
 
 int
-watchdog_init(void)
+watchdog_init(bool (*callback)(void))
 {
+    if (callback == NULL) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    watchdog_callback = callback;
+
     int err_code;
 
     if (!device_is_ready(watchdog_dev)) {
