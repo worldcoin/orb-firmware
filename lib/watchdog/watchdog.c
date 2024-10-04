@@ -29,8 +29,13 @@ static void
 watchdog_thread()
 {
     while (wdt_channel_id >= 0) {
-        if (watchdog_callback()) {
+        // Allow null callback
+        if (watchdog_callback == NULL) {
             wdt_feed(watchdog_dev, wdt_channel_id);
+        } else {
+            if (watchdog_callback() == true) {
+                wdt_feed(watchdog_dev, wdt_channel_id);
+            }
         }
         k_sleep(K_MSEC(WATCHDOG_RELOAD_MS));
     }
@@ -41,10 +46,6 @@ watchdog_thread()
 int
 watchdog_init(bool (*callback)(void))
 {
-    if (callback == NULL) {
-        return RET_ERROR_INVALID_PARAM;
-    }
-
     watchdog_callback = callback;
 
     int err_code;
