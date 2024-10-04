@@ -15,7 +15,9 @@
  * @note NA
  * @see NA
  */
-bool app_watchdog_callback(void) {
+bool
+app_watchdog_callback(void)
+{
     // Stub returning true for now, will be filled out later
     return true;
 }

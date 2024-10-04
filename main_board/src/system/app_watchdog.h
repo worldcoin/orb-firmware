@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 
-bool app_watchdog_callback(void);
+bool
+app_watchdog_callback(void);
 
 #endif /* APP_WATCHDOG_H */
