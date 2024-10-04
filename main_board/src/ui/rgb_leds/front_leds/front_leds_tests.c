@@ -2,8 +2,8 @@
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
-#include "ui/rgb_leds/rgb_leds.h"
 #include "orb_logs.h"
+#include "ui/rgb_leds/rgb_leds.h"
 
 LOG_MODULE_REGISTER(user_leds_test);
 
