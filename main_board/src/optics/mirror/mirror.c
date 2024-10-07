@@ -137,11 +137,11 @@ static const int32_t mirror_center_angles[MOTORS_COUNT] = {
 // values measured on first PoC Diamond Orb
 #define MOTOR_THETA_CENTER_FROM_END_STEPS 63000
 #define MOTOR_PHI_CENTER_FROM_END_STEPS   47600
-#define MOTOR_THETA_FULL_RANGE_STEPS      140000
+#define MOTOR_THETA_FULL_RANGE_STEPS      180000
 #define MOTOR_PHI_FULL_RANGE_STEPS        102400
 
-#define MOTOR_THETA_ARM_LENGTH_MM 12.0f
-#define MOTOR_PHI_ARM_LENGTH_MM   12.0f
+#define MOTOR_THETA_ARM_LENGTH_MM 13.68f
+#define MOTOR_PHI_ARM_LENGTH_MM   19.34f
 #endif
 
 static const uint32_t motors_center_from_end_steps[MOTORS_COUNT] = {
@@ -463,8 +463,12 @@ mirror_check_angle(uint32_t angle_millidegrees, motor_t motor)
         }
         return RET_SUCCESS;
     case MOTOR_PHI_ANGLE:
-        if (angle_millidegrees > MIRROR_ANGLE_PHI_MAX_MILLIDEGREES ||
-            angle_millidegrees < MIRROR_ANGLE_PHI_MIN_MILLIDEGREES) {
+        if (angle_millidegrees > MIRROR_ANGLE_PHI_MAX_MILLIDEGREES
+#if MIRROR_ANGLE_PHI_MIN_MILLIDEGREES != 0
+            || (MIRROR_ANGLE_PHI_MIN_MILLIDEGREES != 0 &&
+                angle_millidegrees < MIRROR_ANGLE_PHI_MIN_MILLIDEGREES)
+#endif
+        ) {
             LOG_ERR("Mirror phi angle of %u out of range [%u;%u]",
                     angle_millidegrees, MIRROR_ANGLE_PHI_MIN_MILLIDEGREES,
                     MIRROR_ANGLE_PHI_MAX_MILLIDEGREES);
@@ -1323,10 +1327,11 @@ mirror_init(void)
         LOG_INF("Motion controller SPI ready");
     }
 
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    // write TMC5041_REG_GCONF to 0x300 to invert motor direction (bit 8 & 9)
-    motor_controller_spi_write(spi_bus_controller, TMC5041_REG_GCONF, 0x300);
-#endif
+    // #if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    //     // write TMC5041_REG_GCONF to 0x300 to invert motor direction (bit 8
+    //     & 9) motor_controller_spi_write(spi_bus_controller,
+    //     TMC5041_REG_GCONF, 0x300);
+    // #endif
 
     read_value =
         motor_controller_spi_read(spi_bus_controller, TMC5041_REG_GCONF);
