@@ -83,7 +83,7 @@ typedef union {
 static user_leds_t leds;
 
 /// Mutex used to protect the LEDs array update from multiple threads
-static K_MUTEX_DEFINE(leds_update_mutex);
+static K_SEM_DEFINE(leds_update_sem, 1, 1);
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 static K_SEM_DEFINE(leds_wait_for_trigger, 0, 1);
 #endif
@@ -125,11 +125,11 @@ front_leds_notify_ir_leds_off(void)
 static void
 set_center(struct led_rgb color)
 {
-    if (k_mutex_lock(&leds_update_mutex, K_FOREVER) == 0) {
+    if (k_sem_take(&leds_update_sem, K_NO_WAIT) == 0) {
         for (size_t i = 0; i < ARRAY_SIZE(leds.part.center_leds); ++i) {
             leds.part.center_leds[i] = color;
         }
-        k_mutex_unlock(&leds_update_mutex);
+        k_sem_give(&leds_update_sem);
     }
 }
 
@@ -144,7 +144,7 @@ set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
     size_t led_index =
         INDEX_RING_ZERO - NUM_RING_LEDS * start_angle / FULL_RING_DEGREES;
 
-    if (k_mutex_lock(&leds_update_mutex, K_FOREVER) == 0) {
+    if (k_sem_take(&leds_update_sem, K_NO_WAIT) == 0) {
         for (size_t i = 0; i < NUM_RING_LEDS; ++i) {
             if (i < (size_t)(NUM_RING_LEDS * abs(angle_length) /
                              FULL_RING_DEGREES)) {
@@ -164,7 +164,7 @@ set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
             }
         }
 
-        k_mutex_unlock(&leds_update_mutex);
+        k_sem_give(&leds_update_sem);
     }
 }
 
@@ -352,8 +352,7 @@ front_leds_thread()
         pulsing_index = (pulsing_index + 1) % (ARRAY_SIZE(SINE_LUT) * 2);
 
         // update LEDs
-        k_mutex_lock(&leds_update_mutex, K_FOREVER);
-        if (!final_done) {
+        if (k_sem_take(&leds_update_sem, K_NO_WAIT) == 0 && !final_done) {
 #if defined(CONFIG_BOARD_PEARL_MAIN)
             // 850nm and 940nm IR leds mustn't be on when the RGB strip
             // is updated to prevent the LED from flickering.
@@ -371,8 +370,8 @@ front_leds_thread()
 #endif
             led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
             atomic_set(&leds_dirty, ALL_LEDS_DIRTY);
+            k_sem_give(&leds_update_sem);
         }
-        k_mutex_unlock(&leds_update_mutex);
     }
 }
 
@@ -526,7 +525,7 @@ front_leds_set_center_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 {
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_ARGB, leds.part.center_leds,
-        ARRAY_SIZE(leds.part.center_leds), &leds_update_mutex);
+        ARRAY_SIZE(leds.part.center_leds), &leds_update_sem);
 
     if (ret == RET_SUCCESS || ret == RET_ERROR_ALREADY_INITIALIZED) {
         // RET_ERROR_ALREADY_INITIALIZED or RET_SUCCESS
@@ -551,7 +550,7 @@ front_leds_set_center_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
 {
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_RGB, leds.part.center_leds,
-        ARRAY_SIZE(leds.part.center_leds), &leds_update_mutex);
+        ARRAY_SIZE(leds.part.center_leds), &leds_update_sem);
 
     if (ret == RET_SUCCESS || ret == RET_ERROR_ALREADY_INITIALIZED) {
         // RET_ERROR_ALREADY_INITIALIZED or RET_SUCCESS
@@ -576,7 +575,7 @@ front_leds_set_ring_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 {
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_ARGB, leds.part.ring_leds,
-        ARRAY_SIZE(leds.part.ring_leds), &leds_update_mutex);
+        ARRAY_SIZE(leds.part.ring_leds), &leds_update_sem);
 
     if (ret == RET_SUCCESS || ret == RET_ERROR_ALREADY_INITIALIZED) {
         // RET_ERROR_ALREADY_INITIALIZED or RET_SUCCESS
@@ -601,7 +600,7 @@ front_leds_set_ring_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
 {
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_RGB, leds.part.ring_leds,
-        ARRAY_SIZE(leds.part.ring_leds), &leds_update_mutex);
+        ARRAY_SIZE(leds.part.ring_leds), &leds_update_sem);
 
     if (ret == RET_SUCCESS || ret == RET_ERROR_ALREADY_INITIALIZED) {
         // RET_ERROR_ALREADY_INITIALIZED or RET_SUCCESS
@@ -634,13 +633,14 @@ front_leds_set_brightness(uint32_t brightness)
 void
 front_leds_turn_off_blocking(void)
 {
-    k_mutex_lock(&leds_update_mutex, K_FOREVER);
-    final_done = true;
-    memset(leds.all, 0, sizeof leds.all);
-    led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
-    led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
-    atomic_set(&leds_dirty, ALL_LEDS_DIRTY);
-    k_mutex_unlock(&leds_update_mutex);
+    if (k_sem_take(&leds_update_sem, K_MSEC(50)) == 0) {
+        final_done = true;
+        memset(leds.all, 0, sizeof leds.all);
+        led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+        led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+        atomic_set(&leds_dirty, ALL_LEDS_DIRTY);
+        k_sem_give(&leds_update_sem);
+    }
 }
 
 ret_code_t
@@ -692,10 +692,12 @@ front_leds_initial_state(void)
 
     set_center((struct led_rgb)RGB_OFF);
     set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
-    k_mutex_lock(&leds_update_mutex, K_FOREVER);
-    led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
-    atomic_set(&leds_dirty, ALL_LEDS_DIRTY);
-    k_mutex_unlock(&leds_update_mutex);
+
+    if (k_sem_take(&leds_update_sem, K_MSEC(50)) == 0) {
+        led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+        atomic_set(&leds_dirty, ALL_LEDS_DIRTY);
+        k_sem_give(&leds_update_sem);
+    }
 
     return 0;
 }
