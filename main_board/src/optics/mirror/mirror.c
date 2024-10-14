@@ -137,7 +137,7 @@ static const int32_t mirror_center_angles[MOTORS_COUNT] = {
 // values measured on first PoC Diamond Orb
 #define MOTOR_THETA_CENTER_FROM_END_STEPS 63000
 #define MOTOR_PHI_CENTER_FROM_END_STEPS   47600
-#define MOTOR_THETA_FULL_RANGE_STEPS      180000
+#define MOTOR_THETA_FULL_RANGE_STEPS      190000
 #define MOTOR_PHI_FULL_RANGE_STEPS        102400
 
 #define MOTOR_THETA_ARM_LENGTH_MM 13.68f
