@@ -11,7 +11,7 @@ ret_code_t
 rgb_leds_set_leds_sequence(const uint8_t *input_bytes, size_t input_size_bytes,
                            enum led_format led_format,
                            struct led_rgb *led_buffer, size_t leds_count,
-                           struct k_mutex *write_mutex)
+                           struct k_sem *write_sem)
 {
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     bool found_a_difference =
@@ -37,8 +37,8 @@ rgb_leds_set_leds_sequence(const uint8_t *input_bytes, size_t input_size_bytes,
 
     input_size_bytes = MIN(input_size_bytes, leds_count * led_format);
 
-    if (write_mutex != NULL) {
-        int ret = k_mutex_lock(write_mutex, K_NO_WAIT);
+    if (write_sem != NULL) {
+        int ret = k_sem_take(write_sem, K_NO_WAIT);
         if (ret != 0) {
             return RET_ERROR_INTERNAL;
         }
@@ -88,8 +88,8 @@ rgb_leds_set_leds_sequence(const uint8_t *input_bytes, size_t input_size_bytes,
         led_buffer[i] = (struct led_rgb)RGB_OFF;
     }
 
-    if (write_mutex != NULL) {
-        k_mutex_unlock(write_mutex);
+    if (write_sem != NULL) {
+        k_sem_give(write_sem);
     }
 
     if (!found_a_difference) {
