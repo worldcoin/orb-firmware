@@ -1,5 +1,5 @@
 #include <app_config.h>
-#include <mcu_messaging_main.pb.h>
+#include <main.pb.h>
 #include <pubsub/pubsub.h>
 #include <stm32_ll_rcc.h>
 #include <stm32g474xx.h>
@@ -268,7 +268,7 @@ config_timer(struct timer_info *timer_info)
 static void
 fan_tach_thread()
 {
-    FanStatus fs;
+    orb_mcu_main_FanStatus fs;
 
     while (1) {
         k_msleep(1000);
@@ -292,26 +292,26 @@ fan_tach_thread()
 
         if (main_speed != 0 && main_speed != UINT32_MAX) {
             fs.measured_speed_rpm = main_speed;
-            fs.fan_id = FanStatus_FanID_MAIN;
-            publish_new(&fs, sizeof fs, McuToJetson_fan_status_tag,
+            fs.fan_id = orb_mcu_main_FanStatus_FanID_MAIN;
+            publish_new(&fs, sizeof fs, orb_mcu_main_McuToJetson_fan_status_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
             speed_sent = true;
         }
         if (aux_speed != 0 && aux_speed != UINT32_MAX) {
             fs.measured_speed_rpm = aux_speed;
-            fs.fan_id = FanStatus_FanID_AUX;
-            publish_new(&fs, sizeof fs, McuToJetson_fan_status_tag,
+            fs.fan_id = orb_mcu_main_FanStatus_FanID_AUX;
+            publish_new(&fs, sizeof fs, orb_mcu_main_McuToJetson_fan_status_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
             speed_sent = true;
         }
 
         if (!speed_sent) {
             fs.measured_speed_rpm = 0;
-            fs.fan_id = FanStatus_FanID_MAIN;
-            publish_new(&fs, sizeof fs, McuToJetson_fan_status_tag,
+            fs.fan_id = orb_mcu_main_FanStatus_FanID_MAIN;
+            publish_new(&fs, sizeof fs, orb_mcu_main_McuToJetson_fan_status_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-            fs.fan_id = FanStatus_FanID_AUX;
-            publish_new(&fs, sizeof fs, McuToJetson_fan_status_tag,
+            fs.fan_id = orb_mcu_main_FanStatus_FanID_AUX;
+            publish_new(&fs, sizeof fs, orb_mcu_main_McuToJetson_fan_status_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
     }

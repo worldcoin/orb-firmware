@@ -21,8 +21,9 @@ static K_SEM_DEFINE(sem_leds_refresh, 0, 1);
 static struct led_rgb leds[OPERATOR_LEDS_COUNT];
 
 // default values
-static volatile DistributorLEDsPattern_DistributorRgbLedPattern global_pattern =
-    DistributorLEDsPattern_DistributorRgbLedPattern_BOOT_ANIMATION;
+static volatile orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern
+    global_pattern =
+        orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern_BOOT_ANIMATION;
 static volatile uint8_t global_intensity = 20;
 static volatile uint32_t global_mask = 0b11111;
 static volatile struct led_rgb global_color = RGB_WHITE_OPERATOR_LEDS;
@@ -69,8 +70,8 @@ operator_leds_thread(void *a, void *b, void *c)
     uint8_t intensity;
     uint32_t mask;
     struct led_rgb color;
-    DistributorLEDsPattern_DistributorRgbLedPattern pattern =
-        DistributorLEDsPattern_DistributorRgbLedPattern_BOOT_ANIMATION;
+    orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern pattern =
+        orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern_BOOT_ANIMATION;
     float scaler;
     k_timeout_t wait_until = K_MSEC(global_pulsing_delay_time_ms);
     uint32_t pulsing_index = ARRAY_SIZE(SINE_LUT);
@@ -94,33 +95,33 @@ operator_leds_thread(void *a, void *b, void *c)
         CRITICAL_SECTION_EXIT(k);
 
         switch (pattern) {
-        case DistributorLEDsPattern_DistributorRgbLedPattern_OFF:
+        case orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern_OFF:
             color = (struct led_rgb)RGB_OFF;
             break;
-        case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE:
+        case orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern_ALL_WHITE:
             color.r = intensity;
             color.g = intensity;
             color.b = intensity;
             break;
-        case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_RED:
+        case orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern_ALL_RED:
             color.r = intensity;
             color.g = 0;
             color.b = 0;
             break;
-        case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN:
+        case orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern_ALL_GREEN:
             color.r = 0;
             color.g = intensity;
             color.b = 0;
             break;
-        case DistributorLEDsPattern_DistributorRgbLedPattern_ALL_BLUE:
+        case orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern_ALL_BLUE:
             color.r = 0;
             color.g = 0;
             color.b = intensity;
             break;
-        case DistributorLEDsPattern_DistributorRgbLedPattern_RGB:
+        case orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern_RGB:
             /* Do nothing, color already set from global_color */
             break;
-        case DistributorLEDsPattern_DistributorRgbLedPattern_PULSING_RGB:
+        case orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern_PULSING_RGB:
             if (pulsing_index < ARRAY_SIZE(SINE_LUT)) {
                 // from 0 to 1.0
                 scaler = SINE_LUT[pulsing_index] * PULSING_SCALE_DEFAULT;
@@ -140,7 +141,7 @@ operator_leds_thread(void *a, void *b, void *c)
             wait_until = K_MSEC(global_pulsing_delay_time_ms);
             pulsing_index = (pulsing_index + 1) % (ARRAY_SIZE(SINE_LUT) * 2);
             break;
-        case DistributorLEDsPattern_DistributorRgbLedPattern_BOOT_ANIMATION: {
+        case orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern_BOOT_ANIMATION: {
             size_t solid_iterations = 1000 / global_pulsing_delay_time_ms;
             if (pulsing_index < ARRAY_SIZE(SINE_LUT)) {
                 // from 0 to 1.0
@@ -194,8 +195,8 @@ operator_leds_set_brightness(uint8_t brightness)
 
 int
 operator_leds_set_pattern(
-    DistributorLEDsPattern_DistributorRgbLedPattern pattern, uint32_t mask,
-    const RgbColor *color)
+    orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern pattern,
+    uint32_t mask, const orb_mcu_main_RgbColor *color)
 {
     CRITICAL_SECTION_ENTER(k);
 
@@ -279,7 +280,7 @@ operator_leds_init(void)
 }
 
 void
-operator_leds_set_blocking(const RgbColor *color, uint32_t mask)
+operator_leds_set_blocking(const orb_mcu_main_RgbColor *color, uint32_t mask)
 {
     const struct device *led_strip =
         DEVICE_DT_GET(DT_NODELABEL(operator_rgb_leds));
@@ -337,7 +338,7 @@ operator_leds_set_blocking(const RgbColor *color, uint32_t mask)
 void
 operator_leds_indicate_low_battery_blocking(void)
 {
-    RgbColor color = {.red = 5, .green = 0, .blue = 0};
+    orb_mcu_main_RgbColor color = {.red = 5, .green = 0, .blue = 0};
 #if defined(CONFIG_SPI_RGB_LED_DIMMING)
     color.dimming = RGB_BRIGHTNESS_MAX;
 #endif

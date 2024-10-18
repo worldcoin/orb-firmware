@@ -100,11 +100,12 @@ sound_init(void)
     }
 
     if (err_code || die_id != 0x00) {
-        diag_set_status(HardwareDiagnostic_Source_UI_SOUND,
-                        HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR);
+        diag_set_status(
+            orb_mcu_HardwareDiagnostic_Source_UI_SOUND,
+            orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR);
     } else {
-        diag_set_status(HardwareDiagnostic_Source_UI_SOUND,
-                        HardwareDiagnostic_Status_STATUS_OK);
+        diag_set_status(orb_mcu_HardwareDiagnostic_Source_UI_SOUND,
+                        orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
     }
 
     return err_code;
