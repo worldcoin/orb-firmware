@@ -264,7 +264,7 @@ liquid_lens_is_enabled(void)
 }
 
 ret_code_t
-liquid_lens_init(const Hardware *hw_version)
+liquid_lens_init(const orb_mcu_Hardware *hw_version)
 {
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     UNUSED_PARAMETER(hw_version);
@@ -275,7 +275,8 @@ liquid_lens_init(const Hardware *hw_version)
     int err_code;
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-    if (hw_version->version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+    if (hw_version->version ==
+        orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         liquid_lens_current_amplifier_gain =
             DT_PROP_BY_IDX(DT_PATH(liquid_lens), amplifier_gains, 1);
         liquid_lens_shunt_resistance_ohms = DT_STRING_UNQUOTED_BY_IDX(

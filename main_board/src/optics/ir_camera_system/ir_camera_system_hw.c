@@ -215,7 +215,8 @@ static int16_t global_focus_values[MAX_NUMBER_OF_FOCUS_VALUES];
 static size_t global_num_focus_values;
 static volatile size_t sweep_index;
 static bool use_focus_sweep_polynomial;
-static IREyeCameraFocusSweepValuesPolynomial focus_sweep_polynomial;
+static orb_mcu_main_IREyeCameraFocusSweepValuesPolynomial
+    focus_sweep_polynomial;
 
 static void
 set_pvcc_converter_into_low_power_mode(void)
@@ -232,7 +233,7 @@ static void
 set_pvcc_converter_into_high_demand_mode(void)
 {
     if (ir_camera_system_get_enabled_leds() !=
-            InfraredLEDs_Wavelength_WAVELENGTH_NONE &&
+            orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE &&
         gpio_pin_get_dt(&front_unit_pvcc_pwm_mode) == 0) {
         int ret = gpio_pin_configure_dt(&front_unit_pvcc_pwm_mode,
                                         GPIO_OUTPUT_ACTIVE);
@@ -265,7 +266,7 @@ disable_all_led_cc_channels(void)
 
 void
 ir_camera_system_set_polynomial_coefficients_for_focus_sweep_hw(
-    IREyeCameraFocusSweepValuesPolynomial poly)
+    orb_mcu_main_IREyeCameraFocusSweepValuesPolynomial poly)
 {
     use_focus_sweep_polynomial = true;
     global_num_focus_values = poly.number_of_frames;
@@ -311,13 +312,14 @@ struct mirror_delta {
 };
 
 // Mirror sweep stuff
-static IREyeCameraMirrorSweepValuesPolynomial mirror_sweep_polynomial;
+static orb_mcu_main_IREyeCameraMirrorSweepValuesPolynomial
+    mirror_sweep_polynomial;
 static uint32_t initial_mirror_angle_theta_millidegrees,
     initial_mirror_angle_phi_millidegrees;
 
 void
 ir_camera_system_set_polynomial_coefficients_for_mirror_sweep_hw(
-    IREyeCameraMirrorSweepValuesPolynomial poly)
+    orb_mcu_main_IREyeCameraMirrorSweepValuesPolynomial poly)
 {
     mirror_sweep_polynomial = poly;
 }
@@ -498,10 +500,10 @@ static bool
 ir_leds_are_on(void)
 {
     if (ir_camera_system_get_enabled_leds() ==
-        InfraredLEDs_Wavelength_WAVELENGTH_NONE) {
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE) {
         return false;
     } else if (ir_camera_system_get_enabled_leds() ==
-               InfraredLEDs_Wavelength_WAVELENGTH_740NM) {
+               orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM) {
         ASSERT_SOFT(1); // not supported
         return false;
     } else {
@@ -516,37 +518,37 @@ print_wavelength(void)
 #ifdef CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL_DBG
     const char *s = "";
     switch (ir_camera_system_get_enabled_leds()) {
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:
         s = "940nm R";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
         s = "940nm L";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM:
         s = "940nm LR";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
         s = "850nm R";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
         s = "850nm L";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM:
         s = "850nm LR";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM:
         s = "740nm";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
         s = "850nm C";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
         s = "850nm S";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
         s = "940nm S";
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE:
         s = "None";
         break;
     }
@@ -586,7 +588,8 @@ disable_ir_leds()
 {
     LOG_WRN("Turning off IR LEDs after %" PRIu32 "s of inactivity",
             IR_LED_AUTO_OFF_TIMEOUT_S);
-    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    ir_camera_system_enable_leds(
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
 }
 
 static void
@@ -731,68 +734,68 @@ ir_camera_system_enable_cc_channels(void)
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     switch (ir_camera_system_get_enabled_leds()) {
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM:
         LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
                                 ch2ll[LED_850NM_TIMER_LEFT_CHANNEL - 1]);
         LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
                                 ch2ll[LED_850NM_TIMER_RIGHT_CHANNEL - 1]);
         LL_TIM_EnableIT_UPDATE(LED_850NM_TIMER);
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
         LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
                                 ch2ll[LED_850NM_TIMER_LEFT_CHANNEL - 1]);
         LL_TIM_EnableIT_UPDATE(LED_850NM_TIMER);
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
         LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
                                 ch2ll[LED_850NM_TIMER_RIGHT_CHANNEL - 1]);
         LL_TIM_EnableIT_UPDATE(LED_850NM_TIMER);
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM:
         LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
                                 ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
         LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
                                 ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
         LL_TIM_EnableIT_UPDATE(LED_940NM_TIMER);
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
         LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
                                 ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
         LL_TIM_EnableIT_UPDATE(LED_940NM_TIMER);
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:
         LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
                                 ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
         LL_TIM_EnableIT_UPDATE(LED_940NM_TIMER);
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
         ASSERT_SOFT(RET_ERROR_FORBIDDEN); // not supported
         __fallthrough;
-    case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE:
         // RGB LEDs could wait for a trigger, otherwise no action is taken
         ir_leds_pulse_finished_isr(NULL);
         break;
     }
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
     switch (ir_camera_system_get_enabled_leds()) {
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM:
         LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
                                 ch2ll[LED_850NM_TIMER_CENTER_CHANNEL - 1]);
         LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
                                 ch2ll[LED_850NM_TIMER_SIDE_CHANNEL - 1]);
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
         LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
                                 ch2ll[LED_850NM_TIMER_CENTER_CHANNEL - 1]);
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
         LL_TIM_CC_EnableChannel(LED_850NM_TIMER,
                                 ch2ll[LED_850NM_TIMER_SIDE_CHANNEL - 1]);
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM:
         LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
                                 ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
         LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
@@ -800,24 +803,24 @@ ir_camera_system_enable_cc_channels(void)
         LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
                                 ch2ll[LED_940NM_TIMER_SINGLE_CHANNEL - 1]);
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT:
         LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
                                 ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT:
         LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
                                 ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
         LL_TIM_CC_EnableChannel(LED_940NM_TIMER,
                                 ch2ll[LED_940NM_TIMER_SINGLE_CHANNEL - 1]);
         break;
-    case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
-    case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
         ASSERT_SOFT(RET_ERROR_FORBIDDEN); // not supported
         __fallthrough;
-    case InfraredLEDs_Wavelength_WAVELENGTH_NONE:
+    case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE:
         break;
     }
 #endif
@@ -1311,10 +1314,10 @@ ir_camera_system_hw_init(void)
 #endif
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    Hardware_OrbVersion version = version_get_hardware_rev();
+    orb_mcu_Hardware_OrbVersion version = version_get_hardware_rev();
 
-    if (version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 ||
-        version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
+    if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 ||
+        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
         reset_fuse();
     } else {
         enable_5v_switched();

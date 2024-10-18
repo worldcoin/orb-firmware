@@ -23,12 +23,12 @@ FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_set_on_time_us_hw, uint16_t);
 FAKE_VALUE_FUNC(uint32_t, ir_camera_system_get_time_until_update_us_internal);
 
 FAKE_VOID_FUNC(ir_camera_system_set_polynomial_coefficients_for_focus_sweep_hw,
-               IREyeCameraFocusSweepValuesPolynomial);
+               orb_mcu_main_IREyeCameraFocusSweepValuesPolynomial);
 FAKE_VOID_FUNC(ir_camera_system_set_focus_values_for_focus_sweep_hw, int16_t *,
                size_t);
 FAKE_VOID_FUNC(ir_camera_system_perform_focus_sweep_hw);
 FAKE_VOID_FUNC(ir_camera_system_set_polynomial_coefficients_for_mirror_sweep_hw,
-               IREyeCameraMirrorSweepValuesPolynomial);
+               orb_mcu_main_IREyeCameraMirrorSweepValuesPolynomial);
 FAKE_VOID_FUNC(ir_camera_system_perform_mirror_sweep_hw);
 FAKE_VALUE_FUNC(uint16_t, ir_camera_system_get_fps_hw);
 
@@ -37,7 +37,7 @@ extern atomic_t focus_sweep_in_progress;
 extern bool enabled_ir_eye_camera;
 extern bool enabled_ir_face_camera;
 extern bool enabled_2d_tof_camera;
-extern InfraredLEDs_Wavelength enabled_led_wavelength;
+extern orb_mcu_main_InfraredLEDs_Wavelength enabled_led_wavelength;
 
 static void
 before_each_test(void *fixture)
@@ -50,7 +50,8 @@ before_each_test(void *fixture)
     enabled_ir_eye_camera = false;
     enabled_ir_face_camera = false;
     enabled_2d_tof_camera = false;
-    enabled_led_wavelength = InfraredLEDs_Wavelength_WAVELENGTH_NONE;
+    enabled_led_wavelength =
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE;
 
     // Reset mock state
     RESET_FAKE(ir_camera_system_hw_init);
@@ -329,10 +330,10 @@ ZTEST(ir_camera_system_api, test_enable_wavelength_success)
     ir_camera_system_hw_init_fake.return_val = RET_SUCCESS;
     ir_camera_system_init();
 
-    zassert_equal(enabled_led_wavelength, InfraredLEDs_Wavelength_WAVELENGTH_NONE);
-    ret = ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_ONE);
+    zassert_equal(enabled_led_wavelength, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    ret = ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_ONE);
     zassert_equal(ret, RET_SUCCESS);
-    zassert_equal(enabled_led_wavelength, InfraredLEDs_Wavelength_WAVELENGTH_ONE);
+    zassert_equal(enabled_led_wavelength, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_ONE);
 }
 
 ZTEST(ir_camera_system_api, test_enable_wavelength_fail_because_no_init)
@@ -343,10 +344,10 @@ ZTEST(ir_camera_system_api, test_enable_wavelength_fail_because_no_init)
     // ir_camera_system_hw_init_fake.return_val = RET_SUCCESS;
     // ir_camera_system_init();
 
-    zassert_equal(enabled_led_wavelength, InfraredLEDs_Wavelength_WAVELENGTH_NONE);
-    ret = ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_ONE);
+    zassert_equal(enabled_led_wavelength, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    ret = ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_ONE);
     zassert_equal(ret, RET_ERROR_NOT_INITIALIZED);
-    zassert_equal(enabled_led_wavelength, InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    zassert_equal(enabled_led_wavelength, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
 }
 
 ZTEST(ir_camera_system_api, test_enable_wavelength_fail_because_init_failed)
@@ -357,10 +358,10 @@ ZTEST(ir_camera_system_api, test_enable_wavelength_fail_because_init_failed)
     ir_camera_system_hw_init_fake.return_val = RET_ERROR_INTERNAL;
     ir_camera_system_init();
 
-    zassert_equal(enabled_led_wavelength, InfraredLEDs_Wavelength_WAVELENGTH_NONE);
-    ret = ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_ONE);
+    zassert_equal(enabled_led_wavelength, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    ret = ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_ONE);
     zassert_equal(ret, RET_ERROR_NOT_INITIALIZED);
-    zassert_equal(enabled_led_wavelength, InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    zassert_equal(enabled_led_wavelength, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
 }
 
 ZTEST(ir_camera_system_api, test_enable_wavelength_fail_because_focus_sweep_in_progress)
@@ -372,35 +373,35 @@ ZTEST(ir_camera_system_api, test_enable_wavelength_fail_because_focus_sweep_in_p
 
     set_focus_sweep_in_progress();
 
-    zassert_equal(enabled_led_wavelength, InfraredLEDs_Wavelength_WAVELENGTH_NONE);
-    ret = ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_ONE);
+    zassert_equal(enabled_led_wavelength, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    ret = ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_ONE);
     zassert_equal(ret, RET_ERROR_BUSY);
-    zassert_equal(enabled_led_wavelength, InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    zassert_equal(enabled_led_wavelength, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
 }
 
 ZTEST(ir_camera_system_api, test_get_enabled_wavelength)
 {
-    InfraredLEDs_Wavelength w;
+    orb_mcu_main_InfraredLEDs_Wavelength w;
 
     ir_camera_system_hw_init_fake.return_val = RET_SUCCESS;
     ir_camera_system_init();
 
-    zassert_equal(enabled_led_wavelength, InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    zassert_equal(enabled_led_wavelength, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
     w = ir_camera_system_get_enabled_leds();
-    zassert_equal(w, InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    zassert_equal(w, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
 
-    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_ONE);
-    zassert_equal(enabled_led_wavelength, InfraredLEDs_Wavelength_WAVELENGTH_ONE);
+    ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_ONE);
+    zassert_equal(enabled_led_wavelength, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_ONE);
     w = ir_camera_system_get_enabled_leds();
-    zassert_equal(w, InfraredLEDs_Wavelength_WAVELENGTH_ONE);
+    zassert_equal(w, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_ONE);
 
     set_focus_sweep_in_progress();
 
-    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
     // should be unchanged
-    zassert_equal(enabled_led_wavelength, InfraredLEDs_Wavelength_WAVELENGTH_ONE);
+    zassert_equal(enabled_led_wavelength, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_ONE);
     w = ir_camera_system_get_enabled_leds();
-    zassert_equal(w, InfraredLEDs_Wavelength_WAVELENGTH_ONE);
+    zassert_equal(w, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_ONE);
 }
 
 ZTEST(ir_camera_system_api, test_set_fps_success)
@@ -562,7 +563,7 @@ ZTEST(ir_camera_system_api, test_set_on_time_fail_because_hw_call_failed)
 ZTEST(ir_camera_system_api, test_set_focus_sweep_polynomial_coefficients_success)
 {
     ret_code_t ret;
-    IREyeCameraFocusSweepValuesPolynomial poly;
+    orb_mcu_main_IREyeCameraFocusSweepValuesPolynomial poly;
 
     ir_camera_system_hw_init_fake.return_val = RET_SUCCESS;
     ir_camera_system_init();
@@ -574,7 +575,7 @@ ZTEST(ir_camera_system_api, test_set_focus_sweep_polynomial_coefficients_success
 ZTEST(ir_camera_system_api, test_set_focus_sweep_polynomial_coefficients_fail_because_focus_sweep_in_progress)
 {
     ret_code_t ret;
-    IREyeCameraFocusSweepValuesPolynomial poly;
+    orb_mcu_main_IREyeCameraFocusSweepValuesPolynomial poly;
 
     ir_camera_system_hw_init_fake.return_val = RET_SUCCESS;
     ir_camera_system_init();

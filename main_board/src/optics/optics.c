@@ -12,8 +12,8 @@
 
 LOG_MODULE_REGISTER(optics);
 
-static HardwareDiagnostic_Status self_test_status =
-    HardwareDiagnostic_Status_STATUS_UNKNOWN;
+static orb_mcu_HardwareDiagnostic_Status self_test_status =
+    orb_mcu_HardwareDiagnostic_Status_STATUS_UNKNOWN;
 
 static ATOMIC_DEFINE(fu_pvcc_enabled, 1);
 #define ATOMIC_FU_PVCC_ENABLED_BIT 0
@@ -40,7 +40,8 @@ front_unit_pvcc_update(struct k_work *work)
 {
     ARG_UNUSED(work);
 
-    HardwareDiagnostic_Status status = HardwareDiagnostic_Status_STATUS_OK;
+    orb_mcu_HardwareDiagnostic_Status status =
+        orb_mcu_HardwareDiagnostic_Status_STATUS_OK;
 
     bool pvcc_available = (gpio_pin_get_dt(&front_unit_pvcc_enabled) != 0);
     if (pvcc_available) {
@@ -49,11 +50,11 @@ front_unit_pvcc_update(struct k_work *work)
     } else {
         atomic_clear_bit(fu_pvcc_enabled, ATOMIC_FU_PVCC_ENABLED_BIT);
 
-        status = HardwareDiagnostic_Status_STATUS_OK;
+        status = orb_mcu_HardwareDiagnostic_Status_STATUS_OK;
         LOG_WRN("Eye safety circuitry tripped");
     }
 
-    diag_set_status(HardwareDiagnostic_Source_OPTICS_IR_LEDS, status);
+    diag_set_status(orb_mcu_HardwareDiagnostic_Source_OPTICS_IR_LEDS, status);
 }
 
 static void
@@ -130,12 +131,12 @@ distance_is_unsafe_cb(void)
 }
 
 int
-optics_init(const Hardware *hw_version, struct k_mutex *mutex)
+optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
 {
     int err_code;
 
     diag_set_status(
-        HardwareDiagnostic_Source_OPTICS_EYE_SAFETY_CIRCUIT_SELF_TEST,
+        orb_mcu_HardwareDiagnostic_Source_OPTICS_EYE_SAFETY_CIRCUIT_SELF_TEST,
         self_test_status);
 
     err_code = ir_camera_system_init();
@@ -213,8 +214,9 @@ optics_self_test(void)
 
     int ret;
 
-    if (self_test_status == HardwareDiagnostic_Status_STATUS_OK ||
-        self_test_status == HardwareDiagnostic_Status_STATUS_SAFETY_ISSUE) {
+    if (self_test_status == orb_mcu_HardwareDiagnostic_Status_STATUS_OK ||
+        self_test_status ==
+            orb_mcu_HardwareDiagnostic_Status_STATUS_SAFETY_ISSUE) {
         return RET_ERROR_ALREADY_INITIALIZED;
     }
 
@@ -226,14 +228,15 @@ optics_self_test(void)
                      // the Front Unit IO expander
     if (ret) {
         self_test_status =
-            HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
+            orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
         ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
     }
 
-    self_test_status = HardwareDiagnostic_Status_STATUS_OK;
-    for (size_t i = 0; i < ARRAY_SIZE(ir_leds_gpios) &&
-                       self_test_status == HardwareDiagnostic_Status_STATUS_OK;
+    self_test_status = orb_mcu_HardwareDiagnostic_Status_STATUS_OK;
+    for (size_t i = 0;
+         i < ARRAY_SIZE(ir_leds_gpios) &&
+         self_test_status == orb_mcu_HardwareDiagnostic_Status_STATUS_OK;
          i++) {
         power_vbat_5v_3v3_supplies_on();
         boot_turn_off_pvcc();
@@ -249,7 +252,8 @@ optics_self_test(void)
             // eye safety circuitry doesn't respond to self test
             LOG_ERR("%s didn't disable PVCC via eye safety circuitry",
                     ir_leds_names[i]);
-            self_test_status = HardwareDiagnostic_Status_STATUS_SAFETY_ISSUE;
+            self_test_status =
+                orb_mcu_HardwareDiagnostic_Status_STATUS_SAFETY_ISSUE;
         } else {
             LOG_INF("%s tripped safety circuitry", ir_leds_names[i]);
         }
