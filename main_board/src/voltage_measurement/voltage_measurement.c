@@ -160,8 +160,8 @@ typedef struct {
 
 static adc_samples_buffers_t adc_samples_buffers = {0};
 
-static Hardware_OrbVersion hardware_version =
-    Hardware_OrbVersion_HW_VERSION_UNKNOWN;
+static orb_mcu_Hardware_OrbVersion hardware_version =
+    orb_mcu_Hardware_OrbVersion_HW_VERSION_UNKNOWN;
 
 k_tid_t tid_publish = NULL;
 
@@ -217,7 +217,7 @@ voltage_measurement_get_stats(adc_samples_buffers_t *samples_buffers,
         return RET_ERROR_INVALID_PARAM;
     }
 
-    if (hardware_version == Hardware_OrbVersion_HW_VERSION_UNKNOWN) {
+    if (hardware_version == orb_mcu_Hardware_OrbVersion_HW_VERSION_UNKNOWN) {
         return RET_ERROR_NOT_INITIALIZED;
     }
 
@@ -247,7 +247,7 @@ voltage_measurement_get_stats(adc_samples_buffers_t *samples_buffers,
     float voltage_divider_scaling;
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-    if (hardware_version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+    if (hardware_version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         voltage_divider_scaling = voltage_divider_scalings_ev5[channel];
     } else {
 #endif
@@ -279,7 +279,7 @@ voltage_measurement_get(const voltage_measurement_channel_t channel,
         return RET_ERROR_INVALID_PARAM;
     }
 
-    if (hardware_version == Hardware_OrbVersion_HW_VERSION_UNKNOWN) {
+    if (hardware_version == orb_mcu_Hardware_OrbVersion_HW_VERSION_UNKNOWN) {
         return RET_ERROR_NOT_INITIALIZED;
     }
 
@@ -301,7 +301,7 @@ voltage_measurement_get(const voltage_measurement_channel_t channel,
     float voltage_divider_scaling;
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-    if (hardware_version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+    if (hardware_version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         voltage_divider_scaling = voltage_divider_scalings_ev5[channel];
     } else {
 #endif
@@ -322,7 +322,7 @@ voltage_measurement_get_raw(voltage_measurement_channel_t channel,
         return RET_ERROR_INVALID_PARAM;
     }
 
-    if (hardware_version == Hardware_OrbVersion_HW_VERSION_UNKNOWN) {
+    if (hardware_version == orb_mcu_Hardware_OrbVersion_HW_VERSION_UNKNOWN) {
         return RET_ERROR_NOT_INITIALIZED;
     }
 
@@ -589,7 +589,7 @@ update_min_max_from_adc_samples_buffer(
 static void
 publish_all_voltages(void)
 {
-    static Voltage voltage_msg;
+    static orb_mcu_main_Voltage voltage_msg;
 
     bool at_least_one_publish_successful = false;
 
@@ -607,66 +607,67 @@ publish_all_voltages(void)
 
     bool is_super_cap_channel = false;
 
-    for (Voltage_VoltageSource i = Voltage_VoltageSource_MAIN_MCU_INTERNAL;
-         i <= Voltage_VoltageSource_SUPER_CAP_7; ++i) {
+    for (orb_mcu_main_Voltage_VoltageSource i =
+             orb_mcu_main_Voltage_VoltageSource_MAIN_MCU_INTERNAL;
+         i <= orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_7; ++i) {
         voltage_msg.source = i;
 
         voltage_measurement_channel_t channel = CHANNEL_3V3_UC;
         switch (i) {
-        case Voltage_VoltageSource_MAIN_MCU_INTERNAL:
+        case orb_mcu_main_Voltage_VoltageSource_MAIN_MCU_INTERNAL:
             channel = CHANNEL_3V3_UC;
             break;
-        case Voltage_VoltageSource_SECURITY_MCU_INTERNAL:
+        case orb_mcu_main_Voltage_VoltageSource_SECURITY_MCU_INTERNAL:
             // not available on Main MCU
             continue;
-        case Voltage_VoltageSource_SUPPLY_12V:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_12V:
             channel = CHANNEL_12V;
             break;
-        case Voltage_VoltageSource_SUPPLY_5V:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_5V:
             channel = CHANNEL_5V;
             break;
-        case Voltage_VoltageSource_SUPPLY_3V8:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_3V8:
             if ((hardware_version ==
-                 Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
+                 orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
                 (hardware_version ==
-                 Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
+                 orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
                 (hardware_version ==
-                 Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
+                 orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
                 (hardware_version ==
-                 Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
+                 orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
                 channel = CHANNEL_3V3_SSD_3V8;
             } else {
                 // not available
                 continue;
             }
             break;
-        case Voltage_VoltageSource_SUPPLY_3V3:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_3V3:
             channel = CHANNEL_3V3;
             break;
-        case Voltage_VoltageSource_SUPPLY_1V8:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_1V8:
             channel = CHANNEL_1V8;
             break;
-        case Voltage_VoltageSource_VBAT:
+        case orb_mcu_main_Voltage_VoltageSource_VBAT:
             // not available on Main MCU
             continue;
-        case Voltage_VoltageSource_PVCC:
+        case orb_mcu_main_Voltage_VoltageSource_PVCC:
             channel = CHANNEL_PVCC;
             break;
-        case Voltage_VoltageSource_CAPS_12V:
+        case orb_mcu_main_Voltage_VoltageSource_CAPS_12V:
             channel = CHANNEL_12V_CAPS;
             break;
-        case Voltage_VoltageSource_VBAT_SW:
+        case orb_mcu_main_Voltage_VoltageSource_VBAT_SW:
             channel = CHANNEL_VBAT_SW;
             break;
-        case Voltage_VoltageSource_SUPPLY_3V3_SSD:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_3V3_SSD:
             if ((hardware_version ==
-                 Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
+                 orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
                 (hardware_version ==
-                 Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
+                 orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
                 (hardware_version ==
-                 Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
+                 orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
                 (hardware_version ==
-                 Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
+                 orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
                 // not available
                 continue;
             } else {
@@ -674,112 +675,112 @@ publish_all_voltages(void)
             }
             break;
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-        case Voltage_VoltageSource_SUPPLY_3V3_WIFI:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_3V3_WIFI:
             channel = CHANNEL_3V3_WIFI;
             break;
-        case Voltage_VoltageSource_SUPPLY_3V3_LTE:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_3V3_LTE:
             channel = CHANNEL_3V3_LTE;
             break;
 
-        case Voltage_VoltageSource_SUPPLY_3V6:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_3V6:
             channel = CHANNEL_3V6;
             break;
 
-        case Voltage_VoltageSource_SUPPLY_1V2:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_1V2:
             channel = CHANNEL_1V2;
             break;
 
-        case Voltage_VoltageSource_SUPPLY_2V8:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_2V8:
             channel = CHANNEL_2V8;
             break;
 
-        case Voltage_VoltageSource_SUPPLY_1V8_SEC:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_1V8_SEC:
             channel = CHANNEL_1V8_SEC;
             break;
 
-        case Voltage_VoltageSource_SUPPLY_4V7_SEC:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_4V7_SEC:
             channel = CHANNEL_4V7_SEC;
             break;
 
-        case Voltage_VoltageSource_SUPPLY_17V_CAPS:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_17V_CAPS:
             voltage_msg.voltage_current_mv = super_cap_voltages_mv[7];
             voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
             voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
             is_super_cap_channel = true;
             break;
 
-        case Voltage_VoltageSource_SUPER_CAP_0:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_0:
             voltage_msg.voltage_current_mv = super_cap_differential_voltages[0];
             voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
             voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
             is_super_cap_channel = true;
             break;
 
-        case Voltage_VoltageSource_SUPER_CAP_1:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_1:
             voltage_msg.voltage_current_mv = super_cap_differential_voltages[1];
             voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
             voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
             is_super_cap_channel = true;
             break;
 
-        case Voltage_VoltageSource_SUPER_CAP_2:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_2:
             voltage_msg.voltage_current_mv = super_cap_differential_voltages[2];
             voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
             voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
             is_super_cap_channel = true;
             break;
 
-        case Voltage_VoltageSource_SUPER_CAP_3:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_3:
             voltage_msg.voltage_current_mv = super_cap_differential_voltages[3];
             voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
             voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
             is_super_cap_channel = true;
             break;
 
-        case Voltage_VoltageSource_SUPER_CAP_4:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_4:
             voltage_msg.voltage_current_mv = super_cap_differential_voltages[4];
             voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
             voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
             is_super_cap_channel = true;
             break;
 
-        case Voltage_VoltageSource_SUPER_CAP_5:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_5:
             voltage_msg.voltage_current_mv = super_cap_differential_voltages[5];
             voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
             voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
             is_super_cap_channel = true;
             break;
 
-        case Voltage_VoltageSource_SUPER_CAP_6:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_6:
             voltage_msg.voltage_current_mv = super_cap_differential_voltages[6];
             voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
             voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
             is_super_cap_channel = true;
             break;
 
-        case Voltage_VoltageSource_SUPER_CAP_7:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_7:
             voltage_msg.voltage_current_mv = super_cap_differential_voltages[7];
             voltage_msg.voltage_min_mv = voltage_msg.voltage_current_mv;
             voltage_msg.voltage_max_mv = voltage_msg.voltage_current_mv;
             is_super_cap_channel = true;
             break;
 #elif defined(CONFIG_BOARD_PEARL_MAIN)
-        case Voltage_VoltageSource_SUPPLY_3V3_WIFI:
-        case Voltage_VoltageSource_SUPPLY_3V3_LTE:
-        case Voltage_VoltageSource_SUPPLY_3V6:
-        case Voltage_VoltageSource_SUPPLY_1V2:
-        case Voltage_VoltageSource_SUPPLY_2V8:
-        case Voltage_VoltageSource_SUPPLY_1V8_SEC:
-        case Voltage_VoltageSource_SUPPLY_4V7_SEC:
-        case Voltage_VoltageSource_SUPPLY_17V_CAPS:
-        case Voltage_VoltageSource_SUPER_CAP_0:
-        case Voltage_VoltageSource_SUPER_CAP_1:
-        case Voltage_VoltageSource_SUPER_CAP_2:
-        case Voltage_VoltageSource_SUPER_CAP_3:
-        case Voltage_VoltageSource_SUPER_CAP_4:
-        case Voltage_VoltageSource_SUPER_CAP_5:
-        case Voltage_VoltageSource_SUPER_CAP_6:
-        case Voltage_VoltageSource_SUPER_CAP_7:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_3V3_WIFI:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_3V3_LTE:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_3V6:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_1V2:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_2V8:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_1V8_SEC:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_4V7_SEC:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_17V_CAPS:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_0:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_1:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_2:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_3:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_4:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_5:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_6:
+        case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_7:
             continue;
 #endif
         default:
@@ -799,7 +800,7 @@ publish_all_voltages(void)
 
         if (ret == RET_SUCCESS) {
             ret = publish_new(&voltage_msg, sizeof(voltage_msg),
-                              McuToJetson_voltage_tag,
+                              orb_mcu_main_McuToJetson_voltage_tag,
                               CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
             if (ret == RET_SUCCESS) {
                 at_least_one_publish_successful = true;
@@ -1000,7 +1001,7 @@ voltage_measurement_debug_thread()
 #endif
 
 ret_code_t
-voltage_measurement_init(const Hardware *hw_version,
+voltage_measurement_init(const orb_mcu_Hardware *hw_version,
                          struct k_mutex *analog_mux_mutex)
 {
     hardware_version = hw_version->version;

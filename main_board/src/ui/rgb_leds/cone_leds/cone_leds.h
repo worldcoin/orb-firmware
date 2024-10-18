@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include <errors.h>
 
 /**
@@ -30,8 +30,8 @@ cone_leds_set_leds_sequence_argb32(const uint8_t *bytes, uint32_t size);
  * @return
  */
 ret_code_t
-cone_leds_set_pattern(ConeLEDsPattern_ConeRgbLedPattern pattern,
-                      RgbColor *color);
+cone_leds_set_pattern(orb_mcu_main_ConeLEDsPattern_ConeRgbLedPattern pattern,
+                      orb_mcu_main_RgbColor *color);
 
 /**
  * Init cone LED thread

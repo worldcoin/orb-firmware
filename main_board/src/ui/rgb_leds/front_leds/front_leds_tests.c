@@ -14,10 +14,11 @@ ZTEST(hil, test_front_leds_patterns)
     front_leds_set_brightness(0x10);
     int ret_code;
 
-    RgbColor custom = {60, 60, 0};
+    orb_mcu_main_RgbColor custom = {60, 60, 0, 5};
     // test all patterns
-    for (int i = UserLEDsPattern_UserRgbLedPattern_OFF;
-         i <= UserLEDsPattern_UserRgbLedPattern_RGB_ONLY_CENTER; ++i) {
+    for (int i = orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_OFF;
+         i <= orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_RGB_ONLY_CENTER;
+         ++i) {
         for (int j = 0; j <= 360; j = j + 90) {
             ret_code = front_leds_set_pattern(i, 90, j, &custom,
                                               INITIAL_PULSING_PERIOD_MS,
@@ -30,14 +31,15 @@ ZTEST(hil, test_front_leds_patterns)
     }
 
     // verify that we don't have: color * pulsing_scale > 255
-    ret_code =
-        front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern_PULSING_RGB,
-                               90, 180, &custom, 1000, 6);
+    ret_code = front_leds_set_pattern(
+        orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_PULSING_RGB, 90, 180,
+        &custom, 1000, 6);
     zassert_equal(ret_code, RET_ERROR_INVALID_PARAM);
 
     k_msleep(1000);
 
     // reset
-    front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern_OFF, 0, 0, &custom,
-                           INITIAL_PULSING_PERIOD_MS, PULSING_SCALE_DEFAULT);
+    front_leds_set_pattern(orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_OFF,
+                           0, 0, &custom, INITIAL_PULSING_PERIOD_MS,
+                           PULSING_SCALE_DEFAULT);
 }

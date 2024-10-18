@@ -1,6 +1,6 @@
 #include "button.h"
 #include "app_config.h"
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include <app_assert.h>
@@ -76,9 +76,9 @@ button_released(struct k_work *item)
 {
     UNUSED_PARAMETER(item);
 
-    PowerButton button_state = {.pressed = false};
+    orb_mcu_main_PowerButton button_state = {.pressed = false};
     publish_new(&button_state, sizeof(button_state),
-                McuToJetson_power_button_tag,
+                orb_mcu_main_McuToJetson_power_button_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 
@@ -87,9 +87,9 @@ button_pressed(struct k_work *item)
 {
     UNUSED_PARAMETER(item);
 
-    PowerButton button_state = {.pressed = true};
+    orb_mcu_main_PowerButton button_state = {.pressed = true};
     publish_new(&button_state, sizeof(button_state),
-                McuToJetson_power_button_tag,
+                orb_mcu_main_McuToJetson_power_button_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 

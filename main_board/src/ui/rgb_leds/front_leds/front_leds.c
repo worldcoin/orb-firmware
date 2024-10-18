@@ -90,8 +90,8 @@ static K_SEM_DEFINE(leds_wait_for_trigger, 0, 1);
 static volatile bool final_done = false;
 
 // default values
-static volatile UserLEDsPattern_UserRgbLedPattern global_pattern =
-    UserLEDsPattern_UserRgbLedPattern_OFF;
+static volatile orb_mcu_main_UserLEDsPattern_UserRgbLedPattern global_pattern =
+    orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_OFF;
 static volatile bool use_sequence;
 static volatile uint32_t global_start_angle_degrees = 0;
 static volatile int32_t global_angle_length_degrees = FULL_RING_DEGREES;
@@ -174,7 +174,7 @@ front_leds_thread()
 
     uint8_t intensity;
     struct led_rgb color;
-    UserLEDsPattern_UserRgbLedPattern pattern;
+    orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern;
     uint32_t start_angle_degrees;
     int32_t angle_length_degrees;
     float pulsing_scale;
@@ -199,25 +199,25 @@ front_leds_thread()
 
         if (!use_sequence) {
             switch (pattern) {
-            case UserLEDsPattern_UserRgbLedPattern_OFF:
+            case orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_OFF:
                 set_center((struct led_rgb)RGB_OFF);
                 set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
                 break;
-            case UserLEDsPattern_UserRgbLedPattern_ALL_WHITE:
+            case orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_ALL_WHITE:
                 color.r = intensity;
                 color.g = intensity;
                 color.b = intensity;
                 set_center(color);
                 set_ring(color, start_angle_degrees, angle_length_degrees);
                 break;
-            case UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_NO_CENTER:
+            case orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_NO_CENTER:
                 color.r = intensity;
                 color.g = intensity;
                 color.b = intensity;
                 set_center((struct led_rgb)RGB_OFF);
                 set_ring(color, start_angle_degrees, angle_length_degrees);
                 break;
-            case UserLEDsPattern_UserRgbLedPattern_RANDOM_RAINBOW:
+            case orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_RANDOM_RAINBOW:
                 if (intensity > 0) {
                     uint32_t shades = intensity > SHADES_PER_COLOR
                                           ? SHADES_PER_COLOR
@@ -235,41 +235,41 @@ front_leds_thread()
                     memset(leds.all, 0, sizeof leds.all);
                 }
                 break;
-            case UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_ONLY_CENTER:
+            case orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_ALL_WHITE_ONLY_CENTER:
                 color.r = intensity;
                 color.g = intensity;
                 color.b = intensity;
                 set_center(color);
                 set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
                 break;
-            case UserLEDsPattern_UserRgbLedPattern_ALL_RED:
+            case orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_ALL_RED:
                 color.r = intensity;
                 color.g = 0;
                 color.b = 0;
                 set_ring(color, start_angle_degrees, angle_length_degrees);
                 set_center(color);
                 break;
-            case UserLEDsPattern_UserRgbLedPattern_ALL_GREEN:
+            case orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_ALL_GREEN:
                 color.r = 0;
                 color.g = intensity;
                 color.b = 0;
                 set_ring(color, start_angle_degrees, angle_length_degrees);
                 set_center(color);
                 break;
-            case UserLEDsPattern_UserRgbLedPattern_ALL_BLUE:
+            case orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_ALL_BLUE:
                 color.r = 0;
                 color.g = 0;
                 color.b = intensity;
                 set_ring(color, start_angle_degrees, angle_length_degrees);
                 set_center(color);
                 break;
-            case UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE:
+            case orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_PULSING_WHITE:
                 color.r = MINIMUM_WHITE_BRIGHTNESS;
                 color.g = MINIMUM_WHITE_BRIGHTNESS;
                 color.b = MINIMUM_WHITE_BRIGHTNESS;
                 pulsing_scale = PULSING_SCALE_DEFAULT;
                 // fallthrough
-            case UserLEDsPattern_UserRgbLedPattern_PULSING_RGB:
+            case orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_PULSING_RGB:
                 if (pulsing_index < ARRAY_SIZE(SINE_LUT)) {
                     // from 0 to 1.0
                     scaler = SINE_LUT[pulsing_index] * pulsing_scale;
@@ -291,7 +291,7 @@ front_leds_thread()
                 set_ring(color, start_angle_degrees, angle_length_degrees);
                 set_center((struct led_rgb)RGB_OFF);
                 break;
-            case UserLEDsPattern_UserRgbLedPattern_PULSING_RGB_ONLY_CENTER:
+            case orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_PULSING_RGB_ONLY_CENTER:
                 if (pulsing_index < ARRAY_SIZE(SINE_LUT)) {
                     // from 0 to 1.0
                     scaler = SINE_LUT[pulsing_index] * PULSING_SCALE_DEFAULT;
@@ -313,15 +313,15 @@ front_leds_thread()
                 set_center(color);
                 set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
                 break;
-            case UserLEDsPattern_UserRgbLedPattern_RGB:
+            case orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_RGB:
                 set_ring(color, start_angle_degrees, angle_length_degrees);
                 set_center((struct led_rgb)RGB_OFF);
                 break;
-            case UserLEDsPattern_UserRgbLedPattern_RGB_ONLY_CENTER:
+            case orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_RGB_ONLY_CENTER:
                 set_center((struct led_rgb)color);
                 set_ring((struct led_rgb)RGB_OFF, 0, FULL_RING_DEGREES);
                 break;
-            case UserLEDsPattern_UserRgbLedPattern_BOOT_ANIMATION:
+            case orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_BOOT_ANIMATION:
                 if (pulsing_index < ARRAY_SIZE(SINE_LUT)) {
                     // from 0 to 1.0
                     scaler = SINE_LUT[pulsing_index] * PULSING_SCALE_DEFAULT;
@@ -359,11 +359,12 @@ front_leds_thread()
             // If they are active and the next pulse is too close in time (we
             // don't have enough time to update all the RGB leds), wait for
             // finished IR pulse.
-            wait_for_interrupt = (ir_camera_system_get_enabled_leds() >
-                                  InfraredLEDs_Wavelength_WAVELENGTH_740NM) &&
-                                 (ir_camera_system_get_time_until_update_us() <
-                                  LED_STRIP_MAXIMUM_UPDATE_TIME_US) &&
-                                 (ir_camera_system_get_fps() > 0);
+            wait_for_interrupt =
+                (ir_camera_system_get_enabled_leds() >
+                 orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM) &&
+                (ir_camera_system_get_time_until_update_us() <
+                 LED_STRIP_MAXIMUM_UPDATE_TIME_US) &&
+                (ir_camera_system_get_fps() > 0);
             if (wait_for_interrupt) {
                 k_sem_take(&leds_wait_for_trigger, K_FOREVER);
             }
@@ -377,8 +378,8 @@ front_leds_thread()
 
 #ifdef CONFIG_FRONT_UNIT_RGB_LEDS_LOG_LEVEL_DBG
 static void
-print_new_debug(UserLEDsPattern_UserRgbLedPattern pattern, uint32_t start_angle,
-                int32_t angle_length, RgbColor *color,
+print_new_debug(orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern,
+                uint32_t start_angle, int32_t angle_length, RgbColor *color,
                 uint32_t pulsing_period_ms, float pulsing_scale)
 {
     LOG_DBG("pattern = %d", pattern);
@@ -400,7 +401,7 @@ print_new_debug(UserLEDsPattern_UserRgbLedPattern pattern, uint32_t start_angle,
 #endif
 
 static ret_code_t
-pulsing_rgb_check_range(RgbColor *color, float pulsing_scale)
+pulsing_rgb_check_range(orb_mcu_main_RgbColor *color, float pulsing_scale)
 {
     if ((lroundf((float)color->red * (pulsing_scale + 1)) > 255) ||
         (lroundf((float)color->green * (pulsing_scale + 1)) > 255) ||
@@ -413,10 +414,10 @@ pulsing_rgb_check_range(RgbColor *color, float pulsing_scale)
 }
 
 static bool
-previous_settings_are_identical(UserLEDsPattern_UserRgbLedPattern pattern,
-                                uint32_t start_angle, int32_t angle_length,
-                                RgbColor *color, uint32_t pulsing_period_ms,
-                                float pulsing_scale)
+previous_settings_are_identical(
+    orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern,
+    uint32_t start_angle, int32_t angle_length, orb_mcu_main_RgbColor *color,
+    uint32_t pulsing_period_ms, float pulsing_scale)
 {
     bool ret = (global_pulsing_scale == pulsing_scale) &&
                (global_pulsing_period_ms == pulsing_period_ms) &&
@@ -440,9 +441,10 @@ previous_settings_are_identical(UserLEDsPattern_UserRgbLedPattern pattern,
 }
 
 static void
-update_parameters(UserLEDsPattern_UserRgbLedPattern pattern,
-                  uint32_t start_angle, int32_t angle_length, RgbColor *color,
-                  uint32_t pulsing_period_ms, float pulsing_scale)
+update_parameters(orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern,
+                  uint32_t start_angle, int32_t angle_length,
+                  orb_mcu_main_RgbColor *color, uint32_t pulsing_period_ms,
+                  float pulsing_scale)
 {
     if (pulsing_period_ms == 0) {
         LOG_WRN("Pulsing period 0, setting to default");
@@ -481,12 +483,12 @@ update_parameters(UserLEDsPattern_UserRgbLedPattern pattern,
 }
 
 ret_code_t
-front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
+front_leds_set_pattern(orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern,
                        uint32_t start_angle, int32_t angle_length,
-                       RgbColor *color, uint32_t pulsing_period_ms,
+                       orb_mcu_main_RgbColor *color, uint32_t pulsing_period_ms,
                        float pulsing_scale)
 {
-    if (pattern == UserLEDsPattern_UserRgbLedPattern_PULSING_RGB) {
+    if (pattern == orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_PULSING_RGB) {
         ret_code_t ret = pulsing_rgb_check_range(color, pulsing_scale);
         if (ret != RET_SUCCESS) {
             return RET_ERROR_INVALID_PARAM;
@@ -647,8 +649,9 @@ ret_code_t
 front_leds_init(void)
 {
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    Hardware_FrontUnitVersion fu_version = version_get_front_unit_rev();
-    if (fu_version == Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2B) {
+    orb_mcu_Hardware_FrontUnitVersion fu_version = version_get_front_unit_rev();
+    if (fu_version ==
+        orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2B) {
         led_strip = led_strip_apa;
     }
 #endif
@@ -679,8 +682,9 @@ front_leds_initial_state(void)
     ASSERT_CONST_POINTER_NOT_NULL(led_strip_apa)
     ASSERT_CONST_POINTER_NOT_NULL(led_strip_w)
 
-    Hardware_FrontUnitVersion fu_version = version_get_front_unit_rev();
-    if (fu_version == Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2B) {
+    orb_mcu_Hardware_FrontUnitVersion fu_version = version_get_front_unit_rev();
+    if (fu_version ==
+        orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2B) {
         led_strip = led_strip_apa;
     }
 #endif

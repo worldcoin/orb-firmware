@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include <stdbool.h>
 #include <zephyr/kernel.h>
 
@@ -31,7 +31,7 @@ optics_safety_circuit_triggered(void);
  * @return error code
  */
 int
-optics_init(const Hardware *hw_version, struct k_mutex *mutex);
+optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex);
 
 /**
  * @brief Test that safety circuitry is responding

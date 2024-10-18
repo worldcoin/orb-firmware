@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include <errors.h>
 
 /**
@@ -25,8 +25,8 @@ diag_sync(uint32_t remote);
  * @return error code
  */
 ret_code_t
-diag_set_status(HardwareDiagnostic_Source source,
-                HardwareDiagnostic_Status status);
+diag_set_status(orb_mcu_HardwareDiagnostic_Source source,
+                orb_mcu_HardwareDiagnostic_Status status);
 
 /**
  * @brief Initialize the diagnostics system

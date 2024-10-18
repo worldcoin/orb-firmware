@@ -2,7 +2,7 @@
 #include "battery.h"
 #include "battery_can.h"
 #include "errors.h"
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "temperature/sensors/temperature.h"
@@ -32,8 +32,8 @@ static const struct device *can_dev = DEVICE_DT_GET(DT_ALIAS(battery_can_bus));
 K_THREAD_STACK_DEFINE(battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
 static struct k_thread rx_thread_data = {0};
 
-static BatteryCapacity battery_cap;
-static BatteryIsCharging is_charging;
+static orb_mcu_main_BatteryCapacity battery_cap;
+static orb_mcu_main_BatteryIsCharging is_charging;
 
 // the time between sends of battery data to the Jetson
 // We selected 1100 ms because the battery publishes its data with 1000 ms
@@ -122,13 +122,13 @@ static int request_battery_info_left_attempts = BATTERY_ID_REQUEST_ATTEMPTS;
 static void
 publish_battery_reset_reason(void)
 {
-    static BatteryResetReason reset_reason;
+    static orb_mcu_main_BatteryResetReason reset_reason;
     CRITICAL_SECTION_ENTER(k);
     reset_reason.reset_reason = state_400.reset_reason;
     CRITICAL_SECTION_EXIT(k);
     LOG_DBG("Battery reset reason: %d", reset_reason.reset_reason);
     int ret = publish_new(&reset_reason, sizeof reset_reason,
-                          McuToJetson_battery_reset_reason_tag,
+                          orb_mcu_main_McuToJetson_battery_reset_reason_tag,
                           CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
     if (ret != RET_SUCCESS) {
         LOG_DBG("Battery reset reason publish error: %d", ret);
@@ -136,31 +136,31 @@ publish_battery_reset_reason(void)
 }
 
 static void
-publish_battery_voltages(BatteryVoltage *voltages)
+publish_battery_voltages(orb_mcu_main_BatteryVoltage *voltages)
 {
     LOG_DBG("Battery voltage: (%d, %d, %d, %d) mV", voltages->battery_cell1_mv,
             voltages->battery_cell2_mv, voltages->battery_cell3_mv,
             voltages->battery_cell4_mv);
-    publish_new(voltages, sizeof(BatteryVoltage),
-                McuToJetson_battery_voltage_tag,
+    publish_new(voltages, sizeof(orb_mcu_main_BatteryVoltage),
+                orb_mcu_main_McuToJetson_battery_voltage_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 
 static void
-publish_battery_capacity(BatteryCapacity *battery_cap)
+publish_battery_capacity(orb_mcu_main_BatteryCapacity *battery_cap)
 {
     LOG_DBG("State of charge: %u%%", battery_cap->percentage);
-    publish_new(battery_cap, sizeof(BatteryCapacity),
-                McuToJetson_battery_capacity_tag,
+    publish_new(battery_cap, sizeof(orb_mcu_main_BatteryCapacity),
+                orb_mcu_main_McuToJetson_battery_capacity_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 
 static void
-publish_battery_is_charging(BatteryIsCharging *is_charging)
+publish_battery_is_charging(orb_mcu_main_BatteryIsCharging *is_charging)
 {
     LOG_DBG("Is charging? %s", is_charging->battery_is_charging ? "yes" : "no");
-    publish_new(is_charging, sizeof(BatteryIsCharging),
-                McuToJetson_battery_is_charging_tag,
+    publish_new(is_charging, sizeof(orb_mcu_main_BatteryIsCharging),
+                orb_mcu_main_McuToJetson_battery_is_charging_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 
@@ -170,7 +170,7 @@ publish_battery_cell_temperature(int16_t cell_temperature_decidegrees)
     LOG_DBG("Battery cell temperature: %u.%u°C",
             cell_temperature_decidegrees / 10,
             cell_temperature_decidegrees % 10);
-    temperature_report(Temperature_TemperatureSource_BATTERY_CELL,
+    temperature_report(orb_mcu_Temperature_TemperatureSource_BATTERY_CELL,
                        cell_temperature_decidegrees / 10);
 }
 
@@ -180,9 +180,10 @@ publish_battery_diagnostics(void)
     if (can_message_410_received && can_message_411_received &&
         can_message_412_received && can_message_415_received &&
         can_message_499_received) {
-        static BatteryDiagnosticCommon diag_common = {0};
-        static BatteryDiagnosticSafety diag_safety = {0};
-        static BatteryDiagnosticPermanentFail diag_permanent_fail = {0};
+        static orb_mcu_main_BatteryDiagnosticCommon diag_common = {0};
+        static orb_mcu_main_BatteryDiagnosticSafety diag_safety = {0};
+        static orb_mcu_main_BatteryDiagnosticPermanentFail diag_permanent_fail =
+            {0};
         CRITICAL_SECTION_ENTER(k);
         diag_common.flags = state_499.flags;
         diag_common.bq769_control_status = state_410.bq769_control_status;
@@ -216,22 +217,23 @@ publish_battery_diagnostics(void)
             state_412.permanent_fail_status_d;
         CRITICAL_SECTION_EXIT(k);
         int ret = publish_new(&diag_common, sizeof(diag_common),
-                              McuToJetson_battery_diag_common_tag,
+                              orb_mcu_main_McuToJetson_battery_diag_common_tag,
                               CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         if (ret != RET_SUCCESS) {
             LOG_DBG("Battery diagnostics publish error diag_common: %d", ret);
         }
 
         ret = publish_new(&diag_safety, sizeof(diag_safety),
-                          McuToJetson_battery_diag_safety_tag,
+                          orb_mcu_main_McuToJetson_battery_diag_safety_tag,
                           CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         if (ret != RET_SUCCESS) {
             LOG_DBG("Battery diagnostics publish error diag_safety: %d", ret);
         }
 
-        ret = publish_new(&diag_permanent_fail, sizeof(diag_permanent_fail),
-                          McuToJetson_battery_diag_permanent_fail_tag,
-                          CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+        ret = publish_new(
+            &diag_permanent_fail, sizeof(diag_permanent_fail),
+            orb_mcu_main_McuToJetson_battery_diag_permanent_fail_tag,
+            CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         if (ret != RET_SUCCESS) {
             LOG_DBG("Battery diagnostics publish error diag_permanent_fail: %d",
                     ret);
@@ -244,9 +246,9 @@ publish_battery_diagnostics(void)
 static void
 publish_battery_info(void)
 {
-    static BatteryInfoHwFw info_hw_fw;
-    static BatteryInfoMaxValues info_max_values;
-    static BatteryInfoSocAndStatistics info_soc_and_statistics;
+    static orb_mcu_main_BatteryInfoHwFw info_hw_fw;
+    static orb_mcu_main_BatteryInfoMaxValues info_max_values;
+    static orb_mcu_main_BatteryInfoSocAndStatistics info_soc_and_statistics;
 
     uint32_t commit_hash = (uint32_t)strtol(state_523.git_hash, NULL, 16);
     LOG_INF("Firmware Hash: 0x%08x", commit_hash);
@@ -267,7 +269,7 @@ publish_battery_info(void)
     info_hw_fw.mcu_id.size = 12;
 
     info_hw_fw.hw_version =
-        BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_UNDETECTED;
+        orb_mcu_main_BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_UNDETECTED;
     if (can_message_522_received) {
         // Message 0x522 is only available on EV3 and later
         info_hw_fw.hw_version = state_522.hardware_version;
@@ -287,9 +289,9 @@ publish_battery_info(void)
             state_492.soc_calibration_state;
     } else {
         info_soc_and_statistics.soc_state =
-            BatteryInfoSocAndStatistics_SocState_STATE_SOC_UNKNOWN;
+            orb_mcu_main_BatteryInfoSocAndStatistics_SocState_STATE_SOC_UNKNOWN;
         info_soc_and_statistics.soc_calibration =
-            BatteryInfoSocAndStatistics_SocCalibration_STATE_SOC_CAL_UNKNOWN;
+            orb_mcu_main_BatteryInfoSocAndStatistics_SocCalibration_STATE_SOC_CAL_UNKNOWN;
     }
 
     info_soc_and_statistics.number_of_charges = state_490.number_of_charges;
@@ -317,21 +319,22 @@ publish_battery_info(void)
             info_soc_and_statistics.number_of_written_flash_variables);
 
     int ret = publish_new(&info_hw_fw, sizeof(info_hw_fw),
-                          McuToJetson_battery_info_hw_fw_tag,
+                          orb_mcu_main_McuToJetson_battery_info_hw_fw_tag,
                           CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
     if (ret != RET_SUCCESS) {
         LOG_DBG("Battery info_one publish error: %d", ret);
     }
 
-    ret = publish_new(&info_soc_and_statistics, sizeof(info_soc_and_statistics),
-                      McuToJetson_battery_info_soc_and_statistics_tag,
-                      CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+    ret = publish_new(
+        &info_soc_and_statistics, sizeof(info_soc_and_statistics),
+        orb_mcu_main_McuToJetson_battery_info_soc_and_statistics_tag,
+        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
     if (ret != RET_SUCCESS) {
         LOG_DBG("Battery info_two publish error: %d", ret);
     }
 
     ret = publish_new(&info_max_values, sizeof(info_max_values),
-                      McuToJetson_battery_info_max_values_tag,
+                      orb_mcu_main_McuToJetson_battery_info_max_values_tag,
                       CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
     if (ret != RET_SUCCESS) {
         LOG_DBG("Battery info_three publish error: %d", ret);
@@ -345,14 +348,14 @@ publish_battery_pcb_temperature(int16_t pcb_temperature_decidegrees)
 {
     LOG_DBG("Battery PCB temperature: %u.%u°C",
             pcb_temperature_decidegrees / 10, pcb_temperature_decidegrees % 10);
-    temperature_report(Temperature_TemperatureSource_BATTERY_PCB,
+    temperature_report(orb_mcu_Temperature_TemperatureSource_BATTERY_PCB,
                        pcb_temperature_decidegrees / 10);
 }
 
 static void
 publish_battery_pack_temperature(int16_t pack_temperature_decidegrees)
 {
-    temperature_report(Temperature_TemperatureSource_BATTERY_PACK,
+    temperature_report(orb_mcu_Temperature_TemperatureSource_BATTERY_PACK,
                        pack_temperature_decidegrees / 10);
 }
 
@@ -587,9 +590,9 @@ battery_rx_thread()
         }
 
         if (can_message_414_received) {
-            BatteryVoltage voltages;
+            orb_mcu_main_BatteryVoltage voltages;
             CRITICAL_SECTION_ENTER(k);
-            voltages = (BatteryVoltage){
+            voltages = (orb_mcu_main_BatteryVoltage){
                 .battery_cell1_mv = state_414.voltage_group_1,
                 .battery_cell2_mv = state_414.voltage_group_2,
                 .battery_cell3_mv = state_414.voltage_group_3,
@@ -735,16 +738,17 @@ battery_rx_thread()
                 if (battery_messages_timeout >=
                         BATTERY_MESSAGES_REMOVED_TIMEOUT_MS &&
                     shutdown_schuduled_sent != RET_SUCCESS) {
-                    ShutdownScheduled shutdown;
+                    orb_mcu_main_ShutdownScheduled shutdown;
                     shutdown.shutdown_reason =
-                        ShutdownScheduled_ShutdownReason_BATTERY_REMOVED;
+                        orb_mcu_main_ShutdownScheduled_ShutdownReason_BATTERY_REMOVED;
                     shutdown.has_ms_until_shutdown = true;
                     shutdown.ms_until_shutdown =
                         (BATTERY_MESSAGES_FORCE_REBOOT_TIMEOUT_MS -
                          battery_messages_timeout);
-                    shutdown_schuduled_sent = publish_new(
-                        &shutdown, sizeof(shutdown), McuToJetson_shutdown_tag,
-                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                    shutdown_schuduled_sent =
+                        publish_new(&shutdown, sizeof(shutdown),
+                                    orb_mcu_main_McuToJetson_shutdown_tag,
+                                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
                     LOG_WRN("Battery removed: %d", shutdown_schuduled_sent);
                 }
                 if (battery_messages_timeout >=

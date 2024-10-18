@@ -15,11 +15,11 @@ static bool cone_present = false;
 void
 ui_cone_present_send(uint32_t remote)
 {
-    ConePresent cone_status = {
+    orb_mcu_main_ConePresent cone_status = {
         .cone_present = cone_present,
     };
-    publish_new(&cone_status, sizeof(cone_status), McuToJetson_cone_present_tag,
-                remote);
+    publish_new(&cone_status, sizeof(cone_status),
+                orb_mcu_main_McuToJetson_cone_present_tag, remote);
 }
 
 int

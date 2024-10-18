@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include <errors.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -49,4 +49,4 @@ liquid_lens_is_enabled(void);
  * @return error code
  */
 ret_code_t
-liquid_lens_init(const Hardware *hw_version);
+liquid_lens_init(const orb_mcu_Hardware *hw_version);

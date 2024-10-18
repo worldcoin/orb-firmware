@@ -1,7 +1,7 @@
 #pragma once
 
 #include "errors.h"
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include <app_assert.h>
 #include <stm32_ll_adc.h>
 #include <zephyr/devicetree.h>
@@ -50,12 +50,12 @@ typedef enum {
 } voltage_measurement_channel_t;
 
 static inline uint16_t
-voltage_measurement_get_vref_mv_from_raw(Hardware_OrbVersion hardware_version,
-                                         uint16_t vrefint_raw)
+voltage_measurement_get_vref_mv_from_raw(
+    orb_mcu_Hardware_OrbVersion hardware_version, uint16_t vrefint_raw)
 {
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     return (uint16_t)(hardware_version ==
-                              Hardware_OrbVersion_HW_VERSION_PEARL_EV5
+                              orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5
                           ? DT_PROP_OR(DT_PATH(zephyr_user), ev5_vref_mv, 0)
                           : __LL_ADC_CALC_VREFANALOG_VOLTAGE(
                                 vrefint_raw == 0 ? 1 : vrefint_raw,
@@ -78,7 +78,7 @@ voltage_measurement_get_vref_mv_from_raw(Hardware_OrbVersion hardware_version,
  * @retval RET_SUCCESS on success
  */
 ret_code_t
-voltage_measurement_init(const Hardware *hw_version,
+voltage_measurement_init(const orb_mcu_Hardware *hw_version,
                          struct k_mutex *analog_mux_mutex);
 
 /**

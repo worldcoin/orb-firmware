@@ -75,7 +75,8 @@ static const struct gpio_dt_spec hw_pwr_board_bit3 = GPIO_DT_SPEC_GET_BY_IDX(
 
 #endif
 
-static Hardware_OrbVersion version = Hardware_OrbVersion_HW_VERSION_UNKNOWN;
+static orb_mcu_Hardware_OrbVersion version =
+    orb_mcu_Hardware_OrbVersion_HW_VERSION_UNKNOWN;
 
 int
 version_fw_send(uint32_t remote)
@@ -84,7 +85,7 @@ version_fw_send(uint32_t remote)
 
     dfu_version_primary_get(&version);
 
-    Versions versions = {
+    orb_mcu_Versions versions = {
         .has_primary_app = true,
         .primary_app.major = version.iv_major,
         .primary_app.minor = version.iv_minor,
@@ -101,15 +102,15 @@ version_fw_send(uint32_t remote)
         versions.secondary_app.commit_hash = version.iv_build_num;
     }
 
-    return publish_new(&versions, sizeof(versions), McuToJetson_versions_tag,
-                       remote);
+    return publish_new(&versions, sizeof(versions),
+                       orb_mcu_main_McuToJetson_versions_tag, remote);
 }
 
 static ret_code_t
-version_fetch_hardware_rev(Hardware *hw_version)
+version_fetch_hardware_rev(orb_mcu_Hardware *hw_version)
 {
     // read only once and keep hardware version into `version`
-    if (version == Hardware_OrbVersion_HW_VERSION_UNKNOWN) {
+    if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_UNKNOWN) {
 #if defined(CONFIG_BOARD_PEARL_MAIN)
         if (!device_is_ready(adc_dt_spec.dev)) {
             ASSERT_SOFT(RET_ERROR_INVALID_STATE);
@@ -149,16 +150,16 @@ version_fetch_hardware_rev(Hardware *hw_version)
 
             if (hardware_version_mv > 3200) {
                 // should be 3.3V = 3300mV (Mainboard 3.2)
-                version = Hardware_OrbVersion_HW_VERSION_PEARL_EV2;
+                version = orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2;
             } else if (hardware_version_mv > 2900) {
                 // should be 3.0V = 3000mV (Mainboard 3.3)
-                version = Hardware_OrbVersion_HW_VERSION_PEARL_EV3;
+                version = orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3;
             } else if (hardware_version_mv < 100) {
                 // should be 0.0V (Mainboard 3.1)
-                version = Hardware_OrbVersion_HW_VERSION_PEARL_EV1;
+                version = orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1;
             } else if (hardware_version_mv < 400) {
                 // should be 0.30V = 300mV  (Mainboard 3.4)
-                version = Hardware_OrbVersion_HW_VERSION_PEARL_EV4;
+                version = orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4;
             } else if ((hardware_version_mv > 930) &&
                        (hardware_version_mv < 1130)) {
                 // should be 0.64 V = 640 mV (Mainboard 3.6) but referenced
@@ -169,7 +170,7 @@ version_fetch_hardware_rev(Hardware *hw_version)
                 // -> 0.64 V * 3.3 V / 2.048 V =  1.03 V
                 // -> lower limit = 1.03 V - 0.1 V = 0.93 V = 930 mV
                 // -> upper limit = 1.03 V + 0.1 V = 1.13 V = 1130 mV
-                version = Hardware_OrbVersion_HW_VERSION_PEARL_EV5;
+                version = orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5;
             } else {
                 LOG_ERR("Unknown main board from voltage: %umV",
                         hardware_version_mv);
@@ -188,13 +189,13 @@ version_fetch_hardware_rev(Hardware *hw_version)
 
         switch (hw_bits) {
         case 0:
-            version = Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1;
+            version = orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1;
             break;
         case 1:
-            version = Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2;
+            version = orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2;
             break;
         case 2:
-            version = Hardware_OrbVersion_HW_VERSION_DIAMOND_B3;
+            version = orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3;
             break;
         default:
             LOG_ERR("Unknown main board from IO expander: %d", hw_bits);
@@ -218,14 +219,14 @@ version_fetch_hardware_rev(Hardware *hw_version)
 }
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-Hardware_FrontUnitVersion
+orb_mcu_Hardware_FrontUnitVersion
 version_get_front_unit_rev(void)
 {
-    static Hardware_FrontUnitVersion front_unit_version =
-        Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_UNKNOWN;
+    static orb_mcu_Hardware_FrontUnitVersion front_unit_version =
+        orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_UNKNOWN;
 
     if (front_unit_version ==
-        Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_UNKNOWN) {
+        orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_UNKNOWN) {
         gpio_pin_configure_dt(&hw_front_unit_bit0, GPIO_INPUT);
         gpio_pin_configure_dt(&hw_front_unit_bit1, GPIO_INPUT);
         gpio_pin_configure_dt(&hw_front_unit_bit2, GPIO_INPUT);
@@ -239,38 +240,38 @@ version_get_front_unit_rev(void)
         switch (hw_bits) {
         case 0:
             front_unit_version =
-                Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_0;
+                orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_0;
             break;
         case 1:
             front_unit_version =
-                Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_1;
+                orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_1;
             break;
         case 2:
             front_unit_version =
-                Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2A;
+                orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2A;
             break;
         case 3:
             front_unit_version =
-                Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2B;
+                orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2B;
             break;
         default:
             LOG_ERR("Unknown front unit from IO expander: %d", hw_bits);
             front_unit_version =
-                Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_UNKNOWN;
+                orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_UNKNOWN;
         }
     }
 
     return front_unit_version;
 }
 
-Hardware_PowerBoardVersion
+orb_mcu_Hardware_PowerBoardVersion
 version_get_power_board_rev(void)
 {
-    static Hardware_PowerBoardVersion power_board_version =
-        Hardware_PowerBoardVersion_POWER_BOARD_VERSION_UNKNOWN;
+    static orb_mcu_Hardware_PowerBoardVersion power_board_version =
+        orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_UNKNOWN;
 
     if (power_board_version ==
-        Hardware_PowerBoardVersion_POWER_BOARD_VERSION_UNKNOWN) {
+        orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_UNKNOWN) {
         gpio_pin_configure_dt(&hw_pwr_board_bit0, GPIO_INPUT);
         gpio_pin_configure_dt(&hw_pwr_board_bit1, GPIO_INPUT);
         gpio_pin_configure_dt(&hw_pwr_board_bit2, GPIO_INPUT);
@@ -284,20 +285,20 @@ version_get_power_board_rev(void)
         switch (hw_bits) {
         case 0:
             power_board_version =
-                Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_0;
+                orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_0;
             break;
         case 1:
             power_board_version =
-                Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_1;
+                orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_1;
             break;
         case 2:
             power_board_version =
-                Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_2;
+                orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_2;
             break;
         default:
             LOG_ERR("Unknown power board from IO expander: %d", hw_bits);
             power_board_version =
-                Hardware_PowerBoardVersion_POWER_BOARD_VERSION_UNKNOWN;
+                orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_UNKNOWN;
         }
     }
 
@@ -305,10 +306,10 @@ version_get_power_board_rev(void)
 }
 #endif
 
-Hardware_OrbVersion
+orb_mcu_Hardware_OrbVersion
 version_get_hardware_rev(void)
 {
-    if (version == Hardware_OrbVersion_HW_VERSION_UNKNOWN) {
+    if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_UNKNOWN) {
         version_fetch_hardware_rev(NULL);
     }
 
@@ -318,9 +319,10 @@ version_get_hardware_rev(void)
 int
 version_hw_send(uint32_t remote)
 {
-    Hardware hw = {.version = version};
+    orb_mcu_Hardware hw = {.version = version};
 
-    return publish_new(&hw, sizeof(hw), McuToJetson_hardware_tag, remote);
+    return publish_new(&hw, sizeof(hw), orb_mcu_main_McuToJetson_hardware_tag,
+                       remote);
 }
 
 int
@@ -353,11 +355,12 @@ void
 memfault_platform_get_device_info(sMemfaultDeviceInfo *info)
 {
     const char *version_str = STRINGIFY(FW_VERSION_FULL);
-    Hardware_OrbVersion hw_version = version_get_hardware_rev();
+    orb_mcu_Hardware_OrbVersion hw_version = version_get_hardware_rev();
     size_t hardware_version_idx = (size_t)hw_version;
 #if CONFIG_BOARD_DIAMOND_MAIN
-    hardware_version_idx =
-        hardware_version_idx - Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 + 1;
+    hardware_version_idx = hardware_version_idx -
+                           orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 +
+                           1;
 #endif
 
     // platform specific version information

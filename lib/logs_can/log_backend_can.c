@@ -1,5 +1,6 @@
 #include "log_backend_can.h"
-#include "mcu_messaging_common.pb.h"
+#include "common.pb.h"
+#include "mcu.pb.h"
 #include "orb_logs.h"
 #include <zephyr/logging/log_backend.h>
 LOG_MODULE_REGISTER(log_can, CONFIG_LOGS_CAN_LOG_LEVEL);
@@ -7,7 +8,7 @@ LOG_MODULE_REGISTER(log_can, CONFIG_LOGS_CAN_LOG_LEVEL);
 static int panic_count = 0;
 
 // Max log string length per message, without NULL termination character
-#define LOG_MAX_CHAR_COUNT (sizeof(Log) - 1)
+#define LOG_MAX_CHAR_COUNT (sizeof(orb_mcu_Log) - 1)
 
 static void (*print_log)(const char *log, size_t size, bool blocking) = NULL;
 
@@ -37,7 +38,7 @@ can_message_out(uint8_t *data, size_t length, void *ctx)
 // Copy log into log_output_buf which has the same size as the Log message
 // We define a log_output with `sizeof(Log) - 1` to keep room for the NULL
 // termination character
-static uint8_t log_output_buf[sizeof(Log)];
+static uint8_t log_output_buf[sizeof(orb_mcu_Log)];
 LOG_OUTPUT_DEFINE(log_output_can, can_message_out, log_output_buf,
                   LOG_MAX_CHAR_COUNT);
 

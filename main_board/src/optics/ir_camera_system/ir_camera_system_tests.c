@@ -1,4 +1,5 @@
 #include "ir_camera_system.h"
+#include "mcu.pb.h"
 #include "optics/ir_camera_system/ir_camera_timer_settings.h"
 #include "optics/optics.h"
 #include "power/boot/boot.h"
@@ -167,7 +168,8 @@ test_camera_triggers_and_leds_changing_fps(void)
     ir_camera_system_set_fps(30);
 
     ir_camera_system_enable_ir_eye_camera();
-    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+    ir_camera_system_enable_leds(
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM);
 
     k_msleep(SEPARATION_TIME_MS);
 
@@ -216,7 +218,8 @@ test_camera_triggers_and_leds_changing_fps(void)
     k_msleep(SEPARATION_TIME_MS);
 
     // final, turn off everything at end of test
-    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    ir_camera_system_enable_leds(
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
     ir_camera_system_disable_2d_tof_camera();
     ir_camera_system_disable_ir_eye_camera();
     ir_camera_system_disable_ir_face_camera();
@@ -230,34 +233,38 @@ test_leds(void)
     ir_camera_system_set_fps(30);
     ir_camera_system_set_on_time_us(1000);
 
-    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_850NM);
-
-    k_msleep(SEPARATION_TIME_MS);
-
-    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT);
+    ir_camera_system_enable_leds(
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM);
 
     k_msleep(SEPARATION_TIME_MS);
 
     ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT);
-
-    k_msleep(SEPARATION_TIME_MS);
-
-    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_940NM);
-
-    k_msleep(SEPARATION_TIME_MS);
-
-    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT);
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT);
 
     k_msleep(SEPARATION_TIME_MS);
 
     ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT);
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT);
+
+    k_msleep(SEPARATION_TIME_MS);
+
+    ir_camera_system_enable_leds(
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+
+    k_msleep(SEPARATION_TIME_MS);
+
+    ir_camera_system_enable_leds(
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_LEFT);
+
+    k_msleep(SEPARATION_TIME_MS);
+
+    ir_camera_system_enable_leds(
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT);
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     k_msleep(SEPARATION_TIME_MS);
 
     ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE);
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE);
 #endif
     k_msleep(SEPARATION_TIME_MS);
 
@@ -273,16 +280,18 @@ test_leds(void)
 
     k_msleep(SEPARATION_TIME_MS);
 
-    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    ir_camera_system_enable_leds(
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
 
     k_msleep(SEPARATION_TIME_MS);
 
     ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT);
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_RIGHT);
 
     k_msleep(SEPARATION_TIME_MS);
 
-    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    ir_camera_system_enable_leds(
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
 }
 
 static void (*tests[])(void) = {
@@ -294,7 +303,7 @@ static void (*tests[])(void) = {
 };
 
 static void
-send_msg(McuMessage *msg)
+send_msg(orb_mcu_McuMessage *msg)
 {
     can_message_t to_send;
     pb_ostream_t stream;
@@ -303,8 +312,8 @@ send_msg(McuMessage *msg)
     uint8_t buffer[CAN_FRAME_MAX_SIZE] = {0};
 
     stream = pb_ostream_from_buffer(buffer, sizeof buffer);
-    encoded_successfully =
-        pb_encode_ex(&stream, McuMessage_fields, msg, PB_ENCODE_DELIMITED);
+    encoded_successfully = pb_encode_ex(&stream, orb_mcu_McuMessage_fields, msg,
+                                        PB_ENCODE_DELIMITED);
     zassert_true(encoded_successfully);
 
     to_send.size = stream.bytes_written;
@@ -325,31 +334,36 @@ ZTEST(ir_camera, test_ir_camera_invalid_wavelengths)
     ret_code_t ret;
     // 740nm is deprecated
     ret = ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_740NM); // should fail
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM); // should fail
     zassert_equal(ret, RET_ERROR_INVALID_PARAM);
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     // for diamond board 850 left right is not supported
     ret = ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT); // should fail
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT); // should
+                                                                     // fail
     zassert_equal(ret, RET_ERROR_INVALID_PARAM);
 
     ret = ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT); // should fail
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT); // should
+                                                                      // fail
     zassert_equal(ret, RET_ERROR_INVALID_PARAM);
 
 #elif defined(CONFIG_BOARD_PEARL_MAIN)
     // for pearl board 850 side, center and 940 single are not supported
     ret = ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER); // should fail
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER); // should
+                                                                       // fail
     zassert_equal(ret, RET_ERROR_INVALID_PARAM);
 
     ret = ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE); // should fail
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE); // should
+                                                                     // fail
     zassert_equal(ret, RET_ERROR_INVALID_PARAM);
 
     ret = ir_camera_system_enable_leds(
-        InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE); // should fail
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE); // should
+                                                                       // fail
     zassert_equal(ret, RET_ERROR_INVALID_PARAM);
 
 #endif
@@ -363,7 +377,8 @@ ZTEST(ir_camera, test_ir_camera_valid_on_time_and_duty_limits)
     zassert_false(safety_circuit_tripped, "PVCC not available");
 
     // set valid on-time
-    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+    ir_camera_system_enable_leds(
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM);
     ir_camera_system_set_on_time_us(
         1000); // should pass safety circuit shouldn't trip
     ir_camera_system_set_fps(low_fps);
@@ -375,21 +390,22 @@ ZTEST(ir_camera, test_ir_camera_valid_on_time_and_duty_limits)
         low_fps, 1000);
 
     // set limit values low fps max on-time
-    for (InfraredLEDs_Wavelength wavelength =
-             InfraredLEDs_Wavelength_WAVELENGTH_740NM;
-         wavelength <= InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE;
+    for (orb_mcu_main_InfraredLEDs_Wavelength wavelength =
+             orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM;
+         wavelength <=
+         orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE;
          wavelength++) {
         switch (wavelength) {
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-        case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
-        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
-        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
-        case InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
+        case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM:
+        case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
+        case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
+        case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
             continue;
 #else
-        case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
-        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
-        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
+        case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM:
+        case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
+        case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
             continue;
 #endif
         default:
@@ -410,21 +426,22 @@ ZTEST(ir_camera, test_ir_camera_valid_on_time_and_duty_limits)
     }
 
     // set limit values different fps with max duty cycle
-    for (InfraredLEDs_Wavelength wavelength =
-             InfraredLEDs_Wavelength_WAVELENGTH_740NM;
-         wavelength <= InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE;
+    for (orb_mcu_main_InfraredLEDs_Wavelength wavelength =
+             orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM;
+         wavelength <=
+         orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE;
          wavelength++) {
         switch (wavelength) {
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-        case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
-        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
-        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
-        case InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
+        case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM:
+        case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER:
+        case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE:
+        case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE:
             continue;
 #else
-        case InfraredLEDs_Wavelength_WAVELENGTH_740NM:
-        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
-        case InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
+        case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM:
+        case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT:
+        case orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT:
             continue;
 #endif
         default:
@@ -455,8 +472,8 @@ ZTEST(ir_camera, test_ir_led_timeout)
     ret_code_t ret;
 
     // set valid on-time
-    ret =
-        ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+    ret = ir_camera_system_enable_leds(
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM);
     zassert_equal(ret, RET_SUCCESS, "Failed to enable LEDs");
 
     ret = ir_camera_system_set_on_time_us(
@@ -467,125 +484,128 @@ ZTEST(ir_camera, test_ir_led_timeout)
     zassert_equal(ret, RET_SUCCESS, "Failed to set FPS");
 
     k_msleep(IR_LED_AUTO_OFF_TIMEOUT_S * 1000 + 100);
-    InfraredLEDs_Wavelength wavelength = ir_camera_system_get_enabled_leds();
-    zassert_equal(wavelength, InfraredLEDs_Wavelength_WAVELENGTH_NONE,
-                  "IR LEDs should be off after %d seconds",
-                  IR_LED_AUTO_OFF_TIMEOUT_S);
+    orb_mcu_main_InfraredLEDs_Wavelength wavelength =
+        ir_camera_system_get_enabled_leds();
+    zassert_equal(
+        wavelength, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE,
+        "IR LEDs should be off after %d seconds", IR_LED_AUTO_OFF_TIMEOUT_S);
 }
 
 ZTEST(ir_camera, test_ir_camera_invalid_ir_wavelengths_msgs)
 {
-    McuMessage msg;
-    msg = (McuMessage)McuMessage_init_zero;
-    msg.version = Version_VERSION_0;
-    msg.which_message = McuMessage_j_message_tag;
+    orb_mcu_McuMessage msg;
+    msg = (orb_mcu_McuMessage)orb_mcu_McuMessage_init_zero;
+    msg.version = orb_mcu_Version_VERSION_0;
+    msg.which_message = orb_mcu_McuMessage_j_message_tag;
     msg.message.j_message.ack_number = 0;
-    msg.message.j_message.which_payload = JetsonToMcu_infrared_leds_tag;
+    msg.message.j_message.which_payload =
+        orb_mcu_main_JetsonToMcu_infrared_leds_tag;
     msg.message.j_message.payload.infrared_leds.wavelength =
-        InfraredLEDs_Wavelength_WAVELENGTH_940NM;
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM;
 
     send_msg(&msg);
     k_msleep(SEPARATION_TIME_MS);
     // should pass
     zassert_equal(ir_camera_system_get_enabled_leds(),
-                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+                  orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM);
 
     // try setting 740nm wavelength which is deprecated
     msg.message.j_message.payload.infrared_leds.wavelength =
-        InfraredLEDs_Wavelength_WAVELENGTH_740NM;
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM;
 
     send_msg(&msg);
     // should fail with INVALID_PARAM no changes should be observed
     k_msleep(SEPARATION_TIME_MS);
     zassert_equal(ir_camera_system_get_enabled_leds(),
-                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+                  orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM);
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     // for diamond board 850 left right is not supported
     msg.message.j_message.payload.infrared_leds.wavelength =
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT;
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT;
     send_msg(&msg);
     // should fail with INVALID_PARAM no changes should be observed
     k_msleep(SEPARATION_TIME_MS);
     zassert_equal(ir_camera_system_get_enabled_leds(),
-                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+                  orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM);
 
     msg.message.j_message.payload.infrared_leds.wavelength =
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT;
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT;
     send_msg(&msg);
     // should fail with INVALID_PARAM no changes should be observed
     k_msleep(SEPARATION_TIME_MS);
     zassert_equal(ir_camera_system_get_enabled_leds(),
-                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+                  orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM);
 #elif defined(CONFIG_BOARD_PEARL_MAIN)
     // for pearl board 850 side, center and 940 single are not supported
     msg.message.j_message.payload.infrared_leds.wavelength =
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER;
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER;
     send_msg(&msg);
     // should fail with INVALID_PARAM no changes should be observed
     k_msleep(SEPARATION_TIME_MS);
     zassert_equal(ir_camera_system_get_enabled_leds(),
-                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+                  orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM);
 
     msg.message.j_message.payload.infrared_leds.wavelength =
-        InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE;
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE;
     send_msg(&msg);
     // should fail with INVALID_PARAM no changes should be observed
     k_msleep(SEPARATION_TIME_MS);
     zassert_equal(ir_camera_system_get_enabled_leds(),
-                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+                  orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM);
 
     msg.message.j_message.payload.infrared_leds.wavelength =
-        InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE;
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE;
     send_msg(&msg);
     // should fail with INVALID_PARAM no changes should be observed
     k_msleep(SEPARATION_TIME_MS);
     zassert_equal(ir_camera_system_get_enabled_leds(),
-                  InfraredLEDs_Wavelength_WAVELENGTH_940NM);
+                  orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM);
 #endif
 }
 
 ZTEST(ir_camera, test_ir_camera_ir_eye_camera_focus_sweep)
 {
-    McuMessage msg;
+    orb_mcu_McuMessage msg;
 
     // Stop triggering IR eye camera message
-    msg = (McuMessage)McuMessage_init_zero;
-    msg.version = Version_VERSION_0;
-    msg.which_message = McuMessage_j_message_tag;
+    msg = (orb_mcu_McuMessage)orb_mcu_McuMessage_init_zero;
+    msg.version = orb_mcu_Version_VERSION_0;
+    msg.which_message = orb_mcu_McuMessage_j_message_tag;
     msg.message.j_message.ack_number = 0;
     msg.message.j_message.which_payload =
-        JetsonToMcu_stop_triggering_ir_eye_camera_tag;
+        orb_mcu_main_JetsonToMcu_stop_triggering_ir_eye_camera_tag;
 
     send_msg(&msg);
 
     // Set FPS
-    msg = (McuMessage)McuMessage_init_zero;
-    msg.version = Version_VERSION_0;
-    msg.which_message = McuMessage_j_message_tag;
+    msg = (orb_mcu_McuMessage)orb_mcu_McuMessage_init_zero;
+    msg.version = orb_mcu_Version_VERSION_0;
+    msg.which_message = orb_mcu_McuMessage_j_message_tag;
     msg.message.j_message.ack_number = 0;
-    msg.message.j_message.which_payload = JetsonToMcu_fps_tag;
+    msg.message.j_message.which_payload = orb_mcu_main_JetsonToMcu_fps_tag;
     msg.message.j_message.payload.fps.fps = FOCUS_SWEEP_FPS;
 
     send_msg(&msg);
 
     // Set on-time
-    msg = (McuMessage)McuMessage_init_zero;
-    msg.version = Version_VERSION_0;
-    msg.which_message = McuMessage_j_message_tag;
+    msg = (orb_mcu_McuMessage)orb_mcu_McuMessage_init_zero;
+    msg.version = orb_mcu_Version_VERSION_0;
+    msg.which_message = orb_mcu_McuMessage_j_message_tag;
     msg.message.j_message.ack_number = 0;
-    msg.message.j_message.which_payload = JetsonToMcu_led_on_time_tag;
+    msg.message.j_message.which_payload =
+        orb_mcu_main_JetsonToMcu_led_on_time_tag;
     msg.message.j_message.payload.led_on_time.on_duration_us = 2500;
 
     // Set focus sweep polynomial
-    msg = (McuMessage)McuMessage_init_zero;
-    msg.version = Version_VERSION_0;
-    msg.which_message = McuMessage_j_message_tag;
+    msg = (orb_mcu_McuMessage)orb_mcu_McuMessage_init_zero;
+    msg.version = orb_mcu_Version_VERSION_0;
+    msg.which_message = orb_mcu_McuMessage_j_message_tag;
     msg.message.j_message.ack_number = 0;
     msg.message.j_message.which_payload =
-        JetsonToMcu_ir_eye_camera_focus_sweep_values_polynomial_tag;
+        orb_mcu_main_JetsonToMcu_ir_eye_camera_focus_sweep_values_polynomial_tag;
     msg.message.j_message.payload.ir_eye_camera_focus_sweep_values_polynomial =
-        (IREyeCameraFocusSweepValuesPolynomial){
+        (orb_mcu_main_IREyeCameraFocusSweepValuesPolynomial){
             .coef_a = -120.0f,
             .coef_b = 4.5f,
             .coef_c = 0.045f,
@@ -598,12 +618,12 @@ ZTEST(ir_camera, test_ir_camera_ir_eye_camera_focus_sweep)
     send_msg(&msg);
 
     // Perform focus sweep
-    msg = (McuMessage)McuMessage_init_zero;
-    msg.version = Version_VERSION_0;
-    msg.which_message = McuMessage_j_message_tag;
+    msg = (orb_mcu_McuMessage)orb_mcu_McuMessage_init_zero;
+    msg.version = orb_mcu_Version_VERSION_0;
+    msg.which_message = orb_mcu_McuMessage_j_message_tag;
     msg.message.j_message.ack_number = 0;
     msg.message.j_message.which_payload =
-        JetsonToMcu_perform_ir_eye_camera_focus_sweep_tag;
+        orb_mcu_main_JetsonToMcu_perform_ir_eye_camera_focus_sweep_tag;
 
     extern struct k_sem camera_sweep_sem;
 
@@ -626,55 +646,58 @@ ZTEST(ir_camera, test_ir_camera_ir_eye_camera_focus_sweep)
 
 ZTEST(ir_camera, test_ir_camera_ir_eye_camera_mirror_sweep)
 {
-    McuMessage msg;
+    orb_mcu_McuMessage msg;
 
     // Stop triggering IR eye camera message
-    msg = (McuMessage)McuMessage_init_zero;
-    msg.version = Version_VERSION_0;
-    msg.which_message = McuMessage_j_message_tag;
+    msg = (orb_mcu_McuMessage)orb_mcu_McuMessage_init_zero;
+    msg.version = orb_mcu_Version_VERSION_0;
+    msg.which_message = orb_mcu_McuMessage_j_message_tag;
     msg.message.j_message.ack_number = 0;
     msg.message.j_message.which_payload =
-        JetsonToMcu_stop_triggering_ir_eye_camera_tag;
+        orb_mcu_main_JetsonToMcu_stop_triggering_ir_eye_camera_tag;
     send_msg(&msg);
 
     // Set FPS
-    msg = (McuMessage)McuMessage_init_zero;
-    msg.version = Version_VERSION_0;
-    msg.which_message = McuMessage_j_message_tag;
+    msg = (orb_mcu_McuMessage)orb_mcu_McuMessage_init_zero;
+    msg.version = orb_mcu_Version_VERSION_0;
+    msg.which_message = orb_mcu_McuMessage_j_message_tag;
     msg.message.j_message.ack_number = 0;
-    msg.message.j_message.which_payload = JetsonToMcu_fps_tag;
+    msg.message.j_message.which_payload = orb_mcu_main_JetsonToMcu_fps_tag;
     msg.message.j_message.payload.fps.fps = MIRROR_SWEEP_FPS;
     send_msg(&msg);
 
     // Set on-time
-    msg = (McuMessage)McuMessage_init_zero;
-    msg.version = Version_VERSION_0;
-    msg.which_message = McuMessage_j_message_tag;
+    msg = (orb_mcu_McuMessage)orb_mcu_McuMessage_init_zero;
+    msg.version = orb_mcu_Version_VERSION_0;
+    msg.which_message = orb_mcu_McuMessage_j_message_tag;
     msg.message.j_message.ack_number = 0;
-    msg.message.j_message.which_payload = JetsonToMcu_led_on_time_tag;
+    msg.message.j_message.which_payload =
+        orb_mcu_main_JetsonToMcu_led_on_time_tag;
     msg.message.j_message.payload.led_on_time.on_duration_us = 2500;
     send_msg(&msg);
 
     // Perform auto-homing
-    msg = (McuMessage)McuMessage_init_zero;
-    msg.version = Version_VERSION_0;
-    msg.which_message = McuMessage_j_message_tag;
+    msg = (orb_mcu_McuMessage)orb_mcu_McuMessage_init_zero;
+    msg.version = orb_mcu_Version_VERSION_0;
+    msg.which_message = orb_mcu_McuMessage_j_message_tag;
     msg.message.j_message.ack_number = 0;
-    msg.message.j_message.which_payload = JetsonToMcu_do_homing_tag;
+    msg.message.j_message.which_payload =
+        orb_mcu_main_JetsonToMcu_do_homing_tag;
     msg.message.j_message.payload.do_homing.homing_mode =
-        PerformMirrorHoming_Mode_ONE_BLOCKING_END;
+        orb_mcu_main_PerformMirrorHoming_Mode_ONE_BLOCKING_END;
     msg.message.j_message.payload.do_homing.angle =
-        PerformMirrorHoming_Angle_BOTH;
+        orb_mcu_main_PerformMirrorHoming_Angle_BOTH;
     send_msg(&msg);
 
     k_msleep(5000);
 
     // Set initial mirror position
-    msg = (McuMessage)McuMessage_init_zero;
-    msg.version = Version_VERSION_0;
-    msg.which_message = McuMessage_j_message_tag;
+    msg = (orb_mcu_McuMessage)orb_mcu_McuMessage_init_zero;
+    msg.version = orb_mcu_Version_VERSION_0;
+    msg.which_message = orb_mcu_McuMessage_j_message_tag;
     msg.message.j_message.ack_number = 0;
-    msg.message.j_message.which_payload = JetsonToMcu_mirror_angle_tag;
+    msg.message.j_message.which_payload =
+        orb_mcu_main_JetsonToMcu_mirror_angle_tag;
     msg.message.j_message.payload.mirror_angle.horizontal_angle = 52000;
     msg.message.j_message.payload.mirror_angle.vertical_angle = -9000;
     send_msg(&msg);
@@ -682,14 +705,14 @@ ZTEST(ir_camera, test_ir_camera_ir_eye_camera_mirror_sweep)
     k_msleep(1000);
 
     // Set mirror sweep polynomial
-    msg = (McuMessage)McuMessage_init_zero;
-    msg.version = Version_VERSION_0;
-    msg.which_message = McuMessage_j_message_tag;
+    msg = (orb_mcu_McuMessage)orb_mcu_McuMessage_init_zero;
+    msg.version = orb_mcu_Version_VERSION_0;
+    msg.which_message = orb_mcu_McuMessage_j_message_tag;
     msg.message.j_message.ack_number = 0;
     msg.message.j_message.which_payload =
-        JetsonToMcu_ir_eye_camera_mirror_sweep_values_polynomial_tag;
+        orb_mcu_main_JetsonToMcu_ir_eye_camera_mirror_sweep_values_polynomial_tag;
     msg.message.j_message.payload.ir_eye_camera_mirror_sweep_values_polynomial =
-        (IREyeCameraMirrorSweepValuesPolynomial){
+        (orb_mcu_main_IREyeCameraMirrorSweepValuesPolynomial){
             .radius_coef_a = 1.0f,
             .radius_coef_b = 0.09f,
             .radius_coef_c = 0.0003f,
@@ -701,12 +724,12 @@ ZTEST(ir_camera, test_ir_camera_ir_eye_camera_mirror_sweep)
     send_msg(&msg);
 
     // Perform mirror sweep
-    msg = (McuMessage)McuMessage_init_zero;
-    msg.version = Version_VERSION_0;
-    msg.which_message = McuMessage_j_message_tag;
+    msg = (orb_mcu_McuMessage)orb_mcu_McuMessage_init_zero;
+    msg.version = orb_mcu_Version_VERSION_0;
+    msg.which_message = orb_mcu_McuMessage_j_message_tag;
     msg.message.j_message.ack_number = 0;
     msg.message.j_message.which_payload =
-        JetsonToMcu_perform_ir_eye_camera_mirror_sweep_tag;
+        orb_mcu_main_JetsonToMcu_perform_ir_eye_camera_mirror_sweep_tag;
 
     extern struct k_sem camera_sweep_sem;
 

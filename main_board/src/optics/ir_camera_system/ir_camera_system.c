@@ -21,8 +21,8 @@ LOG_MODULE_REGISTER(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
 STATIC_OR_EXTERN atomic_t focus_sweep_in_progress;
 STATIC_OR_EXTERN atomic_t mirror_sweep_in_progress;
 STATIC_OR_EXTERN bool ir_camera_system_initialized;
-STATIC_OR_EXTERN InfraredLEDs_Wavelength enabled_led_wavelength =
-    InfraredLEDs_Wavelength_WAVELENGTH_NONE;
+STATIC_OR_EXTERN orb_mcu_main_InfraredLEDs_Wavelength enabled_led_wavelength =
+    orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE;
 
 #define MAKE_CAMERA_ENABLE_FUNC(camera_name)                                   \
     ret_code_t ir_camera_system_enable_##camera_name##_camera(void)            \
@@ -148,7 +148,7 @@ MAKE_CAMERA_ENABLE_DISABLE_GET_FUNCTIONS(ir_face)
 MAKE_CAMERA_ENABLE_DISABLE_GET_FUNCTIONS(2d_tof)
 
 ret_code_t
-ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength)
+ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength wavelength)
 {
     ret_code_t ret;
 
@@ -158,17 +158,24 @@ ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength)
         if (
 #if defined(CONFIG_BOARD_PEARL_MAIN)
             wavelength ==
-                InfraredLEDs_Wavelength_WAVELENGTH_740NM || // 740nm is
-                                                            // deprecated
-            wavelength == InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER ||
-            wavelength == InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE ||
-            wavelength == InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE
+                orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM || // 740nm
+                                                                         // is
+                                                                         // deprecated
+            wavelength ==
+                orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER ||
+            wavelength ==
+                orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_SIDE ||
+            wavelength ==
+                orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
             wavelength ==
-                InfraredLEDs_Wavelength_WAVELENGTH_740NM || // 740nm is
-                                                            // deprecated
-            wavelength == InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT ||
-            wavelength == InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT
+                orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM || // 740nm
+                                                                         // is
+                                                                         // deprecated
+            wavelength ==
+                orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT ||
+            wavelength ==
+                orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_LEFT
 #else
             false
 #endif
@@ -184,7 +191,7 @@ ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength)
     return ret;
 }
 
-InfraredLEDs_Wavelength
+orb_mcu_main_InfraredLEDs_Wavelength
 ir_camera_system_get_enabled_leds(void)
 {
     return enabled_led_wavelength;
@@ -241,7 +248,7 @@ ir_camera_system_set_on_time_us(uint16_t on_time_us)
 
 ret_code_t
 ir_camera_system_set_polynomial_coefficients_for_focus_sweep(
-    IREyeCameraFocusSweepValuesPolynomial poly)
+    orb_mcu_main_IREyeCameraFocusSweepValuesPolynomial poly)
 {
     ret_code_t ret;
 
@@ -302,7 +309,7 @@ ir_camera_system_perform_focus_sweep(void)
 
 ret_code_t
 ir_camera_system_set_polynomial_coefficients_for_mirror_sweep(
-    IREyeCameraMirrorSweepValuesPolynomial poly)
+    orb_mcu_main_IREyeCameraMirrorSweepValuesPolynomial poly)
 {
     ret_code_t ret;
 

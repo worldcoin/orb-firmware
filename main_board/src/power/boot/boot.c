@@ -3,6 +3,7 @@
 #include "orb_logs.h"
 #include "sysflash/sysflash.h"
 #include "system/version/version.h"
+#include "temperature/fan/fan.h"
 #include "ui/button/button.h"
 #include "ui/rgb_leds/front_leds/front_leds.h"
 #include "ui/rgb_leds/operator_leds/operator_leds.h"
@@ -107,7 +108,7 @@ static struct gpio_callback shutdown_cb_data;
 int
 power_configure_gpios(void)
 {
-    Hardware_OrbVersion version = version_get_hardware_rev();
+    orb_mcu_Hardware_OrbVersion version = version_get_hardware_rev();
     int ret;
 
     if (!device_is_ready(supply_vbat_sw_enable_gpio_spec.port) ||
@@ -152,10 +153,10 @@ power_configure_gpios(void)
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     // 3.8V regulator only available on EV1...4
-    if ((version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
-        (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
-        (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
-        (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
+    if ((version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
+        (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
+        (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
+        (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
         ret = gpio_pin_configure_dt(&supply_3v8_enable_rfid_irq_gpio_spec,
                                     GPIO_OUTPUT_INACTIVE);
         if (ret != 0) {
@@ -239,9 +240,9 @@ power_configure_gpios(void)
     }
 
     // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
-    if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-        version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-        version == Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
+    if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
+        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
+        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
         if (!device_is_ready(supply_3v3_ssd_enable_gpio_spec.port) ||
             !device_is_ready(supply_3v3_wifi_enable_gpio_spec.port)) {
             return RET_ERROR_INTERNAL;
@@ -384,16 +385,16 @@ power_vbat_5v_3v3_supplies_off(void)
 int
 power_turn_on_power_supplies(void)
 {
-    Hardware_OrbVersion version = version_get_hardware_rev();
+    orb_mcu_Hardware_OrbVersion version = version_get_hardware_rev();
 
     // might be a duplicate call, but it's preferable to be sure that
     // these supplies are on
     power_vbat_5v_3v3_supplies_on();
 
     // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
-    if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-        version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-        version == Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
+    if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
+        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
+        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
         gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
         LOG_INF("3.3V SSD power supply enabled");
 
@@ -425,10 +426,10 @@ power_turn_on_power_supplies(void)
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     // 3.8V regulator only available on EV1...4
-    if ((version == Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
-        (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
-        (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
-        (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
+    if ((version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
+        (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
+        (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
+        (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
 
         gpio_pin_set_dt(&supply_3v8_enable_rfid_irq_gpio_spec, 1);
         LOG_INF("3.8V enabled");
@@ -508,7 +509,7 @@ power_until_button_press(void)
         return RET_ERROR_INVALID_STATE;
     }
 
-    const RgbColor white = RGB_WHITE_BUTTON_PRESS;
+    const orb_mcu_main_RgbColor white = RGB_WHITE_BUTTON_PRESS;
     uint32_t operator_led_mask = 0;
     operator_leds_set_blocking(&white, operator_led_mask);
     LOG_INF("Waiting for button press of " TOSTR(BUTTON_PRESS_TIME_MS) "ms");
@@ -662,7 +663,7 @@ reboot_thread()
 {
     uint32_t delay = 0;
 
-    Hardware_OrbVersion version = version_get_hardware_rev();
+    orb_mcu_Hardware_OrbVersion version = version_get_hardware_rev();
 
     // wait until triggered
     k_sem_take(&sem_reboot, K_FOREVER);
@@ -679,9 +680,9 @@ reboot_thread()
     if (delay > 1) {
         k_msleep(1000);
         atomic_set(&reboot_delay_s, delay - 1);
-        RgbColor color = RGB_WHITE_SHUTDOWN;
+        orb_mcu_main_RgbColor color = RGB_WHITE_SHUTDOWN;
         operator_leds_set_pattern(
-            DistributorLEDsPattern_DistributorRgbLedPattern_PULSING_RGB,
+            orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern_PULSING_RGB,
             0b00100, &color);
     }
 
@@ -701,9 +702,10 @@ reboot_thread()
             gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 0);
             // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and
             // Diamond
-            if (version == Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-                version == Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-                version == Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
+            if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
+                version ==
+                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
+                version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
                 gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 0);
                 gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 0);
             }
@@ -718,7 +720,8 @@ reboot_thread()
     } while (k_msleep(delay * 1000 - SYSTEM_RESET_UI_DELAY_MS) != 0);
 
     operator_leds_set_pattern(
-        DistributorLEDsPattern_DistributorRgbLedPattern_OFF, 0, NULL);
+        orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern_OFF, 0,
+        NULL);
     front_leds_turn_off_blocking();
 
     k_msleep(SYSTEM_RESET_UI_DELAY_MS);

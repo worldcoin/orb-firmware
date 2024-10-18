@@ -1,7 +1,7 @@
 #pragma once
 
 #include <errors.h>
-#include <mcu_messaging_main.pb.h>
+#include <main.pb.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <zephyr/kernel.h>
@@ -24,7 +24,8 @@ temperature_set_sampling_period_ms(uint32_t sample_period);
  * signals with the V_SCAP voltages multiplexer
  */
 void
-temperature_init(const Hardware *hw_version, struct k_mutex *i2c_mux_mutex);
+temperature_init(const orb_mcu_Hardware *hw_version,
+                 struct k_mutex *i2c_mux_mutex);
 
 /**
  * @brief Report a temperature reading to the Jetson
@@ -36,7 +37,7 @@ temperature_init(const Hardware *hw_version, struct k_mutex *i2c_mux_mutex);
  * @param temperature_in_c The temperature in degrees Celsius
  */
 void
-temperature_report(Temperature_TemperatureSource source,
+temperature_report(orb_mcu_Temperature_TemperatureSource source,
                    int32_t temperature_in_c);
 
 /**

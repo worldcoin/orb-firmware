@@ -1,13 +1,15 @@
 #pragma once
 
+#include "mcu.pb.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #if JetsonToMcu_size >= JetsonToSec_size &&                                    \
     JetsonToMcu_size >= McuToJetson_size &&                                    \
-    JetsonToMcu_size >= SecToJetson_size
-#define MCU_MESSAGE_ENCODED_WRAPPER_SIZE (McuMessage_size - JetsonToMcu_size)
+    JetsonToMcu_size >= orb_sec_SecToJetson_size
+#define MCU_MESSAGE_ENCODED_WRAPPER_SIZE                                       \
+    (orb_mcu_McuMessage_size - orb_mcu_main_JetsonToMcu_size)
 #else
 // A payload is larger than JetsonToMcu which does not allow to find the number
 // of bytes needed to wrap the payload into an McuMessage. Please use another

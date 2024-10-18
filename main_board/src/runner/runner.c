@@ -3,7 +3,7 @@
 #include "app_config.h"
 #include "can_messaging.h"
 #include "dfu.h"
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
 #include "optics/liquid_lens/liquid_lens.h"
 #include "optics/mirror/mirror.h"
@@ -63,7 +63,7 @@ typedef struct {
     /// destination ID to use to respond to the job initiator
     uint32_t remote_addr;
     uint32_t ack_number;
-    JetsonToMcu message;
+    orb_mcu_main_JetsonToMcu message;
 } job_t;
 
 // Message queue
@@ -81,19 +81,20 @@ runner_successful_jobs_count(void)
 }
 
 static void
-job_ack(Ack_ErrorCode error, job_t *job)
+job_ack(orb_mcu_Ack_ErrorCode error, job_t *job)
 {
     // ack only messages sent using CAN
     if (job->remote == CAN_MESSAGING) {
         // get ack number from job
         uint32_t ack_number = job->ack_number;
 
-        Ack ack = {.ack_number = ack_number, .error = error};
+        orb_mcu_Ack ack = {.ack_number = ack_number, .error = error};
 
-        publish_new(&ack, sizeof(ack), McuToJetson_ack_tag, job->remote_addr);
+        publish_new(&ack, sizeof(ack), orb_mcu_main_McuToJetson_ack_tag,
+                    job->remote_addr);
     }
 
-    if (error == Ack_ErrorCode_SUCCESS) {
+    if (error == orb_mcu_Ack_ErrorCode_SUCCESS) {
         ++job_counter;
     }
 }
@@ -106,25 +107,25 @@ handle_err_code(void *ctx, int err)
         (struct handle_error_context_s *)ctx;
 
     if (context->remote == CAN_MESSAGING) {
-        Ack ack = {.ack_number = context->ack_number,
-                   .error = Ack_ErrorCode_FAIL};
+        orb_mcu_Ack ack = {.ack_number = context->ack_number,
+                           .error = orb_mcu_Ack_ErrorCode_FAIL};
         switch (err) {
         case RET_SUCCESS:
-            ack.error = Ack_ErrorCode_SUCCESS;
+            ack.error = orb_mcu_Ack_ErrorCode_SUCCESS;
             break;
 
         case RET_ERROR_INVALID_PARAM:
         case RET_ERROR_NOT_FOUND:
-            ack.error = Ack_ErrorCode_RANGE;
+            ack.error = orb_mcu_Ack_ErrorCode_RANGE;
             break;
 
         case RET_ERROR_BUSY:
         case RET_ERROR_INVALID_STATE:
-            ack.error = Ack_ErrorCode_IN_PROGRESS;
+            ack.error = orb_mcu_Ack_ErrorCode_IN_PROGRESS;
             break;
 
         case RET_ERROR_FORBIDDEN:
-            ack.error = Ack_ErrorCode_OPERATION_NOT_SUPPORTED;
+            ack.error = orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED;
             break;
 
         default:
@@ -132,7 +133,7 @@ handle_err_code(void *ctx, int err)
             break;
         }
 
-        publish_new(&ack, sizeof(ack), McuToJetson_ack_tag,
+        publish_new(&ack, sizeof(ack), orb_mcu_main_McuToJetson_ack_tag,
                     context->remote_addr);
     }
 
@@ -146,25 +147,26 @@ handle_err_code(void *ctx, int err)
 static void
 handle_infrared_leds_message(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_infrared_leds_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_infrared_leds_tag);
 
-    InfraredLEDs_Wavelength wavelength = msg->payload.infrared_leds.wavelength;
+    orb_mcu_main_InfraredLEDs_Wavelength wavelength =
+        msg->payload.infrared_leds.wavelength;
 
     LOG_DBG("Got LED wavelength message = %d", wavelength);
     ret_code_t err = ir_camera_system_enable_leds(wavelength);
     switch (err) {
     case RET_SUCCESS:
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
         break;
     case RET_ERROR_BUSY:
-        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
         break;
     case RET_ERROR_INVALID_PARAM:
-        job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+        job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
         break;
     default:
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         LOG_ERR("Unhandled error (%d)!", err);
     }
 }
@@ -172,38 +174,38 @@ handle_infrared_leds_message(job_t *job)
 static void
 handle_led_on_time_message(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_led_on_time_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_led_on_time_tag);
 
     uint32_t on_time_us = msg->payload.led_on_time.on_duration_us;
 
     LOG_DBG("Got LED on time message = %uus", on_time_us);
     ret_code_t ret = ir_camera_system_set_on_time_us(on_time_us);
     if (ret == RET_SUCCESS) {
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
     } else if (ret == RET_ERROR_INVALID_PARAM) {
-        job_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
     } else {
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     }
 }
 
 static void
 handle_start_triggering_ir_eye_camera_message(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_start_triggering_ir_eye_camera_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_start_triggering_ir_eye_camera_tag);
 
     ret_code_t err = ir_camera_system_enable_ir_eye_camera();
     switch (err) {
     case RET_SUCCESS:
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
         break;
     case RET_ERROR_BUSY:
-        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
         break;
     default:
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         LOG_ERR("Unhandled error (%d)!", err);
     }
 }
@@ -211,20 +213,20 @@ handle_start_triggering_ir_eye_camera_message(job_t *job)
 static void
 handle_stop_triggering_ir_eye_camera_message(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_stop_triggering_ir_eye_camera_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_stop_triggering_ir_eye_camera_tag);
 
     ret_code_t err = ir_camera_system_disable_ir_eye_camera();
 
     switch (err) {
     case RET_SUCCESS:
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
         break;
     case RET_ERROR_BUSY:
-        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
         break;
     default:
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         LOG_ERR("Unhandled error (%d)!", err);
     }
 }
@@ -232,65 +234,65 @@ handle_stop_triggering_ir_eye_camera_message(job_t *job)
 static void
 handle_start_triggering_ir_face_camera_message(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_start_triggering_ir_face_camera_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_start_triggering_ir_face_camera_tag);
 
     LOG_DBG("");
     ir_camera_system_enable_ir_face_camera();
-    job_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
 handle_stop_triggering_ir_face_camera_message(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_stop_triggering_ir_face_camera_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_stop_triggering_ir_face_camera_tag);
 
     LOG_DBG("");
     ir_camera_system_disable_ir_face_camera();
-    job_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
 handle_start_triggering_2dtof_camera_message(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_start_triggering_2dtof_camera_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_start_triggering_2dtof_camera_tag);
 
     LOG_DBG("");
     ir_camera_system_enable_2d_tof_camera();
-    job_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
 handle_stop_triggering_2dtof_camera_message(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_stop_triggering_2dtof_camera_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_stop_triggering_2dtof_camera_tag);
 
     LOG_DBG("");
     ir_camera_system_disable_2d_tof_camera();
-    job_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
 handle_shutdown(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_shutdown_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_shutdown_tag);
 
     uint32_t delay = msg->payload.shutdown.delay_s;
     LOG_DBG("Got shutdown in %us", delay);
 
     if (delay > 30) {
-        job_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
     } else {
         int ret = reboot(delay);
 
         if (ret == RET_SUCCESS) {
-            job_ack(Ack_ErrorCode_SUCCESS, job);
+            job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
         } else {
-            job_ack(Ack_ErrorCode_FAIL, job);
+            job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         }
     }
 }
@@ -298,23 +300,23 @@ handle_shutdown(job_t *job)
 static void
 handle_reboot_message(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_reboot_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_reboot_tag);
 
     uint32_t delay = msg->payload.reboot.delay;
 
     LOG_DBG("Got reboot in %us", delay);
 
     if (delay > 60) {
-        job_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
         LOG_ERR("Reboot with delay > 60 seconds: %u", delay);
     } else {
         int ret = reboot(delay);
 
         if (ret == RET_SUCCESS) {
-            job_ack(Ack_ErrorCode_SUCCESS, job);
+            job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
         } else {
-            job_ack(Ack_ErrorCode_FAIL, job);
+            job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         }
     }
 }
@@ -322,14 +324,14 @@ handle_reboot_message(job_t *job)
 static void
 handle_mirror_angle_message(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_mirror_angle_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_mirror_angle_tag);
 
     uint32_t mirror_target_angle_phi_millidegrees;
     uint32_t mirror_target_angle_theta_millidegrees;
 
     switch (msg->payload.mirror_angle.angle_type) {
-    case MirrorAngleType_HORIZONTAL_VERTICAL: {
+    case orb_mcu_main_MirrorAngleType_HORIZONTAL_VERTICAL: {
         // this angle type should not be used anymore but is kept for
         // compatibility
         uint32_t horizontal_angle_millidegrees =
@@ -341,19 +343,19 @@ handle_mirror_angle_message(job_t *job)
         mirror_target_angle_theta_millidegrees =
             vertical_angle_millidegrees / 2 + 90000;
     } break;
-    case MirrorAngleType_PHI_THETA:
+    case orb_mcu_main_MirrorAngleType_PHI_THETA:
         mirror_target_angle_phi_millidegrees =
             msg->payload.mirror_angle.phi_angle_millidegrees;
         mirror_target_angle_theta_millidegrees =
             msg->payload.mirror_angle.theta_angle_millidegrees;
         break;
     default:
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         return;
     }
 
     if (mirror_auto_homing_in_progress()) {
-        job_ack(Ack_ErrorCode_IN_PROGRESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
         return;
     }
 
@@ -368,21 +370,21 @@ handle_mirror_angle_message(job_t *job)
 
     if (ret != RET_SUCCESS) {
         if (ret == RET_ERROR_INVALID_PARAM) {
-            job_ack(Ack_ErrorCode_RANGE, job);
+            job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
         } else {
-            job_ack(Ack_ErrorCode_FAIL, job);
+            job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         }
         return;
     }
 
-    job_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
 handle_temperature_sample_period_message(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_temperature_sample_period_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_temperature_sample_period_tag);
 
     uint32_t sample_period_ms =
         msg->payload.temperature_sample_period.sample_period_ms;
@@ -390,17 +392,17 @@ handle_temperature_sample_period_message(job_t *job)
     LOG_DBG("Got new temperature sampling period: %ums", sample_period_ms);
 
     if (temperature_set_sampling_period_ms(sample_period_ms) == RET_SUCCESS) {
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
     } else {
-        job_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
     }
 }
 
 static void
 handle_fan_speed(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_fan_speed_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_fan_speed_tag);
 
     // value and percentage have the same representation,
     // so there's no point switching on which one
@@ -408,37 +410,37 @@ handle_fan_speed(job_t *job)
 
     if (temperature_is_in_overtemp()) {
         LOG_WRN("Overtemperature: fan speed command rejected");
-        job_ack(Ack_ErrorCode_OVER_TEMPERATURE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_OVER_TEMPERATURE, job);
     } else {
         switch (msg->payload.fan_speed.which_payload) {
         case 0: /* no tag provided with legacy API */
-        case FanSpeed_percentage_tag:
+        case orb_mcu_main_FanSpeed_percentage_tag:
             if (fan_speed > 100) {
                 LOG_ERR("Got fan speed of %" PRIu32 " out of range [0;100]",
                         fan_speed);
-                job_ack(Ack_ErrorCode_RANGE, job);
+                job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
             } else {
                 LOG_DBG("Got fan speed percentage message: %" PRIu32 "%%",
                         fan_speed);
 
                 fan_set_speed_by_percentage(fan_speed);
-                job_ack(Ack_ErrorCode_SUCCESS, job);
+                job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
             }
             break;
-        case FanSpeed_value_tag:
+        case orb_mcu_main_FanSpeed_value_tag:
             if (fan_speed > UINT16_MAX) {
                 LOG_ERR("Got fan speed of %" PRIu32 " out of range [0;%u]",
                         fan_speed, UINT16_MAX);
-                job_ack(Ack_ErrorCode_RANGE, job);
+                job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
             } else {
                 LOG_DBG("Got fan speed value message: %" PRIu32, fan_speed);
 
                 fan_set_speed_by_value(fan_speed);
-                job_ack(Ack_ErrorCode_SUCCESS, job);
+                job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
             }
             break;
         default:
-            job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+            job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
             ASSERT_SOFT(RET_ERROR_INTERNAL);
             break;
         }
@@ -448,10 +450,10 @@ handle_fan_speed(job_t *job)
 static void
 handle_user_leds_pattern(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_user_leds_pattern_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_user_leds_pattern_tag);
 
-    UserLEDsPattern_UserRgbLedPattern pattern =
+    orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern =
         msg->payload.user_leds_pattern.pattern;
     uint32_t start_angle = msg->payload.user_leds_pattern.start_angle;
     int32_t angle_length = msg->payload.user_leds_pattern.angle_length;
@@ -464,9 +466,9 @@ handle_user_leds_pattern(job_t *job)
 
     if (start_angle > FULL_RING_DEGREES ||
         abs(angle_length) > FULL_RING_DEGREES) {
-        job_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
     } else {
-        RgbColor *color_ptr = NULL;
+        orb_mcu_main_RgbColor *color_ptr = NULL;
         if (msg->payload.user_leds_pattern.has_custom_color) {
             color_ptr = &msg->payload.user_leds_pattern.custom_color;
         }
@@ -474,7 +476,8 @@ handle_user_leds_pattern(job_t *job)
             front_leds_set_pattern(pattern, start_angle, angle_length,
                                    color_ptr, pulsing_period_ms, pulsing_scale);
 
-        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+        job_ack(ret == RET_SUCCESS ? orb_mcu_Ack_ErrorCode_SUCCESS
+                                   : orb_mcu_Ack_ErrorCode_FAIL,
                 job);
     }
 }
@@ -482,8 +485,8 @@ handle_user_leds_pattern(job_t *job)
 static void
 handle_user_center_leds_sequence(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_center_leds_sequence_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_center_leds_sequence_tag);
 
     ret_code_t ret;
     uint32_t data_format = msg->payload.center_leds_sequence.which_data_format;
@@ -491,37 +494,39 @@ handle_user_center_leds_sequence(job_t *job)
     uint32_t size;
 
     switch (data_format) {
-    case UserCenterLEDsSequence_rgb_uncompressed_tag:;
+    case orb_mcu_main_UserCenterLEDsSequence_rgb_uncompressed_tag:;
         bytes = msg->payload.center_leds_sequence.data_format.rgb_uncompressed
                     .bytes;
         size =
             msg->payload.center_leds_sequence.data_format.rgb_uncompressed.size;
 
         ret = front_leds_set_center_leds_sequence_rgb24(bytes, size);
-        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+        job_ack(ret == RET_SUCCESS ? orb_mcu_Ack_ErrorCode_SUCCESS
+                                   : orb_mcu_Ack_ErrorCode_FAIL,
                 job);
         break;
-    case UserCenterLEDsSequence_argb32_uncompressed_tag:;
+    case orb_mcu_main_UserCenterLEDsSequence_argb32_uncompressed_tag:;
         bytes = msg->payload.center_leds_sequence.data_format
                     .argb32_uncompressed.bytes;
         size = msg->payload.center_leds_sequence.data_format.argb32_uncompressed
                    .size;
 
         ret = front_leds_set_center_leds_sequence_argb32(bytes, size);
-        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+        job_ack(ret == RET_SUCCESS ? orb_mcu_Ack_ErrorCode_SUCCESS
+                                   : orb_mcu_Ack_ErrorCode_FAIL,
                 job);
         break;
     default:
         LOG_WRN("Unkown data format: %" PRIu32, data_format);
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     }
 }
 
 static void
 handle_user_ring_leds_sequence(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_ring_leds_sequence_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_ring_leds_sequence_tag);
 
     ret_code_t ret;
     uint32_t data_format = msg->payload.ring_leds_sequence.which_data_format;
@@ -529,36 +534,38 @@ handle_user_ring_leds_sequence(job_t *job)
     uint32_t size;
 
     switch (data_format) {
-    case UserRingLEDsSequence_rgb_uncompressed_tag:
+    case orb_mcu_main_UserRingLEDsSequence_rgb_uncompressed_tag:
         bytes =
             msg->payload.ring_leds_sequence.data_format.rgb_uncompressed.bytes;
         size =
             msg->payload.ring_leds_sequence.data_format.rgb_uncompressed.size;
 
         ret = front_leds_set_ring_leds_sequence_rgb24(bytes, size);
-        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+        job_ack(ret == RET_SUCCESS ? orb_mcu_Ack_ErrorCode_SUCCESS
+                                   : orb_mcu_Ack_ErrorCode_FAIL,
                 job);
         break;
-    case UserRingLEDsSequence_argb32_uncompressed_tag:
+    case orb_mcu_main_UserRingLEDsSequence_argb32_uncompressed_tag:
         bytes = msg->payload.ring_leds_sequence.data_format.argb32_uncompressed
                     .bytes;
         size = msg->payload.ring_leds_sequence.data_format.argb32_uncompressed
                    .size;
         ret = front_leds_set_ring_leds_sequence_argb32(bytes, size);
-        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+        job_ack(ret == RET_SUCCESS ? orb_mcu_Ack_ErrorCode_SUCCESS
+                                   : orb_mcu_Ack_ErrorCode_FAIL,
                 job);
         break;
     default:
         LOG_WRN("Unkown data format: %" PRIu32, data_format);
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     }
 }
 
 static void
 handle_distributor_leds_sequence(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_distributor_leds_sequence_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_distributor_leds_sequence_tag);
 
     ret_code_t ret;
     uint32_t data_format =
@@ -567,29 +574,31 @@ handle_distributor_leds_sequence(job_t *job)
     uint32_t size;
 
     switch (data_format) {
-    case DistributorLEDsSequence_rgb_uncompressed_tag:;
+    case orb_mcu_main_DistributorLEDsSequence_rgb_uncompressed_tag:;
         bytes = msg->payload.distributor_leds_sequence.data_format
                     .rgb_uncompressed.bytes;
         size = msg->payload.distributor_leds_sequence.data_format
                    .rgb_uncompressed.size;
 
         ret = operator_leds_set_leds_sequence_rgb24(bytes, size);
-        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+        job_ack(ret == RET_SUCCESS ? orb_mcu_Ack_ErrorCode_SUCCESS
+                                   : orb_mcu_Ack_ErrorCode_FAIL,
                 job);
         break;
-    case DistributorLEDsSequence_argb32_uncompressed_tag:;
+    case orb_mcu_main_DistributorLEDsSequence_argb32_uncompressed_tag:;
         bytes = msg->payload.distributor_leds_sequence.data_format
                     .argb32_uncompressed.bytes;
         size = msg->payload.distributor_leds_sequence.data_format
                    .argb32_uncompressed.size;
 
         ret = operator_leds_set_leds_sequence_argb32(bytes, size);
-        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+        job_ack(ret == RET_SUCCESS ? orb_mcu_Ack_ErrorCode_SUCCESS
+                                   : orb_mcu_Ack_ErrorCode_FAIL,
                 job);
         break;
     default:
         LOG_WRN("Unkown data format: %" PRIu32, data_format);
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     }
 }
 
@@ -597,8 +606,8 @@ handle_distributor_leds_sequence(job_t *job)
 static void
 handle_cone_leds_sequence(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_cone_leds_sequence_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_cone_leds_sequence_tag);
 
     ret_code_t ret;
     uint32_t data_format = msg->payload.cone_leds_sequence.which_data_format;
@@ -606,45 +615,47 @@ handle_cone_leds_sequence(job_t *job)
     uint32_t size;
 
 #if !defined(CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
-    job_ack(Ack_ErrorCode_FAIL, job);
+    job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     return;
 #endif
 
     switch (data_format) {
-    case ConeLEDsSequence_rgb_uncompressed_tag:;
+    case orb_mcu_main_ConeLEDsSequence_rgb_uncompressed_tag:;
         bytes =
             msg->payload.cone_leds_sequence.data_format.rgb_uncompressed.bytes;
         size =
             msg->payload.cone_leds_sequence.data_format.rgb_uncompressed.size;
 
         ret = cone_leds_set_leds_sequence_rgb24(bytes, size);
-        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+        job_ack(ret == RET_SUCCESS ? orb_mcu_Ack_ErrorCode_SUCCESS
+                                   : orb_mcu_Ack_ErrorCode_FAIL,
                 job);
         break;
-    case ConeLEDsSequence_argb32_uncompressed_tag:;
+    case orb_mcu_main_ConeLEDsSequence_argb32_uncompressed_tag:;
         bytes = msg->payload.cone_leds_sequence.data_format.argb32_uncompressed
                     .bytes;
         size = msg->payload.cone_leds_sequence.data_format.argb32_uncompressed
                    .size;
 
         ret = cone_leds_set_leds_sequence_argb32(bytes, size);
-        job_ack(ret == RET_SUCCESS ? Ack_ErrorCode_SUCCESS : Ack_ErrorCode_FAIL,
+        job_ack(ret == RET_SUCCESS ? orb_mcu_Ack_ErrorCode_SUCCESS
+                                   : orb_mcu_Ack_ErrorCode_FAIL,
                 job);
         break;
     default:
         LOG_WRN("Unkown data format: %" PRIu32, data_format);
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     }
 }
 
 static void
 handle_cone_leds_pattern(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_cone_leds_pattern_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_cone_leds_pattern_tag);
 
 #if !defined(CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
-    job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+    job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
 #else
     ConeLEDsPattern_ConeRgbLedPattern pattern =
         msg->payload.cone_leds_pattern.pattern;
@@ -653,25 +664,25 @@ handle_cone_leds_pattern(job_t *job)
                          ? msg->payload.cone_leds_pattern.custom_color
                          : (RgbColor){20, 20, 20};
     cone_leds_set_pattern(pattern, &color);
-    job_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
 #endif
 }
 
 static void
 handle_white_leds_brightness(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_white_leds_brightness_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_white_leds_brightness_tag);
 
     uint32_t brightness = msg->payload.white_leds_brightness.brightness;
     if (brightness > 1000) {
         LOG_ERR("Got white LED brightness value of %u out of range [0,1000]",
                 brightness);
-        job_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
     } else {
         LOG_DBG("Got white LED brightness value of %u", brightness);
         white_leds_set_brightness(brightness);
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
     }
 }
 #endif // CONFIG_BOARD_DIAMOND_MAIN
@@ -679,47 +690,47 @@ handle_white_leds_brightness(job_t *job)
 static void
 handle_user_leds_brightness(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_user_leds_brightness_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_user_leds_brightness_tag);
 
     uint32_t brightness = msg->payload.user_leds_brightness.brightness;
 
     if (brightness > 255) {
         LOG_ERR("Got user LED brightness value of %u out of range [0,255]",
                 brightness);
-        job_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
     } else {
         LOG_DBG("Got user LED brightness value of %u", brightness);
         front_leds_set_brightness(brightness);
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
     }
 }
 
 static void
 handle_distributor_leds_pattern(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_distributor_leds_pattern_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_distributor_leds_pattern_tag);
 
-    DistributorLEDsPattern_DistributorRgbLedPattern pattern =
+    orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern pattern =
         msg->payload.distributor_leds_pattern.pattern;
     uint32_t mask = msg->payload.distributor_leds_pattern.leds_mask;
 
     LOG_DBG("Got distributor LED pattern: %u, mask 0x%x", pattern, mask);
 
     if (mask > OPERATOR_LEDS_ALL_MASK) {
-        job_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
     } else {
-        RgbColor *color_ptr = NULL;
+        orb_mcu_main_RgbColor *color_ptr = NULL;
         if (msg->payload.distributor_leds_pattern.pattern ==
-            DistributorLEDsPattern_DistributorRgbLedPattern_RGB) {
+            orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern_RGB) {
             color_ptr = &msg->payload.distributor_leds_pattern.custom_color;
         }
         if (operator_leds_set_pattern(pattern, mask, color_ptr) !=
             RET_SUCCESS) {
-            job_ack(Ack_ErrorCode_FAIL, job);
+            job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         } else {
-            job_ack(Ack_ErrorCode_SUCCESS, job);
+            job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
         }
     }
 }
@@ -727,20 +738,20 @@ handle_distributor_leds_pattern(job_t *job)
 static void
 handle_distributor_leds_brightness(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_distributor_leds_brightness_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_distributor_leds_brightness_tag);
 
     uint32_t brightness = msg->payload.distributor_leds_brightness.brightness;
     if (brightness > 255) {
         LOG_ERR("Got user LED brightness value of %u out of range [0,255]",
                 brightness);
-        job_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
     } else {
         LOG_DBG("Got distributor LED brightness: %u", brightness);
         if (operator_leds_set_brightness((uint8_t)brightness) != RET_SUCCESS) {
-            job_ack(Ack_ErrorCode_FAIL, job);
+            job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         } else {
-            job_ack(Ack_ErrorCode_SUCCESS, job);
+            job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
         }
     }
 }
@@ -748,23 +759,23 @@ handle_distributor_leds_brightness(job_t *job)
 static void
 handle_fw_img_crc(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_fw_image_check_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_fw_image_check_tag);
 
     LOG_DBG("Got CRC comparison");
     int ret = dfu_secondary_check(msg->payload.fw_image_check.crc32);
     if (ret) {
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     } else {
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
     }
 }
 
 static void
 handle_fw_img_sec_activate(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_fw_image_secondary_activate_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_fw_image_secondary_activate_tag);
 
     LOG_DBG("Got secondary slot activation");
     int ret;
@@ -775,26 +786,27 @@ handle_fw_img_sec_activate(job_t *job)
     }
 
     if (ret) {
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     } else {
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
     }
 }
 
 static void
 handle_fw_img_primary_confirm(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_fw_image_primary_confirm_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_fw_image_primary_confirm_tag);
 
     LOG_DBG("Got primary slot confirmation");
 
-    // - Ack_ErrorCode_FAIL: image self-test didn't end up successful, meaning
-    // the image shouldn't be confirmed but reverted by using
+    // - orb_mcu_Ack_ErrorCode_FAIL: image self-test didn't end up successful,
+    // meaning the image shouldn't be confirmed but reverted by using
     // `FirmwareActivateSecondary`
-    // - Ack_ErrorCode_INVALID_STATE: running image already confirmed
-    // - Ack_ErrorCode_VERSION: version in secondary slot higher than version in
-    // primary slot meaning the image has not been installed successfully
+    // - orb_mcu_Ack_ErrorCode_INVALID_STATE: running image already confirmed
+    // - orb_mcu_Ack_ErrorCode_VERSION: version in secondary slot higher than
+    // version in primary slot meaning the image has not been installed
+    // successfully
     struct image_version secondary_version;
     struct image_version primary_version;
     if (dfu_version_secondary_get(&secondary_version) == RET_SUCCESS) {
@@ -807,21 +819,21 @@ handle_fw_img_primary_confirm(job_t *job)
             (primary_version.iv_major == secondary_version.iv_major &&
              primary_version.iv_minor == secondary_version.iv_minor &&
              primary_version.iv_revision < secondary_version.iv_revision)) {
-            job_ack(Ack_ErrorCode_VERSION, job);
+            job_ack(orb_mcu_Ack_ErrorCode_VERSION, job);
             return;
         }
     }
 
     if (dfu_primary_is_confirmed()) {
-        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
     } else {
         int ret = dfu_primary_confirm();
         if (ret) {
             // consider as self-test not successful: in any case image is not
             // able to run
-            job_ack(Ack_ErrorCode_FAIL, job);
+            job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         } else {
-            job_ack(Ack_ErrorCode_SUCCESS, job);
+            job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
         }
     }
 }
@@ -829,8 +841,8 @@ handle_fw_img_primary_confirm(job_t *job)
 static void
 handle_fps(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_fps_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_fps_tag);
 
     uint16_t fps = (uint16_t)msg->payload.fps.fps;
 
@@ -838,21 +850,21 @@ handle_fps(job_t *job)
 
     ret_code_t ret = ir_camera_system_set_fps(fps);
     if (ret == RET_SUCCESS) {
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
     } else if (ret == RET_ERROR_INVALID_PARAM) {
-        job_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
     } else if (ret == RET_ERROR_BUSY) {
-        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
     } else {
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     }
 }
 
 static void
 handle_dfu_block_message(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_dfu_block_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_dfu_block_tag);
 
     // must be static to be used by callback
     static struct handle_error_context_s context = {0};
@@ -875,15 +887,15 @@ handle_dfu_block_message(job_t *job)
 
     switch (ret) {
     case RET_ERROR_INVALID_PARAM:
-        job_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
         break;
 
     case RET_ERROR_BUSY:
-        job_ack(Ack_ErrorCode_IN_PROGRESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
         break;
 
     case RET_SUCCESS:
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
         break;
     default:
         LOG_ERR("Unhandled error code %d", ret);
@@ -894,32 +906,33 @@ static void
 handle_do_homing(job_t *job)
 {
     ret_code_t ret = RET_SUCCESS;
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_do_homing_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_do_homing_tag);
 
-    PerformMirrorHoming_Mode mode = msg->payload.do_homing.homing_mode;
-    PerformMirrorHoming_Angle angle = msg->payload.do_homing.angle;
+    orb_mcu_main_PerformMirrorHoming_Mode mode =
+        msg->payload.do_homing.homing_mode;
+    orb_mcu_main_PerformMirrorHoming_Angle angle = msg->payload.do_homing.angle;
     LOG_DBG("Got do autohoming message, mode = %u, angle = %u", mode, angle);
 
     if (mirror_auto_homing_in_progress()) {
-        job_ack(Ack_ErrorCode_IN_PROGRESS, job);
-    } else if (mode == PerformMirrorHoming_Mode_STALL_DETECTION) {
-        job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+        job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
+    } else if (mode == orb_mcu_main_PerformMirrorHoming_Mode_STALL_DETECTION) {
+        job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
     } else {
-        if (angle == PerformMirrorHoming_Angle_BOTH ||
-            angle == PerformMirrorHoming_Angle_HORIZONTAL_PHI) {
+        if (angle == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
+            angle == orb_mcu_main_PerformMirrorHoming_Angle_HORIZONTAL_PHI) {
             ret |= mirror_auto_homing_one_end(MOTOR_PHI_ANGLE);
         }
-        if (angle == PerformMirrorHoming_Angle_BOTH ||
-            angle == PerformMirrorHoming_Angle_VERTICAL_THETA) {
+        if (angle == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
+            angle == orb_mcu_main_PerformMirrorHoming_Angle_VERTICAL_THETA) {
             ret |= mirror_auto_homing_one_end(MOTOR_THETA_ANGLE);
         }
 
         // send ack before timeout even though auto-homing not completed
         if (ret) {
-            job_ack(Ack_ErrorCode_FAIL, job);
+            job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         } else {
-            job_ack(Ack_ErrorCode_SUCCESS, job);
+            job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
         }
     }
 }
@@ -927,8 +940,8 @@ handle_do_homing(job_t *job)
 static void
 handle_liquid_lens(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_liquid_lens_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_liquid_lens_tag);
 
     int32_t current = msg->payload.liquid_lens.current;
     bool enable = msg->payload.liquid_lens.enable;
@@ -937,14 +950,14 @@ handle_liquid_lens(job_t *job)
                   LIQUID_LENS_MAX_CURRENT_MA)) {
         LOG_ERR("%d out of range [%d,%d]", current, LIQUID_LENS_MIN_CURRENT_MA,
                 LIQUID_LENS_MAX_CURRENT_MA);
-        job_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
     } else {
         LOG_DBG("Value: %d", current);
         ret_code_t err = liquid_set_target_current_ma(current);
 
         switch (err) {
         case RET_SUCCESS:
-            job_ack(Ack_ErrorCode_SUCCESS, job);
+            job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
             if (enable) {
                 liquid_lens_enable();
             } else {
@@ -952,10 +965,10 @@ handle_liquid_lens(job_t *job)
             }
             break;
         case RET_ERROR_BUSY:
-            job_ack(Ack_ErrorCode_INVALID_STATE, job);
+            job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
             break;
         default:
-            job_ack(Ack_ErrorCode_FAIL, job);
+            job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
             LOG_ERR("Unhandled: %d!", err);
         }
     }
@@ -964,44 +977,44 @@ handle_liquid_lens(job_t *job)
 static void
 handle_voltage_request(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_voltage_request_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_voltage_request_tag);
 
     uint32_t transmit_period_ms =
         msg->payload.voltage_request.transmit_period_ms;
 
     voltage_measurement_set_publish_period(transmit_period_ms);
 
-    job_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
 handle_heartbeat(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_heartbeat_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_heartbeat_tag);
 
     LOG_DBG("Got heartbeat");
     int ret = heartbeat_boom(msg->payload.heartbeat.timeout_seconds);
 
     if (ret == RET_SUCCESS) {
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
     } else {
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     }
 }
 
 static void
 handle_mirror_angle_relative_message(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_mirror_angle_relative_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_mirror_angle_relative_tag);
 
     int32_t mirror_relative_angle_phi_millidegrees;
     int32_t mirror_relative_angle_theta_millidegrees;
 
     switch (msg->payload.mirror_angle_relative.angle_type) {
-    case MirrorAngleType_HORIZONTAL_VERTICAL: {
+    case orb_mcu_main_MirrorAngleType_HORIZONTAL_VERTICAL: {
         int32_t relative_angle_horizontal_millidegrees =
             msg->payload.mirror_angle_relative.horizontal_angle;
         int32_t relative_angle_vertical_millidegrees =
@@ -1015,19 +1028,19 @@ handle_mirror_angle_relative_message(job_t *job)
             relative_angle_vertical_millidegrees,
             relative_angle_horizontal_millidegrees);
     } break;
-    case MirrorAngleType_PHI_THETA:
+    case orb_mcu_main_MirrorAngleType_PHI_THETA:
         mirror_relative_angle_phi_millidegrees =
             msg->payload.mirror_angle_relative.phi_angle_millidegrees;
         mirror_relative_angle_theta_millidegrees =
             msg->payload.mirror_angle_relative.theta_angle_millidegrees;
         break;
     default:
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         return;
     }
 
     if (mirror_auto_homing_in_progress()) {
-        job_ack(Ack_ErrorCode_IN_PROGRESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
         return;
     }
 
@@ -1044,50 +1057,51 @@ handle_mirror_angle_relative_message(job_t *job)
 
     if (ret != RET_SUCCESS) {
         if (ret == RET_ERROR_INVALID_PARAM) {
-            job_ack(Ack_ErrorCode_RANGE, job);
+            job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
         } else {
-            job_ack(Ack_ErrorCode_FAIL, job);
+            job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         }
         return;
     }
 
-    job_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
 handle_value_get_message(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_value_get_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_value_get_tag);
 
-    ValueGet_Value value = msg->payload.value_get.value;
+    orb_mcu_ValueGet_Value value = msg->payload.value_get.value;
     LOG_DBG("Got ValueGet request: %u", value);
 
     switch (value) {
-    case ValueGet_Value_FIRMWARE_VERSIONS:
+    case orb_mcu_ValueGet_Value_FIRMWARE_VERSIONS:
         version_fw_send(job->remote_addr);
         break;
-    case ValueGet_Value_HARDWARE_VERSIONS:
+    case orb_mcu_ValueGet_Value_HARDWARE_VERSIONS:
         version_hw_send(job->remote_addr);
         break;
-    case ValueGet_Value_CONE_PRESENT:
+    case orb_mcu_ValueGet_Value_CONE_PRESENT:
         ui_cone_present_send(job->remote_addr);
         break;
     default: {
         // unknown value, respond with error
-        job_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
         return;
     }
     }
 
-    job_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
 handle_ir_eye_camera_focus_sweep_lens_values(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_ir_eye_camera_focus_sweep_lens_values_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(
+        orb_mcu_main_JetsonToMcu_ir_eye_camera_focus_sweep_lens_values_tag);
 
     BUILD_ASSERT(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__,
                  "We assume we are little endian");
@@ -1103,16 +1117,16 @@ handle_ir_eye_camera_focus_sweep_lens_values(job_t *job)
 
     switch (ret) {
     case RET_SUCCESS:
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
         break;
     case RET_ERROR_BUSY:
-        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
         break;
     case RET_ERROR_INVALID_PARAM:
-        job_ack(Ack_ErrorCode_RANGE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
         break;
     default:
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         LOG_ERR("Unhandled error (%d)!", ret);
     }
 }
@@ -1120,10 +1134,11 @@ handle_ir_eye_camera_focus_sweep_lens_values(job_t *job)
 static void
 handle_ir_eye_camera_focus_sweep_values_polynomial(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_ir_eye_camera_focus_sweep_values_polynomial_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(
+        orb_mcu_main_JetsonToMcu_ir_eye_camera_focus_sweep_values_polynomial_tag);
 
-    IREyeCameraFocusSweepValuesPolynomial p =
+    orb_mcu_main_IREyeCameraFocusSweepValuesPolynomial p =
         msg->payload.ir_eye_camera_focus_sweep_values_polynomial;
     LOG_DBG("a: %f, b: %f, c: %f, d: %f, e: %f, f: %f, num frames: %u",
             p.coef_a, p.coef_b, p.coef_c, p.coef_d, p.coef_e, p.coef_f,
@@ -1133,13 +1148,13 @@ handle_ir_eye_camera_focus_sweep_values_polynomial(job_t *job)
             msg->payload.ir_eye_camera_focus_sweep_values_polynomial);
     switch (err) {
     case RET_SUCCESS:
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
         break;
     case RET_ERROR_BUSY:
-        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
         break;
     default:
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         LOG_ERR("Unhandled error (%d)!", err);
     }
 }
@@ -1147,30 +1162,32 @@ handle_ir_eye_camera_focus_sweep_values_polynomial(job_t *job)
 static void
 handle_perform_ir_eye_camera_focus_sweep(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_perform_ir_eye_camera_focus_sweep_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(
+        orb_mcu_main_JetsonToMcu_perform_ir_eye_camera_focus_sweep_tag);
 
     ret_code_t ret = ir_camera_system_perform_focus_sweep();
 
     if (ret == RET_ERROR_BUSY) {
-        job_ack(Ack_ErrorCode_IN_PROGRESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
     } else if (ret == RET_ERROR_INVALID_STATE) {
-        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
     } else if (ret == RET_SUCCESS) {
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
     } else {
         LOG_ERR("Unexpected error code (%d)!", ret);
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     }
 }
 
 static void
 handle_ir_eye_camera_mirror_sweep_values_polynomial(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_ir_eye_camera_mirror_sweep_values_polynomial_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(
+        orb_mcu_main_JetsonToMcu_ir_eye_camera_mirror_sweep_values_polynomial_tag);
 
-    IREyeCameraMirrorSweepValuesPolynomial p =
+    orb_mcu_main_IREyeCameraMirrorSweepValuesPolynomial p =
         msg->payload.ir_eye_camera_mirror_sweep_values_polynomial;
     LOG_DBG(
         "r_a: %f, r_b: %f, r_c: %f, a_a: %f, a_b: %f, a_c: %f, num frames: %u",
@@ -1181,13 +1198,13 @@ handle_ir_eye_camera_mirror_sweep_values_polynomial(job_t *job)
             msg->payload.ir_eye_camera_mirror_sweep_values_polynomial);
     switch (err) {
     case RET_SUCCESS:
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
         break;
     case RET_ERROR_BUSY:
-        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
         break;
     default:
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         LOG_ERR("Unhandled error (%d)!", err);
     }
 }
@@ -1195,20 +1212,21 @@ handle_ir_eye_camera_mirror_sweep_values_polynomial(job_t *job)
 static void
 handle_perform_ir_eye_camera_mirror_sweep(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_perform_ir_eye_camera_mirror_sweep_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(
+        orb_mcu_main_JetsonToMcu_perform_ir_eye_camera_mirror_sweep_tag);
 
     ret_code_t ret = ir_camera_system_perform_mirror_sweep();
 
     if (ret == RET_ERROR_BUSY) {
-        job_ack(Ack_ErrorCode_IN_PROGRESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
     } else if (ret == RET_ERROR_INVALID_STATE) {
-        job_ack(Ack_ErrorCode_INVALID_STATE, job);
+        job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
     } else if (ret == RET_SUCCESS) {
-        job_ack(Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
     } else {
         LOG_ERR("Unexpected error code (%d)!", ret);
-        job_ack(Ack_ErrorCode_FAIL, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     }
 }
 
@@ -1245,8 +1263,8 @@ diag_disconnected(struct k_timer *timer)
 static void
 handle_sync_diag_data(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_sync_diag_data_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_sync_diag_data_tag);
 
     LOG_DBG("Got sync diag data message");
 
@@ -1271,52 +1289,52 @@ handle_sync_diag_data(job_t *job)
 
     publish_flush();
 
-    job_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
 }
 
 static void
 handle_diag_test_data(job_t *job)
 {
-    JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(JetsonToMcu_diag_test_tag);
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_diag_test_tag);
 
     LOG_DBG("Got diag test data message");
 
 #if defined(BUILD_FROM_CI)
-    job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+    job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
 #else
-    job_ack(Ack_ErrorCode_SUCCESS, job);
+    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
 
     // some of these won't return
     switch (msg->payload.diag_test.action) {
-    case DiagTest_Action_TRIGGER_WATCHDOG:
+    case orb_mcu_DiagTest_Action_TRIGGER_WATCHDOG:
         fatal_errors_trigger(FATAL_WATCHDOG);
         break;
-    case DiagTest_Action_TRIGGER_ASSERT_SOFT:
+    case orb_mcu_DiagTest_Action_TRIGGER_ASSERT_SOFT:
         ASSERT_SOFT(RET_ERROR_INTERNAL);
         break;
-    case DiagTest_Action_TRIGGER_ASSERT_HARD:
+    case orb_mcu_DiagTest_Action_TRIGGER_ASSERT_HARD:
         fatal_errors_trigger(USER_ASSERT_HARD);
         break;
-    case DiagTest_Action_TRIGGER_LOG:
+    case orb_mcu_DiagTest_Action_TRIGGER_LOG:
         LOG_ERR("Triggered test log");
         break;
-    case DiagTest_Action_TRIGGER_BUSFAULT:
+    case orb_mcu_DiagTest_Action_TRIGGER_BUSFAULT:
         fatal_errors_trigger(FATAL_BUSFAULT);
         break;
-    case DiagTest_Action_TRIGGER_HARDFAULT:
+    case orb_mcu_DiagTest_Action_TRIGGER_HARDFAULT:
         fatal_errors_trigger(FATAL_ILLEGAL_INSTRUCTION);
         break;
-    case DiagTest_Action_TRIGGER_MEMMANAGE:
+    case orb_mcu_DiagTest_Action_TRIGGER_MEMMANAGE:
         fatal_errors_trigger(FATAL_MEMMANAGE);
         break;
-    case DiagTest_Action_TRIGGER_USAGEFAULT:
+    case orb_mcu_DiagTest_Action_TRIGGER_USAGEFAULT:
         fatal_errors_trigger(FATAL_ACCESS);
         break;
-    case DiagTest_Action_TRIGGER_K_PANIC:
+    case orb_mcu_DiagTest_Action_TRIGGER_K_PANIC:
         fatal_errors_trigger(FATAL_K_PANIC);
         break;
-    case DiagTest_Action_TRIGGER_K_OOPS:
+    case orb_mcu_DiagTest_Action_TRIGGER_K_OOPS:
         fatal_errors_trigger(FATAL_K_OOPS);
         break;
     }
@@ -1327,75 +1345,82 @@ __maybe_unused static void
 handle_not_supported(job_t *job)
 {
     LOG_ERR("Message not supported: %u", job->message.which_payload);
-    job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+    job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
 }
 
 typedef void (*hm_callback)(job_t *job);
 
 // These functions ARE NOT allowed to block!
 static const hm_callback handle_message_callbacks[] = {
-    [JetsonToMcu_shutdown_tag] = handle_shutdown,
-    [JetsonToMcu_reboot_tag] = handle_reboot_message,
-    [JetsonToMcu_mirror_angle_tag] = handle_mirror_angle_message,
-    [JetsonToMcu_do_homing_tag] = handle_do_homing,
-    [JetsonToMcu_infrared_leds_tag] = handle_infrared_leds_message,
-    [JetsonToMcu_led_on_time_tag] = handle_led_on_time_message,
-    [JetsonToMcu_user_leds_pattern_tag] = handle_user_leds_pattern,
-    [JetsonToMcu_user_leds_brightness_tag] = handle_user_leds_brightness,
-    [JetsonToMcu_distributor_leds_pattern_tag] =
+    [orb_mcu_main_JetsonToMcu_shutdown_tag] = handle_shutdown,
+    [orb_mcu_main_JetsonToMcu_reboot_tag] = handle_reboot_message,
+    [orb_mcu_main_JetsonToMcu_mirror_angle_tag] = handle_mirror_angle_message,
+    [orb_mcu_main_JetsonToMcu_do_homing_tag] = handle_do_homing,
+    [orb_mcu_main_JetsonToMcu_infrared_leds_tag] = handle_infrared_leds_message,
+    [orb_mcu_main_JetsonToMcu_led_on_time_tag] = handle_led_on_time_message,
+    [orb_mcu_main_JetsonToMcu_user_leds_pattern_tag] = handle_user_leds_pattern,
+    [orb_mcu_main_JetsonToMcu_user_leds_brightness_tag] =
+        handle_user_leds_brightness,
+    [orb_mcu_main_JetsonToMcu_distributor_leds_pattern_tag] =
         handle_distributor_leds_pattern,
-    [JetsonToMcu_distributor_leds_brightness_tag] =
+    [orb_mcu_main_JetsonToMcu_distributor_leds_brightness_tag] =
         handle_distributor_leds_brightness,
-    [JetsonToMcu_dfu_block_tag] = handle_dfu_block_message,
-    [JetsonToMcu_start_triggering_ir_eye_camera_tag] =
+    [orb_mcu_main_JetsonToMcu_dfu_block_tag] = handle_dfu_block_message,
+    [orb_mcu_main_JetsonToMcu_start_triggering_ir_eye_camera_tag] =
         handle_start_triggering_ir_eye_camera_message,
-    [JetsonToMcu_stop_triggering_ir_eye_camera_tag] =
+    [orb_mcu_main_JetsonToMcu_stop_triggering_ir_eye_camera_tag] =
         handle_stop_triggering_ir_eye_camera_message,
-    [JetsonToMcu_start_triggering_ir_face_camera_tag] =
+    [orb_mcu_main_JetsonToMcu_start_triggering_ir_face_camera_tag] =
         handle_start_triggering_ir_face_camera_message,
-    [JetsonToMcu_stop_triggering_ir_face_camera_tag] =
+    [orb_mcu_main_JetsonToMcu_stop_triggering_ir_face_camera_tag] =
         handle_stop_triggering_ir_face_camera_message,
-    [JetsonToMcu_start_triggering_2dtof_camera_tag] =
+    [orb_mcu_main_JetsonToMcu_start_triggering_2dtof_camera_tag] =
         handle_start_triggering_2dtof_camera_message,
-    [JetsonToMcu_stop_triggering_2dtof_camera_tag] =
+    [orb_mcu_main_JetsonToMcu_stop_triggering_2dtof_camera_tag] =
         handle_stop_triggering_2dtof_camera_message,
-    [JetsonToMcu_temperature_sample_period_tag] =
+    [orb_mcu_main_JetsonToMcu_temperature_sample_period_tag] =
         handle_temperature_sample_period_message,
-    [JetsonToMcu_fan_speed_tag] = handle_fan_speed,
-    [JetsonToMcu_fps_tag] = handle_fps,
-    [JetsonToMcu_liquid_lens_tag] = handle_liquid_lens,
-    [JetsonToMcu_voltage_request_tag] = handle_voltage_request,
-    [JetsonToMcu_fw_image_check_tag] = handle_fw_img_crc,
-    [JetsonToMcu_fw_image_secondary_activate_tag] = handle_fw_img_sec_activate,
-    [JetsonToMcu_heartbeat_tag] = handle_heartbeat,
-    [JetsonToMcu_mirror_angle_relative_tag] =
+    [orb_mcu_main_JetsonToMcu_fan_speed_tag] = handle_fan_speed,
+    [orb_mcu_main_JetsonToMcu_fps_tag] = handle_fps,
+    [orb_mcu_main_JetsonToMcu_liquid_lens_tag] = handle_liquid_lens,
+    [orb_mcu_main_JetsonToMcu_voltage_request_tag] = handle_voltage_request,
+    [orb_mcu_main_JetsonToMcu_fw_image_check_tag] = handle_fw_img_crc,
+    [orb_mcu_main_JetsonToMcu_fw_image_secondary_activate_tag] =
+        handle_fw_img_sec_activate,
+    [orb_mcu_main_JetsonToMcu_heartbeat_tag] = handle_heartbeat,
+    [orb_mcu_main_JetsonToMcu_mirror_angle_relative_tag] =
         handle_mirror_angle_relative_message,
-    [JetsonToMcu_value_get_tag] = handle_value_get_message,
-    [JetsonToMcu_center_leds_sequence_tag] = handle_user_center_leds_sequence,
-    [JetsonToMcu_distributor_leds_sequence_tag] =
+    [orb_mcu_main_JetsonToMcu_value_get_tag] = handle_value_get_message,
+    [orb_mcu_main_JetsonToMcu_center_leds_sequence_tag] =
+        handle_user_center_leds_sequence,
+    [orb_mcu_main_JetsonToMcu_distributor_leds_sequence_tag] =
         handle_distributor_leds_sequence,
-    [JetsonToMcu_ring_leds_sequence_tag] = handle_user_ring_leds_sequence,
-    [JetsonToMcu_fw_image_primary_confirm_tag] = handle_fw_img_primary_confirm,
-    [JetsonToMcu_ir_eye_camera_focus_sweep_lens_values_tag] =
+    [orb_mcu_main_JetsonToMcu_ring_leds_sequence_tag] =
+        handle_user_ring_leds_sequence,
+    [orb_mcu_main_JetsonToMcu_fw_image_primary_confirm_tag] =
+        handle_fw_img_primary_confirm,
+    [orb_mcu_main_JetsonToMcu_ir_eye_camera_focus_sweep_lens_values_tag] =
         handle_ir_eye_camera_focus_sweep_lens_values,
-    [JetsonToMcu_ir_eye_camera_focus_sweep_values_polynomial_tag] =
+    [orb_mcu_main_JetsonToMcu_ir_eye_camera_focus_sweep_values_polynomial_tag] =
         handle_ir_eye_camera_focus_sweep_values_polynomial,
-    [JetsonToMcu_perform_ir_eye_camera_focus_sweep_tag] =
+    [orb_mcu_main_JetsonToMcu_perform_ir_eye_camera_focus_sweep_tag] =
         handle_perform_ir_eye_camera_focus_sweep,
-    [JetsonToMcu_ir_eye_camera_mirror_sweep_values_polynomial_tag] =
+    [orb_mcu_main_JetsonToMcu_ir_eye_camera_mirror_sweep_values_polynomial_tag] =
         handle_ir_eye_camera_mirror_sweep_values_polynomial,
-    [JetsonToMcu_perform_ir_eye_camera_mirror_sweep_tag] =
+    [orb_mcu_main_JetsonToMcu_perform_ir_eye_camera_mirror_sweep_tag] =
         handle_perform_ir_eye_camera_mirror_sweep,
-    [JetsonToMcu_sync_diag_data_tag] = handle_sync_diag_data,
-    [JetsonToMcu_diag_test_tag] = handle_diag_test_data,
+    [orb_mcu_main_JetsonToMcu_sync_diag_data_tag] = handle_sync_diag_data,
+    [orb_mcu_main_JetsonToMcu_diag_test_tag] = handle_diag_test_data,
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    [JetsonToMcu_cone_leds_sequence_tag] = handle_cone_leds_sequence,
-    [JetsonToMcu_cone_leds_pattern_tag] = handle_cone_leds_pattern,
-    [JetsonToMcu_white_leds_brightness_tag] = handle_white_leds_brightness,
+    [orb_mcu_main_JetsonToMcu_cone_leds_sequence_tag] =
+        handle_cone_leds_sequence,
+    [orb_mcu_main_JetsonToMcu_cone_leds_pattern_tag] = handle_cone_leds_pattern,
+    [orb_mcu_main_JetsonToMcu_white_leds_brightness_tag] =
+        handle_white_leds_brightness,
 #elif defined(CONFIG_BOARD_PEARL_MAIN)
-    [JetsonToMcu_cone_leds_sequence_tag] = handle_not_supported,
-    [JetsonToMcu_cone_leds_pattern_tag] = handle_not_supported,
-    [JetsonToMcu_white_leds_brightness_tag] = handle_not_supported,
+    [orb_mcu_main_JetsonToMcu_cone_leds_sequence_tag] = handle_not_supported,
+    [orb_mcu_main_JetsonToMcu_cone_leds_pattern_tag] = handle_not_supported,
+    [orb_mcu_main_JetsonToMcu_white_leds_brightness_tag] = handle_not_supported,
 #else
 #error "Board not supported"
 #endif
@@ -1436,14 +1461,14 @@ runner_process_jobs_thread()
             LOG_ERR("A handler for message with a payload ID of %d is not "
                     "implemented",
                     new.message.which_payload);
-            job_ack(Ack_ErrorCode_OPERATION_NOT_SUPPORTED, &new);
+            job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, &new);
         }
     }
 }
 
 static K_SEM_DEFINE(new_job_sem, 1, 1);
 static job_t new = {0};
-static McuMessage mcu_message;
+static orb_mcu_McuMessage mcu_message;
 
 ret_code_t
 runner_handle_new_can(can_message_t *msg)
@@ -1460,10 +1485,10 @@ runner_handle_new_can(can_message_t *msg)
 
     int ret = k_sem_take(&new_job_sem, K_MSEC(5));
     if (ret == 0) {
-        bool decoded = pb_decode_ex(&stream, McuMessage_fields, &mcu_message,
-                                    PB_DECODE_DELIMITED);
+        bool decoded = pb_decode_ex(&stream, orb_mcu_McuMessage_fields,
+                                    &mcu_message, PB_DECODE_DELIMITED);
         if (decoded) {
-            if (mcu_message.which_message != McuMessage_j_message_tag) {
+            if (mcu_message.which_message != orb_mcu_McuMessage_j_message_tag) {
                 LOG_INF("Got message not intended for us. Dropping.");
                 err_code = RET_ERROR_INVALID_ADDR;
             } else {
@@ -1570,10 +1595,10 @@ runner_handle_new_uart(uart_message_t *msg)
             &uart_msg->buffer_addr[uart_msg->start_idx], uart_msg->length);
         stream.callback = buf_read_circular;
 
-        bool decoded = pb_decode_ex(&stream, McuMessage_fields, &mcu_message,
-                                    PB_DECODE_DELIMITED);
+        bool decoded = pb_decode_ex(&stream, orb_mcu_McuMessage_fields,
+                                    &mcu_message, PB_DECODE_DELIMITED);
         if (decoded) {
-            if (mcu_message.which_message != McuMessage_j_message_tag) {
+            if (mcu_message.which_message != orb_mcu_McuMessage_j_message_tag) {
                 LOG_INF("Got message not intended for us. Dropping.");
                 err_code = RET_ERROR_INVALID_ADDR;
             } else {
