@@ -3,6 +3,7 @@
 #include "orb_logs.h"
 #include "sysflash/sysflash.h"
 #include "system/version/version.h"
+#include "temperature/fan/fan.h"
 #include "ui/button/button.h"
 #include "ui/rgb_leds/front_leds/front_leds.h"
 #include "ui/rgb_leds/operator_leds/operator_leds.h"
@@ -717,6 +718,7 @@ reboot_thread()
         LOG_INF("Rebooting in %u seconds", delay);
     } while (k_msleep(delay * 1000 - SYSTEM_RESET_UI_DELAY_MS) != 0);
 
+    fan_turn_off();
     operator_leds_set_pattern(
         DistributorLEDsPattern_DistributorRgbLedPattern_OFF, 0, NULL);
     front_leds_turn_off_blocking();
