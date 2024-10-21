@@ -29,13 +29,10 @@ static void
 watchdog_thread()
 {
     while (wdt_channel_id >= 0) {
-        // Allow null callback
-        if (watchdog_callback == NULL) {
+        // Allow null callback,
+        // Don't rearrange due to short circuit rules, NULL check must be first
+        if ((watchdog_callback == NULL) || (watchdog_callback() == true)) {
             wdt_feed(watchdog_dev, wdt_channel_id);
-        } else {
-            if (watchdog_callback() == true) {
-                wdt_feed(watchdog_dev, wdt_channel_id);
-            }
         }
         k_sleep(K_MSEC(WATCHDOG_RELOAD_MS));
     }

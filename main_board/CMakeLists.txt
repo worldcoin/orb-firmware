@@ -97,7 +97,6 @@ list(APPEND SOURCES_FILES
     src/system/logs.c
     src/system/version/version.c
     src/system/stm32_timer_utils/stm32_timer_utils.c
-    src/system/app_watchdog.c
 
     src/temperature/sensors/temperature.c
     src/temperature/fan/fan.c
