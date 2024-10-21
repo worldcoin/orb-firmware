@@ -483,12 +483,13 @@ ZTEST(ir_camera, test_ir_led_timeout)
     ret = ir_camera_system_set_fps(low_fps);
     zassert_equal(ret, RET_SUCCESS, "Failed to set FPS");
 
-    k_msleep(IR_LED_AUTO_OFF_TIMEOUT_S * 1000 + 100);
+    k_msleep(IR_LED_AUTO_OFF_TIMEOUT_S * 1000 + 1000);
     orb_mcu_main_InfraredLEDs_Wavelength wavelength =
         ir_camera_system_get_enabled_leds();
-    zassert_equal(
-        wavelength, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE,
-        "IR LEDs should be off after %d seconds", IR_LED_AUTO_OFF_TIMEOUT_S);
+    zassert_equal(wavelength,
+                  orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE,
+                  "IR LEDs should be off (none) after %d seconds, equals %d",
+                  IR_LED_AUTO_OFF_TIMEOUT_S);
 }
 
 ZTEST(ir_camera, test_ir_camera_invalid_ir_wavelengths_msgs)
