@@ -1,6 +1,6 @@
 #include "tof_1d.h"
 #include "app_config.h"
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include "orb_logs.h"
 #include "pubsub/pubsub.h"
 #include <errors.h>
@@ -56,7 +56,7 @@ tof_1d_thread()
 {
     int ret;
     struct sensor_value distance_value;
-    ToF_1D tof;
+    orb_mcu_main_ToF_1D tof;
     uint32_t count = 0;
 
     uint32_t tick = 0;
@@ -100,7 +100,7 @@ tof_1d_thread()
         if (count % (DISTANCE_PUBLISH_PERIOD_MS / FETCH_PERIOD_MS) == 0) {
             LOG_INF("Distance in front: %umm", tof.distance_mm);
 
-            publish_new(&tof, sizeof(tof), McuToJetson_tof_1d_tag,
+            publish_new(&tof, sizeof(tof), orb_mcu_main_McuToJetson_tof_1d_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
 

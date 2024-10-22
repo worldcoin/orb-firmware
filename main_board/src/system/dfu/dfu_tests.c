@@ -3,7 +3,7 @@
 #include "runner/runner.h"
 #include <can_messaging.h>
 #include <flash_map_backend/flash_map_backend.h>
-#include <mcu_messaging_main.pb.h>
+#include <main.pb.h>
 #include <pb_encode.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/crc.h>
@@ -22,10 +22,11 @@ ZTEST(hil, test_dfu_upload_tests)
     uint32_t test_block_count = (DFU_FLASH_SECTOR_SIZE / 39) + 1;
 
     can_message_t to_send;
-    McuMessage dfu_block = McuMessage_init_zero;
-    dfu_block.version = Version_VERSION_0;
-    dfu_block.which_message = McuMessage_j_message_tag;
-    dfu_block.message.j_message.which_payload = JetsonToMcu_dfu_block_tag;
+    orb_mcu_McuMessage dfu_block = orb_mcu_McuMessage_init_zero;
+    dfu_block.version = orb_mcu_Version_VERSION_0;
+    dfu_block.which_message = orb_mcu_McuMessage_j_message_tag;
+    dfu_block.message.j_message.which_payload =
+        orb_mcu_main_JetsonToMcu_dfu_block_tag;
 
     dfu_block.message.j_message.ack_number = 0;
 
@@ -46,8 +47,8 @@ ZTEST(hil, test_dfu_upload_tests)
     while (block_to_send--) {
         uint8_t buffer[CAN_FRAME_MAX_SIZE];
         pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
-        bool encoded = pb_encode_ex(&stream, McuMessage_fields, &dfu_block,
-                                    PB_ENCODE_DELIMITED);
+        bool encoded = pb_encode_ex(&stream, orb_mcu_McuMessage_fields,
+                                    &dfu_block, PB_ENCODE_DELIMITED);
         to_send.size = stream.bytes_written;
         to_send.bytes = buffer;
         to_send.destination = 0;

@@ -1,5 +1,5 @@
 #include "gnss.h"
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include "orb_logs.h"
 #include "utils.h"
 #include <app_assert.h>
@@ -153,7 +153,7 @@ static int
 send_nmea_message(const char *nmea_str)
 {
     static uint32_t counter = 0;
-    static GNSSDataPartial msg;
+    static orb_mcu_main_GNSSDataPartial msg;
     int ret;
 
 #if CONFIG_TEST_GNSS
@@ -178,12 +178,14 @@ send_nmea_message(const char *nmea_str)
     msg.nmea_part[min] = '\0';
     msg.counter = counter;
 
-    ret = publish_new(&msg, sizeof(msg), McuToJetson_gnss_partial_tag,
+    ret = publish_new(&msg, sizeof(msg),
+                      orb_mcu_main_McuToJetson_gnss_partial_tag,
                       CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
     if (ret == RET_SUCCESS) {
         strncpy(msg.nmea_part, nmea_str + min, sizeof msg.nmea_part - 1);
         msg.counter = counter + 1;
-        ret = publish_new(&msg, sizeof(msg), McuToJetson_gnss_partial_tag,
+        ret = publish_new(&msg, sizeof(msg),
+                          orb_mcu_main_McuToJetson_gnss_partial_tag,
                           CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
     }
 
@@ -203,7 +205,8 @@ gnss_thread_entry_point()
     char ch;
     static char msg[NMEA_MAX_SIZE + 1];
 
-    BUILD_ASSERT(sizeof msg <= STRUCT_MEMBER_ARRAY_SIZE(GNSSData, nmea),
+    BUILD_ASSERT(sizeof msg <=
+                     STRUCT_MEMBER_ARRAY_SIZE(orb_mcu_main_GNSSData, nmea),
                  "msg must be small enough to fit into protobuf message");
 
     for (;;) {

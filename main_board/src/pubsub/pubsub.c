@@ -1,6 +1,6 @@
 #include "pubsub.h"
 #include "app_config.h"
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include "orb_logs.h"
 #include "system/diag.h"
 #include <app_assert.h>
@@ -16,12 +16,12 @@ LOG_MODULE_REGISTER(pubsub, CONFIG_PUBSUB_LOG_LEVEL);
 // print friendly message if CONFIG_CAN_ISOTP_MAX_SIZE_BYTES can be reduced
 #ifdef CONFIG_CAN_ISOTP_MAX_SIZE_BYTES
 BUILD_ASSERT(
-    CONFIG_CAN_ISOTP_MAX_SIZE_BYTES >= McuMessage_size,
+    CONFIG_CAN_ISOTP_MAX_SIZE_BYTES >= orb_mcu_McuMessage_size,
     "CONFIG_CAN_ISOTP_MAX_SIZE_BYTES must be at least McuMessage_size");
-#if CONFIG_CAN_ISOTP_MAX_SIZE_BYTES > McuMessage_size
+#if CONFIG_CAN_ISOTP_MAX_SIZE_BYTES > orb_mcu_McuMessage_size
 #pragma message                                                                       \
     "You can reduce CONFIG_CAN_ISOTP_MAX_SIZE_BYTES to McuMessage_size = " STRINGIFY( \
-        McuMessage_size)
+        orb_mcu_McuMessage_size)
 #endif
 #endif
 
@@ -41,7 +41,8 @@ static struct k_thread pub_stored_thread_data;
  */
 struct pub_entry_s {
     uint32_t destination;
-    uint8_t data[McuToJetson_size + MCU_MESSAGE_ENCODED_WRAPPER_SIZE];
+    uint8_t
+        data[orb_mcu_main_McuToJetson_size + MCU_MESSAGE_ENCODED_WRAPPER_SIZE];
 };
 
 enum sub_priority_e {
@@ -58,38 +59,53 @@ struct sub_message_s {
 };
 
 const struct sub_message_s sub_prios[] = {
-    [McuToJetson_ack_tag] = {.priority = SUB_PRIO_TRY_SENDING},
-    [McuToJetson_power_button_tag] = {.priority = SUB_PRIO_TRY_SENDING},
-    [McuToJetson_battery_voltage_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_battery_capacity_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_gnss_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_versions_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_temperature_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_fan_status_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_imu_data_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_voltage_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_log_tag] = {.priority = SUB_PRIO_STORE},
-    [McuToJetson_motor_range_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_fatal_error_tag] = {.priority = SUB_PRIO_STORE},
-    [McuToJetson_battery_is_charging_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_battery_diag_common_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_tof_1d_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_gnss_partial_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_front_als_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_hardware_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_hardware_diag_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_battery_reset_reason_tag] = {.priority = SUB_PRIO_STORE},
-    [McuToJetson_battery_diag_safety_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_battery_diag_permanent_fail_tag] = {.priority =
-                                                         SUB_PRIO_DISCARD},
-    [McuToJetson_battery_info_hw_fw_tag] = {.priority = SUB_PRIO_STORE},
-    [McuToJetson_battery_info_max_values_tag] = {.priority = SUB_PRIO_STORE},
-    [McuToJetson_battery_info_soc_and_statistics_tag] = {.priority =
+    [orb_mcu_main_McuToJetson_ack_tag] = {.priority = SUB_PRIO_TRY_SENDING},
+    [orb_mcu_main_McuToJetson_power_button_tag] = {.priority =
+                                                       SUB_PRIO_TRY_SENDING},
+    [orb_mcu_main_McuToJetson_battery_voltage_tag] = {.priority =
+                                                          SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_battery_capacity_tag] = {.priority =
+                                                           SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_gnss_tag] = {.priority = SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_versions_tag] = {.priority = SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_temperature_tag] = {.priority = SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_fan_status_tag] = {.priority = SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_imu_data_tag] = {.priority = SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_voltage_tag] = {.priority = SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_log_tag] = {.priority = SUB_PRIO_STORE},
+    [orb_mcu_main_McuToJetson_motor_range_tag] = {.priority = SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_fatal_error_tag] = {.priority = SUB_PRIO_STORE},
+    [orb_mcu_main_McuToJetson_battery_is_charging_tag] = {.priority =
+                                                              SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_battery_diag_common_tag] = {.priority =
+                                                              SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_tof_1d_tag] = {.priority = SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_gnss_partial_tag] = {.priority =
+                                                       SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_front_als_tag] = {.priority = SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_hardware_tag] = {.priority = SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_hardware_diag_tag] = {.priority =
+                                                        SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_battery_reset_reason_tag] = {.priority =
+                                                               SUB_PRIO_STORE},
+    [orb_mcu_main_McuToJetson_battery_diag_safety_tag] = {.priority =
+                                                              SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_battery_diag_permanent_fail_tag] =
+        {.priority = SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_battery_info_hw_fw_tag] = {.priority =
                                                              SUB_PRIO_STORE},
-    [McuToJetson_cone_present_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_memfault_event_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_battery_state_of_health_tag] = {.priority = SUB_PRIO_DISCARD},
-    [McuToJetson_shutdown_tag] = {.priority = SUB_PRIO_TRY_SENDING},
+    [orb_mcu_main_McuToJetson_battery_info_max_values_tag] =
+        {.priority = SUB_PRIO_STORE},
+    [orb_mcu_main_McuToJetson_battery_info_soc_and_statistics_tag] =
+        {.priority = SUB_PRIO_STORE},
+    [orb_mcu_main_McuToJetson_cone_present_tag] = {.priority =
+                                                       SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_memfault_event_tag] = {.priority =
+                                                         SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_battery_state_of_health_tag] =
+        {.priority = SUB_PRIO_DISCARD},
+    [orb_mcu_main_McuToJetson_shutdown_tag] = {.priority =
+                                                   SUB_PRIO_TRY_SENDING},
 };
 
 /* ISO-TP addresses + one CAN-FD address */
@@ -238,7 +254,7 @@ publish(void *payload, size_t size, uint32_t which_payload,
     // - payload is smaller than McuToJetson payload size
     // - which_payload is supported
     if (which_payload >= ARRAY_SIZE(sub_prios) ||
-        size > STRUCT_MEMBER_SIZE_BYTES(McuToJetson, payload)) {
+        size > STRUCT_MEMBER_SIZE_BYTES(orb_mcu_main_McuToJetson, payload)) {
         return RET_ERROR_INVALID_PARAM;
     }
 
@@ -249,9 +265,10 @@ publish(void *payload, size_t size, uint32_t which_payload,
 
     // static structs, don't take caller stack
     static struct pub_entry_s entry;
-    static McuMessage message = {.version = Version_VERSION_0,
-                                 .which_message = McuMessage_m_message_tag,
-                                 .message.m_message = {0}};
+    static orb_mcu_McuMessage message = {.version = orb_mcu_Version_VERSION_0,
+                                         .which_message =
+                                             orb_mcu_McuMessage_m_message_tag,
+                                         .message.m_message = {0}};
 
     // no wait if ISR
     k_timeout_t timeout = k_is_in_isr() ? K_NO_WAIT : K_MSEC(5);
@@ -266,8 +283,8 @@ publish(void *payload, size_t size, uint32_t which_payload,
         // encode full McuMessage
         pb_ostream_t stream =
             pb_ostream_from_buffer(entry.data, sizeof(entry.data));
-        bool encoded = pb_encode_ex(&stream, McuMessage_fields, &message,
-                                    PB_ENCODE_DELIMITED);
+        bool encoded = pb_encode_ex(&stream, orb_mcu_McuMessage_fields,
+                                    &message, PB_ENCODE_DELIMITED);
 
         if (encoded) {
             if (store ||

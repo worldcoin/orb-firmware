@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include <errors.h>
 
 #define OPERATOR_LEDS_COUNT    DT_PROP(DT_NODELABEL(operator_rgb_leds), num_leds)
@@ -25,8 +25,8 @@ operator_leds_set_brightness(uint8_t brightness);
  */
 int
 operator_leds_set_pattern(
-    DistributorLEDsPattern_DistributorRgbLedPattern pattern, uint32_t mask,
-    const RgbColor *color);
+    orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern pattern,
+    uint32_t mask, const orb_mcu_main_RgbColor *color);
 
 /**
  * Init operator LED thread
@@ -68,7 +68,7 @@ operator_leds_set_leds_sequence_argb32(const uint8_t *bytes, uint32_t size);
  * OPERATOR_LEDS_ALL_MASK)
  */
 void
-operator_leds_set_blocking(const RgbColor *color, uint32_t mask);
+operator_leds_set_blocking(const orb_mcu_main_RgbColor *color, uint32_t mask);
 
 /**
  * Show an animation for indicating a low battery

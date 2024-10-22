@@ -1,11 +1,12 @@
 #pragma once
 
 #include <errors.h>
-#include <mcu_messaging_main.pb.h>
+#include <mcu.pb.h>
 #include <zephyr/sys/util.h>
 
 #define MAX_NUMBER_OF_FOCUS_VALUES                                             \
-    (STRUCT_MEMBER_SIZE_BYTES(IREyeCameraFocusSweepLensValues, focus_values) / \
+    (STRUCT_MEMBER_SIZE_BYTES(orb_mcu_main_IREyeCameraFocusSweepLensValues,    \
+                              focus_values) /                                  \
      (sizeof(uint16_t)))
 
 #ifdef CONFIG_ZTEST
@@ -120,13 +121,13 @@ ir_camera_system_2d_tof_camera_is_enabled(void);
  * @retval RET_ERROR_BUSY focus sweep or mirror sweep in progress
  */
 ret_code_t
-ir_camera_system_enable_leds(InfraredLEDs_Wavelength wavelength);
+ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength wavelength);
 
 /**
  * @brief Get enabled LED wavelengths
- * @return InfraredLEDs_Wavelength
+ * @return orb_mcu_main_InfraredLEDs_Wavelength
  */
-InfraredLEDs_Wavelength
+orb_mcu_main_InfraredLEDs_Wavelength
 ir_camera_system_get_enabled_leds(void);
 
 /**
@@ -202,7 +203,7 @@ ir_camera_system_set_focus_values_for_focus_sweep(int16_t *focus_values,
  */
 ret_code_t
 ir_camera_system_set_polynomial_coefficients_for_focus_sweep(
-    IREyeCameraFocusSweepValuesPolynomial poly);
+    orb_mcu_main_IREyeCameraFocusSweepValuesPolynomial poly);
 
 /**
  * Perform a focus sweep using the IR eye camera. Using this function has
@@ -237,7 +238,7 @@ progress
  */
 ret_code_t
 ir_camera_system_set_polynomial_coefficients_for_mirror_sweep(
-    IREyeCameraMirrorSweepValuesPolynomial poly);
+    orb_mcu_main_IREyeCameraMirrorSweepValuesPolynomial poly);
 
 /**
  * Perform a mirror sweep using the IR eye camera. Using this function has

@@ -2,11 +2,11 @@
 
 #include "bootutil/image.h"
 #include "utils.h"
-#include <mcu_messaging_common.pb.h>
+#include <mcu.pb.h>
 #include <stdbool.h>
 
 #define DFU_BLOCK_SIZE_MAX                                                     \
-    STRUCT_MEMBER_ARRAY_SIZE(FirmwareUpdateData, image_block.bytes)
+    STRUCT_MEMBER_ARRAY_SIZE(orb_mcu_FirmwareUpdateData, image_block.bytes)
 
 #if DT_NODE_HAS_COMPAT(DT_GPARENT(DT_ALIAS(secondary_slot)), jedec_spi_nor)
 #include "flash/spi_nor.h"

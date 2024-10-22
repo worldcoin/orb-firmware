@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include <errors.h>
 
 #define FULL_RING_DEGREES (360)
@@ -31,9 +31,9 @@ front_leds_init(void);
  * @retval RET_SUCCESS on success
  */
 ret_code_t
-front_leds_set_pattern(UserLEDsPattern_UserRgbLedPattern pattern,
+front_leds_set_pattern(orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern,
                        uint32_t start_angle, int32_t angle_length,
-                       RgbColor *color, uint32_t pulsing_period_ms,
+                       orb_mcu_main_RgbColor *color, uint32_t pulsing_period_ms,
                        float pulsing_scale);
 
 /**

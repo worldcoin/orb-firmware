@@ -1,4 +1,4 @@
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include "pubsub.h"
 #include <errors.h>
 #include <utils.h>
@@ -49,7 +49,7 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
         return err_code;
     }
 
-    if (size > STRUCT_MEMBER_SIZE_BYTES(McuToJetson, payload)) {
+    if (size > STRUCT_MEMBER_SIZE_BYTES(orb_mcu_main_McuToJetson, payload)) {
         err_code = RET_ERROR_NO_MEM;
         return err_code;
     }
@@ -61,18 +61,20 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
         goto free_on_error;
     }
 
-    uint8_t buffer[McuToJetson_size + MCU_MESSAGE_ENCODED_WRAPPER_SIZE];
-    static McuMessage message = {.version = Version_VERSION_0,
-                                 .which_message = McuMessage_m_message_tag,
-                                 .message.m_message = {0}};
+    uint8_t buffer[orb_mcu_main_McuToJetson_size +
+                   MCU_MESSAGE_ENCODED_WRAPPER_SIZE];
+    static orb_mcu_McuMessage message = {.version = orb_mcu_Version_VERSION_0,
+                                         .which_message =
+                                             orb_mcu_McuMessage_m_message_tag,
+                                         .message.m_message = {0}};
 
     message.message.m_message.which_payload = which_payload;
     memcpy(&message.message.m_message.payload, payload, size);
 
-    // encode full McuMessage
+    // encode full orb_mcu_McuMessage
     pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
-    bool encoded =
-        pb_encode_ex(&stream, McuMessage_fields, &message, PB_ENCODE_DELIMITED);
+    bool encoded = pb_encode_ex(&stream, orb_mcu_McuMessage_fields, &message,
+                                PB_ENCODE_DELIMITED);
 
     if (!encoded) {
         LOG_ERR("Error encoding: %u, err: %s", which_payload, stream.errmsg);
@@ -108,44 +110,61 @@ publish_store(void *payload, size_t size, uint32_t which_payload,
 ZTEST(hil, test_pubsub_sent_messages)
 {
     // make sure these payloads have been reported by their respective modules
-    zassert_not_equal(
-        mcu_to_jetson_payloads & (1 << McuToJetson_battery_voltage_tag), 0);
-    zassert_not_equal(
-        mcu_to_jetson_payloads & (1 << McuToJetson_battery_capacity_tag), 0);
-    zassert_not_equal(
-        mcu_to_jetson_payloads & (1 << McuToJetson_temperature_tag), 0);
-    zassert_not_equal(
-        mcu_to_jetson_payloads & (1 << McuToJetson_fan_status_tag), 0);
-    zassert_not_equal(mcu_to_jetson_payloads & (1 << McuToJetson_voltage_tag),
-                      0);
-    zassert_not_equal(
-        mcu_to_jetson_payloads & (1 << McuToJetson_motor_range_tag), 0);
-    zassert_not_equal(
-        mcu_to_jetson_payloads & (1 << McuToJetson_battery_diag_common_tag), 0);
-    zassert_not_equal(mcu_to_jetson_payloads & (1 << McuToJetson_tof_1d_tag),
-                      0);
-    zassert_not_equal(mcu_to_jetson_payloads & (1 << McuToJetson_front_als_tag),
-                      0);
-    zassert_not_equal(
-        mcu_to_jetson_payloads & (1 << McuToJetson_hardware_diag_tag), 0);
-
-    zassert_not_equal(
-        mcu_to_jetson_payloads & (1 << McuToJetson_battery_info_hw_fw_tag), 0);
     zassert_not_equal(mcu_to_jetson_payloads &
-                          (1 << McuToJetson_battery_info_max_values_tag),
+                          (1 << orb_mcu_main_McuToJetson_battery_voltage_tag),
+                      0);
+    zassert_not_equal(mcu_to_jetson_payloads &
+                          (1 << orb_mcu_main_McuToJetson_battery_capacity_tag),
+                      0);
+    zassert_not_equal(mcu_to_jetson_payloads &
+                          (1 << orb_mcu_main_McuToJetson_temperature_tag),
+                      0);
+    zassert_not_equal(mcu_to_jetson_payloads &
+                          (1 << orb_mcu_main_McuToJetson_fan_status_tag),
+                      0);
+    zassert_not_equal(mcu_to_jetson_payloads &
+                          (1 << orb_mcu_main_McuToJetson_voltage_tag),
+                      0);
+    zassert_not_equal(mcu_to_jetson_payloads &
+                          (1 << orb_mcu_main_McuToJetson_motor_range_tag),
                       0);
     zassert_not_equal(
         mcu_to_jetson_payloads &
-            (1 << McuToJetson_battery_info_soc_and_statistics_tag),
+            (1 << orb_mcu_main_McuToJetson_battery_diag_common_tag),
+        0);
+    zassert_not_equal(
+        mcu_to_jetson_payloads & (1 << orb_mcu_main_McuToJetson_tof_1d_tag), 0);
+    zassert_not_equal(mcu_to_jetson_payloads &
+                          (1 << orb_mcu_main_McuToJetson_front_als_tag),
+                      0);
+    zassert_not_equal(mcu_to_jetson_payloads &
+                          (1 << orb_mcu_main_McuToJetson_hardware_diag_tag),
+                      0);
+
+    zassert_not_equal(
+        mcu_to_jetson_payloads &
+            (1 << orb_mcu_main_McuToJetson_battery_info_hw_fw_tag),
+        0);
+    zassert_not_equal(
+        mcu_to_jetson_payloads &
+            (1 << orb_mcu_main_McuToJetson_battery_info_max_values_tag),
+        0);
+    zassert_not_equal(
+        mcu_to_jetson_payloads &
+            (1 << orb_mcu_main_McuToJetson_battery_info_soc_and_statistics_tag),
         0);
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-    zassert_not_equal(
-        mcu_to_jetson_payloads & (1 << McuToJetson_gnss_partial_tag), 0);
-    zassert_not_equal(
-        mcu_to_jetson_payloads & (1 << McuToJetson_battery_diag_safety_tag), 0);
     zassert_not_equal(mcu_to_jetson_payloads &
-                          (1 << McuToJetson_battery_diag_permanent_fail_tag),
+                          (1 << orb_mcu_main_McuToJetson_gnss_partial_tag),
                       0);
+    zassert_not_equal(
+        mcu_to_jetson_payloads &
+            (1 << orb_mcu_main_McuToJetson_battery_diag_safety_tag),
+        0);
+    zassert_not_equal(
+        mcu_to_jetson_payloads &
+            (1 << orb_mcu_main_McuToJetson_battery_diag_permanent_fail_tag),
+        0);
 #endif
 }

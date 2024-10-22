@@ -1,6 +1,7 @@
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 #include "gnss/gnss.h"
 #endif
+#include "mcu.pb.h"
 #include "optics/optics.h"
 #include "orb_logs.h"
 #include "power/battery/battery.h"
@@ -57,7 +58,8 @@ static void
 ir_camera_test_reset(void *fixture)
 {
     ARG_UNUSED(fixture);
-    ir_camera_system_enable_leds(InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    ir_camera_system_enable_leds(
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
     ir_camera_system_set_fps(0);
     ir_camera_system_set_on_time_us(0);
 }
@@ -95,17 +97,18 @@ app_assert_cb(fatal_error_info_t *err_info)
 {
     if (jetson_up_and_running) {
         // fatal error, try to warn Jetson
-        static McuMessage fatal_error = {
-            .which_message = McuMessage_m_message_tag,
-            .message.m_message.which_payload = McuToJetson_fatal_error_tag,
+        static orb_mcu_McuMessage fatal_error = {
+            .which_message = orb_mcu_McuMessage_m_message_tag,
+            .message.m_message.which_payload =
+                orb_mcu_main_McuToJetson_fatal_error_tag,
             .message.m_message.payload.fatal_error.reason =
-                FatalError_FatalReason_FATAL_ASSERT_HARD,
+                orb_mcu_FatalError_FatalReason_FATAL_ASSERT_HARD,
         };
 
         static uint8_t buffer[CAN_FRAME_MAX_SIZE];
         pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
-        bool encoded = pb_encode_ex(&stream, McuMessage_fields, &fatal_error,
-                                    PB_ENCODE_DELIMITED);
+        bool encoded = pb_encode_ex(&stream, orb_mcu_McuMessage_fields,
+                                    &fatal_error, PB_ENCODE_DELIMITED);
 
         can_message_t to_send = {.destination =
                                      CONFIG_CAN_ADDRESS_DEFAULT_REMOTE,
@@ -126,35 +129,36 @@ send_reset_reason(void)
 {
     uint32_t reset_reason = fatal_get_status_register();
     if (reset_reason != 0) {
-        FatalError fatal_error = {0};
+        orb_mcu_FatalError fatal_error = {0};
         if (IS_WATCHDOG(reset_reason)) {
-            fatal_error.reason = FatalError_FatalReason_FATAL_WATCHDOG;
+            fatal_error.reason = orb_mcu_FatalError_FatalReason_FATAL_WATCHDOG;
             publish_new(&fatal_error, sizeof(fatal_error),
-                        McuToJetson_fatal_error_tag,
+                        orb_mcu_main_McuToJetson_fatal_error_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
         if (IS_SOFTWARE(reset_reason)) {
-            fatal_error.reason = FatalError_FatalReason_FATAL_SOFTWARE_UNKNOWN;
+            fatal_error.reason =
+                orb_mcu_FatalError_FatalReason_FATAL_SOFTWARE_UNKNOWN;
             publish_new(&fatal_error, sizeof(fatal_error),
-                        McuToJetson_fatal_error_tag,
+                        orb_mcu_main_McuToJetson_fatal_error_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
         if (IS_BOR(reset_reason)) {
-            fatal_error.reason = FatalError_FatalReason_FATAL_BROWNOUT;
+            fatal_error.reason = orb_mcu_FatalError_FatalReason_FATAL_BROWNOUT;
             publish_new(&fatal_error, sizeof(fatal_error),
-                        McuToJetson_fatal_error_tag,
+                        orb_mcu_main_McuToJetson_fatal_error_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
         if (IS_PIN(reset_reason)) {
-            fatal_error.reason = FatalError_FatalReason_FATAL_PIN_RESET;
+            fatal_error.reason = orb_mcu_FatalError_FatalReason_FATAL_PIN_RESET;
             publish_new(&fatal_error, sizeof(fatal_error),
-                        McuToJetson_fatal_error_tag,
+                        orb_mcu_main_McuToJetson_fatal_error_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
         if (IS_LOW_POWER(reset_reason)) {
-            fatal_error.reason = FatalError_FatalReason_FATAL_LOW_POWER;
+            fatal_error.reason = orb_mcu_FatalError_FatalReason_FATAL_LOW_POWER;
             publish_new(&fatal_error, sizeof(fatal_error),
-                        McuToJetson_fatal_error_tag,
+                        orb_mcu_main_McuToJetson_fatal_error_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
         }
     }
@@ -219,7 +223,7 @@ initialize(void)
     err_code = version_init();
     ASSERT_SOFT(err_code);
 
-    Hardware hw = {.version = version_get_hardware_rev()};
+    orb_mcu_Hardware hw = {.version = version_get_hardware_rev()};
     LOG_INF("Hardware version: %u", hw.version);
 
     // voltage_measurement module is used by battery and boot -> must be

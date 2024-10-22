@@ -1,5 +1,5 @@
 #include "mirror.h"
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include "orb_logs.h"
 #include "pubsub/pubsub.h"
 #include "system/version/version.h"
@@ -1198,13 +1198,15 @@ mirror_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                         motor, motors_refs[motor].steps_at_center_position,
                         angle_range_millidegrees);
 
-                MotorRange range = {
-                    .which_motor = (motor == MOTOR_THETA_ANGLE
-                                        ? MotorRange_Motor_VERTICAL_THETA
-                                        : MotorRange_Motor_HORIZONTAL_PHI),
+                orb_mcu_main_MotorRange range = {
+                    .which_motor =
+                        (motor == MOTOR_THETA_ANGLE
+                             ? orb_mcu_main_MotorRange_Motor_VERTICAL_THETA
+                             : orb_mcu_main_MotorRange_Motor_HORIZONTAL_PHI),
                     .range_microsteps = motors_refs[motor].full_course,
                     .range_millidegrees = angle_range_millidegrees};
-                publish_new(&range, sizeof(range), McuToJetson_motor_range_tag,
+                publish_new(&range, sizeof(range),
+                            orb_mcu_main_McuToJetson_motor_range_tag,
                             CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 
                 motors_refs[motor].auto_homing_state = AH_SUCCESS;

@@ -1,7 +1,7 @@
 #include "app_config.h"
 #include "battery.h"
 #include "errors.h"
-#include "mcu_messaging_main.pb.h"
+#include "mcu.pb.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "temperature/sensors/temperature.h"
@@ -34,8 +34,8 @@ static struct k_thread rx_thread_data = {0};
 static const struct i2c_dt_spec i2c_device_spec =
     I2C_DT_SPEC_GET(DT_NODELABEL(bq4050));
 
-static BatteryCapacity battery_cap;
-static BatteryIsCharging is_charging;
+static orb_mcu_main_BatteryCapacity battery_cap;
+static orb_mcu_main_BatteryIsCharging is_charging;
 
 #define BATTERY_INFO_SEND_PERIOD_MS         1000
 #define BATTERY_MESSAGES_REMOVED_TIMEOUT_MS (BATTERY_INFO_SEND_PERIOD_MS * 3)
@@ -284,31 +284,31 @@ bq4050_read_state_of_health(uint8_t *state_of_health_percentage)
 }
 
 static void
-publish_battery_voltages(BatteryVoltage *voltages)
+publish_battery_voltages(orb_mcu_main_BatteryVoltage *voltages)
 {
     LOG_DBG("Battery voltage: (%d, %d, %d, %d) mV", voltages->battery_cell1_mv,
             voltages->battery_cell2_mv, voltages->battery_cell3_mv,
             voltages->battery_cell4_mv);
-    publish_new(voltages, sizeof(BatteryVoltage),
-                McuToJetson_battery_voltage_tag,
+    publish_new(voltages, sizeof(orb_mcu_main_BatteryVoltage),
+                orb_mcu_main_McuToJetson_battery_voltage_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 
 static void
-publish_battery_capacity(BatteryCapacity *battery_cap)
+publish_battery_capacity(orb_mcu_main_BatteryCapacity *battery_cap)
 {
     LOG_DBG("State of charge: %u%%", battery_cap->percentage);
-    publish_new(battery_cap, sizeof(BatteryCapacity),
-                McuToJetson_battery_capacity_tag,
+    publish_new(battery_cap, sizeof(orb_mcu_main_BatteryCapacity),
+                orb_mcu_main_McuToJetson_battery_capacity_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 
 static void
-publish_battery_is_charging(BatteryIsCharging *is_charging)
+publish_battery_is_charging(orb_mcu_main_BatteryIsCharging *is_charging)
 {
     LOG_DBG("Is charging? %s", is_charging->battery_is_charging ? "yes" : "no");
-    publish_new(is_charging, sizeof(BatteryIsCharging),
-                McuToJetson_battery_is_charging_tag,
+    publish_new(is_charging, sizeof(orb_mcu_main_BatteryIsCharging),
+                orb_mcu_main_McuToJetson_battery_is_charging_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 
@@ -318,16 +318,17 @@ publish_battery_cell_temperature(int16_t cell_temperature_decidegrees)
     LOG_DBG("Battery cell temperature: %u.%u°C",
             cell_temperature_decidegrees / 10,
             cell_temperature_decidegrees % 10);
-    temperature_report(Temperature_TemperatureSource_BATTERY_CELL,
+    temperature_report(orb_mcu_Temperature_TemperatureSource_BATTERY_CELL,
                        cell_temperature_decidegrees / 10);
 }
 
 static void
-publish_battery_diagnostics_common(BatteryDiagnosticCommon *diag_common)
+publish_battery_diagnostics_common(
+    orb_mcu_main_BatteryDiagnosticCommon *diag_common)
 {
     LOG_DBG("Publishing battery diagnostics common");
-    publish_new(diag_common, sizeof(BatteryDiagnosticCommon),
-                McuToJetson_battery_diag_common_tag,
+    publish_new(diag_common, sizeof(orb_mcu_main_BatteryDiagnosticCommon),
+                orb_mcu_main_McuToJetson_battery_diag_common_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
 }
 
@@ -336,7 +337,7 @@ publish_battery_pcb_temperature(int16_t pcb_temperature_decidegrees)
 {
     LOG_DBG("Battery PCB temperature: %u.%u°C",
             pcb_temperature_decidegrees / 10, pcb_temperature_decidegrees % 10);
-    temperature_report(Temperature_TemperatureSource_BATTERY_PCB,
+    temperature_report(orb_mcu_Temperature_TemperatureSource_BATTERY_PCB,
                        pcb_temperature_decidegrees / 10);
 }
 
@@ -369,7 +370,7 @@ battery_rx_thread()
             if (ret == 0) {
                 got_battery_voltage_message_local = true;
 
-                BatteryVoltage voltages;
+                orb_mcu_main_BatteryVoltage voltages;
                 voltages.battery_cell1_mv = da_status_1.cell_voltage_1_mv;
                 voltages.battery_cell2_mv = da_status_1.cell_voltage_2_mv;
                 voltages.battery_cell3_mv = da_status_1.cell_voltage_3_mv;
@@ -383,7 +384,7 @@ battery_rx_thread()
                 publish_battery_voltages(&voltages);
             } else if (dev_mode) {
                 // send fake values to keep orb-core happy
-                BatteryVoltage voltages;
+                orb_mcu_main_BatteryVoltage voltages;
                 voltages.battery_cell1_mv = 4000;
                 voltages.battery_cell2_mv = 4000;
                 voltages.battery_cell3_mv = 4000;
@@ -406,7 +407,7 @@ battery_rx_thread()
                 publish_battery_capacity(&battery_cap);
             } else if (dev_mode) {
                 // send fake values to keep orb-core happy
-                BatteryCapacity battery_cap;
+                orb_mcu_main_BatteryCapacity battery_cap;
                 battery_cap.percentage = 100;
 
                 publish_battery_capacity(&battery_cap);
@@ -437,7 +438,7 @@ battery_rx_thread()
             if (ret == 0) {
                 LOG_DBG("Battery current: %d mA", current_ma);
 
-                BatteryDiagnosticCommon diag_common = {0};
+                orb_mcu_main_BatteryDiagnosticCommon diag_common = {0};
                 diag_common.current_ma = current_ma;
                 publish_battery_diagnostics_common(&diag_common);
 
@@ -458,7 +459,7 @@ battery_rx_thread()
         }
 
         {
-            BatteryInfoHwFw info_hw_fw = {0};
+            orb_mcu_main_BatteryInfoHwFw info_hw_fw = {0};
             info_hw_fw.mcu_id.size = 12; // set mcu_id size to 12 bytes,
             // otherwise orb-core will panic
 
@@ -472,7 +473,7 @@ battery_rx_thread()
             info_hw_fw.mcu_id.bytes[10] = serial_number >> 8;
 
             info_hw_fw.hw_version =
-                BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_UNDETECTED;
+                orb_mcu_main_BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_UNDETECTED;
 
             uint8_t manufacturer_info[33] = {
                 0}; // size is one byte bigger than the field in the BQ4050 to
@@ -493,23 +494,23 @@ battery_rx_thread()
                     switch (manufacturer_info[11]) {
                     case '0':
                         info_hw_fw.hw_version =
-                            BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_IDU139GA_R00;
+                            orb_mcu_main_BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_IDU139GA_R00;
                         break;
                     case '1':
                         info_hw_fw.hw_version =
-                            BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_IDU139GA_R01;
+                            orb_mcu_main_BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_IDU139GA_R01;
                         break;
                     case '2':
                         info_hw_fw.hw_version =
-                            BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_IDU139GA_R02;
+                            orb_mcu_main_BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_IDU139GA_R02;
                         break;
                     case '3':
                         info_hw_fw.hw_version =
-                            BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_IDU139GA_R03;
+                            orb_mcu_main_BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_IDU139GA_R03;
                         break;
                     default:
                         info_hw_fw.hw_version =
-                            BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_UNDETECTED;
+                            orb_mcu_main_BatteryInfoHwFw_HardwareVersion_BATTERY_HW_VERSION_UNDETECTED;
                         break;
                     }
                 }
@@ -523,7 +524,7 @@ battery_rx_thread()
                 info_hw_fw.has_fw_version = true;
 
                 publish_new(&info_hw_fw, sizeof(info_hw_fw),
-                            McuToJetson_battery_info_hw_fw_tag,
+                            orb_mcu_main_McuToJetson_battery_info_hw_fw_tag,
                             CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
             }
         }
@@ -534,18 +535,19 @@ battery_rx_thread()
             if (ret == RET_SUCCESS) {
                 LOG_DBG("Cycle count: %d", cycle_count);
 
-                BatteryInfoSocAndStatistics info_soc_and_statistics = {0};
+                orb_mcu_main_BatteryInfoSocAndStatistics
+                    info_soc_and_statistics = {0};
                 info_soc_and_statistics.number_of_charges = cycle_count;
 
-                publish_new(&info_soc_and_statistics,
-                            sizeof(info_soc_and_statistics),
-                            McuToJetson_battery_info_soc_and_statistics_tag,
-                            CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                publish_new(
+                    &info_soc_and_statistics, sizeof(info_soc_and_statistics),
+                    orb_mcu_main_McuToJetson_battery_info_soc_and_statistics_tag,
+                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
             }
         }
 
         {
-            BatteryInfoMaxValues info_max_values = {0};
+            orb_mcu_main_BatteryInfoMaxValues info_max_values = {0};
             uint16_t full_charge_capacity_mah;
             ret = bq4050_read_full_charge_capacity(&full_charge_capacity_mah);
             if (ret == RET_SUCCESS) {
@@ -584,9 +586,10 @@ battery_rx_thread()
                         -lifetime_data_1.max_discharge_current_ma;
                 }
 
-                publish_new(&info_max_values, sizeof(info_max_values),
-                            McuToJetson_battery_info_max_values_tag,
-                            CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                publish_new(
+                    &info_max_values, sizeof(info_max_values),
+                    orb_mcu_main_McuToJetson_battery_info_max_values_tag,
+                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
             }
         }
 
@@ -597,12 +600,13 @@ battery_rx_thread()
             if (ret == 0) {
                 LOG_DBG("Battery SoH: %d %%", state_of_health_percentage);
 
-                BatteryStateOfHealth state_of_health = {0};
+                orb_mcu_main_BatteryStateOfHealth state_of_health = {0};
                 state_of_health.percentage = state_of_health_percentage;
 
-                publish_new(&state_of_health, sizeof(state_of_health),
-                            McuToJetson_battery_state_of_health_tag,
-                            CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                publish_new(
+                    &state_of_health, sizeof(state_of_health),
+                    orb_mcu_main_McuToJetson_battery_state_of_health_tag,
+                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
             }
         }
 
@@ -623,16 +627,17 @@ battery_rx_thread()
                 if (battery_messages_timeout >=
                         BATTERY_MESSAGES_REMOVED_TIMEOUT_MS &&
                     shutdown_schuduled_sent != RET_SUCCESS) {
-                    ShutdownScheduled shutdown;
+                    orb_mcu_main_ShutdownScheduled shutdown;
                     shutdown.shutdown_reason =
-                        ShutdownScheduled_ShutdownReason_BATTERY_REMOVED;
+                        orb_mcu_main_ShutdownScheduled_ShutdownReason_BATTERY_REMOVED;
                     shutdown.has_ms_until_shutdown = true;
                     shutdown.ms_until_shutdown =
                         (BATTERY_MESSAGES_FORCE_REBOOT_TIMEOUT_MS -
                          battery_messages_timeout);
-                    shutdown_schuduled_sent = publish_new(
-                        &shutdown, sizeof(shutdown), McuToJetson_shutdown_tag,
-                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                    shutdown_schuduled_sent =
+                        publish_new(&shutdown, sizeof(shutdown),
+                                    orb_mcu_main_McuToJetson_shutdown_tag,
+                                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
                     LOG_WRN("Battery removed: %d", shutdown_schuduled_sent);
                 }
                 if (battery_messages_timeout >=
