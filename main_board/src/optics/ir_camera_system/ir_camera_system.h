@@ -11,7 +11,7 @@
 
 #ifdef CONFIG_ZTEST
 // in tests we don't want to wait for too long
-#define IR_LED_AUTO_OFF_TIMEOUT_S (6) // ztest - 6 seconds
+#define IR_LED_AUTO_OFF_TIMEOUT_S (5) // ztest - 5 seconds
 #else
 // automatically turn off IR LEDs after 60 seconds without any activity
 #define IR_LED_AUTO_OFF_TIMEOUT_S (60)
