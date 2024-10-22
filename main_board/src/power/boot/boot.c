@@ -719,6 +719,7 @@ reboot_thread()
         LOG_INF("Rebooting in %u seconds", delay);
     } while (k_msleep(delay * 1000 - SYSTEM_RESET_UI_DELAY_MS) != 0);
 
+    fan_turn_off();
     operator_leds_set_pattern(
         orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern_OFF, 0,
         NULL);

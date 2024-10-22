@@ -47,7 +47,6 @@ fan_turn_off(void);
 
 /**
  * Turn on fan, back to its original speed.
- * only way to turn back on is to use fan_turn_off()
  */
 void
 fan_turn_on(void);
