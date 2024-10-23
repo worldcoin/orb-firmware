@@ -11,6 +11,9 @@ ignore-squash-commits=false
 # Enable debug mode (prints more output). Disabled by default
 debug = false
 
+# enable conventional commits
+contrib = contrib-title-conventional-commits,CT1
+
 # Set the extra-path where gitlint will search for user defined rules
 # See http://jorisroovers.github.io/gitlint/user_defined_rules for details
 extra-path=utils/format/gitlint
