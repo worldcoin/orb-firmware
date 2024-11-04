@@ -12,6 +12,14 @@ config CAN_ADDRESS_DEFAULT_REMOTE
     hex "Default CAN address to send data to"
     default 0x80
 
+config ORB_LIB_THREAD_PRIORITY_CANBUS_MONITOR
+    int "CAN bus monitoring thread priority"
+    default 5
+
+config ORB_LIB_THREAD_STACK_SIZE_CANBUS_MONITOR
+    int "Stack size for CAN monitoring thread"
+    default 1500
+
 config ORB_LIB_THREAD_PRIORITY_CANBUS_RX
     int "CAN bus RX thread priority"
     default 5
