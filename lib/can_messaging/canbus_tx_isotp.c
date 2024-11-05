@@ -26,11 +26,11 @@ BUILD_ASSERT(sizeof(can_message_t) % QUEUE_ALIGN == 0,
 
 // Message queue to send messages
 K_MSGQ_DEFINE(isotp_tx_msg_queue, sizeof(can_message_t),
-              CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE, QUEUE_ALIGN);
+              CONFIG_ORB_LIB_CAN_ISOTP_TX_QUEUE_SIZE, QUEUE_ALIGN);
 
 static struct k_heap can_tx_isotp_memory_heap;
 static char __aligned(4)
-    can_tx_isotp_memory_heap_buffer[CONFIG_ORB_LIB_CANBUS_TX_QUEUE_SIZE *
+    can_tx_isotp_memory_heap_buffer[CONFIG_ORB_LIB_CAN_ISOTP_TX_QUEUE_SIZE *
                                     CONFIG_CAN_ISOTP_MAX_SIZE_BYTES];
 
 static K_SEM_DEFINE(tx_sem, 1, 1);
