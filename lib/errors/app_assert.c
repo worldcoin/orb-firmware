@@ -79,8 +79,11 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
                         const uint8_t *p_file_name)
 {
 #if defined(CONFIG_MEMFAULT)
-    MEMFAULT_TRACE_EVENT_WITH_LOG(assert, "%s:%d, error %d", p_file_name,
-                                  line_num, error_code);
+    // trace, no need to use line_num & p_file_name, cause the backtrace
+    // is collected
+    UNUSED_PARAMETER(line_num);
+    UNUSED_PARAMETER(p_file_name);
+    MEMFAULT_TRACE_EVENT_WITH_LOG(assert, "err %d", error_code);
 #else
     LOG_ERR("%s:%d, error %d", p_file_name, line_num, error_code);
 #endif

@@ -43,13 +43,16 @@ watchdog_thread()
 int
 watchdog_init(bool (*callback)(void))
 {
-    watchdog_callback = callback;
-
     int err_code;
 
     if (!device_is_ready(watchdog_dev)) {
         ASSERT_SOFT(RET_ERROR_NOT_INITIALIZED);
         return RET_ERROR_NOT_INITIALIZED;
+    }
+
+    if (wdt_channel_id >= 0) {
+        ASSERT_SOFT(RET_ERROR_ALREADY_INITIALIZED);
+        return RET_ERROR_ALREADY_INITIALIZED;
     }
 
     const struct wdt_timeout_cfg wdt_config = {
@@ -60,11 +63,6 @@ watchdog_init(bool (*callback)(void))
         .window.min = 0,
         .window.max = CONFIG_ORB_LIB_WATCHDOG_TIMEOUT_MS,
     };
-
-    if (wdt_channel_id >= 0) {
-        ASSERT_SOFT(RET_ERROR_ALREADY_INITIALIZED);
-        return RET_ERROR_ALREADY_INITIALIZED;
-    }
 
     wdt_channel_id = wdt_install_timeout(watchdog_dev, &wdt_config);
     if (wdt_channel_id < 0) {
@@ -82,6 +80,8 @@ watchdog_init(bool (*callback)(void))
         ASSERT_SOFT(RET_ERROR_NOT_INITIALIZED);
         return RET_ERROR_NOT_INITIALIZED;
     }
+
+    watchdog_callback = callback;
 
     k_thread_create(&watchdog_thread_data, stack_area,
                     K_THREAD_STACK_SIZEOF(stack_area), watchdog_thread, NULL,
