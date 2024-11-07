@@ -42,3 +42,4 @@ repos:
     rev: v0.19.1
     hooks:
       - id: gitlint
+        args: [--config=utils/format/.gitlint, --msg-filename]
