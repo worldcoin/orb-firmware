@@ -71,11 +71,7 @@ send(const char *data, size_t len,
         // CAN will recover when 3v3 back on
         LOG_ERR("err: %i", ret);
         if (ret == -ENETUNREACH) {
-            // CAN bus in off state
-            if (can_dev != NULL) {
-                ret = can_recover(can_dev, K_MSEC(2000));
-                ASSERT_HARD(ret);
-            }
+            can_messaging_resume();
         }
     }
 
@@ -141,6 +137,7 @@ can_messaging_async_tx(const can_message_t *message)
     enum can_state can_state;
     can_get_state(can_dev, &can_state, &can_err);
     if (can_state == CAN_STATE_BUS_OFF || can_state == CAN_STATE_STOPPED) {
+        can_messaging_resume();
         return RET_ERROR_INVALID_STATE;
     }
 
