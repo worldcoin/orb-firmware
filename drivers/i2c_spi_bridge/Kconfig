@@ -9,9 +9,9 @@ config SC18IS606
 if SC18IS606
 	config SC18IS606_INIT_PRIO
 		int "SC18IS606 init priority"
-		default 65
+		default 49
 
 	config SC18IS606_CHANNEL_INIT_PRIO
 		int "SC18IS606 init priority"
-		default 66
+		default 50
 endif

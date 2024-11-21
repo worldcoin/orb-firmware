@@ -4,7 +4,7 @@
 description: |
   Description for voltage measurement circuits.
 
-compatible: "worldcoin,voltage-measurement"
+compatible: "tfh,voltage-measurement"
 
 properties:
   io-channels:

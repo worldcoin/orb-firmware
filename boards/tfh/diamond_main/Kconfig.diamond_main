@@ -1,0 +1,2 @@
+config BOARD_DIAMOND_MAIN
+	select SOC_STM32G474XX
