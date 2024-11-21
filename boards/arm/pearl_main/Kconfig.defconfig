@@ -1,7 +1,0 @@
-# STM32G474RE main MCU board configuration on Pearl board
-
-config BOARD
-	default "pearl_main"
-
-config USE_STM32_LL_ADC
-	default y
