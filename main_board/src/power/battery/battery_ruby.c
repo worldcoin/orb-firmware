@@ -54,7 +54,7 @@ volatile enum can_state current_can_controller_state = CAN_STATE_STOPPED;
 volatile bool current_can_controller_state_changed = false;
 
 static struct can_filter battery_can_filter = {
-    .id = 0, .mask = CAN_STD_ID_MASK, .flags = CAN_FILTER_DATA};
+    .id = 0, .mask = CAN_STD_ID_MASK, .flags = 0};
 
 static volatile bool can_transmission_completed = true;
 
