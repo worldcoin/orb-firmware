@@ -79,11 +79,11 @@ flash_area_id_from_image_slot(int slot)
 int
 flash_area_id_to_multi_image_slot(int image_index, int area_id)
 {
-    if (area_id == FLASH_AREA_IMAGE_PRIMARY(image_index)) {
+    if ((uint32_t)area_id == FLASH_AREA_IMAGE_PRIMARY(image_index)) {
         return 0;
     }
 #if !defined(CONFIG_SINGLE_APPLICATION_SLOT)
-    if (area_id == FLASH_AREA_IMAGE_SECONDARY(image_index)) {
+    if ((uint32_t)area_id == FLASH_AREA_IMAGE_SECONDARY(image_index)) {
         return 1;
     }
 #endif
