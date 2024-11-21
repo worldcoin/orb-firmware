@@ -19,8 +19,8 @@
 
 
 / {
-    model = "Main board of Worldcoin Pearl Orb";
-    compatible = "worldcoin,pearl_main";
+    model = "Main board of the Pearl Orb";
+    compatible = "tfh,pearl_main";
 
     chosen {
         // app in slot0_partition by default
@@ -29,11 +29,11 @@
 
         zephyr,sram = &sram0;
         zephyr,flash = &flash0;
-        zephyr,canbus = &can1;
+        zephyr,canbus = &fdcan1;
     };
 
     aliases {
-        battery-can-bus = &can2;
+        battery-can-bus = &fdcan2;
         watchdog0 = &iwdg;
         secondary-slot = &slot1_partition;
     };
@@ -154,12 +154,12 @@
     };
 
     board_version {
-        compatible = "worldcoin,board-version";
+        compatible = "tfh,board-version";
         io-channels = <&adc1 11>;
     };
 
     liquid_lens {
-        compatible = "worldcoin,liquid-lens";
+        compatible = "tfh,liquid-lens";
 
         io-channels = <&adc3 10>, <&adc3 11>, <&adc3 18>;
         io-channel-names = "ina240_ref", "ina240_sig", "vrefint";
@@ -172,7 +172,7 @@
     };
 
     voltage_measurement {
-        compatible = "worldcoin,voltage-measurement";
+        compatible = "tfh,voltage-measurement";
 
         // enable opamps to allow for voltage measurements of the power supplies
         supply-voltages-meas-enable-gpios = <&gpioe 1 GPIO_ACTIVE_LOW>;
@@ -205,7 +205,7 @@
     };
 
     voltage_measurement_ev5 {
-        compatible = "worldcoin,voltage-measurement";
+        compatible = "tfh,voltage-measurement";
 
         // enable opamps to allow for voltage measurements of the power supplies
         supply-voltages-meas-enable-gpios = <&gpioe 1 GPIO_ACTIVE_LOW>;
@@ -244,6 +244,10 @@
     status = "okay";
 };
 
+&vbat {
+    status = "okay";
+};
+
 // used to measure battery voltage, hardware revision
 // & die temperature (channel 16)
 &adc1 {
@@ -255,8 +259,9 @@
     status = "okay";
     pinctrl-0 = <&adc1_in1_pa0 &adc1_in7_pc1 &adc1_in8_pc2 &adc1_in9_pc3 &adc1_in11_pb12>;
     pinctrl-names = "default";
+    st,adc-clock-source = <SYNC>;
+    st,adc-prescaler = <4>;
     vref-mv = <3300>;
-    vbat-channel = < 0x11 >;
 
     #address-cells = <1>;
     #size-cells = <0>;
@@ -330,8 +335,9 @@
     status = "okay";
     pinctrl-0 = <&adc3_in10_pd13 &adc3_in11_pd14>;
     pinctrl-names = "default";
+    st,adc-clock-source = <SYNC>;
+    st,adc-prescaler = <4>;
     vref-mv = <3300>;
-    vref-channel = < 0x12 >;
 
     #address-cells = <1>;
     #size-cells = <0>;
@@ -372,8 +378,9 @@
     status = "okay";
     pinctrl-0 = <&adc5_in7_pd10 &adc5_in8_pd11 &adc5_in9_pd12 &adc5_in13_pd9>;
     pinctrl-names = "default";
+    st,adc-clock-source = <SYNC>;
+    st,adc-prescaler = <4>;
     vref-mv = <3300>;
-    vref-channel = < 0x12 >;
 
     #address-cells = <1>;
     #size-cells = <0>;
@@ -426,7 +433,7 @@
     status = "okay";
 
     liquid_lens: liquid_lens {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&hrtim1_cha1_pa8 &hrtim1_cha2_pa9 &hrtim1_chb1_pa10 &hrtim1_chb2_pa11>;
         pinctrl-names = "default";
     };
@@ -450,7 +457,7 @@
     status = "okay";
 
     fan_main_tach: fan_main_tach {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&tim2_ch3_pd7>;
         pinctrl-names = "default";
         channels = <3>;
@@ -461,7 +468,7 @@
     status = "okay";
 
     led_940nm: led_940nm {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&tim3_ch1_pe2 &tim3_ch4_pe5>;
         pinctrl-names = "default";
         channels = <1 4>;
@@ -472,7 +479,7 @@
     status = "okay";
 
     ir_camera_system_master_timer: ir_camera_system_master_timer {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-names = "default";
         pinctrl-0 = <>;
         channels = <1>;
@@ -494,7 +501,7 @@
 
     // AKA CAM0
     ir_eye_camera_trigger: ir_eye_camera_trigger {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&tim8_ch3_pc8>;
         pinctrl-names = "default";
         channels = <3>;
@@ -502,7 +509,7 @@
 
     // AKA CAM2
     ir_face_camera_trigger: ir_face_camera_trigger {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&tim8_ch4_pc9>;
         pinctrl-names = "default";
         channels = <4>;
@@ -510,7 +517,7 @@
 
     // AKA CAM3
     tof_2d_camera_trigger: tof_2d_camera_trigger {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&tim8_ch1_pc6>;
         pinctrl-names = "default";
         channels = <1>;
@@ -521,7 +528,7 @@
     status = "okay";
 
     led_850nm: led_850nm {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&tim15_ch1_pb14 &tim15_ch2_pb15>;
         pinctrl-names = "default";
         channels = <1 2>;
@@ -532,7 +539,7 @@
     status = "okay";
 
     fan_aux_tach: fan_aux_tach {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&tim16_ch1_pa12>;
         pinctrl-names = "default";
         channels = <1>;
@@ -674,7 +681,7 @@
     };
 };
 
-&can1 {
+&fdcan1 {
     pinctrl-0 = <&fdcan1_rx_pd0 &fdcan1_tx_pd1>;
     pinctrl-names = "default";
 
@@ -689,21 +696,19 @@
      * configuration homogeneous (same Tq on all nodes)
      * 6. Enable TDC for data bit-rates higher than 1 Mbit/s
      */
-    bus-speed = <125000>;
-    sjw = <4>;
+    bitrate = <125000>;
     sample-point = <852>;
-    bus-speed-data = <1000000>;
-    sjw-data = <4>;
+    bitrate-data = <1000000>;
     sample-point-data = <853>; // closest value
     status = "okay";
 };
 
 // For battery communications
-&can2 {
+&fdcan2 {
     pinctrl-0 = <&fdcan2_rx_pb5 &fdcan2_tx_pb6>;
     pinctrl-names = "default";
-    bus-speed = <1000000>;
-    bus-speed-data = <1000000>;
+    bitrate = <1000000>;
+    bitrate-data = <1000000>;
     status = "okay";
 };
 
