@@ -90,7 +90,7 @@ process_tx_messages_thread()
         // and wait for next tx message in the next loop
         ret = k_sem_take(&tx_sem, K_MSEC(5000));
         if (ret != 0) {
-            LOG_ERR("tx isotp semaphore error: %i", ret);
+            LOG_ERR("tx semaphore error: %i", ret);
             k_sem_give(&tx_sem);
             continue;
         }
