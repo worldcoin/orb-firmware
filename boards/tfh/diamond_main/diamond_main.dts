@@ -4,6 +4,7 @@
 #include "../stm32g474-hrtim.dtsi"
 #include <zephyr/dt-bindings/spi/spi.h>
 #include <zephyr/dt-bindings/dma/stm32_dma.h>
+#include <zephyr/dt-bindings/led/led.h>
 
 /// see @file modules/hal/stm32/stm32cube/stm32g4xx/drivers/include/stm32g4xx_ll_dmamux.h
 #define LL_DMAMUX_REQ_ADC1            0x00000005U  /*!< DMAMUX ADC1 request        */
@@ -28,8 +29,8 @@
 #define DMA_DIR_PERIPH_TO_MEM       2
 
 / {
-    model = "Worldcoin Orb Main MCU";
-    compatible = "worldcoin,diamond_main";
+    model = "Main board of the Diamond Orb";
+    compatible = "tfh,diamond_main";
 
     chosen {
         zephyr,flash = &flash0;
@@ -37,11 +38,11 @@
         // app in slot0_partition by default
         // the bootloader uses an overlay to redefine this
         zephyr,code-partition = &slot0_partition;
-        zephyr,canbus = &can1;
+        zephyr,canbus = &fdcan1;
     };
 
     aliases {
-        battery-can-bus = &can2;
+        battery-can-bus = &fdcan2;
         watchdog0 = &iwdg;
         secondary-slot = &slot1_partition;
         spi-flash0 = &w25q32jv;
@@ -166,7 +167,7 @@
     };
 
     liquid_lens {
-        compatible = "worldcoin,liquid-lens";
+        compatible = "tfh,liquid-lens";
 
         io-channels = <&adc3 10>, <&adc3 11>, <&adc3 18>;
         io-channel-names = "ina240_ref", "ina240_sig", "vrefint";
@@ -178,7 +179,7 @@
     };
 
     voltage_measurement {
-        compatible = "worldcoin,voltage-measurement";
+        compatible = "tfh,voltage-measurement";
         // enable opamps to allow for voltage measurements of the power supplies
         supply-voltages-meas-enable-gpios = <&gpio_exp1 8 GPIO_ACTIVE_LOW>;
 
@@ -478,8 +479,10 @@
                 // not actually used by the SPI driver
                 duplex = <SPI_HALF_DUPLEX>;
 
-                // get num-leds from the Wuerth Elektronik LED strip above
-                // num-leds = <136>;
+                chain-length = <136>;
+                color-mapping = <LED_COLOR_ID_BLUE
+                                 LED_COLOR_ID_GREEN
+                                 LED_COLOR_ID_RED>;
             };
         };
 
@@ -505,6 +508,10 @@
     };
 };
 
+&vbat {
+    status = "okay";
+};
+
 &adc1 {
     // dmamux1: 8 = dma2,channel 1
     dmas = < &dmamux1 LL_DMAMUX_CHANNEL_8 LL_DMAMUX_REQ_ADC1 (STM32_DMA_PERIPH_TO_MEMORY |
@@ -514,8 +521,9 @@
     status = "okay";
     pinctrl-0 = <&adc1_in1_pa0 &adc1_in2_pa1 &adc1_in3_pa2 &adc1_in7_pc1 &adc1_in8_pc2 &adc1_in9_pc3 &adc1_in11_pb12 &adc1_in14_pb11>;
     pinctrl-names = "default";
+    st,adc-clock-source = <SYNC>;
+    st,adc-prescaler = <4>;
     vref-mv = <2048>;
-    vbat-channel = <0x11>;
 
     #address-cells = <1>;
     #size-cells = <0>;
@@ -613,8 +621,9 @@
     status = "okay";
     pinctrl-0 = <&adc3_in10_pd13 &adc3_in11_pd14>;
     pinctrl-names = "default";
+    st,adc-clock-source = <SYNC>;
+    st,adc-prescaler = <4>;
     vref-mv = <2048>;
-    vref-channel = < 0x12 >;
 
     #address-cells = <1>;
     #size-cells = <0>;
@@ -656,6 +665,8 @@
     status = "okay";
     pinctrl-0 = <&adc4_in1_pe14 &adc4_in2_pe15>;
     pinctrl-names = "default";
+    st,adc-clock-source = <SYNC>;
+    st,adc-prescaler = <4>;
     vref-mv = <2048>;
 
     #address-cells = <1>;
@@ -686,8 +697,9 @@
     status = "okay";
     pinctrl-0 = <&adc5_in7_pd10 &adc5_in8_pd11 &adc5_in9_pd12 &adc5_in12_pd8 &adc5_in13_pd9 &adc5_in14_pe10 &adc5_in15_pe11>;
     pinctrl-names = "default";
+    st,adc-clock-source = <SYNC>;
+    st,adc-prescaler = <4>;
     vref-mv = <2048>;
-    vref-channel = < 0x12 >;
 
     #address-cells = <1>;
     #size-cells = <0>;
@@ -770,7 +782,7 @@
     status = "okay";
 
     liquid_lens: liquid_lens {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&hrtim1_cha1_pa8 &hrtim1_cha2_pa9 &hrtim1_chb1_pa10 &hrtim1_chb2_pa11>;
         pinctrl-names = "default";
     };
@@ -780,7 +792,7 @@
     status = "okay";
 
     fan_main_tach: fan_main_tach {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&tim2_ch3_pd7>;
         pinctrl-names = "default";
         channels = <3>;
@@ -791,7 +803,7 @@
     status = "okay";
 
     led_940nm: led_940nm {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&tim3_ch1_pe2 &tim3_ch4_pe5 &tim3_ch3_pb0>;
         pinctrl-names = "default";
         channels = <1 4 3>;
@@ -802,7 +814,7 @@
     status = "okay";
 
     ir_camera_system_master_timer: ir_camera_system_master_timer {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-names = "default";
         pinctrl-0 = <>;
         channels = <1>;
@@ -833,7 +845,7 @@
     status = "okay";
 
     led_850nm: led_850nm {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&tim15_ch1_pf9 &tim15_ch2_pf10>;
         pinctrl-names = "default";
         channels = <1 2>;
@@ -845,7 +857,7 @@
 
     // AKA CAM0_IREYE
     ir_eye_camera_trigger: ir_eye_camera_trigger {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&tim20_ch3_pf2>;
         pinctrl-names = "default";
         channels = <3>;
@@ -853,7 +865,7 @@
 
     // AKA CAM2_IRFACE
     ir_face_camera_trigger: ir_face_camera_trigger {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&tim20_ch4_pe1>;
         pinctrl-names = "default";
         channels = <4>;
@@ -861,7 +873,7 @@
 
     // AKA CAM3_TOF
     tof_2d_camera_trigger: tof_2d_camera_trigger {
-        compatible = "worldcoin,stm32-pwm";
+        compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&tim20_ch2_pe3>;
         pinctrl-names = "default";
         channels = <1>;
@@ -1000,7 +1012,7 @@
     // apply cone.overlay to add cone components
 };
 
-&can1 {
+&fdcan1 {
     pinctrl-0 = <&fdcan1_rx_pd0 &fdcan1_tx_pd1>;
     pinctrl-names = "default";
 
@@ -1015,11 +1027,9 @@
      * configuration homogeneous (same Tq on all nodes)
      * 6. Enable TDC for data bit-rates higher than 1 Mbit/s
      */
-    bus-speed = <1000000>;
-    sjw = <4>;
+    bitrate = <1000000>;
     sample-point = <853>;
-    bus-speed-data = <1000000>;
-    sjw-data = <4>;
+    bitrate-data = <1000000>;
     sample-point-data = <853>; // closest value
     status = "okay";
 };
