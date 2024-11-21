@@ -950,6 +950,7 @@
     pinctrl-0 = <&i2c1_scl_pa15 &i2c1_sda_pb9>;
     pinctrl-names = "default";
     status = "okay";
+    zephyr,deferred-init;
 
     tof_sensor: vl53l1x@29 {
         compatible = "st,vl53l1x";
@@ -959,6 +960,8 @@
     // io-expander on the front unit 0x23
     gpio_exp_front_unit: pca95xx@23 {
         compatible = "nxp,pca95xx";
+        zephyr,deferred-init;
+
         reg = <0x23>;
         gpio-controller;
         #gpio-cells = <2>;
