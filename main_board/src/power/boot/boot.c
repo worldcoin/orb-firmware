@@ -25,6 +25,7 @@
 #include <memfault/core/reboot_tracking.h>
 #endif
 
+#include <zephyr/drivers/i2c.h>
 #include <zephyr/logging/log_ctrl.h>
 LOG_MODULE_REGISTER(power_sequence, CONFIG_POWER_SEQUENCE_LOG_LEVEL);
 
@@ -382,8 +383,8 @@ power_vbat_5v_3v3_supplies_off(void)
     LOG_INF("3.3V power supply disabled");
 }
 
-int
-power_turn_on_power_supplies(void)
+static int
+turn_on_power_supplies(void)
 {
     orb_mcu_Hardware_OrbVersion version = version_get_hardware_rev();
 
@@ -449,9 +450,36 @@ power_turn_on_power_supplies(void)
     return 0;
 }
 
-BUILD_ASSERT(CONFIG_I2C_INIT_PRIORITY > SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
-             "I2C must be initialized _after_ the power supplies so that the "
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+static int
+init_i2c1_front_pca95xx(void)
+{
+    int ret;
+    const struct device *i2c1 = DEVICE_DT_GET(DT_NODELABEL(i2c1));
+    ret = device_init(i2c1);
+    if (ret) {
+        LOG_ERR("Failed to initialize I2C1 bus: %d", ret);
+        return ret;
+    }
+
+    const struct device *pca95xx_dev =
+        DEVICE_DT_GET(DT_NODELABEL(gpio_exp_front_unit));
+    ret = device_init(pca95xx_dev);
+    if (ret) {
+        LOG_ERR("Failed to initialize PCA95xx device: %d", ret);
+        return ret;
+    }
+
+    return ret;
+}
+
+BUILD_ASSERT(SYS_INIT_I2C1_INIT_PRIORITY > SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
+             "I2C1 must be initialized _after_ the power supplies so that the "
              "safety circuit doesn't get tripped");
+
+SYS_INIT(init_i2c1_front_pca95xx, POST_KERNEL,
+         SYS_INIT_POWER_SUPPLY_INIT_PRIORITY);
+#endif
 
 #ifdef CONFIG_GPIO_PCA95XX_INIT_PRIORITY
 BUILD_ASSERT(
@@ -461,21 +489,9 @@ BUILD_ASSERT(
     CONFIG_GPIO_PCA95XX_INIT_PRIORITY < SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY,
     "GPIO expanders need to be initialized for the button state to be polled.");
 
-#ifdef CONFIG_I2C_INIT_PRIO_INST_1
-BUILD_ASSERT(
-    CONFIG_GPIO_PCA95XX_INIT_PRIORITY > CONFIG_I2C_INIT_PRIO_INST_1,
-    "GPIO expanders need to be initialized after I2C3 because they are "
-    "connected to the I2C bus.");
-
-BUILD_ASSERT(DEVICE_DT_GET(DT_INST(1, st_stm32_i2c_v2)) ==
-                 DEVICE_DT_GET(DT_PARENT(DT_NODELABEL(gpio_exp_pwr_brd))),
-             "GPIO expander to power board must be the one connected to I2C "
-             "instance 1 (i2c3)\nif not, make sure to correctly define "
-             "CONFIG_I2C_INIT_PRIO_INST_x");
-#endif
 #endif
 
-SYS_INIT(power_turn_on_power_supplies, POST_KERNEL,
+SYS_INIT(turn_on_power_supplies, POST_KERNEL,
          SYS_INIT_POWER_SUPPLY_INIT_PRIORITY);
 
 #define BUTTON_PRESS_TIME_MS 600
