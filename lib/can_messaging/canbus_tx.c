@@ -106,7 +106,7 @@ process_tx_messages_thread()
         int err_code =
             send(new.bytes, new.size, tx_complete_cb, new.destination);
 
-        k_mem_slab_free(&can_tx_memory_slab, (void **)&new.bytes);
+        k_mem_slab_free(&can_tx_memory_slab, (void *)new.bytes);
 
         if (err_code != RET_SUCCESS) {
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
@@ -155,7 +155,7 @@ can_messaging_async_tx(const can_message_t *message)
 
         int ret = k_msgq_put(&can_tx_msg_queue, &to_send, K_MSEC(200));
         if (ret) {
-            k_mem_slab_free(&can_tx_memory_slab, (void **)&to_send.bytes);
+            k_mem_slab_free(&can_tx_memory_slab, (void *)to_send.bytes);
 
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
             LOG_ERR("Too many tx messages");

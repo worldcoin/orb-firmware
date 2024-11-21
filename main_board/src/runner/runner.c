@@ -1158,7 +1158,8 @@ handle_ir_eye_camera_focus_sweep_values_polynomial(job_t *job)
     orb_mcu_main_IREyeCameraFocusSweepValuesPolynomial p =
         msg->payload.ir_eye_camera_focus_sweep_values_polynomial;
     LOG_DBG("a: %f, b: %f, c: %f, d: %f, e: %f, f: %f, num frames: %u",
-            p.coef_a, p.coef_b, p.coef_c, p.coef_d, p.coef_e, p.coef_f,
+            (double)p.coef_a, (double)p.coef_b, (double)p.coef_c,
+            (double)p.coef_d, (double)p.coef_e, (double)p.coef_f,
             p.number_of_frames);
     ret_code_t err =
         ir_camera_system_set_polynomial_coefficients_for_focus_sweep(
@@ -1208,8 +1209,9 @@ handle_ir_eye_camera_mirror_sweep_values_polynomial(job_t *job)
         msg->payload.ir_eye_camera_mirror_sweep_values_polynomial;
     LOG_DBG(
         "r_a: %f, r_b: %f, r_c: %f, a_a: %f, a_b: %f, a_c: %f, num frames: %u",
-        p.radius_coef_a, p.radius_coef_b, p.radius_coef_c, p.angle_coef_a,
-        p.angle_coef_b, p.angle_coef_c, p.number_of_frames);
+        (double)p.radius_coef_a, (double)p.radius_coef_b,
+        (double)p.radius_coef_c, (double)p.angle_coef_a, (double)p.angle_coef_b,
+        (double)p.angle_coef_c, p.number_of_frames);
     ret_code_t err =
         ir_camera_system_set_polynomial_coefficients_for_mirror_sweep(
             msg->payload.ir_eye_camera_mirror_sweep_values_polynomial);

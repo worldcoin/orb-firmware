@@ -1,7 +1,6 @@
 // include kernel.h first
 // clang-format off
 #include <zephyr/kernel.h>
-#include <zephyr/arch/arm/aarch32/exc.h>
 // clang-format on
 #include "orb_logs.h"
 #include <compilers.h>
@@ -25,7 +24,7 @@ static uint32_t reset_reason_reg = 0;
  * @param esf
  */
 void
-k_sys_fatal_error_handler(unsigned int reason, const z_arch_esf_t *esf)
+k_sys_fatal_error_handler(unsigned int reason, const struct arch_esf *esf)
 {
     ARG_UNUSED(esf);
 
