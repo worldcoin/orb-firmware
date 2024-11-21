@@ -1,3 +1,0 @@
-config BOARD_DIAMOND_MAIN
-	bool "Main board on Diamond Orb"
-	depends on SOC_STM32G474XX
