@@ -162,13 +162,13 @@ bu27030_channel_get(const struct device *dev, enum sensor_channel chan,
 
     float lx = tmp1 * tmp2;
 
-    if (lx < 0.0) {
+    if (lx < 0.0f) {
         return -ERANGE;
     }
 
     // integer part and fractional part (in millionth)
     val->val1 = (int32_t)lx;
-    val->val2 = (int32_t)(lx * 1000000.0) % 1000000;
+    val->val2 = (int32_t)((double)lx * 1000000.0) % 1000000;
 
     return 0;
 }
