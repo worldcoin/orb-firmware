@@ -15,10 +15,10 @@ static struct k_thread rx_thread_data = {0};
 static const struct device *can_dev =
     DEVICE_DT_GET_OR_NULL(DT_CHOSEN(zephyr_canbus));
 static struct can_frame rx_frame;
-static const struct can_filter recv_queue_filter = {
-    .id = CONFIG_CAN_ADDRESS_MCU,
-    .mask = CAN_EXT_ID_MASK,
-    .flags = CAN_FILTER_IDE | CAN_FILTER_FDF | CAN_FILTER_DATA};
+static const struct can_filter recv_queue_filter = {.id =
+                                                        CONFIG_CAN_ADDRESS_MCU,
+                                                    .mask = CAN_EXT_ID_MASK,
+                                                    .flags = CAN_FILTER_IDE};
 CAN_MSGQ_DEFINE(can_recv_queue, 5);
 
 static ret_code_t (*incoming_message_handler)(can_message_t *message);

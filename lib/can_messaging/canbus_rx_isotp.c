@@ -5,6 +5,7 @@
 #include <zephyr/canbus/isotp.h>
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
+#include <zephyr/sys/crc.h>
 
 #include "orb_logs.h"
 #include <can_messaging.h>
@@ -52,14 +53,12 @@ bind_to_remotes(void)
             .std_id = CAN_ISOTP_STDID_DESTINATION(
                 (CONFIG_CAN_ISOTP_REMOTE_ID + app_id),
                 CONFIG_CAN_ISOTP_LOCAL_ID),
-            .ide = 0,
-            .use_ext_addr = 0};
+            .flags = 0};
         struct isotp_msg_id app_to_mcu_src_addr = {
             .std_id =
                 CAN_ISOTP_STDID_SOURCE((CONFIG_CAN_ISOTP_REMOTE_ID + app_id),
                                        CONFIG_CAN_ISOTP_LOCAL_ID),
-            .ide = 0,
-            .use_ext_addr = 0};
+            .flags = 0};
 
         ret = isotp_bind(&rx_ctx[app_id], can_dev, &app_to_mcu_dst_addr,
                          &app_to_mcu_src_addr, &flow_control_opts, K_FOREVER);
