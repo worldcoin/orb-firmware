@@ -5,7 +5,7 @@
 #include "orb_logs.h"
 #include <app_assert.h>
 #include <compilers.h>
-#include <zephyr/random/rand32.h>
+#include <zephyr/random/random.h>
 
 /*
  * Do not optimize to prevent GCC from generating invalid
