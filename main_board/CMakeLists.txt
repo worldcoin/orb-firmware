@@ -38,8 +38,6 @@ set_property(
     PROPERTY CMAKE_CONFIGURE_DEPENDS ${PROJECT_DIR}/VERSION
 )
 
-set_property(GLOBAL PROPERTY CSTD gnu11)
-
 # optional Orb variable allows to select the board
 if ("$ENV{ORB}" STREQUAL "pearl")
     unset(BOARD CACHE)
