@@ -113,11 +113,11 @@ dfu_load(uint32_t current_block_number, uint32_t block_count,
         // create processing task now if it doesn't exist
         // priority set by Kconfig: CONFIG_ORB_LIB_DFU_THREAD_PRIORITY
         if (tid_dfu == NULL) {
-            tid_dfu = k_thread_create(&dfu_thread_data, dfu_thread_stack,
-                                      K_THREAD_STACK_SIZEOF(dfu_thread_stack),
-                                      process_dfu_blocks_thread, NULL, NULL,
-                                      NULL, CONFIG_ORB_LIB_THREAD_PRIORITY_DFU,
-                                      0, K_NO_WAIT);
+            tid_dfu = k_thread_create(
+                &dfu_thread_data, dfu_thread_stack,
+                K_THREAD_STACK_SIZEOF(dfu_thread_stack),
+                (k_thread_entry_t)process_dfu_blocks_thread, NULL, NULL, NULL,
+                CONFIG_ORB_LIB_THREAD_PRIORITY_DFU, 0, K_NO_WAIT);
             k_thread_name_set(tid_dfu, "dfu");
         }
     }

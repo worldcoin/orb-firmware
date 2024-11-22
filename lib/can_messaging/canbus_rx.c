@@ -72,10 +72,11 @@ canbus_rx_init(ret_code_t (*in_handler)(can_message_t *message))
         LOG_INF("CAN ready");
     }
 
-    k_tid_t tid = k_thread_create(
-        &rx_thread_data, can_rx_thread_stack,
-        K_THREAD_STACK_SIZEOF(can_rx_thread_stack), rx_thread, NULL, NULL, NULL,
-        CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_RX, 0, K_NO_WAIT);
+    k_tid_t tid =
+        k_thread_create(&rx_thread_data, can_rx_thread_stack,
+                        K_THREAD_STACK_SIZEOF(can_rx_thread_stack),
+                        (k_thread_entry_t)rx_thread, NULL, NULL, NULL,
+                        CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_RX, 0, K_NO_WAIT);
     k_thread_name_set(tid, "can_rx");
 
     return RET_SUCCESS;

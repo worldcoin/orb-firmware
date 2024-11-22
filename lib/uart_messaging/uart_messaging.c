@@ -234,8 +234,8 @@ uart_messaging_init(ret_code_t (*in_handler)(uart_message_t *msg))
 
     k_tid_t tid = k_thread_create(
         &rx_thread_data, rx_thread_stack,
-        K_THREAD_STACK_SIZEOF(rx_thread_stack), rx_thread, NULL, NULL, NULL,
-        CONFIG_ORB_LIB_THREAD_PRIORITY_UART_RX, 0, K_NO_WAIT);
+        K_THREAD_STACK_SIZEOF(rx_thread_stack), (k_thread_entry_t)rx_thread,
+        NULL, NULL, NULL, CONFIG_ORB_LIB_THREAD_PRIORITY_UART_RX, 0, K_NO_WAIT);
     k_thread_name_set(tid, "uart_rx");
 
     return RET_SUCCESS;

@@ -213,7 +213,7 @@ publish_flush(void)
         (storage_has_data() || diag_has_data())) {
         k_thread_create(&pub_stored_thread_data, pub_stored_stack_area,
                         K_THREAD_STACK_SIZEOF(pub_stored_stack_area),
-                        pub_stored_thread, NULL, NULL, NULL,
+                        (k_thread_entry_t)pub_stored_thread, NULL, NULL, NULL,
                         THREAD_PRIORITY_PUB_STORED, 0, K_NO_WAIT);
         k_thread_name_set(&pub_stored_thread_data, "pub_stored");
         started_once = true;

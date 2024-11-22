@@ -1100,11 +1100,12 @@ mirror_auto_homing_stall_detection(motor_t motor, struct k_thread **thread_ret)
         if (thread_ret) {
             *thread_ret = &thread_data_motor_phi;
         }
-        k_tid_t tid = k_thread_create(
-            &thread_data_motor_phi, stack_area_motor_phi_init,
-            K_THREAD_STACK_SIZEOF(stack_area_motor_phi_init),
-            motors_auto_homing_thread, (void *)MOTOR_PHI_ANGLE, NULL, NULL,
-            THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
+        k_tid_t tid =
+            k_thread_create(&thread_data_motor_phi, stack_area_motor_phi_init,
+                            K_THREAD_STACK_SIZEOF(stack_area_motor_phi_init),
+                            (k_thread_entry_t)motors_auto_homing_thread,
+                            (void *)MOTOR_PHI_ANGLE, NULL, NULL,
+                            THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
         k_thread_name_set(tid, "mirror_ah_phi_stalldetect");
     } else {
         if (thread_ret) {
@@ -1113,8 +1114,9 @@ mirror_auto_homing_stall_detection(motor_t motor, struct k_thread **thread_ret)
         k_tid_t tid = k_thread_create(
             &thread_data_motor_theta, stack_area_motor_theta_init,
             K_THREAD_STACK_SIZEOF(stack_area_motor_theta_init),
-            motors_auto_homing_thread, (void *)MOTOR_THETA_ANGLE, NULL, NULL,
-            THREAD_PRIORITY_MOTORS_INIT, 0, K_NO_WAIT);
+            (k_thread_entry_t)motors_auto_homing_thread,
+            (void *)MOTOR_THETA_ANGLE, NULL, NULL, THREAD_PRIORITY_MOTORS_INIT,
+            0, K_NO_WAIT);
         k_thread_name_set(tid, "mirror_ah_theta_stalldetect");
     }
 
@@ -1270,11 +1272,12 @@ mirror_auto_homing_one_end(motor_t motor)
                                          RET_ERROR_NOT_INITIALIZED
                                      ? K_MSEC(2000)
                                      : K_NO_WAIT);
-        k_tid_t tid = k_thread_create(
-            &thread_data_motor_phi, stack_area_motor_phi_init,
-            K_THREAD_STACK_SIZEOF(stack_area_motor_phi_init),
-            mirror_auto_homing_one_end_thread, (void *)MOTOR_PHI_ANGLE, NULL,
-            NULL, THREAD_PRIORITY_MOTORS_INIT, 0, delay_phi);
+        k_tid_t tid =
+            k_thread_create(&thread_data_motor_phi, stack_area_motor_phi_init,
+                            K_THREAD_STACK_SIZEOF(stack_area_motor_phi_init),
+                            (k_thread_entry_t)mirror_auto_homing_one_end_thread,
+                            (void *)MOTOR_PHI_ANGLE, NULL, NULL,
+                            THREAD_PRIORITY_MOTORS_INIT, 0, delay_phi);
         k_thread_name_set(tid, "motor_ah_phi_one_end");
     } else {
         k_timeout_t delay_theta = (motors_refs[MOTOR_THETA_ANGLE].motor_state ==
@@ -1285,8 +1288,9 @@ mirror_auto_homing_one_end(motor_t motor)
         k_tid_t tid = k_thread_create(
             &thread_data_motor_theta, stack_area_motor_theta_init,
             K_THREAD_STACK_SIZEOF(stack_area_motor_theta_init),
-            mirror_auto_homing_one_end_thread, (void *)MOTOR_THETA_ANGLE, NULL,
-            NULL, THREAD_PRIORITY_MOTORS_INIT, 0, delay_theta);
+            (k_thread_entry_t)mirror_auto_homing_one_end_thread,
+            (void *)MOTOR_THETA_ANGLE, NULL, NULL, THREAD_PRIORITY_MOTORS_INIT,
+            0, delay_theta);
         k_thread_name_set(tid, "motor_ah_theta_one_end");
     }
 

@@ -218,8 +218,8 @@ button_init(void)
         } else {
             k_thread_create(&cone_button_thread_data, cone_button_thread_stack,
                             K_THREAD_STACK_SIZEOF(cone_button_thread_stack),
-                            cone_button_thread, NULL, NULL, NULL,
-                            THREAD_PRIORITY_CONE_BUTTON, 0, K_NO_WAIT);
+                            (k_thread_entry_t)cone_button_thread, NULL, NULL,
+                            NULL, THREAD_PRIORITY_CONE_BUTTON, 0, K_NO_WAIT);
             k_thread_name_set(&cone_button_thread_data, "cone_button");
         }
     }

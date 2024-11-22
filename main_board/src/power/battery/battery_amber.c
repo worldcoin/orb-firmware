@@ -728,10 +728,11 @@ battery_init(void)
         LOG_INF("Battery voltage is ok");
     }
 
-    k_tid_t tid = k_thread_create(
-        &rx_thread_data, battery_rx_thread_stack,
-        K_THREAD_STACK_SIZEOF(battery_rx_thread_stack), battery_rx_thread, NULL,
-        NULL, NULL, THREAD_PRIORITY_BATTERY, 0, K_NO_WAIT);
+    k_tid_t tid =
+        k_thread_create(&rx_thread_data, battery_rx_thread_stack,
+                        K_THREAD_STACK_SIZEOF(battery_rx_thread_stack),
+                        (k_thread_entry_t)battery_rx_thread, NULL, NULL, NULL,
+                        THREAD_PRIORITY_BATTERY, 0, K_NO_WAIT);
     k_thread_name_set(tid, "battery");
 
     return RET_SUCCESS;
