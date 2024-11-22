@@ -54,6 +54,8 @@ flash_device_base(uint8_t fd_id, uintptr_t *ret)
 int
 flash_area_id_from_multi_image_slot(int image_index, int slot)
 {
+    ARG_UNUSED(image_index);
+
     switch (slot) {
     case 0:
         return FLASH_AREA_IMAGE_PRIMARY(image_index);
@@ -79,6 +81,8 @@ flash_area_id_from_image_slot(int slot)
 int
 flash_area_id_to_multi_image_slot(int image_index, int area_id)
 {
+    ARG_UNUSED(image_index);
+
     if ((uint32_t)area_id == FLASH_AREA_IMAGE_PRIMARY(image_index)) {
         return 0;
     }
