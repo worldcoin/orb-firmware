@@ -79,7 +79,7 @@ ZTEST(hil, test_dfu_upload_tests)
                dfu_block.message.j_message.payload.dfu_block.block_number + 1,
                DFU_BLOCK_SIZE_MAX);
 
-        k_msleep(100);
+        k_msleep(200);
     }
 
     LOG_INF("Reading back flash");

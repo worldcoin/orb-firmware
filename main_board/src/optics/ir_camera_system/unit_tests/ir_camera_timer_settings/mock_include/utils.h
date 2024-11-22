@@ -1,4 +1,4 @@
-#include <toolchain/gcc.h>
+#include <zephyr/toolchain.h>
 
 #define CRITICAL_SECTION_ENTER(k)                                              \
     {                                                                          \

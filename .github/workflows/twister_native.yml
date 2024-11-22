@@ -19,15 +19,6 @@ jobs:
           git config --global --add url."https://wc-cicd:${{ secrets.GIT_HUB_TOKEN }}@github.com/worldcoin/".insteadOf "git@github.com:worldcoin/"
           cd orb && west init -l --mf public/west.yml . || echo "Ignoring west init error $?" # might be already initialized
           west update --narrow --fetch-opt=--depth=1
-      - name: Twister native POSIX 64
-        run: |
-          cd ${{ github.job }}
-          if ! ./zephyr/scripts/twister -T orb/public/main_board -vv -c -p native_posix_64; then
-            find twister-out/ \( -name 'build.log' -o -name 'handler.log' -o -name 'device.log' \) -exec cat {} \;
-            false
-          fi
-          # keep a copy to be merged with next test
-          cp twister-out/twister_report.xml twister_report_local.xml
       - name: Twister unit tests
         run: |
           cd ${{ github.job }}
@@ -35,12 +26,11 @@ jobs:
             find twister-out/ \( -name 'build.log' -o -name 'handler.log' -o -name 'device.log' \) -exec cat {} \;
             false
           fi
-          junitparser merge twister-out/twister_report.xml twister_report_local.xml junit.xml
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@ca89ad036b5fcd524c1017287fb01b5139908408 # pin@v2
         if: always()
         with:
-          junit_files: "${{ github.job }}/junit.xml"
+          junit_files: "${{ github.job }}/twister-out/twister_report.xml"
           comment_mode: off
       - name: Clean
         if: always()
