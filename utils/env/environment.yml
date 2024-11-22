@@ -1,7 +1,7 @@
 name: worldcoin
 dependencies:
   - make
-  - python=3.9
+  - python=3.13
   - pyserial
   - ccache
   - conda-forge::protobuf
@@ -9,7 +9,7 @@ dependencies:
   - pthread-stubs
   - gperf
   - clang-format
-  - pre-commit=3.5.0
+  - pre-commit
   - conda-forge::libusb
   - gnupg
   - pip
@@ -19,7 +19,6 @@ dependencies:
       - pyocd
       - crc16
       - puncover
-      - anytree==2.8.0 # rom_report fails with 2.9.0
       - identify>=2.5.32
       - mflt-compact-log
       - -r ../test/requirements.txt
