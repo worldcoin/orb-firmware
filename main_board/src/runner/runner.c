@@ -1630,10 +1630,11 @@ runner_handle_new_uart(uart_message_t *msg)
 void
 runner_init(void)
 {
-    runner_tid = k_thread_create(&runner_process, runner_process_stack,
-                                 K_THREAD_STACK_SIZEOF(runner_process_stack),
-                                 runner_process_jobs_thread, NULL, NULL, NULL,
-                                 THREAD_PRIORITY_RUNNER, 0, K_NO_WAIT);
+    runner_tid =
+        k_thread_create(&runner_process, runner_process_stack,
+                        K_THREAD_STACK_SIZEOF(runner_process_stack),
+                        (k_thread_entry_t)runner_process_jobs_thread, NULL,
+                        NULL, NULL, THREAD_PRIORITY_RUNNER, 0, K_NO_WAIT);
     k_thread_name_set(runner_tid, "runner");
 
 #if defined(CONFIG_MEMFAULT_METRICS_CONNECTIVITY_CONNECTED_TIME)

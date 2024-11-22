@@ -383,10 +383,11 @@ liquid_lens_init(const orb_mcu_Hardware *hw_version)
         }
     }
 
-    thread_id = k_thread_create(
-        &liquid_lens_thread_data, liquid_lens_stack_area,
-        K_THREAD_STACK_SIZEOF(liquid_lens_stack_area), liquid_lens_thread, NULL,
-        NULL, NULL, THREAD_PRIORITY_LIQUID_LENS, 0, K_NO_WAIT);
+    thread_id =
+        k_thread_create(&liquid_lens_thread_data, liquid_lens_stack_area,
+                        K_THREAD_STACK_SIZEOF(liquid_lens_stack_area),
+                        (k_thread_entry_t)liquid_lens_thread, NULL, NULL, NULL,
+                        THREAD_PRIORITY_LIQUID_LENS, 0, K_NO_WAIT);
     k_thread_name_set(thread_id, "liquid_lens");
 
     return RET_SUCCESS;

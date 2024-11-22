@@ -202,9 +202,9 @@ can_messaging_init(ret_code_t (*in_handler)(can_message_t *message))
     if (can_monitor_tid == NULL) {
         can_monitor_tid = k_thread_create(
             &can_monitor_thread_data, can_monitor_stack_area,
-            K_THREAD_STACK_SIZEOF(can_monitor_stack_area), can_monitor_thread,
-            NULL, NULL, NULL, CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_MONITOR, 0,
-            K_NO_WAIT);
+            K_THREAD_STACK_SIZEOF(can_monitor_stack_area),
+            (k_thread_entry_t)can_monitor_thread, NULL, NULL, NULL,
+            CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_MONITOR, 0, K_NO_WAIT);
         k_thread_name_set(&can_monitor_thread_data, "can_mon");
     }
 

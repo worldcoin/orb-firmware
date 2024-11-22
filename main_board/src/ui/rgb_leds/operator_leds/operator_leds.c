@@ -269,11 +269,11 @@ operator_leds_init(void)
         return RET_ERROR_INTERNAL;
     }
 
-    k_tid_t tid =
-        k_thread_create(&operator_leds_thread_data, operator_leds_stack_area,
-                        K_THREAD_STACK_SIZEOF(operator_leds_stack_area),
-                        operator_leds_thread, (void *)led_strip, NULL, NULL,
-                        THREAD_PRIORITY_OPERATOR_RGB_LEDS, 0, K_NO_WAIT);
+    k_tid_t tid = k_thread_create(
+        &operator_leds_thread_data, operator_leds_stack_area,
+        K_THREAD_STACK_SIZEOF(operator_leds_stack_area),
+        (k_thread_entry_t)operator_leds_thread, (void *)led_strip, NULL, NULL,
+        THREAD_PRIORITY_OPERATOR_RGB_LEDS, 0, K_NO_WAIT);
     k_thread_name_set(tid, "operator_leds");
 
     return RET_SUCCESS;

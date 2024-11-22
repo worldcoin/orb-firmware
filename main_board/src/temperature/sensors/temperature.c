@@ -790,10 +790,11 @@ temperature_init(const orb_mcu_Hardware *hw_version,
     }
 
     if (thread_id == NULL) {
-        thread_id = k_thread_create(&temperature_thread_data, stack_area,
-                                    K_THREAD_STACK_SIZEOF(stack_area),
-                                    temperature_thread, NULL, NULL, NULL,
-                                    THREAD_PRIORITY_TEMPERATURE, 0, K_NO_WAIT);
+        thread_id =
+            k_thread_create(&temperature_thread_data, stack_area,
+                            K_THREAD_STACK_SIZEOF(stack_area),
+                            (k_thread_entry_t)temperature_thread, NULL, NULL,
+                            NULL, THREAD_PRIORITY_TEMPERATURE, 0, K_NO_WAIT);
         k_thread_name_set(thread_id, "temperature");
     } else {
         LOG_ERR("Sampling already started");

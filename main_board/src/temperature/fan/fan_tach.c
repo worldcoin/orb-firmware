@@ -348,8 +348,8 @@ fan_tach_init(void)
 
     thread_id = k_thread_create(&thread_data, stack_area,
                                 K_THREAD_STACK_SIZEOF(stack_area),
-                                fan_tach_thread, NULL, NULL, NULL,
-                                THREAD_PRIORITY_FAN_TACH, 0, K_NO_WAIT);
+                                (k_thread_entry_t)fan_tach_thread, NULL, NULL,
+                                NULL, THREAD_PRIORITY_FAN_TACH, 0, K_NO_WAIT);
     k_thread_name_set(thread_id, "fan_tach");
 
     return RET_SUCCESS;
