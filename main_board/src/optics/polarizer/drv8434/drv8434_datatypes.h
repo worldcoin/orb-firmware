@@ -1,12 +1,12 @@
 /******************************************************************************
  * @file drv8434_datatypes.h
- * @brief Header file for Texas Instruments DRV8434 stepper motor driver datatypes
- *        and runtime context
+ * @brief Header file for Texas Instruments DRV8434 stepper motor driver
+ *datatypes and runtime context
  *
- * This file defines driver runtime context structs as well 
- * 
+ * This file defines driver runtime context structs as well
  *
- * @note All register addresses and bit definitions are based on 
+ *
+ * @note All register addresses and bit definitions are based on
  *       DRV8434 datasheet SLOSE70 – DECEMBER 2020
  *
  * @author Srikar Chintapalli
@@ -17,17 +17,19 @@
 #include <zephyr/drivers/spi.h>
 #include <zephyr/kernel.h>
 
-#include "drv8434_registers.h"
 #include "drv8434_defines.h"
+#include "drv8434_registers.h"
 
-// This is the DRV8434 Driver Configuration Struct (communication interface holder)
+// This is the DRV8434 Driver Configuration Struct (communication interface
+// holder)
 typedef struct {
     // Zephyr (or other) SPI Configuration
-    struct spi_config spi_cfg; 
+    struct spi_config spi_cfg;
     const struct device *spi_bus_controller;
 } DRV8434_DriverCfg_t;
 
-// This is the subset of DRV8434 registers that are used for configuring the chip
+// This is the subset of DRV8434 registers that are used for configuring the
+// chip
 typedef struct {
     DRV8434_CTRL2_REG_t ctrl2;
     DRV8434_CTRL3_REG_t ctrl3;
@@ -50,7 +52,6 @@ typedef struct {
     DRV8434_CTRL8_REG_t ctrl8;
     DRV8434_CTRL9_REG_t ctrl9;
 } DRV8434_Registers_t;
-
 
 typedef struct {
 
@@ -92,5 +93,5 @@ typedef struct {
     struct {
         bool init_done;
     } general;
-    
+
 } DRV8434_Instance_t;
