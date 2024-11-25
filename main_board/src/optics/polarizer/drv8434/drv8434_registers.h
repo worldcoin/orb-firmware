@@ -14,7 +14,6 @@
  * @author Srikar Chintapalli
  *
  ******************************************************************************/
-#include <zephyr/kernel.h>
 
 #define DRV8434_REG_FAULT_ADDR       0x00
 #define DRV8434_REG_DIAGSTATUS1_ADDR 0x01
