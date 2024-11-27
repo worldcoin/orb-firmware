@@ -43,7 +43,7 @@ static orb_mcu_main_BatteryIsCharging is_charging;
 #define BATTERY_MESSAGES_REMOVED_TIMEOUT_MS (BATTERY_INFO_SEND_PERIOD_MS * 3)
 #define BATTERY_MESSAGES_FORCE_REBOOT_TIMEOUT_MS                               \
     (BATTERY_INFO_SEND_PERIOD_MS * 10)
-static_assert(
+BUILD_ASSERT(
     BATTERY_MESSAGES_FORCE_REBOOT_TIMEOUT_MS > BATTERY_INFO_SEND_PERIOD_MS * 3,
     "Coarse timing resolution to check if battery is still sending messages");
 
