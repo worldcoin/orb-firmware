@@ -7,18 +7,11 @@
 #include <app_config.h>
 #include <math.h>
 #include <stdlib.h>
+#include <utils.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/spi.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/byteorder.h>
-
-// _ANSI_SOURCE is used with newlib to make sure newlib doesn't provide
-// primitives conflicting with Zephyr's POSIX definitions which remove
-// definition of M_PI, so let's redefine it
-#if defined(CONFIG_NEWLIB_LIBC) && defined(_ANSI_SOURCE)
-// taken from math.h
-#define M_PI 3.14159265358979323846f
-#endif
 
 LOG_MODULE_REGISTER(mirror, CONFIG_MIRROR_LOG_LEVEL);
 

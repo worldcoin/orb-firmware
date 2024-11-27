@@ -1445,9 +1445,8 @@ static const hm_callback handle_message_callbacks[] = {
 #endif
 };
 
-static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 48,
-    "It seems like the `handle_message_callbacks` array is too large");
+BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 48),
+             "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
 runner_process_jobs_thread()
