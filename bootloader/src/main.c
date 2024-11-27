@@ -35,6 +35,8 @@
 #include <cmsis_core.h>
 #endif
 
+#include <sysflash/sysflash.h>
+
 #include "io/io.h"
 #include "target.h"
 
@@ -344,20 +346,35 @@ do_boot(struct boot_rsp *rsp)
  * bypass checks performed on the header
  */
 static void
-do_boot_debug(struct boot_rsp *rsp)
+do_boot_debug()
 {
     uintptr_t flash_base;
     int rc;
     struct arm_vector_table *vt;
+    struct image_header header;
 
-    rc = flash_device_base(rsp->br_flash_dev_id, &flash_base);
+    rc = flash_device_base(SOC_FLASH_0_ID, &flash_base);
     assert(rc == 0);
 
-    // hardcoded offset + header size
-    vt = (struct arm_vector_table *)(flash_base + 0xC000 + 0x200);
+    // get offset of the image in flash
+    const struct flash_area *flash_area_p;
+    rc = flash_area_open(flash_area_id_from_image_slot(0), &flash_area_p);
+    assert(rc == 0);
+
+    // get header size
+    // default to 0x200 = CONFIG_ROM_START_OFFSET for the Orb MCUs' app.
+    uint32_t hdr_size = 0x200;
+    rc = boot_image_load_header(flash_area_p, &header);
+    if (rc == 0) {
+        hdr_size = header.ih_hdr_size;
+    }
+
+    vt = (struct arm_vector_table *)(flash_base + flash_area_p->fa_off +
+                                     hdr_size);
 
     // checking that the entry point is still within a valid range
-    if (vt->reset > (uint32_t)vt && vt->reset < (uint32_t)0x8044000) {
+    if (vt->reset > (uint32_t)vt &&
+        vt->reset < (uint32_t)(flash_base + flash_area_p->fa_off + 0x44000)) {
         BOOT_LOG_INF("Jumping into image during debug session @0x%x",
                      (uint32_t)vt->reset);
 #ifdef CONFIG_SYS_CLOCK_EXISTS
@@ -580,7 +597,7 @@ main(void)
 
 #ifdef DEBUG
         /* try booting image that doesn't contain a header */
-        do_boot_debug(&rsp);
+        do_boot_debug();
 #endif
 
 #ifdef CONFIG_BOOT_SERIAL_NO_APPLICATION
