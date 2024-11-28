@@ -114,6 +114,10 @@ list(APPEND SOURCES_FILES
     src/ui/sound/sound.c
     )
 
+if (CONFIG_TRACING_USER)
+    list(APPEND SOURCES_FILES src/system/tracing_user.c)
+endif()
+
 if (CONFIG_BOARD_PEARL_MAIN)
     list(APPEND SOURCES_FILES src/gnss/gnss.c)
     list(APPEND SOURCES_FILES src/power/battery/battery_ruby.c)
