@@ -160,8 +160,13 @@ spi_mux_gpio_root_init(const struct device *dev)
         return -ENODEV;
     }
 
-    if (config->enable_gpio.port != NULL &&
-        gpio_pin_configure_dt(&config->enable_gpio, GPIO_OUTPUT_INACTIVE)) {
+    if (config->enable_gpio.port == NULL ||
+        !device_is_ready(config->enable_gpio.port)) {
+        LOG_ERR("GPIO port %s not ready", config->enable_gpio.port->name);
+        return -ENODEV;
+    }
+
+    if (gpio_pin_configure_dt(&config->enable_gpio, GPIO_OUTPUT_INACTIVE)) {
         LOG_ERR("Failed to configure %s", dev->name);
         return -EIO;
     }
