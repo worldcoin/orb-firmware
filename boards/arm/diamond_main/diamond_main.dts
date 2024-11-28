@@ -48,13 +48,13 @@
     };
 
     zephyr,user {
-        jetson_serial = <&usart1>;
+        jetson-serial = <&usart1>;
         // GPIO used to get hardware version dynamically
         hw-version-main-board-gpios = <&gpio_exp2 8 GPIO_ACTIVE_HIGH>, <&gpio_exp2 9 GPIO_ACTIVE_HIGH>, <&gpio_exp2 10 GPIO_ACTIVE_HIGH>, <&gpio_exp2 11 GPIO_ACTIVE_HIGH>;
         hw-version-front-unit-gpios = <&gpio_exp_front_unit 8 GPIO_ACTIVE_HIGH>, <&gpio_exp_front_unit 9 GPIO_ACTIVE_HIGH>, <&gpio_exp_front_unit 10 GPIO_ACTIVE_HIGH>, <&gpio_exp_front_unit 11 GPIO_ACTIVE_HIGH>;
         hw-version-pwr-board-gpios = <&gpio_exp_pwr_brd 8 GPIO_ACTIVE_HIGH>, <&gpio_exp_pwr_brd 9 GPIO_ACTIVE_HIGH>, <&gpio_exp_pwr_brd 10 GPIO_ACTIVE_HIGH>, <&gpio_exp_pwr_brd 11 GPIO_ACTIVE_HIGH>;
         sound-amp-mux-gpios = <&gpio_exp1 5 GPIO_ACTIVE_HIGH>;
-        i2c_clock_gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
+        i2c-clock-gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
         front-unit-pvcc-pwm-mode-gpios = <&gpio_exp_pwr_brd 3 GPIO_ACTIVE_LOW>;
         level-shifter-enable-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
 
