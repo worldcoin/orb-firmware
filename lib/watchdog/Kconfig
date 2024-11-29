@@ -4,6 +4,18 @@ config ORB_LIB_WATCHDOG
 
 if ORB_LIB_WATCHDOG
 
+config ORB_LIB_WATCHDOG_SYS_INIT
+    bool "Initialize watchdog in sys_init, when disabled (default) `watchdog_init()` must be explicitly called"
+    default n
+
+if ORB_LIB_WATCHDOG_SYS_INIT
+
+config ORB_LIB_WATCHDOG_INIT_PRIORITY
+    int "Watchdog initialization priority"
+    default 51 # KERNEL_INIT_PRIORITY_DEVICE + 1
+
+endif
+
 config ORB_LIB_THREAD_PRIORITY_WATCHDOG
     int "Watchdog thread priority"
     default 10
