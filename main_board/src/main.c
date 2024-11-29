@@ -205,8 +205,8 @@ initialize(void)
 
     app_assert_init(app_assert_cb);
 
-#if CONFIG_ORB_LIB_WATCHDOG
-    err_code = watchdog_init(NULL);
+#if CONFIG_ORB_LIB_WATCHDOG && !(CONFIG_ORB_LIB_WATCHDOG_SYS_INIT)
+    err_code = watchdog_init();
     ASSERT_SOFT(err_code);
 #endif
 
