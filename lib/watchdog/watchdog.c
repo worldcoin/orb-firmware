@@ -15,8 +15,6 @@ static volatile int wdt_channel_id = -1;
 static const struct device *const watchdog_dev =
     DEVICE_DT_GET(DT_ALIAS(watchdog0));
 
-static bool (*watchdog_callback)(void) = NULL;
-
 #ifndef WATCHDOG_RELOAD_MS
 #define WATCHDOG_RELOAD_MS CONFIG_ORB_LIB_WATCHDOG_RELOAD_MS
 #endif
@@ -25,13 +23,27 @@ BUILD_ASSERT(CONFIG_ORB_LIB_WATCHDOG_RELOAD_MS <
                  CONFIG_ORB_LIB_WATCHDOG_TIMEOUT_MS,
              "Watchdog reload time must be less than watchdog timeout");
 
+static bool feed = true;
+
+__WEAK bool
+watchdog_perform_checks(void)
+{
+    return true;
+}
+
+void
+watchdog_stop_feed(void)
+{
+    feed = false;
+}
+
 static void
 watchdog_thread()
 {
     while (wdt_channel_id >= 0) {
         // Allow null callback,
         // Don't rearrange due to short circuit rules, NULL check must be first
-        if ((watchdog_callback == NULL) || (watchdog_callback() == true)) {
+        if (feed && watchdog_perform_checks() == true) {
             wdt_feed(watchdog_dev, wdt_channel_id);
         }
         k_sleep(K_MSEC(WATCHDOG_RELOAD_MS));
@@ -41,7 +53,7 @@ watchdog_thread()
 }
 
 int
-watchdog_init(bool (*callback)(void))
+watchdog_init(void)
 {
     int err_code;
 
@@ -81,8 +93,6 @@ watchdog_init(bool (*callback)(void))
         return RET_ERROR_NOT_INITIALIZED;
     }
 
-    watchdog_callback = callback;
-
     k_thread_create(&watchdog_thread_data, stack_area,
                     K_THREAD_STACK_SIZEOF(stack_area),
                     (k_thread_entry_t)watchdog_thread, NULL, NULL, NULL,
@@ -91,3 +101,7 @@ watchdog_init(bool (*callback)(void))
 
     return RET_SUCCESS;
 }
+
+#if CONFIG_ORB_LIB_WATCHDOG_SYS_INIT
+SYS_INIT(watchdog_init, POST_KERNEL, CONFIG_ORB_LIB_WATCHDOG_INIT_PRIORITY);
+#endif

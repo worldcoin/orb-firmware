@@ -632,6 +632,12 @@ app_init_state(void)
     return ret;
 }
 
+#if CONFIG_ORB_LIB_WATCHDOG_SYS_INIT
+BUILD_ASSERT(CONFIG_ORB_LIB_WATCHDOG_INIT_PRIORITY <
+                 SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY,
+             "Watchdog must be initialized before waiting for button press");
+#endif
+
 SYS_INIT(app_init_state, POST_KERNEL, SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY);
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
