@@ -100,13 +100,6 @@ trigger_z_oops(void)
 }
 #endif
 
-__maybe_unused static bool
-watchdog_feed_callback(void)
-{
-    /* Deliberately prevent feeding the watchdog */
-    return false;
-}
-
 void
 fatal_errors_trigger(enum error_case_e type)
 {
@@ -160,7 +153,7 @@ fatal_errors_trigger(enum error_case_e type)
 #endif
 #ifdef CONFIG_ORB_LIB_WATCHDOG
     case FATAL_WATCHDOG:
-        (void)watchdog_init(watchdog_feed_callback);
+        watchdog_stop_feed();
         break;
 #endif
 
