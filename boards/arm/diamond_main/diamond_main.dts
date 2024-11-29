@@ -959,18 +959,16 @@
     pinctrl-names = "default";
     status = "okay";
 
-    // io-expander on the power board
+    // io-expander on the power board 0x20
     gpio_exp_pwr_brd: pca95xx@20 {
         compatible = "nxp,pca95xx";
         reg = <0x20>;
         gpio-controller;
         #gpio-cells = <2>;
         ngpios = <16>;
-        status = "okay";
     };
 
-    // io-expander 0x21
-    // PCA9535 registers are the same as one TCA9535
+    // io-expander on the main board 0x21
     gpio_exp1: pca95xx@21 {
         compatible = "nxp,pca95xx";
         reg = <0x21>;
@@ -979,7 +977,7 @@
         ngpios = <16>;
     };
 
-    // io-expander 0x22
+    // io-expander on the main board 0x22
     gpio_exp2: pca95xx@22 {
         compatible = "nxp,pca95xx";
         reg = <0x22>;
