@@ -22,10 +22,10 @@ manifest:
       remote: memfault
       revision: 1.17.0
     - name: orb-messages
-      revision: d303b8ae88c96559b08336fdbcdcc55e3ea27698
+      revision: 7efef8aa435c8278f77c67f9b746351d39eb754d
       path: modules/orb-messages/public
     - name: priv-orb-messages
-      revision: 24b1543547649818bc236ecb9a1ed5794b7f57d0
+      revision: 9fab6ea3cc3b80937725489318cf8d84c50e45b8
       path: modules/orb-messages
       groups: [internal]
     - name: plug-and-trust
@@ -38,4 +38,5 @@ manifest:
   # by default, only public projects are built
   # if access is granted, enable internal projects
   # with `west config manifest.group-filter +internal`
-  group-filter: [-internal]
+  # `optional` is used to fetch nanopb from the Zephyr west manifest
+  group-filter: [-internal, +optional]
