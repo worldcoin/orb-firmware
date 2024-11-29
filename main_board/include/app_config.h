@@ -106,8 +106,6 @@
 // main thread priority                 10
 // logging thread priority              14
 
-#define SYS_INIT_I2C_MUX_PRIORITY 99
-
 #define SYS_INIT_UI_LEDS_PRIORITY               62
 #define SYS_INIT_POWER_SUPPLY_INIT_PRIORITY     54
 #define SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY 53
