@@ -34,8 +34,6 @@ set_property(
     PROPERTY CMAKE_CONFIGURE_DEPENDS ${PROJECT_DIR}/VERSION
 )
 
-set_property(GLOBAL PROPERTY CSTD gnu11)
-
 # optional Orb variable allows to select the board
 if ("$ENV{ORB}" STREQUAL "pearl")
     unset(BOARD CACHE)
@@ -168,14 +166,7 @@ zephyr_include_directories(config)
 zephyr_linker_sources(SECTIONS config/compact-logs.ld)
 
 # link with Zephyr modules below
-# - modules/orb-protobuf-definitions: data format definitions and serializer/deserializer for messages between MCU, Jetson and Security MCU
 # - bootloader/mcuboot/boot/bootutil: public functions to access/modify mcuboot data from the application
-if (CONFIG_ORB_MCU_MESSAGING_LIB)
-    zephyr_link_libraries(ORB_MCU_MESSAGING_LIB)
-    # dependency below doesn't have to be forced if using West but must be added when using CMake only
-    # to build zephyr_final
-    add_dependencies(app generate_proto_files)
-endif ()
 if (CONFIG_MCUBOOT_BOOTUTIL_LIB)
     # check path is absolute
     if (IS_ABSOLUTE ${CONFIG_MCUBOOT_SIGNATURE_KEY_FILE})

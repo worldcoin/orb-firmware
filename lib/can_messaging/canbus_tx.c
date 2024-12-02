@@ -90,7 +90,7 @@ process_tx_messages_thread()
         // and wait for next tx message in the next loop
         ret = k_sem_take(&tx_sem, K_MSEC(5000));
         if (ret != 0) {
-            LOG_ERR("tx isotp semaphore error: %i", ret);
+            LOG_ERR("tx semaphore error: %i", ret);
             k_sem_give(&tx_sem);
             continue;
         }
@@ -106,7 +106,7 @@ process_tx_messages_thread()
         int err_code =
             send(new.bytes, new.size, tx_complete_cb, new.destination);
 
-        k_mem_slab_free(&can_tx_memory_slab, (void **)&new.bytes);
+        k_mem_slab_free(&can_tx_memory_slab, (void *)new.bytes);
 
         if (err_code != RET_SUCCESS) {
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
@@ -155,7 +155,7 @@ can_messaging_async_tx(const can_message_t *message)
 
         int ret = k_msgq_put(&can_tx_msg_queue, &to_send, K_MSEC(200));
         if (ret) {
-            k_mem_slab_free(&can_tx_memory_slab, (void **)&to_send.bytes);
+            k_mem_slab_free(&can_tx_memory_slab, (void *)to_send.bytes);
 
 #ifndef CONFIG_ORB_LIB_LOG_BACKEND_CAN // prevent recursive call
             LOG_ERR("Too many tx messages");
@@ -208,11 +208,11 @@ canbus_tx_init(void)
     }
 
     if (tid == NULL) {
-        tid = k_thread_create(&can_tx_thread_data, can_tx_stack_area,
-                              K_THREAD_STACK_SIZEOF(can_tx_stack_area),
-                              process_tx_messages_thread, NULL, NULL, NULL,
-                              CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0,
-                              K_NO_WAIT);
+        tid = k_thread_create(
+            &can_tx_thread_data, can_tx_stack_area,
+            K_THREAD_STACK_SIZEOF(can_tx_stack_area),
+            (k_thread_entry_t)process_tx_messages_thread, NULL, NULL, NULL,
+            CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0, K_NO_WAIT);
         k_thread_name_set(&can_tx_thread_data, "can_tx");
     }
 

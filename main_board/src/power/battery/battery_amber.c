@@ -41,7 +41,7 @@ static orb_mcu_main_BatteryIsCharging is_charging;
 #define BATTERY_MESSAGES_REMOVED_TIMEOUT_MS (BATTERY_INFO_SEND_PERIOD_MS * 3)
 #define BATTERY_MESSAGES_FORCE_REBOOT_TIMEOUT_MS                               \
     (BATTERY_INFO_SEND_PERIOD_MS * 10)
-static_assert(
+BUILD_ASSERT(
     BATTERY_MESSAGES_FORCE_REBOOT_TIMEOUT_MS > BATTERY_INFO_SEND_PERIOD_MS * 3,
     "Coarse timing resolution to check if battery is still sending messages");
 
@@ -728,10 +728,11 @@ battery_init(void)
         LOG_INF("Battery voltage is ok");
     }
 
-    k_tid_t tid = k_thread_create(
-        &rx_thread_data, battery_rx_thread_stack,
-        K_THREAD_STACK_SIZEOF(battery_rx_thread_stack), battery_rx_thread, NULL,
-        NULL, NULL, THREAD_PRIORITY_BATTERY, 0, K_NO_WAIT);
+    k_tid_t tid =
+        k_thread_create(&rx_thread_data, battery_rx_thread_stack,
+                        K_THREAD_STACK_SIZEOF(battery_rx_thread_stack),
+                        (k_thread_entry_t)battery_rx_thread, NULL, NULL, NULL,
+                        THREAD_PRIORITY_BATTERY, 0, K_NO_WAIT);
     k_thread_name_set(tid, "battery");
 
     return RET_SUCCESS;

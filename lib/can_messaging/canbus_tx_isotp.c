@@ -60,10 +60,8 @@ process_tx_messages_thread()
     struct isotp_send_ctx send_ctx = {0};
 
     // CAN ISO-TP addressing
-    struct isotp_msg_id mcu_to_jetson_dst_addr = {
-        .std_id = 0, .ide = 0, .use_ext_addr = 0};
-    struct isotp_msg_id mcu_to_jetson_src_addr = {
-        .std_id = 0, .ide = 0, .use_ext_addr = 0};
+    struct isotp_msg_id mcu_to_jetson_dst_addr = {.std_id = 0, .flags = 0};
+    struct isotp_msg_id mcu_to_jetson_src_addr = {.std_id = 0, .flags = 0};
     int ret;
 
     while (1) {
@@ -172,7 +170,7 @@ canbus_isotp_tx_init(void)
         tid = k_thread_create(
             &can_tx_isotp_thread_data, can_tx_isotp_stack_area,
             K_THREAD_STACK_SIZEOF(can_tx_isotp_stack_area),
-            process_tx_messages_thread, NULL, NULL, NULL,
+            (k_thread_entry_t)process_tx_messages_thread, NULL, NULL, NULL,
             CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_TX, 0, K_NO_WAIT);
         k_thread_name_set(&can_tx_isotp_thread_data, "can_tx_isotp");
     }

@@ -4,7 +4,7 @@
 description: |
   Description for the liquid lens
 
-compatible: "worldcoin,liquid-lens"
+compatible: "tfh,liquid-lens"
 
 properties:
   io-channels:

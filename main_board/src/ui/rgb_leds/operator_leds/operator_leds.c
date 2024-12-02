@@ -46,7 +46,7 @@ apply_pattern(uint32_t mask, struct led_rgb *color)
 {
     // go through mask starting with most significant bit
     // so that mask is applied from left LED to right for the operator
-    for (size_t i = 0; i < ARRAY_SIZE_ASSERT(leds); ++i) {
+    for (size_t i = 0; i < ARRAY_SIZE(leds); ++i) {
 #if defined(CONFIG_BOARD_PEARL_MAIN)
         uint32_t bit = BIT((OPERATOR_LEDS_COUNT - 1) - i);
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
@@ -269,11 +269,11 @@ operator_leds_init(void)
         return RET_ERROR_INTERNAL;
     }
 
-    k_tid_t tid =
-        k_thread_create(&operator_leds_thread_data, operator_leds_stack_area,
-                        K_THREAD_STACK_SIZEOF(operator_leds_stack_area),
-                        operator_leds_thread, (void *)led_strip, NULL, NULL,
-                        THREAD_PRIORITY_OPERATOR_RGB_LEDS, 0, K_NO_WAIT);
+    k_tid_t tid = k_thread_create(
+        &operator_leds_thread_data, operator_leds_stack_area,
+        K_THREAD_STACK_SIZEOF(operator_leds_stack_area),
+        (k_thread_entry_t)operator_leds_thread, (void *)led_strip, NULL, NULL,
+        THREAD_PRIORITY_OPERATOR_RGB_LEDS, 0, K_NO_WAIT);
     k_thread_name_set(tid, "operator_leds");
 
     return RET_SUCCESS;

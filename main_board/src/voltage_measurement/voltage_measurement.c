@@ -1054,7 +1054,7 @@ voltage_measurement_init(const orb_mcu_Hardware *hw_version,
         &voltage_measurement_adc1_thread_data,
         voltage_measurement_adc1_thread_stack,
         K_THREAD_STACK_SIZEOF(voltage_measurement_adc1_thread_stack),
-        voltage_measurement_adc1_thread, NULL, NULL, NULL,
+        (k_thread_entry_t)voltage_measurement_adc1_thread, NULL, NULL, NULL,
         THREAD_PRIORITY_VOLTAGE_MEASUREMENT_ADC1, 0, K_NO_WAIT);
     k_thread_name_set(tid_adc1, "voltage_measurement_adc1");
 
@@ -1063,7 +1063,7 @@ voltage_measurement_init(const orb_mcu_Hardware *hw_version,
         &voltage_measurement_adc4_thread_data,
         voltage_measurement_adc4_thread_stack,
         K_THREAD_STACK_SIZEOF(voltage_measurement_adc4_thread_stack),
-        voltage_measurement_adc4_thread, NULL, NULL, NULL,
+        (k_thread_entry_t)voltage_measurement_adc4_thread, NULL, NULL, NULL,
         THREAD_PRIORITY_VOLTAGE_MEASUREMENT_ADC4, 0, K_NO_WAIT);
     k_thread_name_set(tid_adc4, "voltage_measurement_adc4");
 #endif
@@ -1072,7 +1072,7 @@ voltage_measurement_init(const orb_mcu_Hardware *hw_version,
         &voltage_measurement_adc5_thread_data,
         voltage_measurement_adc5_thread_stack,
         K_THREAD_STACK_SIZEOF(voltage_measurement_adc5_thread_stack),
-        voltage_measurement_adc5_thread, NULL, NULL, NULL,
+        (k_thread_entry_t)voltage_measurement_adc5_thread, NULL, NULL, NULL,
         THREAD_PRIORITY_VOLTAGE_MEASUREMENT_ADC5, 0, K_NO_WAIT);
     k_thread_name_set(tid_adc5, "voltage_measurement_adc5");
 
@@ -1095,7 +1095,7 @@ voltage_measurement_init(const orb_mcu_Hardware *hw_version,
         &voltage_measurement_publish_thread_data,
         voltage_measurement_publish_thread_stack,
         K_THREAD_STACK_SIZEOF(voltage_measurement_publish_thread_stack),
-        voltage_measurement_publish_thread, NULL, NULL, NULL,
+        (k_thread_entry_t)voltage_measurement_publish_thread, NULL, NULL, NULL,
         THREAD_PRIORITY_VOLTAGE_MEASUREMENT_PUBLISH, 0, delay);
     k_thread_name_set(tid_publish, "voltage_measurement_publish");
 
@@ -1104,7 +1104,7 @@ voltage_measurement_init(const orb_mcu_Hardware *hw_version,
         &voltage_measurement_debug_thread_data,
         voltage_measurement_debug_thread_stack,
         K_THREAD_STACK_SIZEOF(voltage_measurement_debug_thread_stack),
-        voltage_measurement_debug_thread, NULL, NULL, NULL,
+        (k_thread_entry_t)voltage_measurement_debug_thread, NULL, NULL, NULL,
         THREAD_PRIORITY_VOLTAGE_MEASUREMENT_DEBUG, 0, K_NO_WAIT);
     k_thread_name_set(tid_debug, "voltage_measurement_debug");
 #endif

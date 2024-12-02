@@ -5,6 +5,7 @@
 #include <zephyr/canbus/isotp.h>
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
+#include <zephyr/sys/crc.h>
 
 #include "orb_logs.h"
 #include <can_messaging.h>
@@ -52,14 +53,12 @@ bind_to_remotes(void)
             .std_id = CAN_ISOTP_STDID_DESTINATION(
                 (CONFIG_CAN_ISOTP_REMOTE_ID + app_id),
                 CONFIG_CAN_ISOTP_LOCAL_ID),
-            .ide = 0,
-            .use_ext_addr = 0};
+            .flags = 0};
         struct isotp_msg_id app_to_mcu_src_addr = {
             .std_id =
                 CAN_ISOTP_STDID_SOURCE((CONFIG_CAN_ISOTP_REMOTE_ID + app_id),
                                        CONFIG_CAN_ISOTP_LOCAL_ID),
-            .ide = 0,
-            .use_ext_addr = 0};
+            .flags = 0};
 
         ret = isotp_bind(&rx_ctx[app_id], can_dev, &app_to_mcu_dst_addr,
                          &app_to_mcu_src_addr, &flow_control_opts, K_FOREVER);
@@ -182,11 +181,11 @@ canbus_isotp_rx_init(ret_code_t (*in_handler)(can_message_t *msg))
         LOG_INF("CAN ready");
     }
 
-    k_tid_t tid =
-        k_thread_create(&rx_thread_data, isotp_rx_thread_stack,
-                        K_THREAD_STACK_SIZEOF(isotp_rx_thread_stack),
-                        jetson_to_mcu_rx_thread, NULL, NULL, NULL,
-                        CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_RX, 0, K_NO_WAIT);
+    k_tid_t tid = k_thread_create(
+        &rx_thread_data, isotp_rx_thread_stack,
+        K_THREAD_STACK_SIZEOF(isotp_rx_thread_stack),
+        (k_thread_entry_t)jetson_to_mcu_rx_thread, NULL, NULL, NULL,
+        CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_RX, 0, K_NO_WAIT);
     k_thread_name_set(tid, "can_isotp_rx");
 
     return RET_SUCCESS;

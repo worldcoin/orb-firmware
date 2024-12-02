@@ -15,10 +15,10 @@ static struct k_thread rx_thread_data = {0};
 static const struct device *can_dev =
     DEVICE_DT_GET_OR_NULL(DT_CHOSEN(zephyr_canbus));
 static struct can_frame rx_frame;
-static const struct can_filter recv_queue_filter = {
-    .id = CONFIG_CAN_ADDRESS_MCU,
-    .mask = CAN_EXT_ID_MASK,
-    .flags = CAN_FILTER_IDE | CAN_FILTER_FDF | CAN_FILTER_DATA};
+static const struct can_filter recv_queue_filter = {.id =
+                                                        CONFIG_CAN_ADDRESS_MCU,
+                                                    .mask = CAN_EXT_ID_MASK,
+                                                    .flags = CAN_FILTER_IDE};
 CAN_MSGQ_DEFINE(can_recv_queue, 5);
 
 static ret_code_t (*incoming_message_handler)(can_message_t *message);
@@ -72,10 +72,11 @@ canbus_rx_init(ret_code_t (*in_handler)(can_message_t *message))
         LOG_INF("CAN ready");
     }
 
-    k_tid_t tid = k_thread_create(
-        &rx_thread_data, can_rx_thread_stack,
-        K_THREAD_STACK_SIZEOF(can_rx_thread_stack), rx_thread, NULL, NULL, NULL,
-        CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_RX, 0, K_NO_WAIT);
+    k_tid_t tid =
+        k_thread_create(&rx_thread_data, can_rx_thread_stack,
+                        K_THREAD_STACK_SIZEOF(can_rx_thread_stack),
+                        (k_thread_entry_t)rx_thread, NULL, NULL, NULL,
+                        CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_RX, 0, K_NO_WAIT);
     k_thread_name_set(tid, "can_rx");
 
     return RET_SUCCESS;

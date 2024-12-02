@@ -64,8 +64,9 @@ heartbeat_boom(uint32_t delay_s)
     if (thread_id == NULL && global_delay_s != 0) {
         thread_id = k_thread_create(
             &health_monitoring_thread_data, heartbeat_stack_area,
-            K_THREAD_STACK_SIZEOF(heartbeat_stack_area), heartbeat_thread, NULL,
-            NULL, NULL, THREAD_PRIORITY_HEARTBEAT, 0, K_NO_WAIT);
+            K_THREAD_STACK_SIZEOF(heartbeat_stack_area),
+            (k_thread_entry_t)heartbeat_thread, NULL, NULL, NULL,
+            THREAD_PRIORITY_HEARTBEAT, 0, K_NO_WAIT);
         k_thread_name_set(thread_id, "heartbeat");
 
         // make sure timeout handler is initialized

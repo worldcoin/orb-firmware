@@ -1141,7 +1141,8 @@ handle_ir_eye_camera_focus_sweep_values_polynomial(job_t *job)
     orb_mcu_main_IREyeCameraFocusSweepValuesPolynomial p =
         msg->payload.ir_eye_camera_focus_sweep_values_polynomial;
     LOG_DBG("a: %f, b: %f, c: %f, d: %f, e: %f, f: %f, num frames: %u",
-            p.coef_a, p.coef_b, p.coef_c, p.coef_d, p.coef_e, p.coef_f,
+            (double)p.coef_a, (double)p.coef_b, (double)p.coef_c,
+            (double)p.coef_d, (double)p.coef_e, (double)p.coef_f,
             p.number_of_frames);
     ret_code_t err =
         ir_camera_system_set_polynomial_coefficients_for_focus_sweep(
@@ -1191,8 +1192,9 @@ handle_ir_eye_camera_mirror_sweep_values_polynomial(job_t *job)
         msg->payload.ir_eye_camera_mirror_sweep_values_polynomial;
     LOG_DBG(
         "r_a: %f, r_b: %f, r_c: %f, a_a: %f, a_b: %f, a_c: %f, num frames: %u",
-        p.radius_coef_a, p.radius_coef_b, p.radius_coef_c, p.angle_coef_a,
-        p.angle_coef_b, p.angle_coef_c, p.number_of_frames);
+        (double)p.radius_coef_a, (double)p.radius_coef_b,
+        (double)p.radius_coef_c, (double)p.angle_coef_a, (double)p.angle_coef_b,
+        (double)p.angle_coef_c, p.number_of_frames);
     ret_code_t err =
         ir_camera_system_set_polynomial_coefficients_for_mirror_sweep(
             msg->payload.ir_eye_camera_mirror_sweep_values_polynomial);
@@ -1426,9 +1428,8 @@ static const hm_callback handle_message_callbacks[] = {
 #endif
 };
 
-static_assert(
-    ARRAY_SIZE(handle_message_callbacks) <= 48,
-    "It seems like the `handle_message_callbacks` array is too large");
+BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 48),
+             "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
 runner_process_jobs_thread()
@@ -1630,10 +1631,11 @@ runner_handle_new_uart(uart_message_t *msg)
 void
 runner_init(void)
 {
-    runner_tid = k_thread_create(&runner_process, runner_process_stack,
-                                 K_THREAD_STACK_SIZEOF(runner_process_stack),
-                                 runner_process_jobs_thread, NULL, NULL, NULL,
-                                 THREAD_PRIORITY_RUNNER, 0, K_NO_WAIT);
+    runner_tid =
+        k_thread_create(&runner_process, runner_process_stack,
+                        K_THREAD_STACK_SIZEOF(runner_process_stack),
+                        (k_thread_entry_t)runner_process_jobs_thread, NULL,
+                        NULL, NULL, THREAD_PRIORITY_RUNNER, 0, K_NO_WAIT);
     k_thread_name_set(runner_tid, "runner");
 
 #if defined(CONFIG_MEMFAULT_METRICS_CONNECTIVITY_CONNECTED_TIME)

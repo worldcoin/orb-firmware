@@ -60,10 +60,11 @@ white_leds_init(void)
         return RET_ERROR_INTERNAL;
     }
 
-    k_tid_t tid = k_thread_create(
-        &white_leds_thread_data, white_leds_stack_area,
-        K_THREAD_STACK_SIZEOF(white_leds_stack_area), white_leds_thread, NULL,
-        NULL, NULL, THREAD_PRIORITY_WHITE_LEDS, 0, K_NO_WAIT);
+    k_tid_t tid =
+        k_thread_create(&white_leds_thread_data, white_leds_stack_area,
+                        K_THREAD_STACK_SIZEOF(white_leds_stack_area),
+                        (k_thread_entry_t)white_leds_thread, NULL, NULL, NULL,
+                        THREAD_PRIORITY_WHITE_LEDS, 0, K_NO_WAIT);
     k_thread_name_set(tid, "white_leds");
 
     return RET_SUCCESS;

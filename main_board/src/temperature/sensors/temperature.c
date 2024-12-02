@@ -790,10 +790,11 @@ temperature_init(const orb_mcu_Hardware *hw_version,
     }
 
     if (thread_id == NULL) {
-        thread_id = k_thread_create(&temperature_thread_data, stack_area,
-                                    K_THREAD_STACK_SIZEOF(stack_area),
-                                    temperature_thread, NULL, NULL, NULL,
-                                    THREAD_PRIORITY_TEMPERATURE, 0, K_NO_WAIT);
+        thread_id =
+            k_thread_create(&temperature_thread_data, stack_area,
+                            K_THREAD_STACK_SIZEOF(stack_area),
+                            (k_thread_entry_t)temperature_thread, NULL, NULL,
+                            NULL, THREAD_PRIORITY_TEMPERATURE, 0, K_NO_WAIT);
         k_thread_name_set(thread_id, "temperature");
     } else {
         LOG_ERR("Sampling already started");
@@ -835,7 +836,7 @@ check_overtemp_conditions(void)
         // Warning so that it's logged over CAN
         LOG_WRN(
             "Over-temperature conditions have abated, restoring fan to %.2f%%",
-            ((float)fan_speed_before_overtemperature / UINT16_MAX) * 100);
+            ((double)fan_speed_before_overtemperature / UINT16_MAX) * 100);
 
         fan_set_speed_by_value(fan_speed_before_overtemperature);
     } else if (old_num_sensors_in_overtemp_conditions == 0 &&

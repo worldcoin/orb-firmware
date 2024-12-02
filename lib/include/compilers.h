@@ -26,11 +26,6 @@
 #define __PACKED __packed
 #endif
 
-#ifndef __must_be_array
-#define __must_be_array(...)
-#warning Checks not performed on arrays with this compiler
-#endif
-
 #define GET_SP() __current_sp()
 
 #ifndef ASSERT_CONST_ARRAY_VALUE
@@ -92,21 +87,6 @@ assert_pointer_value_check(char *details);
     if ((ptr) == NULL) {                                                       \
         assert_pointer_value_check("");                                        \
     }
-
-#ifndef __must_be_array
-/*
- * Based on Linux kernel's include/linux/build_bug.h
- * https://github.com/torvalds/linux/blob/master/include/linux/build_bug.h:
- * Force a compilation error if condition is true, but also produce a result (of
- * value 0 and type int), so the expression can be used e.g. in a structure
- * initializer (or where-ever else comma expressions aren't permitted).
- */
-#define BUILD_BUG_ON_ZERO(e) (sizeof(struct { int : -!!(e); }))
-#define __same_type(a, b)    __builtin_types_compatible_p(typeof(a), typeof(b))
-// Based on
-// https://github.com/torvalds/linux/blob/master/tools/include/linux/compiler-gcc.h
-#define __must_be_array(a)   BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
-#endif
 
 #endif
 

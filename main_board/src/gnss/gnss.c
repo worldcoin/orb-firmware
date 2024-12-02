@@ -243,7 +243,7 @@ gnss_init(void)
 
     k_thread_create(&gnss_thread_data, gnss_stack_area,
                     K_THREAD_STACK_SIZEOF(gnss_stack_area),
-                    gnss_thread_entry_point, NULL, NULL, NULL,
+                    (k_thread_entry_t)gnss_thread_entry_point, NULL, NULL, NULL,
                     THREAD_PRIORITY_GNSS, 0, K_NO_WAIT);
     k_thread_name_set(&gnss_thread_data, "gnss");
 
