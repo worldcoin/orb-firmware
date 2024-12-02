@@ -182,11 +182,11 @@ canbus_isotp_rx_init(ret_code_t (*in_handler)(can_message_t *msg))
         LOG_INF("CAN ready");
     }
 
-    k_tid_t tid =
-        k_thread_create(&rx_thread_data, isotp_rx_thread_stack,
-                        K_THREAD_STACK_SIZEOF(isotp_rx_thread_stack),
-                        jetson_to_mcu_rx_thread, NULL, NULL, NULL,
-                        CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_RX, 0, K_NO_WAIT);
+    k_tid_t tid = k_thread_create(
+        &rx_thread_data, isotp_rx_thread_stack,
+        K_THREAD_STACK_SIZEOF(isotp_rx_thread_stack),
+        (k_thread_entry_t)jetson_to_mcu_rx_thread, NULL, NULL, NULL,
+        CONFIG_ORB_LIB_THREAD_PRIORITY_CANBUS_RX, 0, K_NO_WAIT);
     k_thread_name_set(tid, "can_isotp_rx");
 
     return RET_SUCCESS;

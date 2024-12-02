@@ -428,10 +428,10 @@ void
 zephyr_boot_log_start(void)
 {
     /* start logging thread */
-    k_thread_create(&boot_log_thread, boot_log_stack,
-                    K_THREAD_STACK_SIZEOF(boot_log_stack), boot_log_thread_func,
-                    NULL, NULL, NULL, K_HIGHEST_APPLICATION_THREAD_PRIO, 0,
-                    BOOT_LOG_PROCESSING_INTERVAL);
+    k_thread_create(
+        &boot_log_thread, boot_log_stack, K_THREAD_STACK_SIZEOF(boot_log_stack),
+        (k_thread_entry_t)boot_log_thread_func, NULL, NULL, NULL,
+        K_HIGHEST_APPLICATION_THREAD_PRIO, 0, BOOT_LOG_PROCESSING_INTERVAL);
 
     k_thread_name_set(&boot_log_thread, "logging");
 }

@@ -661,10 +661,11 @@ front_leds_init(void)
         return RET_ERROR_INTERNAL;
     }
 
-    k_tid_t tid = k_thread_create(
-        &front_led_thread_data, front_leds_stack_area,
-        K_THREAD_STACK_SIZEOF(front_leds_stack_area), front_leds_thread, NULL,
-        NULL, NULL, THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS, 0, K_NO_WAIT);
+    k_tid_t tid =
+        k_thread_create(&front_led_thread_data, front_leds_stack_area,
+                        K_THREAD_STACK_SIZEOF(front_leds_stack_area),
+                        (k_thread_entry_t)front_leds_thread, NULL, NULL, NULL,
+                        THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS, 0, K_NO_WAIT);
     k_thread_name_set(tid, "front_leds");
 
     return RET_SUCCESS;
