@@ -1,11 +1,11 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Set default shell during Docker image build to bash
 SHELL ["/bin/bash", "-c"]
 
 ARG WGET_ARGS="-q --show-progress --progress=bar:force:noscroll --no-check-certificate"
-ARG PROTOC_VERSION=25.2
-ARG SDK_VERSION=0.16.5
+ARG PROTOC_VERSION=27.0
+ARG SDK_VERSION=0.17.0
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
@@ -24,13 +24,13 @@ RUN apt-get update && \
         ninja-build \
         protobuf-compiler \
         python3-dev \
-        python3-pip \
+        python3-venv \
         python3-setuptools \
         python3-tk \
         python3-wheel \
         udev \
         wget \
-    	  unzip \
+    	unzip \
         xz-utils
 
 RUN cd /tmp && \
@@ -41,7 +41,11 @@ RUN cd /tmp && \
 
 RUN apt-get update && apt-get install -y cmake
 
-RUN pip3 install \
+# create a virtual environment and activate it
+RUN python3 -m venv /opt/venv
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install \
     junit2html \
     junitparser \
     pre-commit \
