@@ -146,10 +146,11 @@ cone_leds_init(void)
         }
     }
 
-    k_tid_t tid = k_thread_create(&cone_leds_thread_data, cone_leds_stack_area,
-                                  K_THREAD_STACK_SIZEOF(cone_leds_stack_area),
-                                  cone_leds_thread, NULL, NULL, NULL,
-                                  THREAD_PRIORITY_CONE_RGB_LEDS, 0, K_NO_WAIT);
+    k_tid_t tid =
+        k_thread_create(&cone_leds_thread_data, cone_leds_stack_area,
+                        K_THREAD_STACK_SIZEOF(cone_leds_stack_area),
+                        (k_thread_entry_t)cone_leds_thread, NULL, NULL, NULL,
+                        THREAD_PRIORITY_CONE_RGB_LEDS, 0, K_NO_WAIT);
     k_thread_name_set(tid, "cone_leds");
 
     return RET_SUCCESS;
