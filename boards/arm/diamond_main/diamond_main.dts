@@ -48,13 +48,13 @@
     };
 
     zephyr,user {
-        jetson_serial = <&usart1>;
+        jetson-serial = <&usart1>;
         // GPIO used to get hardware version dynamically
         hw-version-main-board-gpios = <&gpio_exp2 8 GPIO_ACTIVE_HIGH>, <&gpio_exp2 9 GPIO_ACTIVE_HIGH>, <&gpio_exp2 10 GPIO_ACTIVE_HIGH>, <&gpio_exp2 11 GPIO_ACTIVE_HIGH>;
         hw-version-front-unit-gpios = <&gpio_exp_front_unit 8 GPIO_ACTIVE_HIGH>, <&gpio_exp_front_unit 9 GPIO_ACTIVE_HIGH>, <&gpio_exp_front_unit 10 GPIO_ACTIVE_HIGH>, <&gpio_exp_front_unit 11 GPIO_ACTIVE_HIGH>;
         hw-version-pwr-board-gpios = <&gpio_exp_pwr_brd 8 GPIO_ACTIVE_HIGH>, <&gpio_exp_pwr_brd 9 GPIO_ACTIVE_HIGH>, <&gpio_exp_pwr_brd 10 GPIO_ACTIVE_HIGH>, <&gpio_exp_pwr_brd 11 GPIO_ACTIVE_HIGH>;
         sound-amp-mux-gpios = <&gpio_exp1 5 GPIO_ACTIVE_HIGH>;
-        i2c_clock_gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
+        i2c-clock-gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
         front-unit-pvcc-pwm-mode-gpios = <&gpio_exp_pwr_brd 3 GPIO_ACTIVE_LOW>;
         level-shifter-enable-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
 
@@ -959,18 +959,16 @@
     pinctrl-names = "default";
     status = "okay";
 
-    // io-expander on the power board
+    // io-expander on the power board 0x20
     gpio_exp_pwr_brd: pca95xx@20 {
         compatible = "nxp,pca95xx";
         reg = <0x20>;
         gpio-controller;
         #gpio-cells = <2>;
         ngpios = <16>;
-        status = "okay";
     };
 
-    // io-expander 0x21
-    // PCA9535 registers are the same as one TCA9535
+    // io-expander on the main board 0x21
     gpio_exp1: pca95xx@21 {
         compatible = "nxp,pca95xx";
         reg = <0x21>;
@@ -979,7 +977,7 @@
         ngpios = <16>;
     };
 
-    // io-expander 0x22
+    // io-expander on the main board 0x22
     gpio_exp2: pca95xx@22 {
         compatible = "nxp,pca95xx";
         reg = <0x22>;
