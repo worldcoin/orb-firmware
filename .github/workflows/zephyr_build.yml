@@ -24,16 +24,31 @@ jobs:
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # pin@v3
         with:
-          path: "${{ github.job }}/orb/public"
+          path: "${{ github.job }}/orb"
       - name: Initialize West repo
         run: |
           cd ${{ github.job }}
           git config --global --add url."https://wc-cicd:${{ secrets.gh_token }}@github.com/worldcoin/".insteadOf "git@github.com:worldcoin/"
-          cd orb && west init -l --mf public/west.yml . || echo "Ignoring west init error $?" # might be already initialized
+          cd orb && west init -l --mf west.yml . || echo "Ignoring west init error $?" # might be already initialized
           west update --narrow --fetch-opt=--depth=1
       - name: Generate temporary signing keys locally
-        run: cd ${{ github.job }}/orb/public/utils/ota/ && ./generate_dev_keys
+        run: cd ${{ github.job }}/orb/utils/ota/ && ./generate_dev_keys
       - name: Build app
-        run: cd ${{ github.job }} && west build ${APP_PATH} -d ${APP_PATH}/build -b ${BOARD} -p -- -DCMAKE_BUILD_TYPE="Release" -DEXTRA_COMPILE_FLAGS=-Werror -DBUILD_FROM_CI=1
+        run: |
+          cd ${{ github.job }}
+          PROJ_DIR=$(dirname $(west manifest --path))
+          west build ${APP_PATH} -d ${APP_PATH}/build -b ${BOARD} -p -- \
+          -DCMAKE_BUILD_TYPE="Release" \
+          -DEXTRA_COMPILE_FLAGS=-Werror \
+          -DBUILD_FROM_CI=1 \
+          -DCONFIG_MCUBOOT_SIGNATURE_KEY_FILE=\"${PROJ_DIR}/utils/ota/root-ec-p256.pem\" \
+          -DCONFIG_MCUBOOT_ENCRYPTION_KEY_FILE=\"${PROJ_DIR}/utils/ota/enc-ec256-pub.pem\"
       - name: Build bootloader
-        run: cd ${{ github.job }} && west build orb/public/bootloader -d orb/public/bootloader/build -b ${BOARD} -p -- -DCMAKE_BUILD_TYPE="Release" -DBUILD_FROM_CI=1
+        run: |
+          cd ${{ github.job }}
+          PROJ_DIR=$(dirname $(west manifest --path))
+          ENC_KEY_FILE="${PROJ_DIR}/utils/ota/enc-ec256-pub.pem"
+          west build orb/bootloader -d orb/bootloader/build -b ${BOARD} -p -- \
+          -DCMAKE_BUILD_TYPE="Release" \
+          -DBUILD_FROM_CI=1 \
+          -DCONFIG_BOOT_SIGNATURE_KEY_FILE=\"${PROJ_DIR}/utils/ota/root-ec-p256.pem\"
