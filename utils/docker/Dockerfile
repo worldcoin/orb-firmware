@@ -16,6 +16,7 @@ RUN apt-get update && \
         dfu-util \
         file \
         gcc \
+        g++ \
         git \
         gperf \
         libsdl2-dev \
@@ -106,3 +107,5 @@ RUN cd /tmp && \
     cp -v ./su-exec /usr/local/bin && \
     chmod +s /usr/local/bin/su-exec && \
     rm -rf /tmp/su-exec
+
+RUN curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash && apt-get update && apt-get install -y git-lfs
