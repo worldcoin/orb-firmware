@@ -7,9 +7,9 @@ First, follow the instructions in the [top-level README.md](../README.md).
 ## Compiling and Flashing
 
 If you don't have development keys already created locally, then run
-`./generate_dev_keys` while in the directory `"$REPO_DIR"/orb/public/utils/ota/`.
+`./generate_dev_keys` while in the directory `utils/ota/`.
 
-Make sure you are in `"$REPO_DIR"/orb/public/bootloader/` directory.
+Make sure you are in `"$WEST_TOPDIR"/orb/bootloader/` directory.
 Compile the bootloader for the main microcontroller:
 
 ```shell
