@@ -18,7 +18,7 @@ jobs:
       - name: Fast forwarding
         uses: sequoia-pgp/fast-forward@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # dummy change to trigger a build
         with:
           merge: true
           debug: true
