@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.20.0)
+set(TARGET bootloader)
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
     message(STATUS "⚡️ Maximum optimization for size")
@@ -60,11 +61,11 @@ message(STATUS "Workspace directory: ${WORKSPACE_DIR}")
 list(APPEND BOARD_ROOT ${PROJECT_DIR})
 list(APPEND DTS_ROOT ${PROJECT_DIR})
 
-set(SEC_BOARD_ROOT ${WORKSPACE_DIR}/orb/private)
-if (EXISTS ${SEC_BOARD_ROOT})
-    list(APPEND BOARD_ROOT ${SEC_BOARD_ROOT})
-    list(APPEND DTS_ROOT ${SEC_BOARD_ROOT})
-endif ()
+# Load private & custom board configuration.
+# Private config is not available publicly as the name suggests.
+# The package is thus optional.
+list(APPEND CMAKE_MODULE_PATH ${WORKSPACE_DIR}/orb/private/utils/cmake)
+find_package(McuPrivate)
 
 # find_package(Zephyr) in order to load application boilerplate:
 # http://docs.zephyrproject.org/application/application.html
