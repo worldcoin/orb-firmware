@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Fast forwarding
         uses: sequoia-pgp/fast-forward@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           merge: true
           debug: true
