@@ -3,7 +3,6 @@ on:
   push:
     paths:
       - utils/docker/Dockerfile
-      - utils/docker/Makefile
       - .github/workflows/docker_build.yml
 jobs:
   build_and_publish:
