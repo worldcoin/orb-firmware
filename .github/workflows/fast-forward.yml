@@ -15,13 +15,10 @@ jobs:
       issues: write
 
     steps:
-      - name: Dump GitHub context
-        env:
-          GITHUB_CONTEXT: ${{ toJSON(github) }}
-        run: echo "$GITHUB_CONTEXT"
-
       - name: Fast forwarding
         uses: sequoia-pgp/fast-forward@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           merge: true
           debug: true
