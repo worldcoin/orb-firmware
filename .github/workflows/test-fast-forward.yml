@@ -18,10 +18,13 @@ jobs:
     #   issues: write
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main  # or whatever branch you're targeting
+
       - name: Fast forwarding
         uses: sequoia-pgp/fast-forward@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GIT_HUB_TOKEN }} # dummy change to trigger a build
         with:
           merge: true
           debug: true
@@ -30,3 +33,4 @@ jobs:
           # never post a comment.  (In all cases the information is
           # still available in the step's summary.)
           comment: on-error
+          token: ${{ github.GITHUB_TOKEN }}
