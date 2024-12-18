@@ -15,6 +15,14 @@ jobs:
       issues: write
 
     steps:
+      - name: print context
+        run: |
+          git lfs env || true
+          git config --list || true
+          cat .git/hooks/post-checkout || true
+          cat .git/hooks/pre-push || true
+          rm -f .git/hooks/pre-push
+
       - name: Fast forwarding
         uses: sequoia-pgp/fast-forward@v1
         with:
