@@ -1,4 +1,10 @@
 name: test-fast-forward
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
 on:
   pull_request:
     types: [opened, reopened, synchronize]
@@ -6,10 +12,10 @@ jobs:
   fast-forward:
     runs-on: ubuntu-latest 
 
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
+    # permissions:
+    #   contents: write
+    #   pull-requests: write
+    #   issues: write
 
     steps:
       - name: Fast forwarding
