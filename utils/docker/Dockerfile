@@ -18,6 +18,7 @@ RUN apt-get update && \
         gcc \
         g++ \
         git \
+        gnupg \
         gperf \
         libsdl2-dev \
         libusb-dev \
