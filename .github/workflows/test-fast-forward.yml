@@ -1,0 +1,36 @@
+name: test-fast-forward
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+jobs:
+  fast-forward:
+    runs-on: ubuntu-latest 
+
+    # permissions:
+    #   contents: write
+    #   pull-requests: write
+    #   issues: write
+
+    steps:
+      # - uses: actions/checkout@v4
+      #   with:
+      #     fetch-depth: 0
+      #     ref: main  # or whatever branch you're targeting
+
+      - name: Fast forwarding
+        uses: sequoia-pgp/fast-forward@v1
+        with:
+          merge: true
+          debug: true
+          # To reduce the workflow's verbosity, use 'on-error'
+          # to only post a comment when an error occurs, or 'never' to
+          # never post a comment.  (In all cases the information is
+          # still available in the step's summary.)
+          comment: on-error
+          github_token: ${{ github.GITHUB_TOKEN }}
