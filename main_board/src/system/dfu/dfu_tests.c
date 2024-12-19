@@ -136,6 +136,12 @@ ZTEST(hil, test_crc_over_flash)
         ret = flash_area_read(flash_area_p, (off_t)off, buf, len);
         zassert_equal(ret, 0, "Unable to read @0x%x in secondary slot", off);
         computed_crc = crc32_ieee_update(computed_crc, buf, len);
+
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+        // hogging thread on diamond main mcu (bigger & external flash)
+        // leave some time for watchdog to be kicked
+        k_msleep(1);
+#endif
     }
 
     flash_area_close(flash_area_p);
