@@ -9,8 +9,8 @@ endif ()
 
 find_package(Zephyr COMPONENTS unittest REQUIRED HINTS $ENV{ZEPHYR_BASE})
 
-set(ORB_DIR ${ZEPHYR_BASE}/../orb/public)
-set(APP_DIR ${ORB_DIR}/main_board)
+get_filename_component(APP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../.." ABSOLUTE)
+get_filename_component(ORB_DIR "${APP_DIR}/.." ABSOLUTE)
 
 target_include_directories(testbinary PRIVATE
     mock_include

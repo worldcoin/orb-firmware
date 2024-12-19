@@ -1,0 +1,2 @@
+config BOARD_PEARL_MAIN
+	select SOC_STM32G474XX

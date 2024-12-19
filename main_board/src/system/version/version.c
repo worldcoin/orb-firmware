@@ -46,33 +46,38 @@ const struct adc_dt_spec adc_dt_spec = ADC_DT_SPEC_GET(DT_PATH(board_version));
 #define ADC_REFERENCE        ADC_REF_INTERNAL
 #define ADC_ACQUISITION_TIME ADC_ACQ_TIME_DEFAULT
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-static const struct gpio_dt_spec hw_main_board_bit0 = GPIO_DT_SPEC_GET_BY_IDX(
-    DT_PATH(zephyr_user), hw_version_main_board_gpios, 0);
-static const struct gpio_dt_spec hw_main_board_bit1 = GPIO_DT_SPEC_GET_BY_IDX(
-    DT_PATH(zephyr_user), hw_version_main_board_gpios, 1);
-static const struct gpio_dt_spec hw_main_board_bit2 = GPIO_DT_SPEC_GET_BY_IDX(
-    DT_PATH(zephyr_user), hw_version_main_board_gpios, 2);
-static const struct gpio_dt_spec hw_main_board_bit3 = GPIO_DT_SPEC_GET_BY_IDX(
-    DT_PATH(zephyr_user), hw_version_main_board_gpios, 3);
+static const struct gpio_dt_spec hw_main_board_bit[4] = {
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_main_board_gpios,
+                            0),
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_main_board_gpios,
+                            1),
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_main_board_gpios,
+                            2),
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_main_board_gpios,
+                            3),
+};
 
-static const struct gpio_dt_spec hw_front_unit_bit0 = GPIO_DT_SPEC_GET_BY_IDX(
-    DT_PATH(zephyr_user), hw_version_front_unit_gpios, 0);
-static const struct gpio_dt_spec hw_front_unit_bit1 = GPIO_DT_SPEC_GET_BY_IDX(
-    DT_PATH(zephyr_user), hw_version_front_unit_gpios, 1);
-static const struct gpio_dt_spec hw_front_unit_bit2 = GPIO_DT_SPEC_GET_BY_IDX(
-    DT_PATH(zephyr_user), hw_version_front_unit_gpios, 2);
-static const struct gpio_dt_spec hw_front_unit_bit3 = GPIO_DT_SPEC_GET_BY_IDX(
-    DT_PATH(zephyr_user), hw_version_front_unit_gpios, 3);
+static const struct gpio_dt_spec hw_front_unit_bit[4] = {
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_front_unit_gpios,
+                            0),
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_front_unit_gpios,
+                            1),
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_front_unit_gpios,
+                            2),
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_front_unit_gpios,
+                            3),
+};
 
-static const struct gpio_dt_spec hw_pwr_board_bit0 = GPIO_DT_SPEC_GET_BY_IDX(
-    DT_PATH(zephyr_user), hw_version_pwr_board_gpios, 0);
-static const struct gpio_dt_spec hw_pwr_board_bit1 = GPIO_DT_SPEC_GET_BY_IDX(
-    DT_PATH(zephyr_user), hw_version_pwr_board_gpios, 1);
-static const struct gpio_dt_spec hw_pwr_board_bit2 = GPIO_DT_SPEC_GET_BY_IDX(
-    DT_PATH(zephyr_user), hw_version_pwr_board_gpios, 2);
-static const struct gpio_dt_spec hw_pwr_board_bit3 = GPIO_DT_SPEC_GET_BY_IDX(
-    DT_PATH(zephyr_user), hw_version_pwr_board_gpios, 3);
-
+static const struct gpio_dt_spec hw_pwr_board_bit[4] = {
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_pwr_board_gpios,
+                            0),
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_pwr_board_gpios,
+                            1),
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_pwr_board_gpios,
+                            2),
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_pwr_board_gpios,
+                            3),
+};
 #endif
 
 static orb_mcu_Hardware_OrbVersion version =
@@ -104,6 +109,29 @@ version_fw_send(uint32_t remote)
 
     return publish_new(&versions, sizeof(versions),
                        orb_mcu_main_McuToJetson_versions_tag, remote);
+}
+
+__maybe_unused static int
+get_hw_bits(const struct gpio_dt_spec pins_bit[4], int *hw_bits)
+{
+    *hw_bits = 0;
+
+    for (int i = 0; i < 4; i++) {
+        const int ret = gpio_pin_configure_dt(&pins_bit[i], GPIO_INPUT);
+        if (ret != 0) {
+            LOG_ERR("Failed to configure pin %d: %u", i, pins_bit[i].pin);
+            return RET_ERROR_INTERNAL;
+        }
+
+        int pin = gpio_pin_get_dt(&pins_bit[i]);
+        if (pin < 0) {
+            LOG_ERR("Failed to get pin %d: %d", i, pin);
+            return RET_ERROR_INTERNAL;
+        }
+        *hw_bits |= pin << i;
+    }
+
+    return RET_SUCCESS;
 }
 
 static ret_code_t
@@ -177,15 +205,11 @@ version_fetch_hardware_rev(orb_mcu_Hardware *hw_version)
             }
         }
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-        gpio_pin_configure_dt(&hw_main_board_bit0, GPIO_INPUT);
-        gpio_pin_configure_dt(&hw_main_board_bit1, GPIO_INPUT);
-        gpio_pin_configure_dt(&hw_main_board_bit2, GPIO_INPUT);
-        gpio_pin_configure_dt(&hw_main_board_bit3, GPIO_INPUT);
-
-        int hw_bits = gpio_pin_get_dt(&hw_main_board_bit3) << 3 |
-                      gpio_pin_get_dt(&hw_main_board_bit2) << 2 |
-                      gpio_pin_get_dt(&hw_main_board_bit1) << 1 |
-                      gpio_pin_get_dt(&hw_main_board_bit0);
+        int hw_bits;
+        const int ret = get_hw_bits(hw_main_board_bit, &hw_bits);
+        if (ret != RET_SUCCESS) {
+            return ret;
+        }
 
         switch (hw_bits) {
         case 0:
@@ -227,15 +251,12 @@ version_get_front_unit_rev(void)
 
     if (front_unit_version ==
         orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_UNKNOWN) {
-        gpio_pin_configure_dt(&hw_front_unit_bit0, GPIO_INPUT);
-        gpio_pin_configure_dt(&hw_front_unit_bit1, GPIO_INPUT);
-        gpio_pin_configure_dt(&hw_front_unit_bit2, GPIO_INPUT);
-        gpio_pin_configure_dt(&hw_front_unit_bit3, GPIO_INPUT);
-
-        int hw_bits = gpio_pin_get_dt(&hw_front_unit_bit3) << 3 |
-                      gpio_pin_get_dt(&hw_front_unit_bit2) << 2 |
-                      gpio_pin_get_dt(&hw_front_unit_bit1) << 1 |
-                      gpio_pin_get_dt(&hw_front_unit_bit0);
+        int hw_bits;
+        const int ret = get_hw_bits(hw_front_unit_bit, &hw_bits);
+        if (ret != RET_SUCCESS) {
+            ASSERT_SOFT(ret);
+            return orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_UNKNOWN;
+        }
 
         switch (hw_bits) {
         case 0:
@@ -272,15 +293,12 @@ version_get_power_board_rev(void)
 
     if (power_board_version ==
         orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_UNKNOWN) {
-        gpio_pin_configure_dt(&hw_pwr_board_bit0, GPIO_INPUT);
-        gpio_pin_configure_dt(&hw_pwr_board_bit1, GPIO_INPUT);
-        gpio_pin_configure_dt(&hw_pwr_board_bit2, GPIO_INPUT);
-        gpio_pin_configure_dt(&hw_pwr_board_bit3, GPIO_INPUT);
-
-        int hw_bits = gpio_pin_get_dt(&hw_pwr_board_bit3) << 3 |
-                      gpio_pin_get_dt(&hw_pwr_board_bit2) << 2 |
-                      gpio_pin_get_dt(&hw_pwr_board_bit1) << 1 |
-                      gpio_pin_get_dt(&hw_pwr_board_bit0);
+        int hw_bits;
+        const int ret = get_hw_bits(hw_pwr_board_bit, &hw_bits);
+        if (ret != RET_SUCCESS) {
+            ASSERT_SOFT(ret);
+            return orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_UNKNOWN;
+        }
 
         switch (hw_bits) {
         case 0:

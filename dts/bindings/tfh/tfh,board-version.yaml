@@ -4,7 +4,7 @@
 description: |
   Description for a voltage divider that allows to get the hardware version of the board.
 
-compatible: "worldcoin,board-version"
+compatible: "tfh,board-version"
 
 properties:
   io-channels:
