@@ -13,6 +13,11 @@ jobs:
       issues: write
 
     steps:
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJSON(github) }}
+        run: echo "$GITHUB_CONTEXT"
+
       - name: Fast forwarding
         uses: sequoia-pgp/fast-forward@v1
         with:
@@ -23,3 +28,4 @@ jobs:
           # never post a comment.  (In all cases the information is
           # still available in the step's summary.)
           comment: on-error
+          # token: ${{ secrets.GIT_HUB_TOKEN }}
