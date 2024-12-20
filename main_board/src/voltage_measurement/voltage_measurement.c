@@ -201,10 +201,10 @@ voltage_measurement_get_vref_mv(void)
 
     if (vrefint_raw == 0) {
         return 0;
-    } else {
-        return voltage_measurement_get_vref_mv_from_raw(hardware_version,
-                                                        vrefint_raw);
     }
+
+    return voltage_measurement_get_vref_mv_from_raw(hardware_version,
+                                                    vrefint_raw);
 }
 
 static ret_code_t

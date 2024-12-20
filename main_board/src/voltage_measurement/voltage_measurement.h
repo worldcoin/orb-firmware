@@ -49,7 +49,7 @@ typedef enum {
     CHANNEL_COUNT
 } voltage_measurement_channel_t;
 
-static inline uint16_t
+__maybe_unused static uint16_t
 voltage_measurement_get_vref_mv_from_raw(
     orb_mcu_Hardware_OrbVersion hardware_version, uint16_t vrefint_raw)
 {
