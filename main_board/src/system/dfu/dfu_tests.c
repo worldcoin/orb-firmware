@@ -71,7 +71,7 @@ ZTEST(hil, test_dfu_upload_tests)
                dfu_block.message.j_message.payload.dfu_block.block_number + 1,
                DFU_BLOCK_SIZE_MAX);
 
-        k_msleep(100);
+        k_msleep(200);
     }
 
     LOG_INF("Reading back flash");
@@ -117,8 +117,6 @@ ZTEST(hil, test_dfu_upload_tests)
 // Test CRC speed over entire slot
 ZTEST(hil, test_crc_over_flash)
 {
-    uint32_t tick = k_cycle_get_32();
-
     const struct flash_area *flash_area_p = NULL;
     int ret = flash_area_open(DT_FIXED_PARTITION_ID(DT_ALIAS(secondary_slot)),
                               &flash_area_p);
@@ -126,16 +124,24 @@ ZTEST(hil, test_crc_over_flash)
 
     uint8_t buf[DFU_FLASH_PAGE_SIZE];
     uint32_t computed_crc = 0;
+    uint32_t crc_computation_ticks = 0;
+
     // read entire flash area content to calculate CRC32
     for (size_t off = 0; off < flash_area_p->fa_size;
          off += DFU_FLASH_PAGE_SIZE) {
-        size_t len = (flash_area_p->fa_size - off < DFU_FLASH_PAGE_SIZE)
-                         ? flash_area_p->fa_size - off
-                         : DFU_FLASH_PAGE_SIZE;
 
-        ret = flash_area_read(flash_area_p, (off_t)off, buf, len);
-        zassert_equal(ret, 0, "Unable to read @0x%x in secondary slot", off);
-        computed_crc = crc32_ieee_update(computed_crc, buf, len);
+        uint32_t tick = k_cycle_get_32();
+        {
+            size_t len = (flash_area_p->fa_size - off < DFU_FLASH_PAGE_SIZE)
+                             ? flash_area_p->fa_size - off
+                             : DFU_FLASH_PAGE_SIZE;
+
+            ret = flash_area_read(flash_area_p, (off_t)off, buf, len);
+            zassert_equal(ret, 0, "Unable to read @0x%x in secondary slot",
+                          off);
+            computed_crc = crc32_ieee_update(computed_crc, buf, len);
+        }
+        crc_computation_ticks += (k_cycle_get_32() - tick);
 
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
         // hogging thread on diamond main mcu (bigger & external flash)
@@ -147,12 +153,12 @@ ZTEST(hil, test_crc_over_flash)
     flash_area_close(flash_area_p);
     UNUSED(computed_crc);
 
-    uint32_t tock = k_cycle_get_32();
+    int32_t crc_computation_us = (int32_t)(crc_computation_ticks) /
+                                 (sys_clock_hw_cycles_per_sec() / 1000 / 1000);
 
-    int32_t crc_computation_us =
-        (int32_t)(tock - tick) / (sys_clock_hw_cycles_per_sec() / 1000 / 1000);
     LOG_INF("CRC over entire slot took %uus, %u cycles (%u cycle/sec)",
-            crc_computation_us, tock - tick, sys_clock_hw_cycles_per_sec());
+            crc_computation_us, crc_computation_ticks,
+            sys_clock_hw_cycles_per_sec());
 
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
     // check within 1400ms (1.4s)
