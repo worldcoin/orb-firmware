@@ -15,7 +15,7 @@ jobs:
     steps:
       - run: gh api user | jq .login
         env:
-          GITHUB_TOKEN: ${{ secrets.GIT_HUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Fast forwarding
         uses: sequoia-pgp/fast-forward@v1
@@ -27,4 +27,4 @@ jobs:
           # never post a comment.  (In all cases the information is
           # still available in the step's summary.)
           comment: on-error
-          token: ${{ secrets.GIT_HUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
