@@ -1,8 +1,11 @@
 # VL53L1X time of flight sensor configuration options
 
-config VL53L1X
+menuconfig VL53L1X
     bool "VL53L1X time of flight sensor"
-    depends on I2C
+    default y
+    depends on DT_HAS_ST_VL53L1X_ENABLED
+    depends on ZEPHYR_HAL_ST_MODULE
+    select I2C
     select HAS_STLIB
     help
         Enable driver for VL53L1X I2C-based time of flight sensor.

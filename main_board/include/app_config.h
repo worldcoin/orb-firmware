@@ -107,6 +107,7 @@
 // logging thread priority              14
 
 #define SYS_INIT_UI_LEDS_PRIORITY               62
+#define SYS_INIT_I2C1_INIT_PRIORITY             55
 #define SYS_INIT_POWER_SUPPLY_INIT_PRIORITY     54
 #define SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY 53
 #define SYS_INIT_GPIO_CONFIG_PRIORITY           52

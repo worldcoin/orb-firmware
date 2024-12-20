@@ -1,5 +1,6 @@
-identifier: pearl_main
-name: Worldcoin Pearl Orb, Main MCU
+identifier: diamond_main
+name: Worldcoin Diamond Orb, Main MCU
+vendor: tfh
 type: mcu
 arch: arm
 toolchain:

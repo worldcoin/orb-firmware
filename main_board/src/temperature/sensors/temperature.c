@@ -46,15 +46,13 @@ BUILD_ASSERT((int)(MAIN_BOARD_OVERTEMP_C - OVERTEMP_TO_NOMINAL_DROP_C) > 0 &&
              "Unsigned integer will underflow");
 
 static const uint16_t *cal1_addr =
-    (uint16_t *)DT_PROP(DT_INST(0, st_stm32_temp_cal), ts_cal1_addr);
-static const int16_t cal1_temp =
-    DT_PROP(DT_INST(0, st_stm32_temp_cal), ts_cal1_temp);
+    (uint16_t *)DT_PROP(DT_NODELABEL(die_temp), ts_cal1_addr);
+static const int16_t cal1_temp = DT_PROP(DT_NODELABEL(die_temp), ts_cal1_temp);
 static const uint16_t *cal2_addr =
-    (uint16_t *)DT_PROP(DT_INST(0, st_stm32_temp_cal), ts_cal2_addr);
-static const int16_t cal2_temp =
-    DT_PROP(DT_INST(0, st_stm32_temp_cal), ts_cal2_temp);
+    (uint16_t *)DT_PROP(DT_NODELABEL(die_temp), ts_cal2_addr);
+static const int16_t cal2_temp = DT_PROP(DT_NODELABEL(die_temp), ts_cal2_temp);
 static const uint16_t cal_vref_mv =
-    DT_PROP(DT_INST(0, st_stm32_temp_cal), ts_cal_vrefanalog);
+    DT_PROP(DT_NODELABEL(die_temp), ts_cal_vrefanalog);
 
 struct sensor_and_channel; // forward declaration
 
@@ -489,15 +487,18 @@ init_sensor_and_channel(struct sensor_and_channel *x)
 }
 
 static int16_t
-calculate_die_temperature(uint16_t vref_mv, uint16_t ts_data_raw)
+calculate_die_temperature(const uint16_t vref_mv, const uint16_t ts_data_raw)
 {
-    int32_t temperature_degrees = ((int32_t)cal2_temp - (int32_t)cal1_temp) *
-                                  ts_data_raw * vref_mv / cal_vref_mv /
-                                  (*cal2_addr - *cal1_addr);
-    temperature_degrees -= ((int32_t)cal2_temp - (int32_t)cal1_temp) *
-                           (*cal1_addr) / (*cal2_addr - *cal1_addr);
-    temperature_degrees += 30;
-    return (int16_t)temperature_degrees;
+    // see stm32_temp.c
+
+    const float slope =
+        (float)(cal2_temp - cal1_temp) / (float)(*cal2_addr - *cal1_addr);
+    const float sense_data = (float)vref_mv / cal_vref_mv * ts_data_raw;
+
+    const int16_t temperature_degrees =
+        (int16_t)slope * (sense_data - *cal1_addr) + (float)cal1_temp;
+
+    return temperature_degrees;
 }
 
 static ret_code_t
@@ -836,7 +837,7 @@ check_overtemp_conditions(void)
         // Warning so that it's logged over CAN
         LOG_WRN(
             "Over-temperature conditions have abated, restoring fan to %.2f%%",
-            ((float)fan_speed_before_overtemperature / UINT16_MAX) * 100);
+            ((double)fan_speed_before_overtemperature / UINT16_MAX) * 100);
 
         fan_set_speed_by_value(fan_speed_before_overtemperature);
     } else if (old_num_sensors_in_overtemp_conditions == 0 &&
