@@ -45,16 +45,16 @@ BUILD_ASSERT((int)(MAIN_BOARD_OVERTEMP_C - OVERTEMP_TO_NOMINAL_DROP_C) > 0 &&
                  (int)(FRONT_UNIT_OVERTEMP_C - OVERTEMP_TO_NOMINAL_DROP_C) > 0,
              "Unsigned integer will underflow");
 
+// use `die_temp` node to fetch calibration values, even though the driver
+// is not used, as we use directly the adc driver.
 static const uint16_t *cal1_addr =
-    (uint16_t *)DT_PROP(DT_INST(0, st_stm32_temp_cal), ts_cal1_addr);
-static const int16_t cal1_temp =
-    DT_PROP(DT_INST(0, st_stm32_temp_cal), ts_cal1_temp);
+    (uint16_t *)DT_PROP(DT_NODELABEL(die_temp), ts_cal1_addr);
+static const int16_t cal1_temp = DT_PROP(DT_NODELABEL(die_temp), ts_cal1_temp);
 static const uint16_t *cal2_addr =
-    (uint16_t *)DT_PROP(DT_INST(0, st_stm32_temp_cal), ts_cal2_addr);
-static const int16_t cal2_temp =
-    DT_PROP(DT_INST(0, st_stm32_temp_cal), ts_cal2_temp);
+    (uint16_t *)DT_PROP(DT_NODELABEL(die_temp), ts_cal2_addr);
+static const int16_t cal2_temp = DT_PROP(DT_NODELABEL(die_temp), ts_cal2_temp);
 static const uint16_t cal_vref_mv =
-    DT_PROP(DT_INST(0, st_stm32_temp_cal), ts_cal_vrefanalog);
+    DT_PROP(DT_NODELABEL(die_temp), ts_cal_vrefanalog);
 
 struct sensor_and_channel; // forward declaration
 
@@ -489,7 +489,7 @@ init_sensor_and_channel(struct sensor_and_channel *x)
 }
 
 static int16_t
-calculate_die_temperature(uint16_t vref_mv, uint16_t ts_data_raw)
+calculate_die_temperature(const uint16_t vref_mv, const uint16_t ts_data_raw)
 {
     int32_t temperature_degrees = ((int32_t)cal2_temp - (int32_t)cal1_temp) *
                                   ts_data_raw * vref_mv / cal_vref_mv /
