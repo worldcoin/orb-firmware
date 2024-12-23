@@ -1050,6 +1050,17 @@ voltage_measurement_init(const orb_mcu_Hardware *hw_version,
         }
     }
 
+    /* /!\ hardcoded */
+    /* Do not remove existing paths so read value first */
+    uint32_t path =
+        LL_ADC_GetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(ADC1));
+    LL_ADC_SetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(ADC1),
+                                   path | LL_ADC_PATH_INTERNAL_TEMPSENSOR |
+                                       LL_ADC_PATH_INTERNAL_VBAT);
+    path = LL_ADC_GetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(ADC5));
+    LL_ADC_SetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(ADC5),
+                                   path | LL_ADC_PATH_INTERNAL_VREFINT);
+
     k_tid_t tid_adc1 = k_thread_create(
         &voltage_measurement_adc1_thread_data,
         voltage_measurement_adc1_thread_stack,
