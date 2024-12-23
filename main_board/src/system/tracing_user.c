@@ -17,9 +17,11 @@ sys_trace_sys_init_exit_user(const struct init_entry *entry, int level,
     UNUSED_PARAMETER(level);
 
     if (result != 0) {
+        /// stop if debugging
+        ///
         /// to get the symbol name of the function that failed, use the
         /// following command:
         /// (gdb) info symbol (int)entry->init_fn
-        __BKPT(0);
+        HALT_IF_DEBUGGING();
     }
 }
