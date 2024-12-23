@@ -386,6 +386,13 @@ liquid_lens_init(const orb_mcu_Hardware *hw_version)
         }
     }
 
+    /* /!\ hardcoded */
+    /* Do not remove existing paths so read value first */
+    uint32_t path =
+        LL_ADC_GetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(ADC3));
+    LL_ADC_SetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(ADC3),
+                                   path | LL_ADC_PATH_INTERNAL_VREFINT);
+
     thread_id =
         k_thread_create(&liquid_lens_thread_data, liquid_lens_stack_area,
                         K_THREAD_STACK_SIZEOF(liquid_lens_stack_area),
