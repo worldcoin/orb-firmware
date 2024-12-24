@@ -60,10 +60,8 @@ process_tx_messages_thread()
     struct isotp_send_ctx send_ctx = {0};
 
     // CAN ISO-TP addressing
-    struct isotp_msg_id mcu_to_jetson_dst_addr = {
-        .std_id = 0, .ide = 0, .use_ext_addr = 0};
-    struct isotp_msg_id mcu_to_jetson_src_addr = {
-        .std_id = 0, .ide = 0, .use_ext_addr = 0};
+    struct isotp_msg_id mcu_to_jetson_dst_addr = {.std_id = 0, .flags = 0};
+    struct isotp_msg_id mcu_to_jetson_src_addr = {.std_id = 0, .flags = 0};
     int ret;
 
     while (1) {

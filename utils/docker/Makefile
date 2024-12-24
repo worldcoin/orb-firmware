@@ -1,6 +1,10 @@
 # Use DOCKER_TAG if passed in from command line
 DOCKER_IMAGE_NAME := orb-mcu-firmware-builder$(if $(DOCKER_TAG),:$(DOCKER_TAG),:local)
 
+# Get the project root directory
+WEST_YAML := $(shell west manifest --path)
+PROJ_DIR := $(dirname $(WEST_YAML))
+
 ifneq ($(filter help all build,$(MAKECMDGOALS)),)
 
 .PHONY: help
@@ -24,8 +28,8 @@ help:
 	@:$(info )
 	@:$(info Examples:)
 	@:$(info )
-	@:$(info make main_mcu-build REPO_DIR=/home/$USER/firmware)
-	@:$(info make main_mcu-tests REPO_DIR=/home/$USER/firmware)
+	@:$(info make main_mcu-build WEST_TOPDIR=/home/$USER/firmware)
+	@:$(info make main_mcu-tests WEST_TOPDIR=/home/$USER/firmware)
 
 .PHONY: all build
 all build: .docker_image_built
@@ -36,8 +40,8 @@ all build: .docker_image_built
 
 else
 
-ifndef REPO_DIR
-REPO_DIR := $(shell west topdir)
+ifndef WEST_TOPDIR
+WEST_TOPDIR := $(shell west topdir)
 endif
 
 ifdef BOARD
@@ -64,18 +68,18 @@ shell:
 
 mcu-build:
 	$(DOCKER_CMD) /bin/bash -c -- \
-		'cd $(REPO_DIR)/orb/public/main_board && west build $(BOARD_CMD)'
+		'cd $(PROJ_DIR)/main_board && west build $(BOARD_CMD)'
 
 mcu-flash:
 	$(DOCKER_CMD) /bin/bash -c -- \
-		'cd $(REPO_DIR)/orb/public/main_board && west build $(BOARD_CMD) && su-exec root west flash'
+		'cd $(PROJ_DIR)/main_board && west build $(BOARD_CMD) && su-exec root west flash'
 
 mcu-clean:
-	cd $(REPO_DIR)/orb/main_board && rm -rf build
+	cd $(WEST_TOPDIR)/orb/main_board && rm -rf build
 
 mcu-tests:
 	$(DOCKER_CMD) /bin/bash -c -- \
-		'source $(REPO_DIR)/zephyr/zephyr-env.sh && cd $(REPO_DIR)/orb/main_board && twister -T . -vv -c -p native_posix_64'
+		'source $(WEST_TOPDIR)/zephyr/zephyr-env.sh && cd $(PROJ_DIR)/main_board && twister -T . -vv -c -p native_posix_64'
 
 .PHONY: format
 format:
