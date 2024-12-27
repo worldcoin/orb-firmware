@@ -88,6 +88,9 @@ list(APPEND SOURCES_FILES
     src/optics/liquid_lens/liquid_lens.c
     src/optics/mirror/mirror.c
 
+    src/optics/polarizer/drv8434/drv8434_private.c
+    src/optics/polarizer/drv8434/drv8434.c
+
     src/power/boot/boot.c
 
     src/runner/runner.c
