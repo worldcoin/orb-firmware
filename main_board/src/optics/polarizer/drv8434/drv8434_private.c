@@ -15,91 +15,6 @@
 
 #include "drv8434_private.h"
 
-ret_code_t
-drv8434_private_reg_read(uint8_t address, DRV8434_Instance_t *instance)
-{
-    if (instance == NULL) {
-        return RET_ERROR_INVALID_PARAM;
-    }
-
-    if (!validate_register_operation(address, false)) {
-        return RET_ERROR_INVALID_ADDR;
-    }
-
-    uint16_t tx_word = 0;
-
-    // Load register address into tx word
-    tx_word =
-        tx_word | ((uint16_t)(address) << DRV8434_SPI_TX_ADDRESS_START_POS);
-
-    // Load r/w bit into tx word
-    tx_word = tx_word | ((uint16_t)(DRV8434_SPI_TX_RW_BIT_READ)
-                         << DRV8434_SPI_TX_RW_START_POS);
-
-    // Wipe TX and RX buffers before each operation
-    memset(instance->spi.rx_buffer, 0, sizeof(instance->spi.rx_buffer));
-    memset(instance->spi.tx_buffer, 0, sizeof(instance->spi.tx_buffer));
-
-    instance->spi.tx_buffer[0u] = (tx_word >> 8) & DRV8434_SPI_TX_LSB_MASK;
-    instance->spi.tx_buffer[1u] = tx_word & DRV8434_SPI_TX_LSB_MASK;
-
-    int ret = spi_transceive(instance->driver_cfg.spi_bus_controller,
-                             &instance->driver_cfg.spi_cfg,
-                             &instance->spi.tx_bufs, &instance->spi.rx_bufs);
-
-    if (ret) {
-        return RET_ERROR_BUSY;
-    }
-
-    instance->registers.fault.raw = instance->spi.rx_buffer[0u];
-
-    populate_shadow_register(address, instance->spi.rx_buffer[1u], instance);
-
-    return RET_SUCCESS;
-}
-
-ret_code_t
-drv8434_private_reg_write(uint8_t address, uint8_t data,
-                          DRV8434_Instance_t *instance)
-{
-    if (instance == NULL) {
-        return RET_ERROR_INVALID_PARAM;
-    }
-
-    if (!validate_register_operation(address, false)) {
-        return RET_ERROR_INVALID_ADDR;
-    }
-
-    uint16_t tx_word = 0;
-
-    // Load register address into tx word
-    tx_word =
-        tx_word | ((uint16_t)(address) << DRV8434_SPI_TX_ADDRESS_START_POS);
-
-    // Load data into tx word
-    tx_word = tx_word | (uint16_t)(data);
-
-    // Wipe TX and RX buffers before each operation
-    memset(instance->spi.rx_buffer, 0, sizeof(instance->spi.rx_buffer));
-    memset(instance->spi.tx_buffer, 0, sizeof(instance->spi.tx_buffer));
-
-    instance->spi.tx_buffer[0u] = (tx_word >> 8) & DRV8434_SPI_TX_LSB_MASK;
-    instance->spi.tx_buffer[1u] = tx_word & DRV8434_SPI_TX_LSB_MASK;
-
-    int ret = spi_transceive(instance->driver_cfg.spi_bus_controller,
-                             &instance->driver_cfg.spi_cfg,
-                             &instance->spi.tx_bufs, &instance->spi.rx_bufs);
-
-    if (ret) {
-        return RET_ERROR_BUSY;
-    }
-
-    // Only care about fault status bits reported back
-    instance->registers.fault.raw = instance->spi.rx_buffer[0u];
-
-    return RET_SUCCESS;
-}
-
 /**
  * @brief DRV8434 Register Operation Validity Check
  *
@@ -196,4 +111,89 @@ populate_shadow_register(uint8_t address, uint8_t data,
         break;
     }
     return;
+}
+
+ret_code_t
+drv8434_private_reg_read(uint8_t address, DRV8434_Instance_t *instance)
+{
+    if (instance == NULL) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    if (!validate_register_operation(address, false)) {
+        return RET_ERROR_INVALID_ADDR;
+    }
+
+    uint16_t tx_word = 0;
+
+    // Load register address into tx word
+    tx_word =
+        tx_word | ((uint16_t)(address) << DRV8434_SPI_TX_ADDRESS_START_POS);
+
+    // Load r/w bit into tx word
+    tx_word = tx_word | ((uint16_t)(DRV8434_SPI_TX_RW_BIT_READ)
+                         << DRV8434_SPI_TX_RW_START_POS);
+
+    // Wipe TX and RX buffers before each operation
+    memset(instance->spi.rx_buffer, 0, sizeof(instance->spi.rx_buffer));
+    memset(instance->spi.tx_buffer, 0, sizeof(instance->spi.tx_buffer));
+
+    instance->spi.tx_buffer[0u] = (tx_word >> 8) & DRV8434_SPI_TX_LSB_MASK;
+    instance->spi.tx_buffer[1u] = tx_word & DRV8434_SPI_TX_LSB_MASK;
+
+    int ret = spi_transceive(instance->driver_cfg.spi_bus_controller,
+                             &instance->driver_cfg.spi_cfg,
+                             &instance->spi.tx_bufs, &instance->spi.rx_bufs);
+
+    if (ret) {
+        return RET_ERROR_BUSY;
+    }
+
+    instance->registers.fault.raw = instance->spi.rx_buffer[0u];
+
+    populate_shadow_register(address, instance->spi.rx_buffer[1u], instance);
+
+    return RET_SUCCESS;
+}
+
+ret_code_t
+drv8434_private_reg_write(uint8_t address, uint8_t data,
+                          DRV8434_Instance_t *instance)
+{
+    if (instance == NULL) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    if (!validate_register_operation(address, false)) {
+        return RET_ERROR_INVALID_ADDR;
+    }
+
+    uint16_t tx_word = 0;
+
+    // Load register address into tx word
+    tx_word =
+        tx_word | ((uint16_t)(address) << DRV8434_SPI_TX_ADDRESS_START_POS);
+
+    // Load data into tx word
+    tx_word = tx_word | (uint16_t)(data);
+
+    // Wipe TX and RX buffers before each operation
+    memset(instance->spi.rx_buffer, 0, sizeof(instance->spi.rx_buffer));
+    memset(instance->spi.tx_buffer, 0, sizeof(instance->spi.tx_buffer));
+
+    instance->spi.tx_buffer[0u] = (tx_word >> 8) & DRV8434_SPI_TX_LSB_MASK;
+    instance->spi.tx_buffer[1u] = tx_word & DRV8434_SPI_TX_LSB_MASK;
+
+    int ret = spi_transceive(instance->driver_cfg.spi_bus_controller,
+                             &instance->driver_cfg.spi_cfg,
+                             &instance->spi.tx_bufs, &instance->spi.rx_bufs);
+
+    if (ret) {
+        return RET_ERROR_BUSY;
+    }
+
+    // Only care about fault status bits reported back
+    instance->registers.fault.raw = instance->spi.rx_buffer[0u];
+
+    return RET_SUCCESS;
 }

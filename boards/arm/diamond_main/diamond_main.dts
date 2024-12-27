@@ -69,6 +69,8 @@
         supply-vbat-sw-enable-gpios = <&gpio_exp_pwr_brd 12 GPIO_ACTIVE_HIGH>;
         front-unit-pvcc-enabled-gpios = <&gpio_exp_front_unit 0 GPIO_ACTIVE_HIGH>;
 
+        polarizer-direction-gpios = <&gpio_exp1 1 GPIO_ACTIVE_HIGH>;
+
         // The signals FUSE_RST and FUSE_ACTIVE are available only on Front Unit 6.0 (PoC1) and 6.1 (PoC2)
         // On Front Unit 6.2 (B3) the signal EN_5V_SWITCHED is connected to the port expander pin P02 instead.
         front-unit-fuse-reset-gpios = <&gpio_exp_front_unit 2 GPIO_ACTIVE_LOW>;     // PoC1 & PoC2 only
@@ -785,6 +787,13 @@
         pinctrl-names = "default";
         channels = <3>;
     };
+
+    polarizer_step: polarizer_step {
+        compatible = "worldcoin,stm32-pwm";
+        pinctrl-0 = <&tim2_ch2_pd4>;
+        pinctrl-names = "default";
+        channels = <2>;
+    };
 };
 
 &timers3 {
@@ -1027,13 +1036,22 @@
 &spi1 {
     pinctrl-0 = <&spi1_sck_pa5 &spi1_miso_pa6 &spi1_mosi_pa7>;
     pinctrl-names = "default";
-    cs-gpios = <&gpioa 3 GPIO_ACTIVE_LOW>;
+    cs-gpios = <&gpioa 3 GPIO_ACTIVE_LOW>,
+               <&gpio_exp1 0 GPIO_ACTIVE_LOW>;  /* CS on I/O expander */
     status = "okay";
 
     motion_controller: motion_controller@0 {
         compatible = "tmc,5041-spi";
         reg = <0>;
         spi-max-frequency = <4000000>;
+        status = "okay";
+    };
+
+    polarizer_controller: polarizer_controller@1 {
+        compatible = "zephyr,spi-device";
+        reg = <1>;  /* This will use the I/O expander CS */
+        spi-max-frequency = <4000000>;
+        spi-mode = <0>;
         status = "okay";
     };
 };
