@@ -287,6 +287,16 @@ handle_shutdown(job_t *job)
     if (delay > 30) {
         job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
     } else {
+        // Send out shutdown scheduled CAN message
+        orb_mcu_main_ShutdownScheduled shutdown;
+        shutdown.shutdown_reason =
+            orb_mcu_main_ShutdownScheduled_ShutdownReason_JETSON_REQUESTED_REBOOT;
+        shutdown.has_ms_until_shutdown = true;
+        shutdown.ms_until_shutdown = delay * 1000;
+        publish_new(&shutdown, sizeof(shutdown),
+                    orb_mcu_main_McuToJetson_shutdown_tag,
+                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+
         int ret = reboot(delay);
 
         if (ret == RET_SUCCESS) {
