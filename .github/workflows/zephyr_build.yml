@@ -47,8 +47,8 @@ jobs:
         run: |
           cd ${{ github.job }}
           PROJ_DIR=$(dirname $(west manifest --path))
-          ENC_KEY_FILE="${PROJ_DIR}/utils/ota/enc-ec256-pub.pem"
           west build orb/bootloader -d orb/bootloader/build -b ${BOARD} -p -- \
           -DCMAKE_BUILD_TYPE="Release" \
           -DBUILD_FROM_CI=1 \
-          -DCONFIG_BOOT_SIGNATURE_KEY_FILE=\"${PROJ_DIR}/utils/ota/root-ec-p256.pem\"
+          -DCONFIG_BOOT_SIGNATURE_KEY_FILE=\"${PROJ_DIR}/utils/ota/root-ec-p256.pem\" \
+          -DCONFIG_BOOT_ENCRYPTION_KEY_FILE=\"${PROJ_DIR}/utils/ota/enc-ec256-priv.pem\"
