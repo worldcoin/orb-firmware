@@ -374,6 +374,7 @@ dfu_secondary_check(uint32_t crc32)
     }
 
     // read entire flash area content to calculate CRC32
+    int64_t tick_ms = k_uptime_get();
     for (size_t off = 0; off < img_size; off += DFU_FLASH_PAGE_SIZE) {
         size_t len = (img_size - off < DFU_FLASH_PAGE_SIZE)
                          ? img_size - off
@@ -385,6 +386,13 @@ dfu_secondary_check(uint32_t crc32)
             return RET_ERROR_INTERNAL;
         }
         computed_crc = crc32_ieee_update(computed_crc, buf, len);
+
+        // every 200ms, allow other lower priority threads to be executed
+        // at least to avoid starving the watchdog
+        if (k_uptime_get() - tick_ms > 200) {
+            tick_ms = k_uptime_get();
+            k_msleep(10);
+        }
     }
 
     flash_area_close(flash_area_p);
