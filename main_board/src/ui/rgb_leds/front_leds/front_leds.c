@@ -495,14 +495,11 @@ front_leds_set_pattern(orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern,
         }
     }
 
-    if (color == NULL) {
-        return RET_ERROR_INVALID_PARAM;
-    }
-
 #if defined(CONFIG_SPI_RGB_LED_DIMMING)
     // if dimming is not set or out of bounds
     // set it to the maximum brightness
-    if (color->dimming == 0 || color->dimming > RGB_BRIGHTNESS_MAX) {
+    if (color != NULL &&
+        (color->dimming == 0 || color->dimming > RGB_BRIGHTNESS_MAX)) {
         color->dimming = RGB_BRIGHTNESS_MAX;
     }
 #endif
