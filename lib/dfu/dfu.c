@@ -389,7 +389,7 @@ dfu_secondary_check(uint32_t crc32)
 
         // every 200ms, allow other lower priority threads to be executed
         // at least to avoid starving the watchdog
-        if (k_uptime_delta(&tick_ms) > 200) {
+        if (k_uptime_get() - tick_ms > 200) {
             tick_ms = k_uptime_get();
             k_msleep(10);
         }
