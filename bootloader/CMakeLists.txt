@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.20.0)
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
-    message(STATUS "Maximum optimization for size")
+    message(STATUS "⚡️ Maximum optimization for size")
     add_compile_options(-Os)
 
     # Add configuration file to overwrite debug configuration
     set(OVERLAY_CONFIG "release.conf")
 else ()
-    message(STATUS "Minimal optimization, logging enabled")
+    message(STATUS "🧐 Minimal optimization, logging enabled")
     add_compile_definitions(DEBUG)
 endif ()
 
