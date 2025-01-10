@@ -85,8 +85,14 @@ tof_1d_thread()
             continue;
         }
 
+        if (i2c_mutex) {
+            k_mutex_lock(i2c_mutex, K_FOREVER);
+        }
         ret = sensor_channel_get(tof_1d_device, SENSOR_CHAN_DISTANCE,
                                  &distance_value);
+        if (i2c_mutex) {
+            k_mutex_unlock(i2c_mutex);
+        }
         if (ret != 0) {
             // print error with debug level because the range status
             // can quickly throw an error when nothing in front of the sensor
@@ -107,8 +113,14 @@ tof_1d_thread()
 
         // check proximity from sensor itself
         memset(&distance_value, 0, sizeof(distance_value));
+        if (i2c_mutex) {
+            k_mutex_lock(i2c_mutex, K_FOREVER);
+        }
         ret = sensor_channel_get(tof_1d_device, SENSOR_CHAN_PROX,
                                  &distance_value);
+        if (i2c_mutex) {
+            k_mutex_unlock(i2c_mutex);
+        }
         if (ret != 0) {
             LOG_DBG("Error getting prox data %d", ret);
             continue;
@@ -161,11 +173,10 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex)
     }
     ret = sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
                           SENSOR_ATTR_CONFIGURATION, &distance_config);
-    ASSERT_SOFT(ret);
-
     if (i2c_mutex) {
         k_mutex_unlock(i2c_mutex);
     }
+    ASSERT_SOFT(ret);
 
     if (distance_unsafe_cb) {
         unsafe_cb = distance_unsafe_cb;
@@ -181,11 +192,10 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex)
     }
     ret = sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
                           SENSOR_ATTR_SAMPLING_FREQUENCY, &distance_config);
-    ASSERT_SOFT(ret);
-
     if (i2c_mutex) {
         k_mutex_unlock(i2c_mutex);
     }
+    ASSERT_SOFT(ret);
 
     return RET_SUCCESS;
 }
