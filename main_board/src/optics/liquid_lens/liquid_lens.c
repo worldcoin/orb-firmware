@@ -40,7 +40,7 @@ LOG_MODULE_REGISTER(liquid_lens, CONFIG_LIQUID_LENS_LOG_LEVEL);
     }
 
 static atomic_t target_current_ma;
-static int8_t prev_pwm = 0;
+static int8_t control_output_pwm = 0;
 
 static const struct gpio_dt_spec liquid_lens_en =
     GPIO_DT_SPEC_GET(DT_PATH(liquid_lens), enable_gpios);
@@ -135,46 +135,49 @@ adc_callback(const struct device *dev, const struct adc_sequence *sequence,
     ARG_UNUSED(sampling_index);
 
     if (liquid_lens_is_enabled()) {
-        uint16_t stm32_vref_mv = voltage_measurement_get_vref_mv_from_raw(
+        const uint16_t stm32_vref_mv = voltage_measurement_get_vref_mv_from_raw(
             version_get_hardware_rev(), adc_samples_buffer[ADC_CH_VREFINT]);
 
-        int32_t current_amplifier_sig_mv =
+        const int32_t current_amplifier_sig_mv =
             (int32_t)(((uint64_t)adc_samples_buffer[ADC_CH_INA240_SIG] *
                        (uint64_t)stm32_vref_mv) /
                       (uint64_t)(1 << 12));
-        int32_t current_amplifier_ref_mv =
+        const int32_t current_amplifier_ref_mv =
             (int32_t)(((uint64_t)adc_samples_buffer[ADC_CH_INA240_REF] *
                        (uint64_t)stm32_vref_mv) /
                       (uint64_t)(1 << 12));
 
-        int32_t shunt_voltage_mv =
+        const int32_t shunt_voltage_mv =
             current_amplifier_ref_mv - current_amplifier_sig_mv;
 
-        int32_t lens_current_ma = (int32_t)(((float)shunt_voltage_mv) /
-                                            liquid_lens_current_amplifier_gain /
-                                            liquid_lens_shunt_resistance_ohms);
+        const int32_t lens_current_ma =
+            (int32_t)(((float)shunt_voltage_mv) /
+                      liquid_lens_current_amplifier_gain /
+                      liquid_lens_shunt_resistance_ohms);
 
-        LOG_DBG("lens_current_ma: %d; sig_mV: %d; ref_mV: %d", lens_current_ma,
-                current_amplifier_sig_mv, current_amplifier_ref_mv);
         // PID control (currently just I.)
-        // todo: The data type of prev_pwm should be switched from int8_t to
-        // float. Otherwise the I control part can only accumulate an error if
-        // the error is quite large (9 mA right now). If the error is lower it
-        // is rounded down to zero.
-        // For more details see
+        // todo: The data type of control_output_pwm should be switched from
+        // int8_t to float. Otherwise the I control part can only accumulate an
+        // error if the error is quite large (9 mA right now). If the error is
+        // lower it is rounded down to zero. For more details see
         // https://linear.app/worldcoin/issue/O-2064/liquid-lens-current-hysteresis
-        int32_t lens_current_error =
+        const int32_t lens_current_error =
             atomic_get(&target_current_ma) - lens_current_ma;
-        int32_t ki = LIQUID_LENS_CONTROLLER_KI * 10000;
-        int32_t prev_control_output = (int32_t)prev_pwm;
-        prev_pwm += (int8_t)((int32_t)(lens_current_error * ki) / 10000);
-        if (prev_pwm < -LIQUID_LENS_MAX_CONTROL_OUTPUT) {
-            prev_pwm = -LIQUID_LENS_MAX_CONTROL_OUTPUT;
-        } else if (prev_pwm > LIQUID_LENS_MAX_CONTROL_OUTPUT) {
-            prev_pwm = LIQUID_LENS_MAX_CONTROL_OUTPUT;
-        }
-        if (prev_control_output != prev_pwm) {
-            liquid_lens_set_pwm_percentage(prev_pwm);
+        const int32_t ki = LIQUID_LENS_CONTROLLER_KI * 10000;
+        const int32_t prev_control_output = control_output_pwm;
+        control_output_pwm +=
+            (int8_t)((int32_t)(lens_current_error * ki) / 10000);
+
+        LOG_DBG(
+            "current: %dmA; sig: %dmV; ref: %dmV; error: %dmA; output: %d%%",
+            lens_current_ma, current_amplifier_sig_mv, current_amplifier_ref_mv,
+            lens_current_error, control_output_pwm);
+
+        control_output_pwm =
+            CLAMP(control_output_pwm, -LIQUID_LENS_MAX_CONTROL_OUTPUT,
+                  LIQUID_LENS_MAX_CONTROL_OUTPUT);
+        if (prev_control_output != control_output_pwm) {
+            liquid_lens_set_pwm_percentage(control_output_pwm);
         }
     }
 
@@ -392,3 +395,54 @@ liquid_lens_init(const orb_mcu_Hardware *hw_version)
 
     return RET_SUCCESS;
 }
+
+#ifdef CONFIG_ZTEST
+
+#include <zephyr/ztest.h>
+
+// Test CRC speed over entire secondary slot (external flash on Diamond)
+ZTEST(hil, test_liquid_lens)
+{
+    int32_t target;
+
+    // ensure clamping works
+    liquid_set_target_current_ma(500);
+    target = atomic_get(&target_current_ma);
+    zassert_equal(target, 400,
+                  "liquid_lens: target_current_ma not clamped to 400");
+
+    liquid_set_target_current_ma(-500);
+    target = atomic_get(&target_current_ma);
+    zassert_equal(target, -400,
+                  "liquid_lens: target_current_ma not clamped to -400");
+
+    // reset to 0
+    liquid_set_target_current_ma(0);
+    target = atomic_get(&target_current_ma);
+    zassert_equal(target, 0, "liquid_lens: target_current_ma not set");
+
+    liquid_lens_enable();
+    k_msleep(10);
+    int8_t prev_pwm = control_output_pwm;
+
+    // check that PWM value changes with new target current
+    liquid_set_target_current_ma(50);
+    target = atomic_get(&target_current_ma);
+    zassert_equal(target, 50, "liquid_lens: target_current_ma not set");
+
+    k_msleep(10);
+    zassert_not_equal(control_output_pwm, prev_pwm,
+                      "liquid_lens: pwm didn't change even though "
+                      "target_current_ma increased from 0 to 50");
+
+    // check that PWM value is stable
+    prev_pwm = control_output_pwm;
+
+    k_msleep(10);
+    zassert_equal(control_output_pwm, prev_pwm,
+                  "liquid_lens: pwm didn't stabilize");
+
+    liquid_lens_disable();
+}
+
+#endif
