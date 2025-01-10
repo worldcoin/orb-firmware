@@ -1,5 +1,6 @@
 config ORB_LIB_WATCHDOG
     bool "Watchdog library"
+    select WDT_DISABLE_AT_BOOT
     depends on WATCHDOG
 
 if ORB_LIB_WATCHDOG
