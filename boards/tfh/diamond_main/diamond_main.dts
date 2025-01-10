@@ -521,7 +521,7 @@
     status = "okay";
     pinctrl-0 = <&adc1_in1_pa0 &adc1_in2_pa1 &adc1_in3_pa2 &adc1_in7_pc1 &adc1_in8_pc2 &adc1_in9_pc3 &adc1_in11_pb12 &adc1_in14_pb11>;
     pinctrl-names = "default";
-    st,adc-clock-source = <SYNC>;
+    st,adc-clock-source = "SYNC";
     st,adc-prescaler = <4>;
     vref-mv = <2048>;
 
@@ -621,7 +621,7 @@
     status = "okay";
     pinctrl-0 = <&adc3_in10_pd13 &adc3_in11_pd14>;
     pinctrl-names = "default";
-    st,adc-clock-source = <SYNC>;
+    st,adc-clock-source = "SYNC";
     st,adc-prescaler = <4>;
     vref-mv = <2048>;
 
@@ -665,7 +665,7 @@
     status = "okay";
     pinctrl-0 = <&adc4_in1_pe14 &adc4_in2_pe15>;
     pinctrl-names = "default";
-    st,adc-clock-source = <SYNC>;
+    st,adc-clock-source = "SYNC";
     st,adc-prescaler = <4>;
     vref-mv = <2048>;
 
@@ -697,7 +697,7 @@
     status = "okay";
     pinctrl-0 = <&adc5_in7_pd10 &adc5_in8_pd11 &adc5_in9_pd12 &adc5_in12_pd8 &adc5_in13_pd9 &adc5_in14_pe10 &adc5_in15_pe11>;
     pinctrl-names = "default";
-    st,adc-clock-source = <SYNC>;
+    st,adc-clock-source = "SYNC";
     st,adc-prescaler = <4>;
     vref-mv = <2048>;
 
@@ -929,9 +929,10 @@
     current-speed = <1000000>;
     status = "okay";
 
-    dmas = <&dma1 3 LL_DMAMUX_REQ_USART1_RX ((DMA_DIR_PERIPH_TO_MEM << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT) | (1 << DMA_CONFIG_CYCLIC_SHIFT))>,
-           <&dma1 4 LL_DMAMUX_REQ_USART1_TX ((DMA_DIR_MEM_TO_PERIPH << DMA_CONFIG_DIR_SHIFT) | (1 << DMA_MEM_INC_ADDR_SHIFT) | (1 << DMA_CONFIG_CYCLIC_SHIFT))>;
+    dmas = <&dma1 3 LL_DMAMUX_REQ_USART1_RX (STM32_DMA_PERIPH_RX | STM32_DMA_MEM_8BITS | STM32_DMA_MODE_CYCLIC)>,
+           <&dma1 4 LL_DMAMUX_REQ_USART1_TX (STM32_DMA_PERIPH_TX)>;
     dma-names = "rx", "tx";
+    fifo-enable;
 };
 
 // debug
