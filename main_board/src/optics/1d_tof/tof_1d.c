@@ -3,6 +3,7 @@
 #include "mcu.pb.h"
 #include "orb_logs.h"
 #include "pubsub/pubsub.h"
+#include <app_assert.h>
 #include <errors.h>
 #include <utils.h>
 #include <zephyr/device.h>
@@ -136,6 +137,8 @@ tof_1d_thread()
 int
 tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex)
 {
+    int ret;
+
     if (!device_is_ready(tof_1d_device)) {
         LOG_ERR("VL53L1 not ready!");
         return RET_ERROR_INVALID_STATE;
@@ -156,8 +159,10 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex)
     if (i2c_mutex) {
         k_mutex_lock(i2c_mutex, K_FOREVER);
     }
-    sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
-                    SENSOR_ATTR_CONFIGURATION, &distance_config);
+    ret = sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
+                          SENSOR_ATTR_CONFIGURATION, &distance_config);
+    ASSERT_SOFT(ret);
+
     if (i2c_mutex) {
         k_mutex_unlock(i2c_mutex);
     }
@@ -174,8 +179,10 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex)
     if (i2c_mutex) {
         k_mutex_lock(i2c_mutex, K_FOREVER);
     }
-    sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
-                    SENSOR_ATTR_SAMPLING_FREQUENCY, &distance_config);
+    ret = sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
+                          SENSOR_ATTR_SAMPLING_FREQUENCY, &distance_config);
+    ASSERT_SOFT(ret);
+
     if (i2c_mutex) {
         k_mutex_unlock(i2c_mutex);
     }
