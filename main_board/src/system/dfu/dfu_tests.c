@@ -11,6 +11,14 @@
 
 LOG_MODULE_REGISTER(dfutest, LOG_LEVEL_DBG);
 
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+#define CRC_EXPECTED 0xe7ac67e1
+#elif CONFIG_BOARD_PEARL_MAIN
+#define CRC_EXPECTED 0x896f20bb
+#else
+#error fix the test for any other board
+#endif
+
 ZTEST(hil, test_dfu_upload_tests)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_DFU);
@@ -114,47 +122,53 @@ ZTEST(hil, test_dfu_upload_tests)
     zassert_equal(rc, 0);
 }
 
-// Test CRC speed over entire slot
+// Test CRC speed over entire secondary slot (external flash on Diamond)
 ZTEST(hil, test_crc_over_flash)
 {
-    uint32_t tick = k_cycle_get_32();
-
     const struct flash_area *flash_area_p = NULL;
     int ret = flash_area_open(DT_FIXED_PARTITION_ID(DT_ALIAS(secondary_slot)),
                               &flash_area_p);
     zassert_equal(ret, 0, "Unable to open secondary slot");
 
-    uint8_t buf[DFU_FLASH_PAGE_SIZE];
-    uint32_t computed_crc = 0;
-    // read entire flash area content to calculate CRC32
-    for (size_t off = 0; off < flash_area_p->fa_size;
-         off += DFU_FLASH_PAGE_SIZE) {
-        size_t len = (flash_area_p->fa_size - off < DFU_FLASH_PAGE_SIZE)
-                         ? flash_area_p->fa_size - off
-                         : DFU_FLASH_PAGE_SIZE;
+    // create false image header to test CRC speed over entire flash area
+    struct image_header secondary_slot_header = {0};
+    secondary_slot_header.ih_magic = 0x12345678;
+    secondary_slot_header.ih_ver.iv_major = 0x12;
+    secondary_slot_header.ih_ver.iv_minor = 0x34;
+    secondary_slot_header.ih_ver.iv_revision = 0x5678;
+    secondary_slot_header.ih_ver.iv_build_num = 0x9abcdef0;
+    secondary_slot_header.ih_hdr_size = DFU_FLASH_PAGE_SIZE;
+    secondary_slot_header.ih_img_size =
+        flash_area_p->fa_size - DFU_FLASH_PAGE_SIZE;
 
-        ret = flash_area_read(flash_area_p, (off_t)off, buf, len);
-        zassert_equal(ret, 0, "Unable to read @0x%x in secondary slot", off);
-        computed_crc = crc32_ieee_update(computed_crc, buf, len);
-    }
+    k_msleep(10);
+    ret = flash_area_erase(flash_area_p, 0, flash_area_p->fa_size);
+    zassert_equal(ret, 0, "Unable to erase secondary slot");
+
+    ret = flash_area_write(flash_area_p, 0, (uint8_t *)&secondary_slot_header,
+                           sizeof(secondary_slot_header));
+    zassert_equal(ret, 0, "Unable to write header into secondary slot");
 
     flash_area_close(flash_area_p);
-    UNUSED(computed_crc);
 
-    uint32_t tock = k_cycle_get_32();
+    k_msleep(10);
+    int64_t tick_ms = k_uptime_get();
+    ret = dfu_secondary_check(CRC_EXPECTED);
+    int64_t crc_computation_ms = k_uptime_delta(&tick_ms);
+    zassert_equal(ret, RET_SUCCESS,
+                  "Please fix CRC_EXPECTED, as it should be deterministic "
+                  "(erased slot, known size)");
 
-    int32_t crc_computation_us =
-        (int32_t)(tock - tick) / (sys_clock_hw_cycles_per_sec() / 1000 / 1000);
-    LOG_INF("CRC over entire slot took %uus, %u cycles (%u cycle/sec)",
-            crc_computation_us, tock - tick, sys_clock_hw_cycles_per_sec());
+    LOG_INF("CRC over entire slot took %llu ms", crc_computation_ms);
 
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
-    // check within 1400ms (1.4s)
+    // check within 1450ms (1.45s)
+    // ack timeout is 1.5s (orb-mcu-util)
     // you read that well, access to external SPI Flash takes time...
-    zassert_between_inclusive(crc_computation_us, 0, 1400000);
+    zassert_between_inclusive(crc_computation_ms, 0, 1450);
 #elif defined(CONFIG_BOARD_PEARL_MAIN)
     // check within 50ms
-    zassert_between_inclusive(crc_computation_us, 0, 50000);
+    zassert_between_inclusive(crc_computation_ms, 0, 50);
 #else
 #error fix the test for any other board
 #endif
