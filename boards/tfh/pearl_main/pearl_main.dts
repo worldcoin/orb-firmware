@@ -259,7 +259,7 @@
     status = "okay";
     pinctrl-0 = <&adc1_in1_pa0 &adc1_in7_pc1 &adc1_in8_pc2 &adc1_in9_pc3 &adc1_in11_pb12>;
     pinctrl-names = "default";
-    st,adc-clock-source = <SYNC>;
+    st,adc-clock-source = "SYNC";
     st,adc-prescaler = <4>;
     vref-mv = <3300>;
 
@@ -335,7 +335,7 @@
     status = "okay";
     pinctrl-0 = <&adc3_in10_pd13 &adc3_in11_pd14>;
     pinctrl-names = "default";
-    st,adc-clock-source = <SYNC>;
+    st,adc-clock-source = "SYNC";
     st,adc-prescaler = <4>;
     vref-mv = <3300>;
 
@@ -378,7 +378,7 @@
     status = "okay";
     pinctrl-0 = <&adc5_in7_pd10 &adc5_in8_pd11 &adc5_in9_pd12 &adc5_in13_pd9>;
     pinctrl-names = "default";
-    st,adc-clock-source = <SYNC>;
+    st,adc-clock-source = "SYNC";
     st,adc-prescaler = <4>;
     vref-mv = <3300>;
 
