@@ -22,7 +22,7 @@ jobs:
       - name: Twister unit tests
         run: |
           cd ${{ github.job }}
-          if ! ./zephyr/scripts/twister -T orb/main_board -vv -c -p unit_testing; then
+          if ! ./zephyr/scripts/twister -T orb/main_board -A orb/main_board -vv -c -p unit_testing; then
             find twister-out/ \( -name 'build.log' -o -name 'handler.log' -o -name 'device.log' \) -exec cat {} \;
             false
           fi
