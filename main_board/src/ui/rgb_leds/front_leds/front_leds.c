@@ -27,7 +27,11 @@ static const struct device *const led_strip_w =
 static const struct device *led_strip = led_strip_w;
 
 #define NUM_LEDS DT_PROP(DT_NODELABEL(front_unit_rgb_leds_w), num_leds)
+
 #if defined(CONFIG_BOARD_PEARL_MAIN)
+
+static const struct device *const led_strip_apa = NULL;
+
 #define NUM_CENTER_LEDS 9
 #define INDEX_RING_ZERO                                                        \
     ((NUM_RING_LEDS * 3 / 4)) // 0º is at the 3 o'clock position
@@ -35,6 +39,7 @@ static const struct device *led_strip = led_strip_w;
 // It's also the minimum amount of time we need to trigger
 // an LED strip update until the next IR LED pulse
 #define LED_STRIP_MAXIMUM_UPDATE_TIME_US 10000
+
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
 
 // NOLINTNEXTLINE(cppcoreguidelines-interfaces-global-init)
@@ -45,12 +50,13 @@ static const struct device *const led_strip_apa =
 // 0º (3 o'clock position) is at 53rd LED on Front Unit 6.2
 #define INDEX_RING_ZERO 53
 #endif
+
 #define NUM_RING_LEDS (NUM_LEDS - NUM_CENTER_LEDS)
 
 // for rainbow pattern
 #define SHADES_PER_COLOR 4 // 4^3 = 64 different colors
 
-struct center_ring_leds {
+__PACKED struct center_ring_leds {
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     struct led_rgb center_leds[NUM_CENTER_LEDS];
     struct led_rgb ring_leds[NUM_RING_LEDS];
@@ -81,6 +87,8 @@ typedef union {
     struct led_rgb all[NUM_LEDS];
 } user_leds_t;
 static user_leds_t leds;
+
+BUILD_ASSERT(sizeof(leds.part) == sizeof(leds.all), "leds union size mismatch");
 
 /// Mutex used to protect the LEDs array update from multiple threads
 static K_SEM_DEFINE(leds_update_sem, 1, 1);
@@ -369,7 +377,25 @@ front_leds_thread()
                 k_sem_take(&leds_wait_for_trigger, K_FOREVER);
             }
 #endif
-            led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+            // use update_channels for APA102 LEDs, to be able to set the
+            // brightness byte, not encoded in `struct led_rgb`
+            const struct led_strip_driver_api *api =
+                (const struct led_strip_driver_api *)led_strip->api;
+            if (led_strip == led_strip_apa && api->update_channels != NULL) {
+                // apa102 channels in that order: A (brightness), B, G, R
+                for (size_t i = 0; i < ARRAY_SIZE(leds.all); i++) {
+                    const uint8_t red = leds.all[i].r;
+                    leds.all[i].r = leds.all[i].b;
+                    leds.all[i].b = red;
+                }
+                const int ret = led_strip_update_channels(
+                    led_strip, (uint8_t *)leds.all, sizeof(leds.all));
+                ASSERT_SOFT(ret);
+            } else {
+                const int ret = led_strip_update_rgb(led_strip, leds.all,
+                                                     ARRAY_SIZE(leds.all));
+                ASSERT_SOFT(ret);
+            }
             atomic_set(&leds_dirty, ALL_LEDS_DIRTY);
             k_sem_give(&leds_update_sem);
         }
