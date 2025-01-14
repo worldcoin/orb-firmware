@@ -482,6 +482,30 @@ update_parameters(orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern,
     CRITICAL_SECTION_EXIT(k);
 }
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+bool
+front_leds_is_shroud_on(void)
+{
+    if (k_sem_take(&leds_update_sem, K_MSEC(1)) == 0) {
+        for (size_t i = 0; i < ARRAY_SIZE(leds.part.center_leds); ++i) {
+            if (leds.part.center_leds[i].scratch != 0 &&
+                (leds.part.center_leds[i].r != 0 ||
+                 leds.part.center_leds[i].g != 0 ||
+                 leds.part.center_leds[i].b != 0)) {
+                k_sem_give(&leds_update_sem);
+                return true;
+            }
+        }
+    } else {
+        return true;
+    }
+
+    k_sem_give(&leds_update_sem);
+
+    return false;
+}
+#endif
+
 ret_code_t
 front_leds_set_pattern(orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern,
                        uint32_t start_angle, int32_t angle_length,
