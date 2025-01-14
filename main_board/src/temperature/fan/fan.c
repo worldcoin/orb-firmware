@@ -124,7 +124,7 @@ void
 fan_set_speed_by_value(uint16_t value)
 {
     LOG_INF("Switching fan to approximately %.2f%% speed",
-            ((float)value / UINT16_MAX) * 100);
+            ((double)value / UINT16_MAX) * 100.0);
 
     if (value != 0) {
         uint32_t pulse_width_ns = compute_pulse_width_ns(value);

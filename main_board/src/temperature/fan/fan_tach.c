@@ -120,7 +120,8 @@ static void (*const enable_timer_cc_int[TIMER_MAX_CH])(TIM_TypeDef *) = {
 };
 
 /** Channel to is_active CC int function mapping. */
-static uint32_t (*const is_active_timer_cc_int[TIMER_MAX_CH])(TIM_TypeDef *) = {
+static uint32_t (*const is_active_timer_cc_int[TIMER_MAX_CH])(
+    const TIM_TypeDef *) = {
     LL_TIM_IsActiveFlag_CC1,
     LL_TIM_IsActiveFlag_CC2,
     LL_TIM_IsActiveFlag_CC3,
@@ -128,7 +129,8 @@ static uint32_t (*const is_active_timer_cc_int[TIMER_MAX_CH])(TIM_TypeDef *) = {
 };
 
 /** Channel to get CC value function mapping. */
-static uint32_t (*const get_timer_cc_value[TIMER_MAX_CH])(TIM_TypeDef *) = {
+static uint32_t (*const get_timer_cc_value[TIMER_MAX_CH])(
+    const TIM_TypeDef *) = {
     LL_TIM_IC_GetCaptureCH1,
     LL_TIM_IC_GetCaptureCH2,
     LL_TIM_IC_GetCaptureCH3,
@@ -146,7 +148,7 @@ static void (*const clear_overrun_timer_cc_value[TIMER_MAX_CH])(
 
 /** Channel to is_active overrun CC function mapping. */
 static uint32_t (*const is_active_timer_cc_overrun[TIMER_MAX_CH])(
-    TIM_TypeDef *) = {
+    const TIM_TypeDef *) = {
     LL_TIM_IsActiveFlag_CC1OVR,
     LL_TIM_IsActiveFlag_CC2OVR,
     LL_TIM_IsActiveFlag_CC3OVR,

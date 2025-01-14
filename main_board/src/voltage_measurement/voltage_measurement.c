@@ -201,10 +201,10 @@ voltage_measurement_get_vref_mv(void)
 
     if (vrefint_raw == 0) {
         return 0;
-    } else {
-        return voltage_measurement_get_vref_mv_from_raw(hardware_version,
-                                                        vrefint_raw);
     }
+
+    return voltage_measurement_get_vref_mv_from_raw(hardware_version,
+                                                    vrefint_raw);
 }
 
 static ret_code_t
@@ -1049,6 +1049,17 @@ voltage_measurement_init(const orb_mcu_Hardware *hw_version,
             return RET_ERROR_INTERNAL;
         }
     }
+
+    /* /!\ hardcoded */
+    /* Do not remove existing paths so read value first */
+    uint32_t path =
+        LL_ADC_GetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(ADC1));
+    LL_ADC_SetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(ADC1),
+                                   path | LL_ADC_PATH_INTERNAL_TEMPSENSOR |
+                                       LL_ADC_PATH_INTERNAL_VBAT);
+    path = LL_ADC_GetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(ADC5));
+    LL_ADC_SetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(ADC5),
+                                   path | LL_ADC_PATH_INTERNAL_VREFINT);
 
     k_tid_t tid_adc1 = k_thread_create(
         &voltage_measurement_adc1_thread_data,

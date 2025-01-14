@@ -1,0 +1,28 @@
+# Copyright (c) 2023 Tools for Humanity GmbH
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Description for voltage measurement circuits.
+
+compatible: "tfh,voltage-measurement"
+
+properties:
+  io-channels:
+    type: phandle-array
+    required: true
+    description: |
+      Channels to use to read the voltages.
+  io-channel-names:
+    type: string-array
+    description: |
+      Channel names.
+  supply-voltages-meas-enable-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      GPIO for enabling the measurement circuits.
+  voltage-divider-scalings:
+    type: string-array
+    required: true
+    description: |
+      Factors for calculating the supply rail voltage from the voltage at the ADC pin.

@@ -42,7 +42,7 @@ static bool jetson_up_and_running = false;
 
 static K_MUTEX_DEFINE(analog_and_i2c_mutex);
 
-#ifdef CONFIG_ZTEST_NEW_API
+#ifdef CONFIG_ZTEST
 #include <zephyr/ztest.h>
 
 ZTEST_SUITE(hil, NULL, NULL, NULL, NULL, NULL);
@@ -73,12 +73,12 @@ ZTEST_SUITE(ir_camera, NULL, NULL, ir_camera_test_reset, ir_camera_test_reset,
 static void
 run_tests()
 {
-#if defined(CONFIG_ZTEST_NEW_API)
+#if defined(CONFIG_ZTEST)
     // Per default publishing of voltages is disabled
     // -> enable it for testing if voltage messages are published
     voltage_measurement_set_publish_period(1000);
 
-    ztest_run_all(NULL);
+    ztest_run_all(NULL, false, 1, 1);
     ztest_verify_all_test_suites_ran();
 #endif
 
@@ -205,8 +205,8 @@ initialize(void)
 
     app_assert_init(app_assert_cb);
 
-#if CONFIG_ORB_LIB_WATCHDOG
-    err_code = watchdog_init(NULL);
+#if CONFIG_ORB_LIB_WATCHDOG && !(CONFIG_ORB_LIB_WATCHDOG_SYS_INIT)
+    err_code = watchdog_init();
     ASSERT_SOFT(err_code);
 #endif
 
