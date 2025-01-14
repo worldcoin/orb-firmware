@@ -368,10 +368,10 @@
             #address-cells = <1>;
             #size-cells = <0>;
 
-            front_unit_als: bu27030@38 {
-                compatible = "rohm,bu27030";
+            front_unit_als: bh1750@29 {
+                compatible = "rohm,bh1750";
                 status = "okay";
-                reg = <0x38>;
+                reg = <0x29>;
             };
 
             front_unit_tmp_sensor_shroud_rgb_top: tmp112@48 {
