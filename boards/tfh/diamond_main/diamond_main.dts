@@ -384,13 +384,11 @@
             #address-cells = <1>;
             #size-cells = <0>;
 
-            // FIXME: bring back on front unit 6.3D
-            // front_unit_als: bu27030@38 {
-            //     compatible = "rohm,bu27030";
-            //     status = "okay";
-            //     reg = <0x38>;
-            // };
-            //
+            front_unit_als: bh1730@29 {
+                compatible = "rohm,bh1730";
+                status = "okay";
+                reg = <0x29>;
+            };
 
             front_unit_tmp_sensor_shroud_rgb_top: tmp112@48 {
                 compatible = "ti,tmp112";

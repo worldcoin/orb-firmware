@@ -5,6 +5,7 @@
 #include "pubsub/pubsub.h"
 #include "system/diag.h"
 #include <errors.h>
+#include <ui/rgb_leds/front_leds/front_leds.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 
@@ -29,6 +30,19 @@ als_thread()
         k_msleep(1000);
 
         if (k_mutex_lock(als_i2c_mux_mutex, K_MSEC(100)) == 0) {
+            als.flag = orb_mcu_main_AmbientLight_Flags_ALS_OK;
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+            // on Diamond EVT, ALS sensor is located on the front unit, close
+            // to the front LEDs and interferes with the ALS readings.
+            // Make sure to mark the ALS reading as invalid if the front LEDs
+            // are on.
+            if (front_leds_is_shroud_on()) {
+                als.flag =
+                    orb_mcu_main_AmbientLight_Flags_ALS_ERR_LEDS_INTERFERENCE;
+            }
+#endif
+
             ret = sensor_sample_fetch_chan(als_device, SENSOR_CHAN_LIGHT);
             k_mutex_unlock(als_i2c_mux_mutex);
             if (ret != 0) {
@@ -44,10 +58,9 @@ als_thread()
                 continue;
             } else {
                 als.ambient_light_lux = als_value.val1;
-                als.flag = orb_mcu_main_AmbientLight_Flags_ALS_OK;
             }
 
-            LOG_INF("Ambient light: %s %u.%06u",
+            LOG_INF("Ambient light: %s %u.%06u lux",
                     als.flag == orb_mcu_main_AmbientLight_Flags_ALS_ERR_RANGE
                         ? "out of range"
                         : "",

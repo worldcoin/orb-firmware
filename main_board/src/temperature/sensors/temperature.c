@@ -537,7 +537,7 @@ get_ambient_temperature(const struct device *dev, int32_t *temp,
         if (device_is_ready(dev) == false) {
             return RET_ERROR_NOT_INITIALIZED;
         }
-        if (k_mutex_lock(temperature_i2c_mux_mutex, K_MSEC(100)) != 0) {
+        if (k_mutex_lock(temperature_i2c_mux_mutex, K_MSEC(200)) != 0) {
             LOG_ERR("Could not lock mutex.");
             return RET_ERROR_BUSY;
         }
