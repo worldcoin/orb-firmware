@@ -13,6 +13,15 @@ ret_code_t
 front_leds_init(void);
 
 /**
+ * Check the LED array for any non-zero LED in the shroud
+ * If the semaphore is not available, shroud is assumed to be on.
+ *
+ * @return true if at least one led is on in the shroud
+ */
+bool
+front_leds_is_shroud_on(void);
+
+/**
  * @brief Set pattern for front LEDs
  * Some arguments are optional because they are not used by some patterns.
  * Make sure to check the pattern documentation.
