@@ -1,6 +1,11 @@
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 #include "gnss/gnss.h"
 #endif
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#include "motion/motion.h"
+#endif
+
 #include "mcu.pb.h"
 #include "optics/optics.h"
 #include "orb_logs.h"
@@ -277,6 +282,11 @@ initialize(void)
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     err_code = gnss_init();
+    ASSERT_SOFT(err_code);
+#endif
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    err_code = motion_init();
     ASSERT_SOFT(err_code);
 #endif
 
