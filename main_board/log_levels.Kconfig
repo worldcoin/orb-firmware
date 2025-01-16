@@ -54,6 +54,10 @@ module = POWER_SEQUENCE
 module-str = POWER_SEQUENCE
 source "subsys/logging/Kconfig.template.log_config"
 
+module = MOTION
+module-str = MOTION
+source "subsys/logging/Kconfig.template.log_config"
+
 module = IR_CAMERA_SYSTEM
 module-str = IR_CAMERA_SYSTEM
 source "subsys/logging/Kconfig.template.log_config"

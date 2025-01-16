@@ -990,6 +990,13 @@
         #gpio-cells = <2>;
         ngpios = <16>;
     };
+
+    icm40627: icm40627@69 {
+        compatible = "invensense,icm40627";
+        reg = <0x69>;
+        int-gpios = <&gpio_exp2 13 GPIO_ACTIVE_HIGH>,  <&gpio_exp2 12 GPIO_ACTIVE_HIGH>;
+        status = "okay";
+    };
 };
 
 &i2c4 {
