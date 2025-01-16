@@ -1,1 +1,2 @@
 add_subdirectory_ifdef(CONFIG_BU27030 bu27030)
+add_subdirectory_ifdef(CONFIG_ICM40627 icm40627)
