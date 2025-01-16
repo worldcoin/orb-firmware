@@ -33,6 +33,10 @@
 #include <memfault/metrics/connectivity.h>
 #endif
 
+#if defined(CONFIG_MEMFAULT)
+#include <memfault/core/reboot_tracking.h>
+#endif
+
 LOG_MODULE_REGISTER(runner, CONFIG_RUNNER_LOG_LEVEL);
 
 K_THREAD_STACK_DEFINE(runner_process_stack, THREAD_STACK_SIZE_RUNNER);
@@ -315,6 +319,19 @@ handle_reboot_message(job_t *job)
 
         if (ret == RET_SUCCESS) {
             job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+            // Send out shutdown scheduled CAN message
+            orb_mcu_main_ShutdownScheduled shutdown;
+            shutdown.shutdown_reason =
+                orb_mcu_main_ShutdownScheduled_ShutdownReason_JETSON_REQUESTED_REBOOT;
+            shutdown.has_ms_until_shutdown = true;
+            shutdown.ms_until_shutdown = delay * 1000;
+            publish_new(&shutdown, sizeof(shutdown),
+                        orb_mcu_main_McuToJetson_shutdown_tag,
+                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+#ifdef CONFIG_MEMFAULT
+            MEMFAULT_REBOOT_MARK_RESET_IMMINENT(
+                kMfltRebootReason_JetsonRequestedReboot);
+#endif
         } else {
             job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         }
