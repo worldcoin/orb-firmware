@@ -46,7 +46,16 @@ endmacro()
 
 # Get our custom boards definitions before loading Zephyr
 get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
-get_filename_component(WORKSPACE_DIR ${PROJECT_DIR}/../../ ABSOLUTE)
+
+# if ${PROJECT_DIR}/../ contains `private`
+if (EXISTS ${PROJECT_DIR}/../public)
+    get_filename_component(WORKSPACE_DIR ${PROJECT_DIR}/../../ ABSOLUTE)
+else()
+    get_filename_component(WORKSPACE_DIR ${PROJECT_DIR}/../ ABSOLUTE)
+endif()
+
+message(STATUS "Project directory: ${PROJECT_DIR}")
+message(STATUS "Workspace directory: ${WORKSPACE_DIR}")
 
 list(APPEND BOARD_ROOT ${PROJECT_DIR})
 list(APPEND DTS_ROOT ${PROJECT_DIR})

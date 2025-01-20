@@ -2,7 +2,11 @@ cmake_minimum_required(VERSION 3.20.0)
 set(TARGET app)
 
 get_filename_component(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/.. ABSOLUTE)
-get_filename_component(WORKSPACE_DIR ${PROJECT_DIR}/../../ ABSOLUTE)
+if (EXISTS ${PROJECT_DIR}/../public)
+    get_filename_component(WORKSPACE_DIR ${PROJECT_DIR}/../../ ABSOLUTE)
+else()
+    get_filename_component(WORKSPACE_DIR ${PROJECT_DIR}/../ ABSOLUTE)
+endif()
 
 message(STATUS "Project directory: ${PROJECT_DIR}")
 message(STATUS "Workspace directory: ${WORKSPACE_DIR}")
