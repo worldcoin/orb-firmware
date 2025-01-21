@@ -43,14 +43,14 @@ static const struct gpio_dt_spec supply_3v8_enable_rfid_irq_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v8_enable_rfid_irq_gpios);
 static const struct gpio_dt_spec lte_gps_usb_reset_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(lte_gps_usb_reset), gpios);
+static const struct gpio_dt_spec supply_12v_enable_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_12v_enable_gpios);
 #endif
 
 static const struct gpio_dt_spec supply_3v3_ssd_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v3_ssd_enable_gpios);
 static const struct gpio_dt_spec supply_3v3_wifi_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v3_wifi_enable_gpios);
-static const struct gpio_dt_spec supply_12v_enable_gpio_spec =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_12v_enable_gpios);
 static const struct gpio_dt_spec supply_5v_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_5v_enable_gpios);
 static const struct gpio_dt_spec supply_3v3_enable_gpio_spec =
@@ -113,10 +113,12 @@ power_configure_gpios(void)
     int ret;
 
     if (!device_is_ready(supply_vbat_sw_enable_gpio_spec.port) ||
-        !device_is_ready(supply_12v_enable_gpio_spec.port) ||
         !device_is_ready(supply_5v_enable_gpio_spec.port) ||
 #if defined(CONFIG_BOARD_PEARL_MAIN)
+        !device_is_ready(supply_12v_enable_gpio_spec.port) ||
         !device_is_ready(supply_3v8_enable_rfid_irq_gpio_spec.port) ||
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+        !device_is_ready(supply_12v_caps_enable_gpio_spec.port) ||
 #endif
         !device_is_ready(supply_3v3_enable_gpio_spec.port) ||
         !device_is_ready(supply_1v8_enable_gpio_spec.port) ||
@@ -138,12 +140,21 @@ power_configure_gpios(void)
         return RET_ERROR_INTERNAL;
     }
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     ret = gpio_pin_configure_dt(&supply_12v_enable_gpio_spec,
                                 GPIO_OUTPUT_INACTIVE);
     if (ret != 0) {
         ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
     }
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    ret = gpio_pin_configure_dt(&supply_12v_caps_enable_gpio_spec,
+                                GPIO_OUTPUT_INACTIVE);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return RET_ERROR_INTERNAL;
+    }
+#endif
 
     ret = gpio_pin_configure_dt(&supply_5v_enable_gpio_spec,
                                 GPIO_OUTPUT_INACTIVE);
@@ -266,7 +277,6 @@ power_configure_gpios(void)
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     if (!device_is_ready(supply_3v3_lte_enable_gpio_spec.port) ||
-        !device_is_ready(supply_12v_caps_enable_gpio_spec.port) ||
         !device_is_ready(supply_1v2_enable_gpio_spec.port) ||
         !device_is_ready(supply_2v8_enable_gpio_spec.port) ||
         !device_is_ready(supply_3v6_enable_gpio_spec.port) ||
@@ -276,13 +286,6 @@ power_configure_gpios(void)
     }
 
     ret = gpio_pin_configure_dt(&supply_3v3_lte_enable_gpio_spec,
-                                GPIO_OUTPUT_INACTIVE);
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return RET_ERROR_INTERNAL;
-    }
-
-    ret = gpio_pin_configure_dt(&supply_12v_caps_enable_gpio_spec,
                                 GPIO_OUTPUT_INACTIVE);
     if (ret != 0) {
         ASSERT_SOFT(ret);
@@ -422,10 +425,10 @@ turn_on_power_supplies(void)
 
     k_msleep(100);
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
     gpio_pin_set_dt(&supply_12v_enable_gpio_spec, 1);
     LOG_INF("12V enabled");
 
-#if defined(CONFIG_BOARD_PEARL_MAIN)
     // 3.8V regulator only available on EV1...4
     if ((version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
         (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
