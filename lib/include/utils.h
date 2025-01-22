@@ -52,4 +52,11 @@
     } while (0)
 #endif
 
+// Limit scope of variable to current file depending on whether we are testing
+// or not. When testing, we want to be able to access the variable from other
+// files.
+#ifdef CONFIG_ZTEST
+#define STATIC_OR_EXTERN
+#else
 #define STATIC_OR_EXTERN static
+#endif

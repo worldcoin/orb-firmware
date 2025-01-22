@@ -20,6 +20,39 @@
 #define DFU_FLASH_PAGE_SIZE   FLASH_PAGE_SIZE
 #endif
 
+// Image data comes in at chunks of exactly DFU_BLOCK_SIZE_MAX, except for
+// perhaps the last chunk, which can be smaller.
+// The module waits to have at least DFU_BLOCKS_WRITE_SIZE bytes
+// before writing into Flash. While waiting, bytes are copied into an internal
+// buffer of DFU_BLOCKS_BUFFER_MIN_SIZE.
+// In the case that DFU_BLOCKS_WRITE_SIZE - 1 bytes are in the block buffer
+// we need at least enough space to write one more DFU_BLOCK_SIZE_MAX chunk of
+// bytes to the buffer, so we end up with:
+// DFU_BLOCKS_BUFFER_MIN_SIZE
+//  = DFU_BLOCKS_WRITE_SIZE - 1 + DFU_BLOCK_SIZE_MAX
+#define DFU_BLOCKS_WRITE_SIZE 64 /** Size of blocks written on Flash */
+#define DFU_BLOCKS_BUFFER_MIN_SIZE                                             \
+    (DFU_BLOCKS_WRITE_SIZE - 1 +                                               \
+     DFU_BLOCK_SIZE_MAX) /** Buffer for incoming image blocks before bytes are \
+     written on Flash using DFU_BLOCKS_WRITE_SIZE-long                         \
+     blocks. */
+
+// make sure the DFU blocks buffer has a size multiple of double-word
+// otherwise we won't be able to write the full buffer on Flash
+#define DFU_BLOCKS_BUFFER_SIZE                                                 \
+    (DFU_BLOCKS_BUFFER_MIN_SIZE + 8 - (DFU_BLOCKS_BUFFER_MIN_SIZE % 8))
+
+struct dfu_state_t {
+    // make sure `bytes` is the first field to ensure alignment
+    uint8_t bytes[DFU_BLOCKS_BUFFER_SIZE];
+    uint32_t wr_idx;
+    uint32_t block_number;
+    uint32_t block_count;
+    size_t flash_offset;
+    void *ctx; // pointer to the caller context, to be used with the
+    // `dfu_block_process_cb`
+};
+
 /**
  * Queue one firmware image block.
  * An internal buffer is used to queue blocks before writing to flash a larger,

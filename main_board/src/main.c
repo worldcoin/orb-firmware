@@ -45,8 +45,14 @@ static K_MUTEX_DEFINE(analog_and_i2c_mutex);
 #ifdef CONFIG_ZTEST_NEW_API
 #include <zephyr/ztest.h>
 
+// generic tests
 ZTEST_SUITE(hil, NULL, NULL, NULL, NULL, NULL);
 
+// dfu unit tests
+#include "system/dfu/dfu_tests.h"
+ZTEST_SUITE(dfu, NULL, NULL, NULL, dfu_test_reset, NULL);
+
+// ir camera unit tests
 #include "optics/ir_camera_system/ir_camera_system.h"
 
 /**

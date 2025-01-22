@@ -213,3 +213,133 @@ ZTEST(hil, test_get_versions)
     ret = dfu_version_primary_get(&ih.ih_ver);
     zassert_equal(ret, 0, "Unable to get version from primary slot");
 }
+
+extern struct dfu_state_t dfu_state;
+extern struct k_sem sem_dfu_free_space;
+extern struct k_sem sem_dfu_full;
+
+/**
+ * Called before each test of the test suite
+ * @return NULL
+ */
+void
+dfu_test_reset(void *fixture)
+{
+    UNUSED(fixture);
+
+    memset(&dfu_state, 0, sizeof(dfu_state));
+    k_sem_give(&sem_dfu_free_space);
+}
+
+ZTEST(dfu, test_dfu_load_valid)
+{
+    uint8_t data[DFU_BLOCK_SIZE_MAX] = {0xAA}; // Simulated data
+    uint32_t block_count = 10;
+    uint32_t block_number = 0;
+    size_t size = DFU_BLOCK_SIZE_MAX;
+    int ret;
+
+    // Perform a valid dfu_load call
+    ret = dfu_load(block_number, block_count, data, size, NULL, NULL);
+
+    zassert_equal(ret, RET_SUCCESS, "Failed to load valid DFU block");
+    zassert_equal(dfu_state.block_count, block_count, "Block count mismatch");
+    zassert_equal(dfu_state.block_number, block_number,
+                  "Block number mismatch");
+    zassert_mem_equal(dfu_state.bytes, data, size, "Data mismatch");
+    zassert_equal(dfu_state.wr_idx, size, "Write index mismatch");
+}
+
+ZTEST(dfu, test_dfu_load_invalid_block_count)
+{
+    uint8_t data[DFU_BLOCK_SIZE_MAX] = {0xAA}; // Simulated data
+    uint32_t block_count = 5;
+    uint32_t block_number = 6; // Invalid: block_number > block_count
+    size_t size = DFU_BLOCK_SIZE_MAX;
+
+    int ret = dfu_load(block_number, block_count, data, size, NULL, NULL);
+
+    zassert_equal(ret, RET_ERROR_INVALID_PARAM,
+                  "Invalid block count not handled");
+    zassert_equal(dfu_state.block_count, 0,
+                  "dfu_state was unexpectedly modified");
+}
+
+ZTEST(dfu, test_dfu_load_buffer_overflow)
+{
+    uint8_t data[DFU_BLOCK_SIZE_MAX] = {0xAA};
+    uint32_t block_count = 10;
+    uint32_t block_number = 0;
+    size_t size = sizeof(dfu_state.bytes) + 1; // Too large
+
+    int ret = dfu_load(block_number, block_count, data, size, NULL, NULL);
+
+    zassert_equal(ret, RET_ERROR_INVALID_PARAM, "Buffer overflow not handled");
+    zassert_equal(dfu_state.wr_idx, 0, "Write index was unexpectedly modified");
+}
+
+ZTEST(dfu, test_dfu_load_out_of_sequence)
+{
+    uint8_t data[DFU_BLOCK_SIZE_MAX] = {0xAA};
+    uint32_t block_count = 10;
+
+    // Start with the first block
+    int ret = dfu_load(0, block_count, data, DFU_BLOCK_SIZE_MAX, NULL, NULL);
+    zassert_equal(ret, RET_SUCCESS, "Failed to load first block");
+
+    // Send an out-of-sequence block
+    ret = dfu_load(2, block_count, data, DFU_BLOCK_SIZE_MAX, NULL,
+                   NULL); // Skips block 1
+    zassert_equal(ret, RET_ERROR_INVALID_PARAM,
+                  "Out-of-sequence block not handled");
+}
+
+ZTEST(dfu, test_dfu_load_large_block_count)
+{
+    const size_t size = DFU_BLOCK_SIZE_MAX;
+    const uint8_t data[DFU_BLOCK_SIZE_MAX] = {0xAA};
+    const uint32_t block_count = 0xCAFEBABE;
+
+    // Start with the first block
+    int ret = dfu_load(0, block_count, data, DFU_BLOCK_SIZE_MAX, NULL, NULL);
+    zassert_equal(ret, RET_SUCCESS, "Failed to load first block");
+    zassert_equal(dfu_state.wr_idx, size, "Write index mismatch");
+
+    // Second block
+    ret = dfu_load(1, block_count, data, DFU_BLOCK_SIZE_MAX, NULL, NULL);
+    zassert_equal(ret, -EINPROGRESS, "Failed to load second block");
+    zassert_equal(dfu_state.wr_idx, size * 2, "Write index mismatch");
+
+    // wait for process_dfu_blocks_thread to process the first chunk
+    k_msleep(100);
+
+    zassert_equal(dfu_state.wr_idx, 0, "Write index mismatch");
+
+    // Resending the second block again should fail as the image must be sent
+    // from scratch following the large `block_count` value error.
+    ret = dfu_load(1, block_count, data, DFU_BLOCK_SIZE_MAX, NULL, NULL);
+    zassert_equal(ret, RET_ERROR_INVALID_PARAM,
+                  "Block should have failed: image must be sent from scratch");
+    zassert_equal(dfu_state.wr_idx, 0, "Write index mismatch");
+
+    // Restart with a first block should work
+    ret = dfu_load(0, block_count, data, DFU_BLOCK_SIZE_MAX, NULL, NULL);
+    zassert_equal(ret, RET_SUCCESS, "Failed to load first block");
+    zassert_equal(dfu_state.wr_idx, size, "Write index mismatch");
+}
+
+ZTEST(dfu, test_dfu_load_semaphore_handling)
+{
+    uint8_t data[DFU_BLOCK_SIZE_MAX] = {0xCC};
+    uint32_t block_count = 5;
+    uint32_t block_number = 0;
+
+    // Take the semaphore to simulate blocked consumer thread
+    k_sem_take(&sem_dfu_free_space, K_NO_WAIT);
+
+    int ret = dfu_load(block_number, block_count, data, DFU_BLOCK_SIZE_MAX,
+                       NULL, NULL);
+
+    zassert_equal(ret, RET_ERROR_BUSY, "Producer failed to handle semaphore");
+    zassert_equal(dfu_state.block_count, 0, "dfu_state unexpectedly changed");
+}
