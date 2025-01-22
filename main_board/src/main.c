@@ -54,21 +54,6 @@ ZTEST_SUITE(dfu, NULL, NULL, NULL, dfu_test_reset, NULL);
 
 // ir camera unit tests
 #include "optics/ir_camera_system/ir_camera_system.h"
-
-/**
- * Cleanup function for the test suite, called before & after each ir_camera
- * test
- * @param fixture
- */
-static void
-ir_camera_test_reset(void *fixture)
-{
-    ARG_UNUSED(fixture);
-    ir_camera_system_enable_leds(
-        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
-    ir_camera_system_set_fps(0);
-    ir_camera_system_set_on_time_us(0);
-}
 ZTEST_SUITE(ir_camera, NULL, NULL, ir_camera_test_reset, ir_camera_test_reset,
             NULL);
 #endif
