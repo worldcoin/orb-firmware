@@ -27,28 +27,6 @@ static struct image_header secondary_slot_header = {0};
 // protect access to headers above
 static K_SEM_DEFINE(sem_headers, 1, 1);
 
-// Image data comes in at chunks of exactly DFU_BLOCK_SIZE_MAX, except for
-// perhaps the last chunk, which can be smaller.
-// The module waits to have at least DFU_BLOCKS_WRITE_SIZE bytes
-// before writing into Flash. While waiting, bytes are copied into an internal
-// buffer of DFU_BLOCKS_BUFFER_MIN_SIZE.
-// In the case that DFU_BLOCKS_WRITE_SIZE - 1 bytes are in the block buffer
-// we need at least enough space to write one more DFU_BLOCK_SIZE_MAX chunk of
-// bytes to the buffer, so we end up with:
-// DFU_BLOCKS_BUFFER_MIN_SIZE
-//  = DFU_BLOCKS_WRITE_SIZE - 1 + DFU_BLOCK_SIZE_MAX
-#define DFU_BLOCKS_WRITE_SIZE 64 /** Size of blocks written on Flash */
-#define DFU_BLOCKS_BUFFER_MIN_SIZE                                             \
-    (DFU_BLOCKS_WRITE_SIZE - 1 +                                               \
-     DFU_BLOCK_SIZE_MAX) /** Buffer for incoming image blocks before bytes are \
-                            written on Flash using DFU_BLOCKS_WRITE_SIZE-long  \
-                            blocks. */
-
-// make sure the DFU blocks buffer has a size multiple of double-word
-// otherwise we won't be able to write the full buffer on Flash
-#define DFU_BLOCKS_BUFFER_SIZE                                                 \
-    (DFU_BLOCKS_BUFFER_MIN_SIZE + 8 - (DFU_BLOCKS_BUFFER_MIN_SIZE % 8))
-
 BUILD_ASSERT(DFU_BLOCKS_BUFFER_SIZE % 8 == 0,
              "DFU_BLOCKS_BUFFER_SIZE must be a multiple of a "
              "double-word");
@@ -62,23 +40,14 @@ BUILD_ASSERT(DFU_BLOCKS_WRITE_SIZE % 8 == 0,
 #define NEXT_SECTOR_BOUNDARY(offset)                                           \
     ((offset & SECTOR_MASK) + DFU_FLASH_SECTOR_SIZE)
 
-static struct {
-    // make sure `bytes` is the first field to ensure alignment
-    uint8_t bytes[DFU_BLOCKS_BUFFER_SIZE];
-    uint32_t wr_idx;
-    uint32_t block_number;
-    uint32_t block_count;
-    size_t flash_offset;
-    void *ctx; // pointer to the caller context, to be used with the
-               // `dfu_block_process_cb`
-} dfu_state __ALIGN(8) = {0};
+STATIC_OR_EXTERN struct dfu_state_t dfu_state __ALIGN(8) = {0};
 
 static void (*dfu_block_process_cb)(void *ctx, int err) = NULL;
 
 // 1 producer and 1 consumer sharing dfu_state
 // we need two semaphores
-static K_SEM_DEFINE(sem_dfu_free_space, 1, 1);
-static K_SEM_DEFINE(sem_dfu_full, 0, 1);
+STATIC_OR_EXTERN K_SEM_DEFINE(sem_dfu_free_space, 1, 1);
+STATIC_OR_EXTERN K_SEM_DEFINE(sem_dfu_full, 0, 1);
 
 int
 dfu_load(uint32_t current_block_number, uint32_t block_count,
@@ -91,14 +60,14 @@ dfu_load(uint32_t current_block_number, uint32_t block_count,
     if ((current_block_number != 0 &&
          current_block_number != dfu_state.block_number + 1) ||
         (current_block_number > block_count) || size > DFU_BLOCK_SIZE_MAX ||
-        size > sizeof(dfu_state.bytes)) {
+        size > sizeof(dfu_state.bytes) ||
+        (dfu_state.block_count == 0 && current_block_number != 0)) {
         return RET_ERROR_INVALID_PARAM;
     }
 
     // if last block has been processed (consumed)
     // semaphore must be free
     if (k_sem_take(&sem_dfu_free_space, K_NO_WAIT) != 0) {
-        // todo log error
         LOG_ERR("Semaphore already taken");
         return RET_ERROR_BUSY;
     }
@@ -124,9 +93,11 @@ dfu_load(uint32_t current_block_number, uint32_t block_count,
 
     dfu_state.block_number = current_block_number;
 
-    // copy new block for processing
-    // We assume `size <= DFU_BLOCK_SIZE_MAX`, as asserted in the beginning
-    // of this function
+    // copy new block for processing while making sure we don't overflow the
+    // buffer
+    if (dfu_state.wr_idx + size > sizeof(dfu_state.bytes)) {
+        return RET_ERROR_NO_MEM;
+    }
     memcpy(&dfu_state.bytes[dfu_state.wr_idx], data, size);
     dfu_state.wr_idx += size;
 
@@ -155,7 +126,7 @@ _Noreturn static void
 process_dfu_blocks_thread()
 {
     const struct flash_area *flash_area_p = NULL;
-    int err_code = 0;
+    int err_code = RET_SUCCESS;
 
     while (1) {
         // setting thread as blocked while waiting for new block to be received
@@ -166,6 +137,7 @@ process_dfu_blocks_thread()
                 DT_FIXED_PARTITION_ID(DT_ALIAS(secondary_slot)), &flash_area_p);
             if (err_code) {
                 LOG_ERR("Err flash_area_open %i", err_code);
+                err_code = RET_ERROR_INVALID_STATE;
                 break;
             }
 
@@ -179,11 +151,10 @@ process_dfu_blocks_thread()
                     LOG_ERR("Not enough size in Flash %u > %u",
                             dfu_state.block_count * DFU_BLOCK_SIZE_MAX,
                             image_slot_size);
-
-                    if (dfu_block_process_cb != NULL) {
-                        dfu_block_process_cb(dfu_state.ctx,
-                                             RET_ERROR_INVALID_PARAM);
-                    }
+                    // reset internal state, a new image needs to be sent again
+                    // from scratch
+                    memset(&dfu_state, 0, sizeof(dfu_state));
+                    err_code = RET_ERROR_INVALID_PARAM;
                     break;
                 }
             }
@@ -224,10 +195,7 @@ process_dfu_blocks_thread()
                 if (err_code != 0) {
                     LOG_ERR("Unable to erase sector @0x%x, err %i", offset,
                             err_code);
-
-                    if (dfu_block_process_cb != NULL) {
-                        dfu_block_process_cb(dfu_state.ctx, RET_ERROR_INTERNAL);
-                    }
+                    err_code = RET_ERROR_INTERNAL;
                     break;
                 }
             }
@@ -239,12 +207,11 @@ process_dfu_blocks_thread()
                                         dfu_state.bytes, bytes_to_write);
             if (err_code) {
                 LOG_ERR("Unable to write into Flash, err %i", err_code);
-
-                if (dfu_block_process_cb != NULL) {
-                    dfu_block_process_cb(dfu_state.ctx, RET_ERROR_INTERNAL);
-                }
+                err_code = RET_ERROR_INTERNAL;
                 break;
-            } else if (dfu_state.wr_idx >= bytes_to_write) {
+            }
+
+            if (dfu_state.wr_idx >= bytes_to_write) {
                 // copy remaining bytes at the beginning of the buffer
                 memcpy(dfu_state.bytes, &dfu_state.bytes[bytes_to_write],
                        dfu_state.wr_idx - bytes_to_write);
@@ -252,6 +219,7 @@ process_dfu_blocks_thread()
             } else {
                 dfu_state.wr_idx = 0;
             }
+
             dfu_state.flash_offset += bytes_to_write;
         } while (0);
 
@@ -264,7 +232,10 @@ process_dfu_blocks_thread()
         k_sem_give(&sem_dfu_free_space);
 
         if (dfu_block_process_cb != NULL) {
-            dfu_block_process_cb(dfu_state.ctx, RET_SUCCESS);
+            if (err_code != RET_SUCCESS) {
+                LOG_ERR("Error during dfu block processing");
+            }
+            dfu_block_process_cb(dfu_state.ctx, err_code);
         }
     }
 }
@@ -306,6 +277,8 @@ dfu_secondary_activate(bool permanent)
         LOG_WRN("Swap type set to %d", ret);
         return RET_ERROR_INTERNAL;
     }
+
+    memset(&dfu_state, 0, sizeof(dfu_state));
 
     LOG_INF("The second image will be loaded after reset");
 
