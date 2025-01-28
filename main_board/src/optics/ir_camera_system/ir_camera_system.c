@@ -84,6 +84,23 @@ STATIC_OR_EXTERN orb_mcu_main_InfraredLEDs_Wavelength enabled_led_wavelength =
 
 /* Module internal */
 
+#ifdef CONFIG_ZTEST
+/**
+ * Cleanup function for the test suite, called before & after each ir_camera
+ * test
+ * @param fixture
+ */
+void
+ir_camera_test_reset(void *fixture)
+{
+    ARG_UNUSED(fixture);
+    ir_camera_system_enable_leds(
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    ir_camera_system_set_fps(0);
+    ir_camera_system_set_on_time_us(0);
+}
+#endif
+
 // Focus sweep
 bool
 get_focus_sweep_in_progress(void)

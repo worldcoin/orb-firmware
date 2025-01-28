@@ -10,6 +10,9 @@
      (sizeof(uint16_t)))
 
 #ifdef CONFIG_ZTEST
+void
+ir_camera_test_reset(void *fixture);
+
 // in tests we don't want to wait for too long
 #define IR_LED_AUTO_OFF_TIMEOUT_S (5) // ztest - 5 seconds
 #else
