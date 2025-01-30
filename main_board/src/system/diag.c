@@ -22,7 +22,7 @@ BUILD_ASSERT(ARRAY_SIZE(mflt_evt.chunk.bytes) >
 #else
 #include "orb_logs.h"
 #endif
-LOG_MODULE_REGISTER(diag);
+LOG_MODULE_REGISTER(diag, CONFIG_DIAG_LOG_LEVEL);
 
 static orb_mcu_HardwareDiagnostic_Status
     hw_statuses[orb_mcu_HardwareDiagnostic_Source_MAIN_BOARD_SENTINEL];
@@ -49,39 +49,37 @@ diag_sync(uint32_t remote)
     size_t error_counter = 0;
     orb_mcu_HardwareDiagnostic hw_diag = orb_mcu_HardwareDiagnostic_init_zero;
 
-    if (has_changed == false) {
-        return RET_SUCCESS;
-    }
+    if (has_changed) {
+        LOG_INF("Sending statuses");
 
-    LOG_INF("Sending statuses");
+        for (size_t i = 0; i < ARRAY_SIZE(hw_statuses); i++) {
+            if (hw_statuses[i] ==
+                orb_mcu_HardwareDiagnostic_Status_STATUS_UNKNOWN) {
+                continue;
+            }
+            hw_diag.source = i;
+            hw_diag.status = hw_statuses[i];
 
-    for (size_t i = 0; i < ARRAY_SIZE(hw_statuses); i++) {
-        if (hw_statuses[i] ==
-            orb_mcu_HardwareDiagnostic_Status_STATUS_UNKNOWN) {
-            continue;
-        }
-        hw_diag.source = i;
-        hw_diag.status = hw_statuses[i];
-
-        ret = publish_new(&hw_diag, sizeof(hw_diag),
-                          orb_mcu_main_McuToJetson_hardware_diag_tag, remote);
-        if (ret) {
+            ret =
+                publish_new(&hw_diag, sizeof(hw_diag),
+                            orb_mcu_main_McuToJetson_hardware_diag_tag, remote);
+            if (ret) {
 #ifndef CONFIG_ZTEST
-            error_counter++;
+                error_counter++;
 #endif
-            continue;
+                continue;
+            }
+            counter++;
+
+            // throttle the sending of statuses to avoid flooding the CAN bus
+            // and CAN controller
+            k_msleep(10);
         }
-        counter++;
+        LOG_INF("Sent: %u, errors: %u", counter, error_counter);
 
-        // throttle the sending of statuses to avoid flooding the CAN bus
-        // and CAN controller
-        k_msleep(10);
-    }
-
-    LOG_INF("Sent: %u, errors: %u", counter, error_counter);
-
-    if (error_counter == 0) {
-        has_changed = false;
+        if (error_counter == 0) {
+            has_changed = false;
+        }
     }
 
 #if defined(CONFIG_MEMFAULT)
