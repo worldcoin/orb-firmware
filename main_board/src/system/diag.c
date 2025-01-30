@@ -153,37 +153,6 @@ diag_init(void)
     has_changed = false;
 }
 
-#ifdef CONFIG_MEMFAULT
-static void
-collect_thread_stack_usage_cb(const struct k_thread *thread, void *user_data)
-{
-    UNUSED_PARAMETER(user_data);
-
-    static const struct {
-        const char *name;
-        MemfaultMetricId id;
-    } threads[] = {
-        {"runner", MEMFAULT_METRICS_KEY(runner_stack_free_bytes)},
-    };
-
-    for (size_t i = 0; i < ARRAY_SIZE(threads); i++) {
-        if (strcmp(thread->name, threads[i].name) == 0) {
-            size_t unused = 0;
-            int rc = k_thread_stack_space_get(thread, &unused);
-            if (rc == 0) {
-                memfault_metrics_heartbeat_set_unsigned(threads[i].id, unused);
-            }
-        }
-    }
-}
-
-void
-memfault_metrics_heartbeat_collect_data(void)
-{
-    k_thread_foreach(collect_thread_stack_usage_cb, NULL);
-}
-#endif
-
 #ifdef CONFIG_ZTEST
 #include <zephyr/ztest.h>
 

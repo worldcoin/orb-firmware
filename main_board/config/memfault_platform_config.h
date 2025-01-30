@@ -15,12 +15,6 @@ extern "C" {
 
 #if defined(CONFIG_MEMFAULT)
 
-// Heartbeat interval is 15 minutes
-// These will be called:
-//  memfault_metrics_heartbeat_collect_sdk_data();
-//  memfault_metrics_heartbeat_collect_data();
-#define MEMFAULT_METRICS_HEARTBEAT_INTERVAL_SECS (60 * 15)
-
 #endif // CONFIG_MEMFAULT
 
 #ifdef __cplusplus
