@@ -221,6 +221,9 @@ version_fetch_hardware_rev(orb_mcu_Hardware *hw_version)
         case 2:
             version = orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3;
             break;
+        case 3:
+            version = orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT;
+            break;
         default:
             LOG_ERR("Unknown main board from IO expander: %d", hw_bits);
             break;
@@ -274,6 +277,10 @@ version_get_front_unit_rev(void)
         case 3:
             front_unit_version =
                 orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2B;
+            break;
+        case 5:
+            front_unit_version =
+                orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3;
             break;
         default:
             LOG_ERR("Unknown front unit from IO expander: %d", hw_bits);
