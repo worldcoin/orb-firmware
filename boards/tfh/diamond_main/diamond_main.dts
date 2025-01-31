@@ -77,7 +77,7 @@
         front-unit-en-5v-switched-gpios = <&gpio_exp_front_unit 2 GPIO_ACTIVE_HIGH>;      // B3 only
 
         supply-12v-caps-enable-gpios = <&gpio_exp_pwr_brd 4 GPIO_ACTIVE_LOW>;
-        supply-5v-rgb-enable-gpios = <&gpio_exp1 2 GPIO_ACTIVE_HIGH>;
+        supply-5v-rgb-enable-gpios = <&gpio_exp_pwr_brd_op 2 GPIO_ACTIVE_HIGH>;
         supply-3v6-enable-gpios = <&gpio_exp2 5 GPIO_ACTIVE_HIGH>;
         supply-3v3-lte-enable-gpios = <&gpio_exp2 15 GPIO_ACTIVE_HIGH>;
         supply-2v8-enable-gpios = <&gpio_exp2 7 GPIO_ACTIVE_HIGH>;
@@ -447,8 +447,8 @@
         status = "okay";
         #address-cells = <1>;
         #size-cells = <0>;
-        mux-gpios = <&gpio_exp1 3 GPIO_ACTIVE_HIGH>;
-        enable-gpios = <&gpio_exp1 4 GPIO_ACTIVE_HIGH>;
+        mux-gpios = <&gpio_exp_pwr_brd_op 3 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&gpio_exp_pwr_brd_op 4 GPIO_ACTIVE_HIGH>;
         spi-parent = <&spi4>;
 
         mux_spi_fu: spi@0 {
@@ -502,7 +502,7 @@
                 // not actually used by the SPI driver
                 duplex = <SPI_HALF_DUPLEX>;
 
-                num-leds = <5>;
+                num-leds = <1>;
             };
         };
     };
@@ -997,6 +997,16 @@
     gpio_exp2: pca95xx@22 {
         compatible = "nxp,pca95xx";
         reg = <0x22>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        ngpios = <16>;
+    };
+
+    // io-expander on the power board 0x23
+    // connected to operator board
+    gpio_exp_pwr_brd_op: pca95xx@23 {
+        compatible = "nxp,pca95xx";
+        reg = <0x20>;
         gpio-controller;
         #gpio-cells = <2>;
         ngpios = <16>;
