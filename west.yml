@@ -23,7 +23,7 @@ manifest:
       remote: memfault
       revision: 1.19.0
     - name: orb-messages
-      revision: 62bb55b26f162eefcf7ab1c6075d7aa3969cf386
+      revision: bb6d1844d7561e4832ef170a3c9be67ba0ed61a0
       path: modules/orb-messages/public
     - name: priv-orb-messages
       revision: 814f52429ced94c8180f3fbe17eeec1f1a01b556
