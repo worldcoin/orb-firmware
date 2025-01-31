@@ -23,6 +23,7 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * - v4.0 p[13..10] = 0
  * - v4.1 p[13..10] = 1
  * - v4.2 p[13..10] = 2
+ * - v4.3 p[13..10] = 3
  *
  * ## Front unit
  * Hardware version can be fetched using IO expander on the front unit:
@@ -30,12 +31,16 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * - v6.1 p[13..10] = 1
  * - v6.2A p[13..10] = 2
  * - v6.2B p[13..10] = 3
+ * - v6.3A p[13..10] = 4
+ * - v6.3B p[13..10] = 5
+ * - v6.3C p[13..10] = 7
  *
  * ## Power board
  * Hardware version can be fetched using IO expander on the power board:
  * - v1.0: p[13..10] = 0
  * - v1.1: p[13..10] = 1
  * - v1.2: p[13..10] = 2
+ * - v1.3: p[13..10] = 3
  **/
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
@@ -221,6 +226,9 @@ version_fetch_hardware_rev(orb_mcu_Hardware *hw_version)
         case 2:
             version = orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3;
             break;
+        case 3:
+            version = orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT;
+            break;
         default:
             LOG_ERR("Unknown main board from IO expander: %d", hw_bits);
             break;
@@ -275,6 +283,18 @@ version_get_front_unit_rev(void)
             front_unit_version =
                 orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2B;
             break;
+        case 4:
+            front_unit_version =
+                orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3A;
+            break;
+        case 5:
+            front_unit_version =
+                orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3B;
+            break;
+        case 7:
+            front_unit_version =
+                orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3C;
+            break;
         default:
             LOG_ERR("Unknown front unit from IO expander: %d", hw_bits);
             front_unit_version =
@@ -312,6 +332,10 @@ version_get_power_board_rev(void)
         case 2:
             power_board_version =
                 orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_2;
+            break;
+        case 3:
+            power_board_version =
+                orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_3;
             break;
         default:
             LOG_ERR("Unknown power board from IO expander: %d", hw_bits);
