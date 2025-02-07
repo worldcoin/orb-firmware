@@ -7,7 +7,7 @@
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
 #include "ui/rgb_leds/cone_leds/cone_leds.h"
 #include "ui/white_leds/white_leds.h"
-#include <zephyr/toolchain/gcc.h>
+#include <zephyr/toolchain.h>
 #endif
 
 static bool cone_present = false;

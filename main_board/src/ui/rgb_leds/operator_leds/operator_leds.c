@@ -46,7 +46,7 @@ apply_pattern(uint32_t mask, struct led_rgb *color)
 {
     // go through mask starting with most significant bit
     // so that mask is applied from left LED to right for the operator
-    for (size_t i = 0; i < ARRAY_SIZE_ASSERT(leds); ++i) {
+    for (size_t i = 0; i < ARRAY_SIZE(leds); ++i) {
 #if defined(CONFIG_BOARD_PEARL_MAIN)
         uint32_t bit = BIT((OPERATOR_LEDS_COUNT - 1) - i);
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)

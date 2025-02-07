@@ -38,8 +38,6 @@ set_property(
     PROPERTY CMAKE_CONFIGURE_DEPENDS ${PROJECT_DIR}/VERSION
 )
 
-set_property(GLOBAL PROPERTY CSTD gnu11)
-
 # optional Orb variable allows to select the board
 if ("$ENV{ORB}" STREQUAL "pearl")
     unset(BOARD CACHE)
@@ -49,17 +47,14 @@ elseif ("$ENV{ORB}" STREQUAL "diamond")
     set(ENV{BOARD} diamond_main)
 endif ()
 
-# Load board before Zephyr loads it to get some custom/private board configuration.
-# Private config is not available publicly as the name suggests and contains
-# paths to private keys.
-cmake_parse_arguments(CACHE_VAR "REQUIRED;WATCH" "" "" BOARD)
-set (PRIV_CONF_FILE ${WORKSPACE_DIR}/orb/private/${BOARD}.conf)
-if (EXISTS ${PRIV_CONF_FILE})
-    message(STATUS "Using private board configuration file: ${PRIV_CONF_FILE}")
-    list(APPEND EXTRA_CONF_FILE ${PRIV_CONF_FILE})
-endif ()
 list(APPEND BOARD_ROOT ${PROJECT_DIR})
 list(APPEND DTS_ROOT ${PROJECT_DIR})
+
+# Load private & custom board configuration.
+# Private config is not available publicly as the name suggests.
+# The package is thus optional.
+list(APPEND CMAKE_MODULE_PATH ${WORKSPACE_DIR}/orb/private/utils/cmake)
+find_package(McuPrivate)
 
 # Add a common dts overlay necessary to ensure the app is linked into,
 # and fits inside, the slot0 partition. (If the user specified a
@@ -176,14 +171,7 @@ zephyr_include_directories(config)
 zephyr_linker_sources(SECTIONS config/compact-logs.ld)
 
 # link with Zephyr modules below
-# - modules/orb-protobuf-definitions: data format definitions and serializer/deserializer for messages between MCU, Jetson and Security MCU
 # - bootloader/mcuboot/boot/bootutil: public functions to access/modify mcuboot data from the application
-if (CONFIG_ORB_MCU_MESSAGING_LIB)
-    zephyr_link_libraries(ORB_MCU_MESSAGING_LIB)
-    # dependency below doesn't have to be forced if using West but must be added when using CMake only
-    # to build zephyr_final
-    add_dependencies(app generate_proto_files)
-endif ()
 if (CONFIG_MCUBOOT_BOOTUTIL_LIB)
     # check path is absolute
     if (IS_ABSOLUTE ${CONFIG_MCUBOOT_SIGNATURE_KEY_FILE})

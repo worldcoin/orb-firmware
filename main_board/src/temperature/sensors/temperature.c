@@ -836,7 +836,7 @@ check_overtemp_conditions(void)
         // Warning so that it's logged over CAN
         LOG_WRN(
             "Over-temperature conditions have abated, restoring fan to %.2f%%",
-            ((float)fan_speed_before_overtemperature / UINT16_MAX) * 100);
+            ((double)fan_speed_before_overtemperature / UINT16_MAX) * 100);
 
         fan_set_speed_by_value(fan_speed_before_overtemperature);
     } else if (old_num_sensors_in_overtemp_conditions == 0 &&

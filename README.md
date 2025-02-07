@@ -42,14 +42,14 @@ enumerated in the [west.yml](west.yml) file.
 2. Create an empty directory where the projects and dependencies will be located.
 
    ```shell
-   export REPO_DIR=$HOME/firmware # or any other directory
-   mkdir "$REPO_DIR"
+   export WEST_TOPDIR=$HOME/firmware # or any other directory
+   mkdir "$WEST_TOPDIR"
    ```
 
 3. Clone the manifest repository using west.
 
    ```shell
-   cd "$REPO_DIR"
+   cd "$WEST_TOPDIR"
    west init -m <repo-url.git> --mr main
    ```
 
@@ -65,7 +65,7 @@ enumerated in the [west.yml](west.yml) file.
 
 5. If you prefer to use Docker, you can use the provided [Dockerfile](utils/docker/Dockerfile).
    ```shell
-    cd "$REPO_DIR"/orb/public/utils/docker
+    cd utils/docker
     make build
     make shell
    ```
@@ -81,11 +81,11 @@ the [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting
      for [installing dependencies](https://docs.zephyrproject.org/latest/getting_started/index.html#install-dependencies).
      - Then:
        ```shell
-       pip3 install -r "$REPO_DIR"/zephyr/scripts/requirements.txt
+       pip3 install -r "$WEST_TOPDIR"/zephyr/scripts/requirements.txt
        ```
    - Or install the Conda environment provided [here](utils/env/environment.yml).
      ```shell
-     conda env create -f orb/public/utils/env/environment.yml
+     conda env create -f orb/utils/env/environment.yml
      conda activate worldcoin
      ```
 
@@ -171,7 +171,7 @@ the [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting
 10. Export CMake packages.
 
 ```shell
-cd "$REPO_DIR"
+cd "$WEST_TOPDIR"
 west zephyr-export
 ```
 
@@ -207,7 +207,7 @@ Print out the bootloader and main MCU application logs using:
 
 ```shell
 # replace /dev/ttyxxx with your UART device
-python "$REPO_DIR"/orb/public/utils/debug/uart_dump.py -p /dev/ttyxxx -b 115200
+python "$WEST_TOPDIR"/orb/utils/debug/uart_dump.py -p /dev/ttyxxx -b 115200
 ```
 
 ## Contributing

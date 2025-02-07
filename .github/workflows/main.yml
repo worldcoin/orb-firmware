@@ -12,7 +12,7 @@ jobs:
     uses: ./.github/workflows/zephyr_build.yml
     with:
       board: pearl_main
-      app_path: orb/public/main_board
+      app_path: orb/main_board
     secrets:
       gh_token: ${{ secrets.GIT_HUB_TOKEN }}
 
@@ -21,6 +21,6 @@ jobs:
     uses: ./.github/workflows/zephyr_build.yml
     with:
       board: diamond_main
-      app_path: orb/public/main_board
+      app_path: orb/main_board
     secrets:
       gh_token: ${{ secrets.GIT_HUB_TOKEN }}
