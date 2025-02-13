@@ -79,12 +79,16 @@ static const struct gpio_dt_spec pvcc_in_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), pvcc_voltage_gpios);
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
+static const struct gpio_dt_spec user_led0_3v3_gpios_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), user_led0_3v3_gpios);
+static const struct gpio_dt_spec user_led1_3v3_gpios_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), user_led1_3v3_gpios);
+static const struct gpio_dt_spec supply_3v3_lte_reset_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v3_lte_reset_gpios);
 static const struct gpio_dt_spec supply_3v3_lte_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v3_lte_enable_gpios);
 static const struct gpio_dt_spec supply_12v_caps_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_12v_caps_enable_gpios);
-static const struct gpio_dt_spec supply_1v2_enable_gpio_spec =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_1v2_enable_gpios);
 static const struct gpio_dt_spec supply_2v8_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_2v8_enable_gpios);
 static const struct gpio_dt_spec supply_3v6_enable_gpio_spec =
@@ -132,6 +136,14 @@ power_configure_gpios(void)
         !device_is_ready(supply_meas_enable_spec.port)) {
         return RET_ERROR_INTERNAL;
     }
+
+    // turn off controllable led
+    ret =
+        gpio_pin_configure_dt(&user_led0_3v3_gpios_spec, GPIO_OUTPUT_INACTIVE);
+    ASSERT_SOFT(ret);
+    ret =
+        gpio_pin_configure_dt(&user_led1_3v3_gpios_spec, GPIO_OUTPUT_INACTIVE);
+    ASSERT_SOFT(ret);
 
     ret = gpio_pin_configure_dt(&supply_vbat_sw_enable_gpio_spec,
                                 GPIO_OUTPUT_INACTIVE);
@@ -254,7 +266,8 @@ power_configure_gpios(void)
     // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
     if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
         version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
+        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
+        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
         if (!device_is_ready(supply_3v3_ssd_enable_gpio_spec.port) ||
             !device_is_ready(supply_3v3_wifi_enable_gpio_spec.port)) {
             return RET_ERROR_INTERNAL;
@@ -276,8 +289,8 @@ power_configure_gpios(void)
     }
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    if (!device_is_ready(supply_3v3_lte_enable_gpio_spec.port) ||
-        !device_is_ready(supply_1v2_enable_gpio_spec.port) ||
+    if (!device_is_ready(supply_3v3_lte_reset_gpio_spec.port) ||
+        !device_is_ready(supply_3v3_lte_enable_gpio_spec.port) ||
         !device_is_ready(supply_2v8_enable_gpio_spec.port) ||
         !device_is_ready(supply_3v6_enable_gpio_spec.port) ||
         !device_is_ready(supply_5v_rgb_enable_gpio_spec.port) ||
@@ -285,14 +298,14 @@ power_configure_gpios(void)
         return RET_ERROR_INTERNAL;
     }
 
-    ret = gpio_pin_configure_dt(&supply_3v3_lte_enable_gpio_spec,
+    ret = gpio_pin_configure_dt(&supply_3v3_lte_reset_gpio_spec,
                                 GPIO_OUTPUT_INACTIVE);
     if (ret != 0) {
         ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
     }
 
-    ret = gpio_pin_configure_dt(&supply_1v2_enable_gpio_spec,
+    ret = gpio_pin_configure_dt(&supply_3v3_lte_enable_gpio_spec,
                                 GPIO_OUTPUT_INACTIVE);
     if (ret != 0) {
         ASSERT_SOFT(ret);
@@ -343,6 +356,7 @@ SYS_INIT(power_configure_gpios, POST_KERNEL, SYS_INIT_GPIO_CONFIG_PRIORITY);
 void
 power_vbat_5v_3v3_supplies_on(void)
 {
+    int ret;
     const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
 
     // We configure this pin here before we enable 3.3v supply
@@ -358,17 +372,20 @@ power_vbat_5v_3v3_supplies_on(void)
         return;
     }
 
-    gpio_pin_set_dt(&supply_vbat_sw_enable_gpio_spec, 1);
+    ret = gpio_pin_set_dt(&supply_vbat_sw_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
     LOG_INF("VBAT SW enabled");
     k_msleep(20);
 
-    gpio_pin_set_dt(&supply_5v_enable_gpio_spec, 1);
+    ret = gpio_pin_set_dt(&supply_5v_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
     LOG_INF("5V power supply enabled");
     k_msleep(20);
 
-    gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 1);
+    ret = gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
     LOG_INF("3.3V power supply enabled");
-    k_msleep(20);
+    k_msleep(200);
 }
 
 void
@@ -389,6 +406,7 @@ power_vbat_5v_3v3_supplies_off(void)
 static int
 turn_on_power_supplies(void)
 {
+    int ret = 0;
     orb_mcu_Hardware_OrbVersion version = version_get_hardware_rev();
 
     // might be a duplicate call, but it's preferable to be sure that
@@ -398,35 +416,45 @@ turn_on_power_supplies(void)
     // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
     if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
         version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
-        gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
-        LOG_INF("3.3V SSD power supply enabled");
+        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
+        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
+        ret = gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
+        ASSERT_SOFT(ret);
+        LOG_INF("3.3V SD Card power supply enabled");
 
-        gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
+        ret = gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
+        ASSERT_SOFT(ret);
         LOG_INF("3.3V WIFI power supply enabled");
     }
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    gpio_pin_set_dt(&supply_12v_caps_enable_gpio_spec, 1);
+    ret = gpio_pin_set_dt(&supply_12v_caps_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
     LOG_INF("12V_CAPS enabled");
 
-    gpio_pin_set_dt(&supply_5v_rgb_enable_gpio_spec, 1);
+    ret = gpio_pin_set_dt(&supply_5v_rgb_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
     LOG_INF("5V_RGB enabled");
 
-    gpio_pin_set_dt(&supply_3v6_enable_gpio_spec, 1);
+    ret = gpio_pin_set_dt(&supply_3v6_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
     LOG_INF("3V6 enabled");
 
-    gpio_pin_set_dt(&supply_3v3_lte_enable_gpio_spec, 1);
+    ret = gpio_pin_set_dt(&supply_3v3_lte_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
     LOG_INF("3V3_LTE enabled");
 
-    gpio_pin_set_dt(&supply_2v8_enable_gpio_spec, 1);
+    ret = gpio_pin_set_dt(&supply_2v8_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
     LOG_INF("2V8 enabled");
 #endif
 
     k_msleep(100);
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-    gpio_pin_set_dt(&supply_12v_enable_gpio_spec, 1);
+    ret = gpio_pin_set_dt(&supply_12v_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
+
     LOG_INF("12V enabled");
 
     // 3.8V regulator only available on EV1...4
@@ -435,18 +463,15 @@ turn_on_power_supplies(void)
         (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
         (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
 
-        gpio_pin_set_dt(&supply_3v8_enable_rfid_irq_gpio_spec, 1);
+        ret = gpio_pin_set_dt(&supply_3v8_enable_rfid_irq_gpio_spec, 1);
+        ASSERT_SOFT(ret);
         LOG_INF("3.8V enabled");
     }
 #endif
 
-    gpio_pin_set_dt(&supply_1v8_enable_gpio_spec, 1);
+    ret = gpio_pin_set_dt(&supply_1v8_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
     LOG_INF("1.8V power supply enabled");
-
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    gpio_pin_set_dt(&supply_1v2_enable_gpio_spec, 1);
-    LOG_INF("1V2 enabled");
-#endif
 
     k_msleep(100);
 
@@ -730,7 +755,8 @@ reboot_thread()
             if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
                 version ==
                     orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-                version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
+                version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
+                version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
                 gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 0);
                 gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 0);
             }
