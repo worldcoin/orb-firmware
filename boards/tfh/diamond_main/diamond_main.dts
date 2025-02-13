@@ -59,6 +59,9 @@
         front-unit-pvcc-pwm-mode-gpios = <&gpio_exp_pwr_brd 3 GPIO_ACTIVE_LOW>;
         level-shifter-enable-gpios = <&gpioe 7 GPIO_ACTIVE_HIGH>;
 
+        user-led0-3v3-gpios = <&gpio_exp2 0 GPIO_ACTIVE_LOW>;
+        user-led1-3v3-gpios = <&gpio_exp2 1 GPIO_ACTIVE_LOW>;
+
         supply-3v3-ssd-enable-gpios = <&gpio_exp_pwr_brd 2 GPIO_ACTIVE_HIGH>;
         supply-3v3-wifi-enable-gpios = <&gpio_exp1 10 GPIO_ACTIVE_HIGH>;
         supply-5v-enable-gpios = <&gpio_exp_pwr_brd 1 GPIO_ACTIVE_LOW>;
@@ -79,8 +82,8 @@
         supply-5v-rgb-enable-gpios = <&gpio_exp1 2 GPIO_ACTIVE_HIGH>;
         supply-3v6-enable-gpios = <&gpio_exp2 5 GPIO_ACTIVE_HIGH>;
         supply-3v3-lte-enable-gpios = <&gpio_exp2 15 GPIO_ACTIVE_HIGH>;
+        supply-3v3-lte-reset-gpios = <&gpio_exp2 14 GPIO_ACTIVE_LOW>;
         supply-2v8-enable-gpios = <&gpio_exp2 7 GPIO_ACTIVE_HIGH>;
-        supply-1v2-enable-gpios = <&gpio_exp2 6 GPIO_ACTIVE_HIGH>;
 
         // used by boot.c when voltage measurements module is not available yet
         pvcc-voltage-gpios = <&gpioc 1 GPIO_ACTIVE_HIGH>;
@@ -146,12 +149,6 @@
             // drive high to indicate that the Jetson should enter sleep mode
             gpios = <&gpioe 9 GPIO_ACTIVE_LOW>;
         };
-    };
-
-    // todo LTE module supply enable
-    lte_reset {
-        compatible = "gpio-lte-gps-usb";
-        gpios = <&gpio_exp2 14 GPIO_ACTIVE_LOW>, <&gpio_exp2 15 GPIO_ACTIVE_LOW>;
     };
 
     fan_main {
