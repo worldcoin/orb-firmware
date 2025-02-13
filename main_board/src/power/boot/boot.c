@@ -137,6 +137,14 @@ power_configure_gpios(void)
         return RET_ERROR_INTERNAL;
     }
 
+    // turn off controllable led
+    ret =
+        gpio_pin_configure_dt(&user_led0_3v3_gpios_spec, GPIO_OUTPUT_INACTIVE);
+    ASSERT_SOFT(ret);
+    ret =
+        gpio_pin_configure_dt(&user_led1_3v3_gpios_spec, GPIO_OUTPUT_INACTIVE);
+    ASSERT_SOFT(ret);
+
     ret = gpio_pin_configure_dt(&supply_vbat_sw_enable_gpio_spec,
                                 GPIO_OUTPUT_INACTIVE);
     if (ret != 0) {
@@ -385,7 +393,7 @@ power_vbat_5v_3v3_supplies_on(void)
     ret = gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("3.3V power supply enabled");
-    k_msleep(20);
+    k_msleep(200);
 }
 
 void
