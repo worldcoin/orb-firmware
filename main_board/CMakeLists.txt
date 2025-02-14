@@ -88,6 +88,8 @@ list(APPEND SOURCES_FILES
     src/optics/mirror/mirror.c
     src/optics/mirror/mirror_private.c
 
+    src/system/timer2_irq/timer2_irq.c
+
     src/power/boot/boot.c
 
     src/runner/runner.c
@@ -130,6 +132,9 @@ endif()
 if (CONFIG_BOARD_DIAMOND_MAIN)
     list(APPEND SOURCES_FILES src/optics/mirror/homing_diamond.c)
     list(APPEND SOURCES_FILES src/power/battery/battery_amber.c)
+    list(APPEND SOURCES_FILES src/optics/polarizer_wheel/drv8434/drv8434_private.c)
+    list(APPEND SOURCES_FILES src/optics/polarizer_wheel/drv8434/drv8434.c)
+    list(APPEND SOURCES_FILES src/optics/polarizer_wheel/polarizer_wheel.c)
     if (CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
         list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds.c)
     endif()
