@@ -104,7 +104,6 @@ enum temperature_sensors {
     TEMPERATURE_SENSOR_FRONT_UNIT_850_730_LEFT_TOP,
     TEMPERATURE_SENSOR_FRONT_UNIT_850_730_LEFT_BOTTOM,
     TEMPERATURE_SENSOR_FRONT_UNIT_850_730_RIGHT_TOP,
-    TEMPERATURE_SENSOR_FRONT_UNIT_850_730_RIGHT_BOTTOM,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_LEFT_TOP,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_LEFT_BOTTOM,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_RIGHT_TOP,
@@ -344,19 +343,6 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_730_RIGHT_TOP,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
-         .cb = NULL,
-         .cb_data = NULL,
-         .history = {0},
-         .wr_idx = 0,
-         .average = TEMPERATURE_SENTINEL_VALUE},
-    [TEMPERATURE_SENSOR_FRONT_UNIT_850_730_RIGHT_BOTTOM] =
-        {.sensor = DEVICE_DT_GET(
-             DT_NODELABEL(front_unit_tmp_sensor_850_730_right_bot)),
-         .channel = SENSOR_CHAN_AMBIENT_TEMP,
-         .temperature_source =
-             orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_730_RIGHT_BOTTOM,
          .hardware_diagnostic_source =
              orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
          .cb = NULL,
