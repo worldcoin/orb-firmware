@@ -35,7 +35,7 @@ static Polarizer_Wheel_Instance_t g_polarizer_wheel_instance;
 // Peripherals (Motor Driver SPI, motor driver enable, encoder enable, encoder
 // feedback, step PWM)
 static const struct device *polarizer_spi_bus_controller =
-    DEVICE_DT_GET(DT_NODELABEL(polarizer_controller));
+    DEVICE_DT_GET(DT_PARENT(DT_NODELABEL(polarizer_controller)));
 static const struct pwm_dt_spec polarizer_step_pwm_spec =
     PWM_DT_SPEC_GET(DT_PATH(polarizer_step));
 static const struct gpio_dt_spec polarizer_enable_spec =
@@ -59,7 +59,7 @@ static struct gpio_callback polarizer_encoder_cb_data;
 static ret_code_t
 enable_encoder_interrupt(void)
 {
-    return gpio_pin_interrupt_configure_dt(&polarizer_enable_spec,
+    return gpio_pin_interrupt_configure_dt(&polarizer_encoder_spec,
                                            GPIO_INT_EDGE_RISING);
 }
 
@@ -67,7 +67,7 @@ enable_encoder_interrupt(void)
 static ret_code_t
 disable_encoder_interrupt(void)
 {
-    return gpio_pin_interrupt_configure_dt(&polarizer_enable_spec,
+    return gpio_pin_interrupt_configure_dt(&polarizer_encoder_spec,
                                            GPIO_INT_DISABLE);
 }
 
@@ -243,6 +243,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
                         POLARIZER_WHEEL_AUTO_HOMING_STATE_SUCCESS;
                     g_polarizer_wheel_instance.movement.current_position =
                         POLARIZER_WHEEL_POSITION_PASS_THROUGH;
+                    disable_encoder_interrupt();
                 }
                 break;
             }
