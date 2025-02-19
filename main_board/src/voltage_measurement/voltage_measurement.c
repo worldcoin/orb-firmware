@@ -101,7 +101,7 @@ static volatile const struct device *const adc5_dev =
 #define MAX_VOLTAGE_TRANSMIT_PERIOD_MS 60000
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-#define NUMBER_OF_CHANNELS_ADC_1 10
+#define NUMBER_OF_CHANNELS_ADC_1 9
 #define NUMBER_OF_CHANNELS_ADC_4 2
 #define NUMBER_OF_CHANNELS_ADC_5 8
 #else
@@ -621,7 +621,12 @@ publish_all_voltages(void)
             // not available on Main MCU
             continue;
         case orb_mcu_main_Voltage_VoltageSource_SUPPLY_12V:
+#ifdef CONFIG_BOARD_PEARL_MAIN
             channel = CHANNEL_12V;
+#else
+            // not available on Diamond, 12V_CAPS is used instead
+            continue;
+#endif
             break;
         case orb_mcu_main_Voltage_VoltageSource_SUPPLY_5V:
             channel = CHANNEL_5V;
