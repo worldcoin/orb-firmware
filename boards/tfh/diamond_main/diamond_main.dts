@@ -72,6 +72,12 @@
         supply-vbat-sw-enable-gpios = <&gpio_exp_pwr_brd 12 GPIO_ACTIVE_HIGH>;
         front-unit-pvcc-enabled-gpios = <&gpio_exp_front_unit 0 GPIO_ACTIVE_HIGH>;
 
+        polarizer-stepper-direction-gpios = <&gpio_exp1 1 GPIO_ACTIVE_HIGH>;
+        polarizer-stepper-enable-gpios = <&gpio_exp1 2 GPIO_ACTIVE_HIGH>;
+        polarizer-stepper-encoder-enable-gpios = <&gpio_exp1 3 GPIO_ACTIVE_HIGH>;
+        polarizer-stepper-encoder-gpios = <&gpioc 11 GPIO_ACTIVE_LOW>;
+
+        // The signals FUSE_RST and FUSE_ACTIVE are available only on Front Unit 6.0 (PoC1) and 6.1 (PoC2)
         // On Front Unit 6.2 (B3) the signal EN_5V_SWITCHED is connected to the port expander pin P02 instead.
         front-unit-en-5v-switched-gpios = <&gpio_exp_front_unit 2 GPIO_ACTIVE_HIGH>;      // B3 only
 
@@ -157,6 +163,11 @@
     white_leds {
         compatible = "pwm-white-leds";
         pwms = <&white_leds_pwm 2 65535 PWM_POLARITY_NORMAL>;
+    };
+
+    polarizer_step {
+        compatible = "pwm-polarizer-step";
+        pwms = <&polarizer_step_pwm 2 100000 PWM_POLARITY_NORMAL>;
     };
 
     liquid_lens {
@@ -769,12 +780,20 @@
 
 &timers2 {
     status = "okay";
+    interrupts = <28 0>;
+    interrupt-names = "global";
 
     fan_main_tach: fan_main_tach {
         compatible = "tfh,stm32-pwm";
         pinctrl-0 = <&tim2_ch3_pd7>;
         pinctrl-names = "default";
         channels = <3>;
+    };
+
+    polarizer_step_pwm: pwm {
+        status = "okay";
+        pinctrl-0 = <&tim2_ch2_pd4>;
+        pinctrl-names = "default";
     };
 };
 
@@ -1022,13 +1041,22 @@
 &spi1 {
     pinctrl-0 = <&spi1_sck_pa5 &spi1_miso_pa6 &spi1_mosi_pa7>;
     pinctrl-names = "default";
-    cs-gpios = <&gpioa 3 GPIO_ACTIVE_LOW>;
+    cs-gpios = <&gpioa 3 GPIO_ACTIVE_LOW>,
+               <&gpio_exp1 0 GPIO_ACTIVE_LOW>;  /* CS on I/O expander */
     status = "okay";
 
     motion_controller: motion_controller@0 {
         compatible = "tmc,5041-spi";
         reg = <0>;
         spi-max-frequency = <4000000>;
+        status = "okay";
+    };
+
+    polarizer_controller: polarizer_controller@1 {
+        compatible = "zephyr,spi-device";
+        reg = <1>;  /* This will use the I/O expander CS */
+        spi-max-frequency = <4000000>;
+        spi-mode = <0>;
         status = "okay";
     };
 };
