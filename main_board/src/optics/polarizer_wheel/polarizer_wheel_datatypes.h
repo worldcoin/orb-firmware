@@ -9,7 +9,7 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/spi.h>
 #include <zephyr/kernel.h>
-
+#include <zephyr/sys/atomic.h>
 
 typedef enum {
     POLARIZER_WHEEL_POSITION_UNKNOWN,
@@ -46,8 +46,8 @@ typedef struct {
     } auto_homing;
 
     struct {
-        uint32_t step_count_current;
-        uint32_t step_count_target;
+        atomic_t step_count_current;
+        atomic_t step_count_target;
     } step_count;
 
     struct {

@@ -129,23 +129,27 @@ drv8434_verify_config(void)
     // Proceed to write all config registers
     ret_code_t ret_val = RET_SUCCESS;
 
-    if (g_drv8434_instance.device_cfg.ctrl2.raw != g_drv8434_instance.registers.ctrl2.raw) {
-        return RET_ERROR_INTERNAL;
+    if (g_drv8434_instance.device_cfg.ctrl2.raw !=
+        g_drv8434_instance.registers.ctrl2.raw) {
+        ret_val = RET_ERROR_INTERNAL;
     }
 
-    if (g_drv8434_instance.device_cfg.ctrl3.raw != g_drv8434_instance.registers.ctrl3.raw) {
-        return RET_ERROR_INTERNAL;
+    if (g_drv8434_instance.device_cfg.ctrl3.raw !=
+        g_drv8434_instance.registers.ctrl3.raw) {
+        ret_val = RET_ERROR_INTERNAL;
     }
 
-    if (g_drv8434_instance.device_cfg.ctrl4.raw != g_drv8434_instance.registers.ctrl4.raw) {
-        return RET_ERROR_INTERNAL;
+    if (g_drv8434_instance.device_cfg.ctrl4.raw !=
+        g_drv8434_instance.registers.ctrl4.raw) {
+        ret_val = RET_ERROR_INTERNAL;
     }
 
-    if (g_drv8434_instance.device_cfg.ctrl7.raw != g_drv8434_instance.registers.ctrl7.raw) {
-        return RET_ERROR_INTERNAL;
+    if (g_drv8434_instance.device_cfg.ctrl7.raw !=
+        g_drv8434_instance.registers.ctrl7.raw) {
+        ret_val = RET_ERROR_INTERNAL;
     }
 
-    return RET_SUCCESS;
+    return ret_val;
 }
 
 ret_code_t
