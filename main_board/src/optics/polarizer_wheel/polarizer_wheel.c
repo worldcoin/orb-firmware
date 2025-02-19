@@ -40,6 +40,8 @@ static const struct pwm_dt_spec polarizer_step_pwm_spec =
     PWM_DT_SPEC_GET(DT_PATH(polarizer_step));
 static const struct gpio_dt_spec polarizer_enable_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), polarizer_stepper_enable_gpios);
+static const struct gpio_dt_spec polarizer_step_dir_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), polarizer_stepper_direction_gpios);
 static const struct gpio_dt_spec polarizer_encoder_enable_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user),
                      polarizer_stepper_encoder_enable_gpios);
@@ -165,6 +167,12 @@ polarizer_wheel_peripherals_ready(void)
     if (!device_is_ready(polarizer_enable_spec.port)) {
         return false;
     }
+    if (!device_is_ready(polarizer_step_dir_spec.port)) {
+        return false;
+    }
+    if (!device_is_ready(polarizer_encoder_enable_spec.port)) {
+        return false;
+    }
     if (!device_is_ready(polarizer_encoder_spec.port)) {
         return false;
     }
@@ -285,6 +293,15 @@ polarizer_wheel_init(void)
     }
 
     gpio_pin_set_dt(&polarizer_encoder_enable_spec, 1);
+
+    // Configure and set the polarizer motor direction pin
+    ret_val =
+        gpio_pin_configure_dt(&polarizer_step_dir_spec, GPIO_OUTPUT_INACTIVE);
+    if (ret_val != 0) {
+        return RET_ERROR_INTERNAL;
+    }
+
+    gpio_pin_set_dt(&polarizer_step_dir_spec, 1);
 
     // Configure the encoder input pin as an input and set up callback, keep
     // interrupt disabled
