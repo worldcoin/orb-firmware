@@ -211,7 +211,8 @@ fan_init(void)
         fan_specs = fan_ev3_specs;
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
     if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
+        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
+        orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
         fan_specs = fan_diamond_specs;
 #endif
     } else {
