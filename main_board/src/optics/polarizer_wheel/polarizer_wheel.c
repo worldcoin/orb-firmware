@@ -32,6 +32,8 @@ K_THREAD_STACK_DEFINE(stack_area_polarizer_wheel_home,
 
 static Polarizer_Wheel_Instance_t g_polarizer_wheel_instance;
 
+#define SPI_DEVICE_POLARIZER DT_NODELABEL(polarizer_controller)
+
 // Peripherals (Motor Driver SPI, motor driver enable, encoder enable, encoder
 // feedback, step PWM)
 static const struct device *polarizer_spi_bus_controller =
@@ -330,9 +332,9 @@ polarizer_wheel_init(void)
     // Set up the DRV8434 driver configuration
     DRV8434_DriverCfg_t drv8434_cfg = {
         .spi_cfg = {.frequency = 1000000,
-                    .operation = SPI_WORD_SET(16) | SPI_OP_MODE_MASTER |
-                                 SPI_MODE_CPOL | SPI_MODE_CPHA,
-                    .cs = SPI_CS_CONTROL_INIT(SPI_DEVICE, 2)},
+                    .operation = SPI_WORD_SET(8) | SPI_OP_MODE_MASTER |
+                                 SPI_MODE_CPHA | SPI_TRANSFER_MSB,
+                    .cs = SPI_CS_CONTROL_INIT(SPI_DEVICE_POLARIZER, 2)},
         .spi_bus_controller = polarizer_spi_bus_controller};
     // Initialize the DRV8434 driver
     ret_val = drv8434_init(&drv8434_cfg);
@@ -353,10 +355,13 @@ polarizer_wheel_configure(void)
         .ctrl3.SPI_DIR = DRV8434_REG_CTRL3_VAL_SPIDIR_PIN,
         .ctrl3.SPI_STEP = DRV8434_REG_CTRL3_VAL_SPISTEP_PIN,
         .ctrl3.MICROSTEP_MODE = DRV8434_REG_CTRL3_VAL_MICROSTEP_MODE_1_128,
+        // .ctrl4.CLR_FLT = true,
+        .ctrl4.LOCK = DRV8434_REG_CTRL4_VAL_UNLOCK,
         .ctrl7.RC_RIPPLE = DRV8434_REG_CTRL7_VAL_RCRIPPLE_1PERCENT,
         .ctrl7.EN_SSC = DRV8434_REG_CTRL7_VAL_ENSSC_ENABLE,
         .ctrl7.TRQ_SCALE = DRV8434_REG_CTRL7_VAL_TRQSCALE_NOSCALE};
 
+    drv8434_clear_fault();
     // Configure the DRV8434 device
     drv8434_write_config(&drv8434_cfg);
 
