@@ -31,6 +31,14 @@ drv8434_init(DRV8434_DriverCfg_t *cfg)
     g_drv8434_instance.spi.tx_bufs.buffers = &g_drv8434_instance.spi.tx;
     g_drv8434_instance.spi.tx_bufs.count = 1;
 
+    // Set internal SPI buffer pointers
+    g_drv8434_instance.spi.rx.buf = g_drv8434_instance.spi.rx_buffer;
+    g_drv8434_instance.spi.tx.buf = g_drv8434_instance.spi.tx_buffer;
+    g_drv8434_instance.spi.rx.len =
+        2; // sizeof(g_drv8434_instance.spi.rx_buffer);
+    g_drv8434_instance.spi.tx.len =
+        2; // sizeof(g_drv8434_instance.spi.tx_buffer);
+
     return RET_SUCCESS;
 }
 
@@ -57,6 +65,39 @@ drv8434_enable(void)
 }
 
 ret_code_t
+drv8434_clear_fault(void)
+{
+    // Carry over existing bits in CTRL 2
+    DRV8434_CTRL4_REG_t ctrl4 = g_drv8434_instance.registers.ctrl4;
+    // Enable outputs
+    ctrl4.CLR_FLT = true;
+    return drv8434_private_reg_write(DRV8434_REG_CTRL4_ADDR, ctrl4.raw,
+                                     &g_drv8434_instance);
+}
+
+ret_code_t
+drv8434_unlock_control_registers(void)
+{
+    // Carry over existing bits in CTRL 2
+    DRV8434_CTRL4_REG_t ctrl4 = g_drv8434_instance.registers.ctrl4;
+    // Enable outputs
+    ctrl4.LOCK = DRV8434_REG_CTRL4_VAL_UNLOCK;
+    return drv8434_private_reg_write(DRV8434_REG_CTRL4_ADDR, ctrl4.raw,
+                                     &g_drv8434_instance);
+}
+
+ret_code_t
+drv8434_lock_control_registers(void)
+{
+    // Carry over existing bits in CTRL 2
+    DRV8434_CTRL4_REG_t ctrl4 = g_drv8434_instance.registers.ctrl4;
+    // Enable outputs
+    ctrl4.LOCK = DRV8434_REG_CTRL4_VAL_LOCK;
+    return drv8434_private_reg_write(DRV8434_REG_CTRL4_ADDR, ctrl4.raw,
+                                     &g_drv8434_instance);
+}
+
+ret_code_t
 drv8434_write_config(DRV8434_DeviceCfg_t *cfg)
 {
     // Copy over desired device config to runtime context
@@ -64,6 +105,13 @@ drv8434_write_config(DRV8434_DeviceCfg_t *cfg)
 
     // Proceed to write all config registers
     ret_code_t ret_val = RET_SUCCESS;
+
+    ret_val = drv8434_private_reg_write(DRV8434_REG_CTRL4_ADDR, cfg->ctrl4.raw,
+                                        &g_drv8434_instance);
+    if (ret_val) {
+        return ret_val;
+    }
+
     ret_val = drv8434_private_reg_write(DRV8434_REG_CTRL2_ADDR, cfg->ctrl2.raw,
                                         &g_drv8434_instance);
     if (ret_val) {
@@ -71,12 +119,6 @@ drv8434_write_config(DRV8434_DeviceCfg_t *cfg)
     }
 
     ret_val = drv8434_private_reg_write(DRV8434_REG_CTRL3_ADDR, cfg->ctrl3.raw,
-                                        &g_drv8434_instance);
-    if (ret_val) {
-        return ret_val;
-    }
-
-    ret_val = drv8434_private_reg_write(DRV8434_REG_CTRL4_ADDR, cfg->ctrl4.raw,
                                         &g_drv8434_instance);
     if (ret_val) {
         return ret_val;
@@ -104,12 +146,6 @@ drv8434_read_config(void)
 
     ret_val =
         drv8434_private_reg_read(DRV8434_REG_CTRL3_ADDR, &g_drv8434_instance);
-    if (ret_val) {
-        return ret_val;
-    }
-
-    ret_val =
-        drv8434_private_reg_read(DRV8434_REG_CTRL4_ADDR, &g_drv8434_instance);
     if (ret_val) {
         return ret_val;
     }
