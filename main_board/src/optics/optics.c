@@ -4,6 +4,7 @@
 #include "optics/liquid_lens/liquid_lens.h"
 #include "optics/mirror/mirror.h"
 #include "orb_logs.h"
+#include "polarizer_wheel/polarizer_wheel.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "system/diag.h"
@@ -183,6 +184,12 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
     }
 
     atomic_set_bit(fu_pvcc_enabled, ATOMIC_FU_PVCC_ENABLED_BIT);
+
+    ret = polarizer_wheel_init();
+    ASSERT_SOFT(ret);
+
+    ret = polarizer_wheel_configure();
+    ASSERT_SOFT(ret);
 
     UNUSED_PARAMETER(hw_version);
 #endif

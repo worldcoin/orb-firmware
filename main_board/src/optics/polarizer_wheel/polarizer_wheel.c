@@ -334,7 +334,7 @@ polarizer_wheel_init(void)
         .spi_cfg = {.frequency = 1000000,
                     .operation = SPI_WORD_SET(8) | SPI_OP_MODE_MASTER |
                                  SPI_MODE_CPHA | SPI_TRANSFER_MSB,
-                    .cs = SPI_CS_CONTROL_INIT(SPI_DEVICE_POLARIZER, 2)},
+                    .cs = {0}},
         .spi_bus_controller = polarizer_spi_bus_controller};
     // Initialize the DRV8434 driver
     ret_val = drv8434_init(&drv8434_cfg);

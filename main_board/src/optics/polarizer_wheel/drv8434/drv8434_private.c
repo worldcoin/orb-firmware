@@ -15,6 +15,12 @@
 
 #include "drv8434_private.h"
 
+#include <app_assert.h>
+#include <utils.h>
+
+static const struct gpio_dt_spec cs_gpio =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), polarizer_stepper_spi_cs_gpios);
+
 /**
  * @brief DRV8434 Register Operation Validity Check
  *
@@ -141,9 +147,12 @@ drv8434_private_reg_read(uint8_t address, DRV8434_Instance_t *instance)
     instance->spi.tx_buffer[0u] = (tx_word >> 8) & DRV8434_SPI_TX_LSB_MASK;
     instance->spi.tx_buffer[1u] = tx_word & DRV8434_SPI_TX_LSB_MASK;
 
+    ASSERT_SOFT(gpio_pin_set_dt(&cs_gpio, 1));
+
     int ret = spi_transceive(instance->driver_cfg.spi_bus_controller,
                              &instance->driver_cfg.spi_cfg,
                              &instance->spi.tx_bufs, &instance->spi.rx_bufs);
+    ASSERT_SOFT(gpio_pin_set_dt(&cs_gpio, 0));
 
     if (ret) {
         return RET_ERROR_BUSY;
@@ -160,6 +169,8 @@ ret_code_t
 drv8434_private_reg_write(uint8_t address, uint8_t data,
                           DRV8434_Instance_t *instance)
 {
+    int ret;
+
     if (instance == NULL) {
         return RET_ERROR_INVALID_PARAM;
     }
@@ -167,6 +178,8 @@ drv8434_private_reg_write(uint8_t address, uint8_t data,
     if (!validate_register_operation(address, true)) {
         return RET_ERROR_INVALID_ADDR;
     }
+
+    gpio_pin_configure_dt(&cs_gpio, GPIO_OUTPUT_INACTIVE);
 
     uint16_t tx_word = 0;
 
@@ -184,9 +197,14 @@ drv8434_private_reg_write(uint8_t address, uint8_t data,
     instance->spi.tx_buffer[0u] = (tx_word >> 8) & DRV8434_SPI_TX_LSB_MASK;
     instance->spi.tx_buffer[1u] = tx_word & DRV8434_SPI_TX_LSB_MASK;
 
-    int ret = spi_transceive(instance->driver_cfg.spi_bus_controller,
-                             &instance->driver_cfg.spi_cfg,
-                             &instance->spi.tx_bufs, &instance->spi.rx_bufs);
+    ASSERT_SOFT(gpio_pin_set_dt(&cs_gpio, 1));
+    k_msleep(1);
+
+    ret = spi_transceive(instance->driver_cfg.spi_bus_controller,
+                         &instance->driver_cfg.spi_cfg, &instance->spi.tx_bufs,
+                         &instance->spi.rx_bufs);
+
+    ASSERT_SOFT(gpio_pin_set_dt(&cs_gpio, 0));
 
     if (ret) {
         return RET_ERROR_BUSY;
