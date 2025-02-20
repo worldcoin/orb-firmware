@@ -24,7 +24,7 @@
 
 // Buffer is sized for the maximum number of
 // back to back frames sent
-#define DRV8434_SPI_BUFFER_SIZE_MAX 10u
+#define DRV8434_SPI_BUFFER_SIZE_MAX 2u
 
 /****************************************SPI FRAME
  * DEFINES************************************************************/
@@ -67,6 +67,9 @@ enum DRV8434_TRQ_DAC_Val {
 #define DRV8434_REG_CTRL3_VAL_SPIDIR_PIN           0x0u
 #define DRV8434_REG_CTRL3_VAL_SPISTEP_PIN          0x0u
 #define DRV8434_REG_CTRL3_VAL_MICROSTEP_MODE_1_128 0x9u
+
+#define DRV8434_REG_CTRL4_VAL_LOCK   0x6u
+#define DRV8434_REG_CTRL4_VAL_UNLOCK 0x3u
 
 #define DRV8434_REG_CTRL7_VAL_RCRIPPLE_1PERCENT 0x0u
 #define DRV8434_REG_CTRL7_VAL_ENSSC_ENABLE      0x1u

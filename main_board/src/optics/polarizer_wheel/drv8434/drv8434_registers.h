@@ -112,9 +112,9 @@ typedef union {
     struct {
         bool TW_REP : 1;
         bool OTSD_MODE : 1;
-        uint8_t OCP_MODE : 3;
+        bool OCP_MODE : 1;
         bool EN_OL : 1;
-        bool LOCK : 1;
+        uint8_t LOCK : 3;
         bool CLR_FLT : 1;
     };
 } DRV8434_CTRL4_REG_t;
