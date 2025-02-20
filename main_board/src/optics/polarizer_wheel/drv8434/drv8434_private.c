@@ -164,7 +164,7 @@ drv8434_private_reg_write(uint8_t address, uint8_t data,
         return RET_ERROR_INVALID_PARAM;
     }
 
-    if (!validate_register_operation(address, false)) {
+    if (!validate_register_operation(address, true)) {
         return RET_ERROR_INVALID_ADDR;
     }
 
