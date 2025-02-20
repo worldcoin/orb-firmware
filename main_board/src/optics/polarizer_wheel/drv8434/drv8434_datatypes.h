@@ -33,7 +33,7 @@ typedef struct {
 typedef struct {
     DRV8434_CTRL2_REG_t ctrl2;
     DRV8434_CTRL3_REG_t ctrl3;
-    DRV8434_CTRL3_REG_t ctrl4;
+    DRV8434_CTRL4_REG_t ctrl4;
     DRV8434_CTRL7_REG_t ctrl7;
 } DRV8434_DeviceCfg_t;
 

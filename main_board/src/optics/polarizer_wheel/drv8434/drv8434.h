@@ -125,3 +125,39 @@ drv8434_scale_current(enum DRV8434_TRQ_DAC_Val current);
 
 ret_code_t
 drv8434_get_register_data(DRV8434_Registers_t *reg);
+
+/**
+ * @brief DRV8434 Clear Fault
+ *
+ *
+ * @return Indicates successful or unsuccessful operation
+ *
+ *
+ */
+
+ret_code_t
+drv8434_clear_fault(void);
+
+/**
+ * @brief DRV8434 Unlock Control Registers
+ *
+ *
+ * @return Indicates successful or unsuccessful operation
+ *
+ *
+ */
+
+ret_code_t
+drv8434_unlock_control_registers(void);
+
+/**
+ * @brief DRV8434 Lock Control Registers
+ *
+ *
+ * @return Indicates successful or unsuccessful operation
+ *
+ *
+ */
+
+ret_code_t
+drv8434_lock_control_registers(void);
