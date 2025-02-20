@@ -3,12 +3,14 @@
 #endif
 #include "mcu.pb.h"
 #include "optics/optics.h"
+#include "optics/polarizer_wheel/polarizer_wheel.h"
 #include "orb_logs.h"
 #include "power/battery/battery.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "runner/runner.h"
 #include "system/diag.h"
+#include "system/timer2_irq/timer2_irq.h"
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "temperature/fan/fan_tach.h"
@@ -211,16 +213,16 @@ initialize(void)
     ASSERT_SOFT(err_code);
 #endif
 
-    err_code = version_init();
-    ASSERT_SOFT(err_code);
+    // err_code = version_init();
+    // ASSERT_SOFT(err_code);
 
-    orb_mcu_Hardware hw = {.version = version_get_hardware_rev()};
-    LOG_INF("Hardware version: %u", hw.version);
+    // orb_mcu_Hardware hw = {.version = version_get_hardware_rev()};
+    // LOG_INF("Hardware version: %u", hw.version);
 
     // voltage_measurement module is used by battery and boot -> must be
     // initialized before
-    err_code = voltage_measurement_init(&hw, &analog_and_i2c_mutex);
-    ASSERT_SOFT(err_code);
+    // err_code = voltage_measurement_init(&hw, &analog_and_i2c_mutex);
+    // ASSERT_SOFT(err_code);
 
     // logs over CAN must be initialized after CAN-messaging module
 #if defined(CONFIG_ORB_LIB_LOGS_CAN) && !defined(CONFIG_ZTEST)
@@ -228,33 +230,33 @@ initialize(void)
     ASSERT_SOFT(err_code);
 #endif
 
-    // check battery state early on
-    err_code = battery_init();
-    ASSERT_SOFT(err_code);
+    // // check battery state early on
+    // err_code = battery_init();
+    // ASSERT_SOFT(err_code);
 
 #ifndef CONFIG_NO_JETSON_BOOT
     err_code = boot_turn_on_jetson();
     ASSERT_SOFT(err_code);
 #endif // CONFIG_NO_JETSON_BOOT
 
-    err_code = fan_init();
-    ASSERT_SOFT(err_code);
+    // err_code = fan_init();
+    // ASSERT_SOFT(err_code);
 
-    temperature_init(&hw, &analog_and_i2c_mutex);
+    // temperature_init(&hw, &analog_and_i2c_mutex);
 
-    err_code = sound_init();
-    ASSERT_SOFT(err_code);
+    // err_code = sound_init();
+    // ASSERT_SOFT(err_code);
 
-    err_code = ui_init();
-    ASSERT_SOFT(err_code);
+    // err_code = ui_init();
+    // ASSERT_SOFT(err_code);
 
 #if !defined(CONFIG_NO_SUPER_CAPS) && !defined(CONFIG_CI_INTEGRATION_TESTS)
     err_code = boot_turn_on_super_cap_charger();
     if (err_code == RET_SUCCESS) {
         err_code = boot_turn_on_pvcc();
         if (err_code == RET_SUCCESS) {
-            err_code = optics_init(&hw, &analog_and_i2c_mutex);
-            ASSERT_SOFT(err_code);
+            // err_code = optics_init(&hw, &analog_and_i2c_mutex);
+            // ASSERT_SOFT(err_code);
         } else {
             ASSERT_SOFT(err_code);
         }
@@ -262,15 +264,16 @@ initialize(void)
         ASSERT_SOFT(err_code);
     }
 #else
-    err_code = optics_init(&hw);
-    ASSERT_SOFT(err_code);
+    // err_code = optics_init(&hw);
+    // ASSERT_SOFT(err_code);
+
 #endif // CONFIG_NO_SUPER_CAPS
 
-    err_code = als_init(&analog_and_i2c_mutex);
-    ASSERT_SOFT(err_code);
+    // err_code = als_init(&analog_and_i2c_mutex);
+    // ASSERT_SOFT(err_code);
 
-    err_code = dfu_init();
-    ASSERT_SOFT(err_code);
+    // err_code = dfu_init();
+    // ASSERT_SOFT(err_code);
 
     err_code = button_init();
     ASSERT_SOFT(err_code);
@@ -280,7 +283,10 @@ initialize(void)
     ASSERT_SOFT(err_code);
 #endif
 
-    err_code = fan_tach_init();
+    // err_code = fan_tach_init();
+    timer2_init();
+    err_code = polarizer_wheel_init();
+    err_code = polarizer_wheel_configure();
     ASSERT_SOFT(err_code);
 }
 
