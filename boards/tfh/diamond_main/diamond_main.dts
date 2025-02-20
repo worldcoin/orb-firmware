@@ -1056,7 +1056,6 @@
         compatible = "zephyr,spi-device";
         reg = <1>;  /* This will use the I/O expander CS */
         spi-max-frequency = <4000000>;
-        spi-mode = <0>;
         status = "okay";
     };
 };
