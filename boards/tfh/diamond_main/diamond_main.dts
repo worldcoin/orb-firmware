@@ -74,8 +74,8 @@
 
         polarizer-stepper-direction-gpios = <&gpio_exp1 1 GPIO_ACTIVE_HIGH>;
         polarizer-stepper-enable-gpios = <&gpio_exp1 2 GPIO_ACTIVE_HIGH>;
-        polarizer-stepper-encoder-enable-gpios = <&gpio_exp1 3 GPIO_ACTIVE_HIGH>;
-        polarizer-stepper-encoder-gpios = <&gpioc 11 GPIO_ACTIVE_LOW>;
+        polarizer-stepper-encoder-enable-gpios = <&gpio_exp1 3 GPIO_ACTIVE_LOW>;
+        polarizer-stepper-encoder-gpios = <&gpioc 11 GPIO_ACTIVE_HIGH>;
         polarizer-stepper-spi-cs-gpios = <&gpio_exp1 0 GPIO_ACTIVE_LOW>;
 
         // The signals FUSE_RST and FUSE_ACTIVE are available only on Front Unit 6.0 (PoC1) and 6.1 (PoC2)
