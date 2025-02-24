@@ -14,7 +14,6 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stm32g474xx.h>
-#include <stm32g4xx_ll_tim.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/drivers/pwm.h>
@@ -347,13 +346,15 @@ polarizer_wheel_init(void)
     memset(&g_polarizer_wheel_instance, 0, sizeof(Polarizer_Wheel_Instance_t));
 
     // Set up the DRV8434 driver configuration
-    DRV8434_DriverCfg_t drv8434_cfg = {
-        .spi_cfg = {.frequency = 1000000,
-                    .operation = SPI_WORD_SET(8) | SPI_OP_MODE_MASTER |
-                                 SPI_MODE_CPHA | SPI_TRANSFER_MSB,
-                    .cs = {0}},
-        .spi_bus_controller = polarizer_spi_bus_controller,
-        .spi_cs_gpio = &polarizer_spi_cs_gpio};
+    DRV8434_DriverCfg_t drv8434_cfg = {0};
+    drv8434_cfg.spi_cfg = (struct spi_config){
+        .frequency = 1000000,
+        .operation = SPI_WORD_SET(8) | SPI_OP_MODE_MASTER | SPI_MODE_CPHA |
+                     SPI_TRANSFER_MSB,
+    };
+    drv8434_cfg.spi_bus_controller = polarizer_spi_bus_controller;
+    drv8434_cfg.spi_cs_gpio = &polarizer_spi_cs_gpio;
+
     // Initialize the DRV8434 driver
     ret_val = drv8434_init(&drv8434_cfg);
 
