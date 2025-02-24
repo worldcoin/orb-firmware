@@ -18,6 +18,7 @@
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/drivers/pwm.h>
+#include <zephyr/logging/log.h>
 
 // Maximum number of notches needed to be encountered to finish homing
 #define POLARIZER_WHEEL_ENCODER_MAX_HOMING_NOTCHES 5
@@ -26,6 +27,8 @@
 
 // TODO get this correctly from the device tree
 #define POLARIZER_STEP_CHANNEL 2
+
+LOG_MODULE_REGISTER(polarizer, CONFIG_POLARIZER_LOG_LEVEL);
 
 K_THREAD_STACK_DEFINE(stack_area_polarizer_wheel_home,
                       THREAD_STACK_SIZE_POLARIZER_WHEEL_HOME);
@@ -114,6 +117,8 @@ encoder_callback(const struct device *dev, struct gpio_callback *cb,
 
     if (pins & BIT(polarizer_encoder_spec.pin)) {
         if (gpio_pin_get_dt(&polarizer_encoder_spec) == 1) {
+            LOG_DBG("encoder detected: %u",
+                    g_polarizer_wheel_instance.auto_homing.notches_encountered);
             if (!g_polarizer_wheel_instance.auto_homing.start_notch_found) {
                 g_polarizer_wheel_instance.auto_homing.start_notch_found = true;
             } else {
