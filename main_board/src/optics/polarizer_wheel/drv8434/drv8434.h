@@ -27,7 +27,7 @@
  */
 
 ret_code_t
-drv8434_init(DRV8434_DriverCfg_t *cfg);
+drv8434_init(const DRV8434_DriverCfg_t *cfg);
 
 /**
  * @brief DRV8434 Disable Outputs of Half Bridges
@@ -61,7 +61,7 @@ drv8434_enable(void);
  */
 
 ret_code_t
-drv8434_write_config(DRV8434_DeviceCfg_t *cfg);
+drv8434_write_config(DRV8434_DeviceCfg_t const *const cfg);
 
 /**
  * @brief DRV8434 Read back the ASIC specific device configuration

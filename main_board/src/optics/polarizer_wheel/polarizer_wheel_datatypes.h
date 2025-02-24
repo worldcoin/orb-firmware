@@ -1,3 +1,5 @@
+#pragma once
+
 /******************************************************************************
  * @file polarizer_wheel_datatypes.h
  * @brief Header file for polarizer wheel datatypes and runtime context
@@ -6,24 +8,21 @@
  *
  ******************************************************************************/
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/spi.h>
-#include <zephyr/kernel.h>
 #include <zephyr/sys/atomic.h>
 
 typedef enum {
     POLARIZER_WHEEL_POSITION_UNKNOWN,
     POLARIZER_WHEEL_POSITION_PASS_THROUGH,
-    POLARIZER_WHEEL_POSITION_45_DEGREE,
+    POLARIZER_WHEEL_POSITION_0_DEGREE,
     POLARIZER_WHEEL_POSITION_90_DEGREE,
-} Polarizer_Wheel_Position_t;
+} polarizer_wheel_position_t;
 
 typedef enum {
     POLARIZER_WHEEL_AUTO_HOMING_STATE_IDLE,
     POLARIZER_WHEEL_AUTO_HOMING_STATE_IN_PROGRESS,
     POLARIZER_WHEEL_AUTO_HOMING_STATE_FAILED,
     POLARIZER_WHEEL_AUTO_HOMING_STATE_SUCCESS,
-} Auto_Homing_State_t;
+} polarizer_homing_state_t;
 
 typedef struct {
     // General Information
@@ -34,15 +33,16 @@ typedef struct {
 
     struct {
         bool wheel_moving;
-        Polarizer_Wheel_Position_t current_position;
-        Polarizer_Wheel_Position_t target_position;
+        polarizer_wheel_position_t current_position;
+        polarizer_wheel_position_t target_position;
     } movement;
 
     struct {
-        Auto_Homing_State_t auto_homing_state;
+        polarizer_homing_state_t auto_homing_state;
         bool start_notch_found;
         uint8_t notches_encountered;
         uint32_t steps_to_last_notch;
+        uint32_t steps_to_last_notch_prev;
     } auto_homing;
 
     struct {
@@ -56,4 +56,4 @@ typedef struct {
         uint8_t configure_error;
     } errors;
 
-} Polarizer_Wheel_Instance_t;
+} polarizer_wheel_instance_t;

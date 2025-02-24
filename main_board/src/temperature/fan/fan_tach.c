@@ -5,7 +5,6 @@
 #include <stm32g474xx.h>
 #include <stm32g4xx_ll_tim.h>
 #include <system/stm32_timer_utils/stm32_timer_utils.h>
-#include <system/timer2_irq/timer2_irq.h>
 #include <temperature/fan/fan.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
@@ -262,12 +261,7 @@ config_timer(struct timer_info *timer_info)
     LL_TIM_ClearFlag_UPDATE(timer_info->timer);
     LL_TIM_EnableIT_UPDATE(timer_info->timer);
     enable_timer_cc_int[timer_info->channel - 1](timer_info->timer);
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    timer2_register_callback(timer_info->channel, fan_tachometer_isr,
-                             timer_info);
-#else
     irq_enable(timer_info->irq);
-#endif
     LL_TIM_EnableCounter(timer_info->timer);
 
     return RET_SUCCESS;
@@ -337,6 +331,7 @@ fan_tach_init(void)
         return ret;
     }
 
+    IRQ_CONNECT(FAN_MAIN_IRQn, 0, fan_tachometer_isr, &fan_main_timer_info, 0);
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     IRQ_CONNECT(FAN_AUX_IRQn, 0, fan_tachometer_isr, &fan_aux_timer_info, 0);
 #endif

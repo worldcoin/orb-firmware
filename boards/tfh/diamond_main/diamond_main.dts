@@ -74,8 +74,8 @@
 
         polarizer-stepper-direction-gpios = <&gpio_exp1 1 GPIO_ACTIVE_HIGH>;
         polarizer-stepper-enable-gpios = <&gpio_exp1 2 GPIO_ACTIVE_HIGH>;
-        polarizer-stepper-encoder-enable-gpios = <&gpio_exp1 3 GPIO_ACTIVE_HIGH>;
-        polarizer-stepper-encoder-gpios = <&gpioc 11 GPIO_ACTIVE_LOW>;
+        polarizer-stepper-encoder-enable-gpios = <&gpio_exp1 3 GPIO_ACTIVE_LOW>;
+        polarizer-stepper-encoder-gpios = <&gpioc 11 GPIO_ACTIVE_HIGH>;
         polarizer-stepper-spi-cs-gpios = <&gpio_exp1 0 GPIO_ACTIVE_LOW>;
 
         // On Front Unit 6.2 (B3) the signal EN_5V_SWITCHED is connected to the port expander pin P02 instead.
@@ -1050,8 +1050,8 @@
     };
 
     polarizer_controller: polarizer_controller@1 {
-        compatible = "zephyr,spi-device";
-        reg = <1>;  /* This will use the I/O expander CS */
+        compatible = "ti,drv8434s";
+        reg = <1>;
         spi-max-frequency = <4000000>;
         status = "okay";
     };

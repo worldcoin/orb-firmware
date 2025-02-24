@@ -88,8 +88,6 @@ list(APPEND SOURCES_FILES
     src/optics/mirror/mirror.c
     src/optics/mirror/mirror_private.c
 
-    src/system/timer2_irq/timer2_irq.c
-
     src/power/boot/boot.c
 
     src/runner/runner.c

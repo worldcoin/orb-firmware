@@ -1,3 +1,5 @@
+#pragma once
+
 /******************************************************************************
  * @file drv8434_datatypes.h
  * @brief Header file for Texas Instruments DRV8434 stepper motor driver
@@ -23,9 +25,7 @@
 // This is the DRV8434 Driver Configuration Struct (communication interface
 // holder)
 typedef struct {
-    // Zephyr (or other) SPI Configuration
-    struct spi_config spi_cfg;
-    const struct device *spi_bus_controller;
+    struct spi_dt_spec spi;
     const struct gpio_dt_spec *spi_cs_gpio;
 } DRV8434_DriverCfg_t;
 

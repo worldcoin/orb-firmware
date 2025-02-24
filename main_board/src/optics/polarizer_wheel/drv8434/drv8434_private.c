@@ -143,8 +143,8 @@ drv8434_private_reg_read(uint8_t address, DRV8434_Instance_t *instance)
 
     gpio_pin_set_dt(instance->driver_cfg.spi_cs_gpio, 1);
 
-    int ret = spi_transceive(instance->driver_cfg.spi_bus_controller,
-                             &instance->driver_cfg.spi_cfg,
+    int ret = spi_transceive(instance->driver_cfg.spi.bus,
+                             &instance->driver_cfg.spi.config,
                              &instance->spi.tx_bufs, &instance->spi.rx_bufs);
 
     gpio_pin_set_dt(instance->driver_cfg.spi_cs_gpio, 0);
@@ -190,8 +190,8 @@ drv8434_private_reg_write(uint8_t address, uint8_t data,
 
     gpio_pin_set_dt(instance->driver_cfg.spi_cs_gpio, 1);
 
-    int ret = spi_transceive(instance->driver_cfg.spi_bus_controller,
-                             &instance->driver_cfg.spi_cfg,
+    int ret = spi_transceive(instance->driver_cfg.spi.bus,
+                             &instance->driver_cfg.spi.config,
                              &instance->spi.tx_bufs, &instance->spi.rx_bufs);
 
     gpio_pin_set_dt(instance->driver_cfg.spi_cs_gpio, 0);

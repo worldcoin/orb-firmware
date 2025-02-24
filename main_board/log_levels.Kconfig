@@ -89,3 +89,7 @@ source "subsys/logging/Kconfig.template.log_config"
 module = SC18IS606
 module-str = SC18IS606
 source "subsys/logging/Kconfig.template.log_config"
+
+module = POLARIZER
+module-str = POLARIZER
+source "subsys/logging/Kconfig.template.log_config"
