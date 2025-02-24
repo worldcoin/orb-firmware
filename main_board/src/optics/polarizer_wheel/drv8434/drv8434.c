@@ -151,6 +151,12 @@ drv8434_read_config(void)
     }
 
     ret_val =
+        drv8434_private_reg_read(DRV8434_REG_CTRL4_ADDR, &g_drv8434_instance);
+    if (ret_val) {
+        return ret_val;
+    }
+
+    ret_val =
         drv8434_private_reg_read(DRV8434_REG_CTRL7_ADDR, &g_drv8434_instance);
     if (ret_val) {
         return ret_val;

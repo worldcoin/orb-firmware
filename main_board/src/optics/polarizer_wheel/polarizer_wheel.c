@@ -38,6 +38,8 @@ static Polarizer_Wheel_Instance_t g_polarizer_wheel_instance;
 // feedback, step PWM)
 static const struct device *polarizer_spi_bus_controller =
     DEVICE_DT_GET(DT_PARENT(DT_NODELABEL(polarizer_controller)));
+static const struct gpio_dt_spec polarizer_spi_cs_gpio =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), polarizer_stepper_spi_cs_gpios);
 static const struct pwm_dt_spec polarizer_step_pwm_spec =
     PWM_DT_SPEC_GET(DT_PATH(polarizer_step));
 static const struct gpio_dt_spec polarizer_enable_spec =
@@ -163,6 +165,9 @@ polarizer_wheel_peripherals_ready(void)
     if (!device_is_ready(polarizer_spi_bus_controller)) {
         return false;
     }
+    if (!device_is_ready(polarizer_spi_cs_gpio.port)) {
+        return false;
+    }
     if (!device_is_ready(polarizer_step_pwm_spec.dev)) {
         return false;
     }
@@ -256,7 +261,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
              POLARIZER_WHEEL_ENCODER_MAX_HOMING_NOTCHES)) {
             // 120 degrees in 3 seconds, move a total of 150 degrees
             // should hit encoder much sooner than 150 degrees
-            start_polarizer_wheel_step(683, 2560);
+            start_polarizer_wheel_step(683, 2048);
             k_sleep(K_SECONDS(3));
         } else {
             if (g_polarizer_wheel_instance.auto_homing.auto_homing_state !=
@@ -277,6 +282,13 @@ polarizer_wheel_init(void)
 
     if (!polarizer_wheel_peripherals_ready()) {
         return RET_ERROR_INVALID_STATE;
+    }
+
+    // Enable the polarizer SPI CS pin
+    ret_val =
+        gpio_pin_configure_dt(&polarizer_spi_cs_gpio, GPIO_OUTPUT_INACTIVE);
+    if (ret_val != 0) {
+        return RET_ERROR_INTERNAL;
     }
 
     // Enable the DRV8434 motor driver
@@ -334,8 +346,9 @@ polarizer_wheel_init(void)
         .spi_cfg = {.frequency = 1000000,
                     .operation = SPI_WORD_SET(8) | SPI_OP_MODE_MASTER |
                                  SPI_MODE_CPHA | SPI_TRANSFER_MSB,
-                    .cs = SPI_CS_CONTROL_INIT(SPI_DEVICE_POLARIZER, 2)},
-        .spi_bus_controller = polarizer_spi_bus_controller};
+                    .cs = {0}},
+        .spi_bus_controller = polarizer_spi_bus_controller,
+        .spi_cs_gpio = &polarizer_spi_cs_gpio};
     // Initialize the DRV8434 driver
     ret_val = drv8434_init(&drv8434_cfg);
 

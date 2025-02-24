@@ -26,6 +26,7 @@ typedef struct {
     // Zephyr (or other) SPI Configuration
     struct spi_config spi_cfg;
     const struct device *spi_bus_controller;
+    const struct gpio_dt_spec *spi_cs_gpio;
 } DRV8434_DriverCfg_t;
 
 // This is the subset of DRV8434 registers that are used for configuring the

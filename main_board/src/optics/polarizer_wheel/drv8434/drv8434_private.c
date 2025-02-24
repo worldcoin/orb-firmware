@@ -141,9 +141,13 @@ drv8434_private_reg_read(uint8_t address, DRV8434_Instance_t *instance)
     instance->spi.tx_buffer[0u] = (tx_word >> 8) & DRV8434_SPI_TX_LSB_MASK;
     instance->spi.tx_buffer[1u] = tx_word & DRV8434_SPI_TX_LSB_MASK;
 
+    gpio_pin_set_dt(instance->driver_cfg.spi_cs_gpio, 1);
+
     int ret = spi_transceive(instance->driver_cfg.spi_bus_controller,
                              &instance->driver_cfg.spi_cfg,
                              &instance->spi.tx_bufs, &instance->spi.rx_bufs);
+
+    gpio_pin_set_dt(instance->driver_cfg.spi_cs_gpio, 0);
 
     if (ret) {
         return RET_ERROR_BUSY;
@@ -184,9 +188,13 @@ drv8434_private_reg_write(uint8_t address, uint8_t data,
     instance->spi.tx_buffer[0u] = (tx_word >> 8) & DRV8434_SPI_TX_LSB_MASK;
     instance->spi.tx_buffer[1u] = tx_word & DRV8434_SPI_TX_LSB_MASK;
 
+    gpio_pin_set_dt(instance->driver_cfg.spi_cs_gpio, 1);
+
     int ret = spi_transceive(instance->driver_cfg.spi_bus_controller,
                              &instance->driver_cfg.spi_cfg,
                              &instance->spi.tx_bufs, &instance->spi.rx_bufs);
+
+    gpio_pin_set_dt(instance->driver_cfg.spi_cs_gpio, 0);
 
     if (ret) {
         return RET_ERROR_BUSY;
