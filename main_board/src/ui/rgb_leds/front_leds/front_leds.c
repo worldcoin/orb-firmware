@@ -704,4 +704,4 @@ front_leds_initial_state(void)
     return 0;
 }
 
-SYS_INIT(front_leds_initial_state, POST_KERNEL, SYS_INIT_UI_LEDS_PRIORITY);
+// SYS_INIT(front_leds_initial_state, POST_KERNEL, SYS_INIT_UI_LEDS_PRIORITY);
