@@ -214,7 +214,7 @@ initialize(void)
     err_code = version_init();
     ASSERT_SOFT(err_code);
 
-    orb_mcu_Hardware hw = {.version = version_get_hardware_rev()};
+    orb_mcu_Hardware hw = version_get();
     LOG_INF("Hardware version: %u", hw.version);
 
     // voltage_measurement module is used by battery and boot -> must be
@@ -266,7 +266,7 @@ initialize(void)
     ASSERT_SOFT(err_code);
 #endif // CONFIG_NO_SUPER_CAPS
 
-    err_code = als_init(&analog_and_i2c_mutex);
+    err_code = als_init(&hw, &analog_and_i2c_mutex);
     ASSERT_SOFT(err_code);
 
     err_code = dfu_init();

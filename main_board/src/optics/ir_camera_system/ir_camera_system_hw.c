@@ -1316,10 +1316,12 @@ ir_camera_system_hw_init(void)
 #endif
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    orb_mcu_Hardware_OrbVersion version = version_get_hardware_rev();
+    const orb_mcu_Hardware version = version_get();
 
-    if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 ||
-        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
+    if (version.version ==
+            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 ||
+        version.version ==
+            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
         reset_fuse();
     } else {
         enable_5v_switched();

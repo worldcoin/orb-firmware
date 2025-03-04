@@ -136,7 +136,7 @@ adc_callback(const struct device *dev, const struct adc_sequence *sequence,
 
     if (liquid_lens_is_enabled()) {
         const uint16_t stm32_vref_mv = voltage_measurement_get_vref_mv_from_raw(
-            version_get_hardware_rev(), adc_samples_buffer[ADC_CH_VREFINT]);
+            version_get().version, adc_samples_buffer[ADC_CH_VREFINT]);
 
         const int32_t current_amplifier_sig_mv =
             (int32_t)(((uint64_t)adc_samples_buffer[ADC_CH_INA240_SIG] *
