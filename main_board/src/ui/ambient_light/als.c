@@ -10,7 +10,8 @@
 
 LOG_MODULE_REGISTER(als, CONFIG_ALS_LOG_LEVEL);
 
-const struct device *als_device = DEVICE_DT_GET(DT_NODELABEL(front_unit_als));
+const struct device *als_device =
+    DEVICE_DT_GET_OR_NULL(DT_NODELABEL(front_unit_als));
 
 K_THREAD_STACK_DEFINE(stack_area_als, THREAD_STACK_SIZE_ALS);
 static struct k_thread als_thread_data;
@@ -66,11 +67,13 @@ als_init(const orb_mcu_Hardware *hw_version, struct k_mutex *i2c_mux_mutex)
 {
     als_i2c_mux_mutex = i2c_mux_mutex;
 
-    // skip on front unit 6.3x as the ALS is not assembled
-    if (hw_version->front_unit >=
-            orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3A &&
-        hw_version->front_unit <=
-            orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3C) {
+    // skip if als_device is not defined, or
+    // on front unit 6.3x as the ALS is not assembled
+    if (als_device == NULL ||
+        (hw_version->front_unit >=
+             orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3A &&
+         hw_version->front_unit <=
+             orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3C)) {
         diag_set_status(orb_mcu_HardwareDiagnostic_Source_UI_ALS,
                         orb_mcu_HardwareDiagnostic_Status_STATUS_NOT_SUPPORTED);
         return RET_SUCCESS;
