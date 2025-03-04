@@ -3,7 +3,7 @@ DOCKER_IMAGE_NAME := orb-mcu-firmware-builder$(if $(DOCKER_TAG),:$(DOCKER_TAG),:
 
 # Get the project root directory
 WEST_YAML := $(shell west manifest --path)
-PROJ_DIR := $(dirname $(WEST_YAML))
+PROJ_DIR := $(dir $(WEST_YAML))
 
 ifneq ($(filter help all build,$(MAKECMDGOALS)),)
 
@@ -11,8 +11,8 @@ ifneq ($(filter help all build,$(MAKECMDGOALS)),)
 help:
 	@:$(info Optional env or cmd-line variables:)
 	@:$(info )
-	@:$(info BOARD   		= board option to give to `west build -b`.)
-	@:$(info DOCKER_TAG   	= Docker image tag to use.)
+	@:$(info BOARD         = board option to give to `west build -b`.)
+	@:$(info DOCKER_TAG    = Docker image tag to use.)
 	@:$(info )
 	@:$(info TARGETS:)
 	@:$(info )
@@ -25,11 +25,6 @@ help:
 	@:$(info mcu-clean     : clean MCU code.)
 	@:$(info mcu-tests     : build and run MCU tests.)
 	@:$(info )
-	@:$(info )
-	@:$(info Examples:)
-	@:$(info )
-	@:$(info make main_mcu-build WEST_TOPDIR=/home/$USER/firmware)
-	@:$(info make main_mcu-tests WEST_TOPDIR=/home/$USER/firmware)
 
 .PHONY: all build
 all build: .docker_image_built
@@ -40,42 +35,73 @@ all build: .docker_image_built
 
 else
 
-ifndef WEST_TOPDIR
-WEST_TOPDIR := $(shell west topdir)
-endif
+# Reminder: if the user calls `make VAR_FOO=baz`, the value provided for the variable
+# in the argument to `make` will override a `:=` or `=` assignment in the Makefile.
+# So, the following variables are overridable.
+# Use `=?` if you want environment variables and command-line arguments to take
+# precedence over an assignment in a Makefile.
 
-ifdef BOARD
-BOARD_CMD := -b $(BOARD)
-endif
+WEST_TOPDIR := $(shell west topdir)
+BOARD       := pearl_main
 
 DOCKER_CMD := \
-	docker run -ti --rm --privileged \
-		-u $(shell id -u):$(shell id -g) \
-		-v /etc/group:/etc/group:ro \
-		-v /etc/passwd:/etc/passwd:ro \
-		-v '$(HOME)'/.ssh:'$(HOME)'/.ssh:ro \
-		-v '$(HOME)'/.ccache:'$(HOME)'/.ccache \
-		-v '$(HOME)'/.cache:'$(HOME)'/.cache \
-		-v '$(REPO_DIR):$(REPO_DIR)' \
-		-e REPO_DIR='$(REPO_DIR)' \
-		-e HOME='$(HOME)' \
-		-w '$(REPO_DIR)' \
-		$(DOCKER_IMAGE_NAME)
+  docker run -ti --rm --privileged \
+    -u $(shell id -u):$(shell id -g) \
+    -v /etc/group:/etc/group:ro \
+    -v /etc/passwd:/etc/passwd:ro \
+    -v '$(HOME)'/.ssh:'$(HOME)'/.ssh:ro \
+    -v '$(HOME)'/.ccache:'$(HOME)'/.ccache \
+    -v '$(HOME)'/.cache:'$(HOME)'/.cache \
+    -v '$(WEST_TOPDIR):$(WEST_TOPDIR)' \
+    -e WEST_TOPDIR='$(WEST_TOPDIR)' \
+    -e HOME='$(HOME)' \
+    -w '$(WEST_TOPDIR)' \
+    $(DOCKER_IMAGE_NAME)
+
+SIG_KEY_FILE := $(PROJ_DIR)/utils/ota/root-ec-p256.pem
+ENC_KEY_FILE := $(PROJ_DIR)/utils/ota/enc-ec256-pub.pem
+
+# Usage: $(call relpath,ROOT,CHILD)
+#  If CHILD is the same as ROOT, returns '.'
+#  If CHILD is under ROOT, removes the ROOT prefix leaving a relative path
+#  Otherwise, returns CHILD unchanged
+define relpath
+$(strip $(if $(filter $(abspath $1),$(abspath $2)),., \
+  $(patsubst $(abspath $1)/%,%,$(abspath $2))))
+endef
+
+PROJ_DIR_REL_TOPDIR := $(call relpath,$(WEST_TOPDIR),$(PROJ_DIR))
+
+REL_BOARD_DIR := $(PROJ_DIR_REL_TOPDIR)/main_board
+REL_BUILD_DIR := $(REL_BOARD_DIR)/build 
+
+BUILD_CMD := \
+       cd $(WEST_TOPDIR) && \
+       west build $(REL_BOARD_DIR) \
+       --build-dir $(REL_BUILD_DIR) \
+       --board $(BOARD) \
+       --pristine \
+       -- \
+       -DCMAKE_BUILD_TYPE="Release" \
+       -DEXTRA_COMPILE_FLAGS=-Werror \
+       -DCONFIG_MCUBOOT_SIGNATURE_KEY_FILE=\"$(SIG_KEY_FILE)\" \
+       -DCONFIG_MCUBOOT_ENCRYPTION_KEY_FILE=\"$(ENC_KEY_FILE)\"
+
+$(SIG_KEY_FILE) $(ENC_KEY_FILE) &:
+	cd $(PROJ_DIR)/utils/ota && ./generate_dev_keys
 
 .PHONY: shell
 shell:
 	$(DOCKER_CMD) /bin/bash
 
-mcu-build:
-	$(DOCKER_CMD) /bin/bash -c -- \
-		'cd $(PROJ_DIR)/main_board && west build $(BOARD_CMD)'
+mcu-build: $(SIG_KEY_FILE) $(ENC_KEY_FILE) 
+	$(DOCKER_CMD) /bin/bash -c -- '$(BUILD_CMD)'
 
 mcu-flash:
-	$(DOCKER_CMD) /bin/bash -c -- \
-		'cd $(PROJ_DIR)/main_board && west build $(BOARD_CMD) && su-exec root west flash'
+	$(DOCKER_CMD) /bin/bash -c -- '$(BUILD_CMD) && su-exec root west flash'
 
 mcu-clean:
-	cd $(WEST_TOPDIR)/orb/main_board && rm -rf build
+	cd $(WEST_TOPDIR) && rm -rf $(REL_BUILD_DIR)
 
 mcu-tests:
 	$(DOCKER_CMD) /bin/bash -c -- \

@@ -65,9 +65,9 @@ enumerated in the [west.yml](west.yml) file.
 
 5. If you prefer to use Docker, you can use the provided [Dockerfile](utils/docker/Dockerfile).
    ```shell
-    cd utils/docker
-    make build
-    make shell
+    cd orb/utils/docker
+    make build # Build the Docker image.
+    make shell # Enter a Bash shell in the Docker container.
    ```
 
 #### Native
