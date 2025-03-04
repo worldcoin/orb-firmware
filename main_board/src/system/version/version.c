@@ -83,10 +83,20 @@ static const struct gpio_dt_spec hw_pwr_board_bit[4] = {
     GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_pwr_board_gpios,
                             3),
 };
+
+static const struct gpio_dt_spec reset_board_bit[1] = {
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), hw_version_reset_board_gpios,
+                            0),
+};
 #endif
 
-static orb_mcu_Hardware_OrbVersion version =
-    orb_mcu_Hardware_OrbVersion_HW_VERSION_UNKNOWN;
+static orb_mcu_Hardware board_versions = {
+    .version = orb_mcu_Hardware_OrbVersion_HW_VERSION_UNKNOWN,
+    .front_unit = orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_UNKNOWN,
+    .power_board =
+        orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_UNKNOWN,
+    .reset_board =
+        orb_mcu_Hardware_ResetBoardVersion_RESET_BOARD_VERSION_UNKNOWN};
 
 int
 version_fw_send(uint32_t remote)
@@ -117,18 +127,26 @@ version_fw_send(uint32_t remote)
 }
 
 __maybe_unused static int
-get_hw_bits(const struct gpio_dt_spec pins_bit[4], int *hw_bits)
+get_hw_bits(const struct gpio_dt_spec *pins_bit, const size_t len, int *hw_bits)
 {
+    if (len > 4) {
+        return RET_ERROR_FORBIDDEN;
+    }
+
     *hw_bits = 0;
 
-    for (int i = 0; i < 4; i++) {
+    for (size_t i = 0; i < len; i++) {
+        if (!device_is_ready(pins_bit[i].port)) {
+            return RET_ERROR_INVALID_STATE;
+        }
+
         const int ret = gpio_pin_configure_dt(&pins_bit[i], GPIO_INPUT);
         if (ret != 0) {
             LOG_ERR("Failed to configure pin %d: %u", i, pins_bit[i].pin);
             return RET_ERROR_INTERNAL;
         }
 
-        int pin = gpio_pin_get_dt(&pins_bit[i]);
+        const int pin = gpio_pin_get_dt(&pins_bit[i]);
         if (pin < 0) {
             LOG_ERR("Failed to get pin %d: %d", i, pin);
             return RET_ERROR_INTERNAL;
@@ -142,8 +160,13 @@ get_hw_bits(const struct gpio_dt_spec pins_bit[4], int *hw_bits)
 static ret_code_t
 version_fetch_hardware_rev(orb_mcu_Hardware *hw_version)
 {
+    if (hw_version == NULL) {
+        ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
+        return RET_ERROR_INVALID_PARAM;
+    }
+
     // read only once and keep hardware version into `version`
-    if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_UNKNOWN) {
+    if (hw_version->version == orb_mcu_Hardware_OrbVersion_HW_VERSION_UNKNOWN) {
 #if defined(CONFIG_BOARD_PEARL_MAIN)
         if (!device_is_ready(adc_dt_spec.dev)) {
             ASSERT_SOFT(RET_ERROR_INVALID_STATE);
@@ -183,16 +206,20 @@ version_fetch_hardware_rev(orb_mcu_Hardware *hw_version)
 
             if (hardware_version_mv > 3200) {
                 // should be 3.3V = 3300mV (Mainboard 3.2)
-                version = orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2;
+                hw_version->version =
+                    orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2;
             } else if (hardware_version_mv > 2900) {
                 // should be 3.0V = 3000mV (Mainboard 3.3)
-                version = orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3;
+                hw_version->version =
+                    orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3;
             } else if (hardware_version_mv < 100) {
                 // should be 0.0V (Mainboard 3.1)
-                version = orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1;
+                hw_version->version =
+                    orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1;
             } else if (hardware_version_mv < 400) {
                 // should be 0.30V = 300mV  (Mainboard 3.4)
-                version = orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4;
+                hw_version->version =
+                    orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4;
             } else if ((hardware_version_mv > 930) &&
                        (hardware_version_mv < 1130)) {
                 // should be 0.64 V = 640 mV (Mainboard 3.6) but referenced
@@ -203,7 +230,8 @@ version_fetch_hardware_rev(orb_mcu_Hardware *hw_version)
                 // -> 0.64 V * 3.3 V / 2.048 V =  1.03 V
                 // -> lower limit = 1.03 V - 0.1 V = 0.93 V = 930 mV
                 // -> upper limit = 1.03 V + 0.1 V = 1.13 V = 1130 mV
-                version = orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5;
+                hw_version->version =
+                    orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5;
             } else {
                 LOG_ERR("Unknown main board from voltage: %umV",
                         hardware_version_mv);
@@ -211,41 +239,52 @@ version_fetch_hardware_rev(orb_mcu_Hardware *hw_version)
         }
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
         int hw_bits;
-        const int ret = get_hw_bits(hw_main_board_bit, &hw_bits);
+        const int ret = get_hw_bits(hw_main_board_bit,
+                                    ARRAY_SIZE(hw_main_board_bit), &hw_bits);
         if (ret != RET_SUCCESS) {
             return ret;
         }
 
         switch (hw_bits) {
         case 0:
-            version = orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1;
+            hw_version->version =
+                orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1;
             break;
         case 1:
-            version = orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2;
+            hw_version->version =
+                orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2;
             break;
         case 2:
-            version = orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3;
+            hw_version->version =
+                orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3;
             break;
         case 3:
-            version = orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT;
+            hw_version->version =
+                orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT;
             break;
         default:
             LOG_ERR("Unknown main board from IO expander: %d", hw_bits);
             break;
         }
-
-        // on diamond, fill in front unit and power board versions if
-        // hw_version points to a valid memory location
-        if (hw_version != NULL) {
-            hw_version->front_unit = version_get_front_unit_rev();
-            hw_version->power_board = version_get_power_board_rev();
-        }
 #endif
     }
 
-    if (hw_version != NULL) {
-        hw_version->version = version;
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    if (hw_version->front_unit ==
+        orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_UNKNOWN) {
+        hw_version->front_unit = version_get_front_unit_rev();
     }
+
+    if (hw_version->power_board ==
+        orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_UNKNOWN) {
+        hw_version->power_board = version_get_power_board_rev();
+    }
+
+    if (hw_version->reset_board ==
+        orb_mcu_Hardware_ResetBoardVersion_RESET_BOARD_VERSION_UNKNOWN) {
+        hw_version->reset_board = version_get_reset_board_rev();
+    }
+#endif
 
     return RET_SUCCESS;
 }
@@ -260,9 +299,9 @@ version_get_front_unit_rev(void)
     if (front_unit_version ==
         orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_UNKNOWN) {
         int hw_bits;
-        const int ret = get_hw_bits(hw_front_unit_bit, &hw_bits);
+        const int ret = get_hw_bits(hw_front_unit_bit,
+                                    ARRAY_SIZE(hw_front_unit_bit), &hw_bits);
         if (ret != RET_SUCCESS) {
-            ASSERT_SOFT(ret);
             return orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_UNKNOWN;
         }
 
@@ -314,7 +353,8 @@ version_get_power_board_rev(void)
     if (power_board_version ==
         orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_UNKNOWN) {
         int hw_bits;
-        const int ret = get_hw_bits(hw_pwr_board_bit, &hw_bits);
+        const int ret = get_hw_bits(hw_pwr_board_bit,
+                                    ARRAY_SIZE(hw_pwr_board_bit), &hw_bits);
         if (ret != RET_SUCCESS) {
             ASSERT_SOFT(ret);
             return orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_UNKNOWN;
@@ -346,31 +386,60 @@ version_get_power_board_rev(void)
 
     return power_board_version;
 }
-#endif
 
-orb_mcu_Hardware_OrbVersion
-version_get_hardware_rev(void)
+orb_mcu_Hardware_ResetBoardVersion
+version_get_reset_board_rev(void)
 {
-    if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_UNKNOWN) {
-        version_fetch_hardware_rev(NULL);
+    static orb_mcu_Hardware_ResetBoardVersion reset_board_version =
+        orb_mcu_Hardware_ResetBoardVersion_RESET_BOARD_VERSION_UNKNOWN;
+
+    if (reset_board_version ==
+        orb_mcu_Hardware_ResetBoardVersion_RESET_BOARD_VERSION_UNKNOWN) {
+        int hw_bits;
+        const int ret =
+            get_hw_bits(reset_board_bit, ARRAY_SIZE(reset_board_bit), &hw_bits);
+        if (ret != RET_SUCCESS) {
+            ASSERT_SOFT(ret);
+            return orb_mcu_Hardware_ResetBoardVersion_RESET_BOARD_VERSION_UNKNOWN;
+        }
+
+        switch (hw_bits) {
+        case 0:
+            reset_board_version =
+                orb_mcu_Hardware_ResetBoardVersion_RESET_BOARD_VERSION_V1_1;
+            break;
+        default:
+            LOG_ERR("Unknown reset board from IO expander: %d", hw_bits);
+            reset_board_version =
+                orb_mcu_Hardware_ResetBoardVersion_RESET_BOARD_VERSION_UNKNOWN;
+        }
     }
 
-    return version;
+    return reset_board_version;
+}
+
+#endif
+
+orb_mcu_Hardware
+version_get(void)
+{
+    // see if any of the version needs to be fetched again
+    version_fetch_hardware_rev(&board_versions);
+
+    return board_versions;
 }
 
 int
 version_hw_send(uint32_t remote)
 {
-    orb_mcu_Hardware hw = {.version = version};
-
-    return publish_new(&hw, sizeof(hw), orb_mcu_main_McuToJetson_hardware_tag,
-                       remote);
+    return publish_new(&board_versions, sizeof(board_versions),
+                       orb_mcu_main_McuToJetson_hardware_tag, remote);
 }
 
 int
 version_init(void)
 {
-    return version_fetch_hardware_rev(NULL);
+    return version_fetch_hardware_rev(&board_versions);
 }
 
 #if CONFIG_MEMFAULT
@@ -397,8 +466,8 @@ void
 memfault_platform_get_device_info(sMemfaultDeviceInfo *info)
 {
     const char *version_str = STRINGIFY(FW_VERSION_FULL);
-    orb_mcu_Hardware_OrbVersion hw_version = version_get_hardware_rev();
-    size_t hardware_version_idx = (size_t)hw_version;
+    orb_mcu_Hardware hw_version = version_get();
+    size_t hardware_version_idx = (size_t)hw_version.version;
 #if CONFIG_BOARD_DIAMOND_MAIN
     hardware_version_idx = hardware_version_idx -
                            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 +

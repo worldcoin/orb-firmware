@@ -113,7 +113,7 @@ static struct gpio_callback shutdown_cb_data;
 int
 power_configure_gpios(void)
 {
-    orb_mcu_Hardware_OrbVersion version = version_get_hardware_rev();
+    orb_mcu_Hardware version = version_get();
     int ret;
 
     if (!device_is_ready(supply_vbat_sw_enable_gpio_spec.port) ||
@@ -177,10 +177,10 @@ power_configure_gpios(void)
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     // 3.8V regulator only available on EV1...4
-    if ((version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
-        (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
-        (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
-        (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
+    if ((version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
+        (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
+        (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
+        (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
         ret = gpio_pin_configure_dt(&supply_3v8_enable_rfid_irq_gpio_spec,
                                     GPIO_OUTPUT_INACTIVE);
         if (ret != 0) {
@@ -264,10 +264,11 @@ power_configure_gpios(void)
     }
 
     // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
-    if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
-        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
+    if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
+        version.version ==
+            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
+        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
+        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
         if (!device_is_ready(supply_3v3_ssd_enable_gpio_spec.port) ||
             !device_is_ready(supply_3v3_wifi_enable_gpio_spec.port)) {
             return RET_ERROR_INTERNAL;
@@ -407,17 +408,18 @@ static int
 turn_on_power_supplies(void)
 {
     int ret = 0;
-    orb_mcu_Hardware_OrbVersion version = version_get_hardware_rev();
+    orb_mcu_Hardware version = version_get();
 
     // might be a duplicate call, but it's preferable to be sure that
     // these supplies are on
     power_vbat_5v_3v3_supplies_on();
 
     // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
-    if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
-        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
+    if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
+        version.version ==
+            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
+        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
+        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
         ret = gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
         ASSERT_SOFT(ret);
         LOG_INF("3.3V SSD/SD Card power supply enabled");
@@ -458,10 +460,10 @@ turn_on_power_supplies(void)
     LOG_INF("12V enabled");
 
     // 3.8V regulator only available on EV1...4
-    if ((version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
-        (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
-        (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
-        (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
+    if ((version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1) ||
+        (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2) ||
+        (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3) ||
+        (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4)) {
 
         ret = gpio_pin_set_dt(&supply_3v8_enable_rfid_irq_gpio_spec, 1);
         ASSERT_SOFT(ret);
@@ -713,7 +715,7 @@ reboot_thread()
 {
     uint32_t delay = 0;
 
-    orb_mcu_Hardware_OrbVersion version = version_get_hardware_rev();
+    orb_mcu_Hardware version = version_get();
 
     // wait until triggered
     k_sem_take(&sem_reboot, K_FOREVER);
@@ -752,11 +754,14 @@ reboot_thread()
             gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 0);
             // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and
             // Diamond
-            if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-                version ==
+            if (version.version ==
+                    orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
+                version.version ==
                     orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-                version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
-                version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
+                version.version ==
+                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
+                version.version ==
+                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
                 gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 0);
                 gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 0);
             }

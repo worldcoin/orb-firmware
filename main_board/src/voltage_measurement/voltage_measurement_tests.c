@@ -57,8 +57,8 @@ ZTEST(hil, test_voltage_measurements)
     ret = voltage_measurement_get(CHANNEL_3V3_SSD_3V8, &voltage_mv);
     zassert_equal(ret, RET_SUCCESS);
     LOG_INF("3V3_SSD_3V8 = %d mV", voltage_mv);
-    orb_mcu_Hardware_OrbVersion rev = version_get_hardware_rev();
-    if (rev >= orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+    orb_mcu_Hardware version = version_get();
+    if (version.version >= orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         zassert_between_inclusive(voltage_mv, (3300 * 0.95), (3300 * 1.05));
     } else {
         zassert_between_inclusive(voltage_mv, (3800 * 0.95), (3800 * 1.05));

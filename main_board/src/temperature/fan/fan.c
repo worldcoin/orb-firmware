@@ -200,23 +200,27 @@ fan_init(void)
     }
 #endif
     // set specs depending on current hardware
-    orb_mcu_Hardware_OrbVersion version = version_get_hardware_rev();
+    orb_mcu_Hardware version = version_get();
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-    if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1 ||
-        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
+    if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1 ||
+        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
         fan_specs = fan_ev1_2_specs;
-    } else if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
-               version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4 ||
-               version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+    } else if (version.version ==
+                   orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
+               version.version ==
+                   orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4 ||
+               version.version ==
+                   orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         fan_specs = fan_ev3_specs;
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-    if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
+    if (version.version ==
+            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
+        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
         orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
         fan_specs = fan_diamond_specs;
 #endif
     } else {
-        LOG_ERR("Not supported main board: %u", version);
+        LOG_ERR("Not supported main board: %u", version.version);
     }
 
 #ifdef CONFIG_TEST_FAN
@@ -225,23 +229,28 @@ fan_init(void)
     uint32_t value;
     uint32_t pulse_width_ns;
 
-    if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1 ||
-        version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
+    if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1 ||
+        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
         max_speed_pulse_width_ns = 32000;
 
         // 655 (1% of 65535) *40000 (period) *0.8 (range) / 65535 = 319
         min_speed_pulse_width_ns = 319;
-    } else if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
-               version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4 ||
-               version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+    } else if (version.version ==
+                   orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV3 ||
+               version.version ==
+                   orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV4 ||
+               version.version ==
+                   orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         max_speed_pulse_width_ns = 40000;
 
         // min is 40% duty cycle = 0.4*40000
         // + 239 (1% of available range of 60%)
         min_speed_pulse_width_ns = 16239;
 
-    } else if (version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-               version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
+    } else if (version.version ==
+                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
+               version.version ==
+                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
         max_speed_pulse_width_ns = 40000;
 
         // min is 30% duty cycle = 0.3*40000

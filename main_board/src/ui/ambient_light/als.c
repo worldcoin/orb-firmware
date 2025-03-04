@@ -62,9 +62,19 @@ als_thread()
 }
 
 int
-als_init(struct k_mutex *i2c_mux_mutex)
+als_init(const orb_mcu_Hardware *hw_version, struct k_mutex *i2c_mux_mutex)
 {
     als_i2c_mux_mutex = i2c_mux_mutex;
+
+    // skip on front unit 6.3x as the ALS is not assembled
+    if (hw_version->front_unit >=
+            orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3A &&
+        hw_version->front_unit <=
+            orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3C) {
+        diag_set_status(orb_mcu_HardwareDiagnostic_Source_UI_ALS,
+                        orb_mcu_HardwareDiagnostic_Status_STATUS_NOT_SUPPORTED);
+        return RET_SUCCESS;
+    }
 
     if (!device_is_ready(als_device)) {
         LOG_ERR("ALS not ready");
