@@ -1,5 +1,6 @@
 #include "mcu.pb.h"
 #include "pubsub.h"
+#include "system/version/version.h"
 #include <errors.h>
 #include <utils.h>
 #include <zephyr/kernel.h>
@@ -134,9 +135,22 @@ ZTEST(hil, test_pubsub_sent_messages)
         0);
     zassert_not_equal(
         mcu_to_jetson_payloads & (1 << orb_mcu_main_McuToJetson_tof_1d_tag), 0);
-    zassert_not_equal(mcu_to_jetson_payloads &
-                          (1 << orb_mcu_main_McuToJetson_front_als_tag),
-                      0);
+
+    // init to 0 so that the test is performed by default
+    // won't be done on diamond with front-unit 6.3x
+    uint32_t fu_version = 0;
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    fu_version = version_get_front_unit_rev();
+#endif
+    if (fu_version <
+            orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3A ||
+        fu_version >
+            orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3C) {
+        zassert_not_equal(mcu_to_jetson_payloads &
+                              (1 << orb_mcu_main_McuToJetson_front_als_tag),
+                          0);
+    }
+
     zassert_not_equal(mcu_to_jetson_payloads &
                           (1 << orb_mcu_main_McuToJetson_hardware_diag_tag),
                       0);

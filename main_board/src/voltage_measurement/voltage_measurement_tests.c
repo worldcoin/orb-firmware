@@ -24,10 +24,12 @@ ZTEST(hil, test_voltage_measurements)
     LOG_INF("PVCC = %d mV", voltage_mv);
     zassert_between_inclusive(voltage_mv, 30590, 32430);
 
+#ifdef CONFIG_BOARD_PEARL_MAIN
     ret = voltage_measurement_get(CHANNEL_12V, &voltage_mv);
     zassert_equal(ret, RET_SUCCESS);
     LOG_INF("12V = %d mV", voltage_mv);
     zassert_between_inclusive(voltage_mv, 11700, 12840);
+#endif
 
     ret = voltage_measurement_get(CHANNEL_12V_CAPS, &voltage_mv);
     zassert_equal(ret, RET_SUCCESS);

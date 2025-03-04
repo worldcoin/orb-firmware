@@ -24,8 +24,6 @@ ZTEST(hil, test_fan_set_speed)
 
 ZTEST(hil, test_fan_tachometer)
 {
-    Z_TEST_SKIP_IFDEF(CONFIG_BOARD_DIAMOND_MAIN);
-
     // "fast" speed, then revert to initial speed
     fan_set_speed_by_percentage(FAN_INITIAL_SPEED_PERCENT + 5);
     k_msleep(5000);
