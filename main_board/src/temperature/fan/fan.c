@@ -250,7 +250,9 @@ fan_init(void)
     } else if (version.version ==
                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
                version.version ==
-                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3) {
+                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
+               version.version ==
+                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
         max_speed_pulse_width_ns = 40000;
 
         // min is 30% duty cycle = 0.3*40000
