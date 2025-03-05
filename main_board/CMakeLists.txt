@@ -87,6 +87,7 @@ list(APPEND SOURCES_FILES
     src/optics/ir_camera_system/ir_camera_system.c
     src/optics/liquid_lens/liquid_lens.c
     src/optics/mirror/mirror.c
+    src/optics/mirror/mirror_private.c
 
     src/power/boot/boot.c
 
@@ -123,17 +124,17 @@ endif()
 
 if (CONFIG_BOARD_PEARL_MAIN)
     list(APPEND SOURCES_FILES src/gnss/gnss.c)
+    list(APPEND SOURCES_FILES src/optics/mirror/homing_pearl.c)
     list(APPEND SOURCES_FILES src/power/battery/battery_ruby.c)
 endif()
 
 if (CONFIG_BOARD_DIAMOND_MAIN)
+    list(APPEND SOURCES_FILES src/optics/mirror/homing_diamond.c)
     list(APPEND SOURCES_FILES src/power/battery/battery_amber.c)
     if (CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
-    list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds.c)
+        list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds.c)
     endif()
-
     list(APPEND SOURCES_FILES src/ui/white_leds/white_leds.c)
-    list(APPEND SOURCES_FILES src/power/battery/battery_amber.c)
 endif()
 
 if (CONFIG_ZTEST)
