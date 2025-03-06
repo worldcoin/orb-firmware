@@ -507,8 +507,7 @@ BUILD_ASSERT(SYS_INIT_I2C1_INIT_PRIORITY > SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
              "I2C1 must be initialized _after_ the power supplies so that the "
              "safety circuit doesn't get tripped");
 
-SYS_INIT(init_i2c1_front_pca95xx, POST_KERNEL,
-         SYS_INIT_POWER_SUPPLY_INIT_PRIORITY);
+SYS_INIT(init_i2c1_front_pca95xx, POST_KERNEL, SYS_INIT_I2C1_INIT_PRIORITY);
 #endif
 
 #ifdef CONFIG_GPIO_PCA95XX_INIT_PRIORITY
