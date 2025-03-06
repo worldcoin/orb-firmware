@@ -1137,69 +1137,6 @@ ir_camera_system_get_time_until_update_us_internal(void)
     return time_until_update_us;
 }
 
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-// Fuse available on Front Unit versions 6.0 and 6.1 only!
-static ret_code_t
-reset_fuse(void)
-{
-    int err_code;
-
-    const struct gpio_dt_spec fuse_reset =
-        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_fuse_reset_gpios);
-    const struct gpio_dt_spec fuse_active =
-        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_fuse_active_gpios);
-
-    err_code = gpio_pin_configure_dt(&fuse_active, GPIO_INPUT);
-    if (err_code) {
-        ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
-    }
-
-    err_code = gpio_pin_configure_dt(&fuse_reset, GPIO_OUTPUT_INACTIVE);
-    if (err_code) {
-        ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
-    }
-
-    if (gpio_pin_get_dt(&fuse_active) == 0) {
-        LOG_WRN("Resetting blown fuse");
-
-        err_code = gpio_pin_set_dt(&fuse_reset, 1);
-        if (err_code) {
-            ASSERT_SOFT(err_code);
-            return RET_ERROR_INTERNAL;
-        }
-
-        k_msleep(100);
-        err_code = gpio_pin_set_dt(&fuse_reset, 0);
-        if (err_code) {
-            ASSERT_SOFT(err_code);
-            return RET_ERROR_INTERNAL;
-        }
-    }
-
-    return RET_SUCCESS;
-}
-
-// 5V switch not available on Front Unit versions 6.0 and 6.1!
-static ret_code_t
-enable_5v_switched(void)
-{
-    int err_code;
-
-    const struct gpio_dt_spec en_5v_switched =
-        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_en_5v_switched_gpios);
-
-    err_code = gpio_pin_configure_dt(&en_5v_switched, GPIO_OUTPUT_ACTIVE);
-    if (err_code) {
-        ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
-    }
-
-    return RET_SUCCESS;
-}
-#endif
-
 ret_code_t
 ir_camera_system_set_fps_hw(uint16_t fps)
 {
@@ -1316,15 +1253,13 @@ ir_camera_system_hw_init(void)
 #endif
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    const orb_mcu_Hardware version = version_get();
+    const struct gpio_dt_spec en_5v_switched =
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_en_5v_switched_gpios);
 
-    if (version.version ==
-            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 ||
-        version.version ==
-            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
-        reset_fuse();
-    } else {
-        enable_5v_switched();
+    err_code = gpio_pin_configure_dt(&en_5v_switched, GPIO_OUTPUT_ACTIVE);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
     }
 #endif
 
