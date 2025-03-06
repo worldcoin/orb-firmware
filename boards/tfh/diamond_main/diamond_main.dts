@@ -73,10 +73,7 @@
         supply-vbat-sw-enable-gpios = <&gpio_exp_pwr_brd 12 GPIO_ACTIVE_HIGH>;
         front-unit-pvcc-enabled-gpios = <&gpio_exp_front_unit 0 GPIO_ACTIVE_HIGH>;
 
-        // The signals FUSE_RST and FUSE_ACTIVE are available only on Front Unit 6.0 (PoC1) and 6.1 (PoC2)
         // On Front Unit 6.2 (B3) the signal EN_5V_SWITCHED is connected to the port expander pin P02 instead.
-        front-unit-fuse-reset-gpios = <&gpio_exp_front_unit 2 GPIO_ACTIVE_LOW>;     // PoC1 & PoC2 only
-        front-unit-fuse-active-gpios = <&gpio_exp_front_unit 6 GPIO_ACTIVE_LOW>;    // PoC1 & PoC2 only
         front-unit-en-5v-switched-gpios = <&gpio_exp_front_unit 2 GPIO_ACTIVE_HIGH>;      // B3 only
 
         supply-12v-caps-enable-gpios = <&gpio_exp_pwr_brd 4 GPIO_ACTIVE_LOW>;
@@ -183,41 +180,41 @@
         // io-channels = <adc-device channel-number>, ...
         // adc1:
         // [0]: VBAT_SW
-        //      Diamond PoC2: R1=94k, R2=10k
+        //      Diamond: R1=94k, R2=10k
         // [1]: 3V3_SSD
-        //      Diamond PoC2: R1=10k, R2=10k
+        //      Diamond: R1=10k, R2=10k
         // [2]: 3V3_WIFI
-        //      Diamond PoC2: R1=10k, R2=10k
+        //      Diamond: R1=10k, R2=10k
         // [3]: PVCC
-        //      Diamond PoC2: R1=442k, R2=23.5k
+        //      Diamond: R1=442k, R2=23.5k
         // [4]: 12V_CAPS
-        //      Diamond PoC2: R1=57k, R2=10k
+        //      Diamond: R1=57k, R2=10k
         // [5]: V_SCAP_LOW
-        //      Diamond PoC2
+        //      Diamond
         // [6]: V_SCAP_HIGH
-        //      Diamond PoC2
+        //      Diamond
         // [7]: Die Temperature
         // [8]: Vbat / 3
         // adc4:
         // [9]: 1V8_SEC
-        //       Diamond PoC2: R1=27R, R2=inf
+        //       Diamond: R1=27R, R2=inf
         // [10]: 4V7_SEC
-        //       Diamond PoC2: R1=2*47k, R2=47k
+        //       Diamond: R1=2*47k, R2=47k
         // adc5:
         // [11]: 1V8
-        //       Diamond PoC2: R1=27R, R2=inf
+        //       Diamond: R1=27R, R2=inf
         // [12]: 3V3
-        //       Diamond PoC2: R1=10k, R2=10k
+        //       Diamond: R1=10k, R2=10k
         // [13]: 5V
-        //       Diamond PoC2: R1=20k, R2=10k
+        //       Diamond: R1=20k, R2=10k
         // [14]: 3V6
-        //       Diamond PoC2: R1=10k, R2=10k
+        //       Diamond: R1=10k, R2=10k
         // [15]: 3V3_LTE
-        //       Diamond PoC2: R1=10k, R2=10k
+        //       Diamond: R1=10k, R2=10k
         // [16]: 1V2
-        //       Diamond PoC2: R1=27R, R2=inf
+        //       Diamond: R1=27R, R2=inf
         // [17]: 2V8
-        //       Diamond PoC2: R1=10k, R2=10k
+        //       Diamond: R1=10k, R2=10k
         // [18]: VREFINT (typ. 1.212 V)
         //
         io-channels = <&adc1 1>, <&adc1 2>, <&adc1 3>, <&adc1 7>, <&adc1 9>, <&adc1 11>, <&adc1 14>, <&adc1 16>, <&adc1 17>,<&adc4 1>, <&adc4 2>, <&adc5 7>, <&adc5 8>, <&adc5 9>, <&adc5 12>, <&adc5 13>, <&adc5 14>, <&adc5 15>, <&adc5 18>;

@@ -213,9 +213,7 @@ fan_init(void)
                    orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         fan_specs = fan_ev3_specs;
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-    if (version.version ==
-            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
+    if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
         orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
         fan_specs = fan_diamond_specs;
 #endif
@@ -248,8 +246,6 @@ fan_init(void)
         min_speed_pulse_width_ns = 16239;
 
     } else if (version.version ==
-                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-               version.version ==
                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
                version.version ==
                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
