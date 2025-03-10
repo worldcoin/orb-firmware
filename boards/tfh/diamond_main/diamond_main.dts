@@ -157,7 +157,7 @@
 
     white_leds {
         compatible = "pwm-white-leds";
-        pwms = <&white_leds_pwm 2 100000 PWM_POLARITY_NORMAL>;
+        pwms = <&white_leds_pwm 2 65535 PWM_POLARITY_NORMAL>;
     };
 
     liquid_lens {
