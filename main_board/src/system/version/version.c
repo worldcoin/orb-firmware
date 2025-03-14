@@ -24,6 +24,7 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * - v4.1 p[13..10] = 1
  * - v4.2 p[13..10] = 2
  * - v4.3 p[13..10] = 3
+ * - v4.4 p[13..10] = 4
  *
  * ## Front unit
  * Hardware version can be fetched using IO expander on the front unit:
@@ -41,6 +42,7 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * - v1.1: p[13..10] = 1
  * - v1.2: p[13..10] = 2
  * - v1.3: p[13..10] = 3
+ * - v1.4: p[13..10] = 4
  **/
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
@@ -262,6 +264,10 @@ version_fetch_hardware_rev(orb_mcu_Hardware *hw_version)
             hw_version->version =
                 orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT;
             break;
+        case 4:
+            hw_version->version =
+                orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4;
+            break;
         default:
             LOG_ERR("Unknown main board from IO expander: %d", hw_bits);
             break;
@@ -376,6 +382,10 @@ version_get_power_board_rev(void)
         case 3:
             power_board_version =
                 orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_3;
+            break;
+        case 4:
+            power_board_version =
+                orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_4;
             break;
         default:
             LOG_ERR("Unknown power board from IO expander: %d", hw_bits);

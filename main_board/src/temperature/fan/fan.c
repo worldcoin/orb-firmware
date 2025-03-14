@@ -214,7 +214,8 @@ fan_init(void)
         fan_specs = fan_ev3_specs;
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
     if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
-        orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
+        orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT ||
+        orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4) {
         fan_specs = fan_diamond_specs;
 #endif
     } else {
@@ -248,7 +249,9 @@ fan_init(void)
     } else if (version.version ==
                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
                version.version ==
-                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
+                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT ||
+               version.version ==
+                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4) {
         max_speed_pulse_width_ns = 40000;
 
         // min is 30% duty cycle = 0.3*40000
