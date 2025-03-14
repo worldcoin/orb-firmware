@@ -129,9 +129,10 @@ static const int32_t mirror_center_angles[MOTORS_COUNT] = {
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
 // values measured on first PoC Diamond Orb
 #define MOTOR_THETA_CENTER_FROM_END_STEPS 63000
-#define MOTOR_PHI_CENTER_FROM_END_STEPS   47600
-#define MOTOR_THETA_FULL_RANGE_STEPS      140000
-#define MOTOR_PHI_FULL_RANGE_STEPS        102400
+#define MOTOR_PHI_CENTER_FROM_END_STEPS                                        \
+    (16.325 * (360 / 18) * 256) // 16.325 turns
+#define MOTOR_THETA_FULL_RANGE_STEPS 140000
+#define MOTOR_PHI_FULL_RANGE_STEPS   (46.475 * (360 / 18) * 256)
 
 #define MOTOR_THETA_ARM_LENGTH_MM 12.0f
 #define MOTOR_PHI_ARM_LENGTH_MM   12.0f
