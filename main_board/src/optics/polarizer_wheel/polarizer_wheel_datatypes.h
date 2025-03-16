@@ -43,6 +43,7 @@ typedef struct {
         bool start_notch_found;
         uint8_t notches_encountered;
         uint32_t steps_to_last_notch;
+        uint32_t steps_to_last_notch_prev;
     } auto_homing;
 
     struct {

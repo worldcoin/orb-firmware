@@ -122,6 +122,9 @@ encoder_callback(const struct device *dev, struct gpio_callback *cb,
                 g_polarizer_wheel_instance.auto_homing.start_notch_found = true;
             } else {
                 g_polarizer_wheel_instance.auto_homing.notches_encountered++;
+                g_polarizer_wheel_instance.auto_homing
+                    .steps_to_last_notch_prev =
+                    g_polarizer_wheel_instance.auto_homing.steps_to_last_notch;
                 g_polarizer_wheel_instance.auto_homing.steps_to_last_notch =
                     atomic_get(&g_polarizer_wheel_instance.step_count
                                     .step_count_current);
@@ -229,27 +232,23 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     g_polarizer_wheel_instance.auto_homing.notches_encountered = 0;
     g_polarizer_wheel_instance.auto_homing.start_notch_found = false;
 
-    static uint32_t last_step_count = 0;
     // Enable the encoder interrupt to be able to detect notches
     enable_encoder_interrupt();
 
     while ((g_polarizer_wheel_instance.auto_homing.notches_encountered <=
             POLARIZER_WHEEL_ENCODER_MAX_HOMING_NOTCHES) &&
            (!g_polarizer_wheel_instance.movement.wheel_moving)) {
-
         if (g_polarizer_wheel_instance.auto_homing.start_notch_found == true) {
             switch (
                 g_polarizer_wheel_instance.auto_homing.notches_encountered) {
             case 0:
-                break;
             case 1:
-                last_step_count =
-                    g_polarizer_wheel_instance.auto_homing.steps_to_last_notch;
                 break;
             default:
                 if (abs((int32_t)(g_polarizer_wheel_instance.auto_homing
                                       .steps_to_last_notch) -
-                        (int32_t)(last_step_count)) <= 100) {
+                        (int32_t)(g_polarizer_wheel_instance.auto_homing
+                                      .steps_to_last_notch_prev)) <= 100) {
                     g_polarizer_wheel_instance.auto_homing.auto_homing_state =
                         POLARIZER_WHEEL_AUTO_HOMING_STATE_SUCCESS;
                     g_polarizer_wheel_instance.movement.current_position =
@@ -265,7 +264,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
              POLARIZER_WHEEL_ENCODER_MAX_HOMING_NOTCHES)) {
             // 120 degrees in 3 seconds, move a total of 150 degrees
             // should hit encoder much sooner than 150 degrees
-            start_polarizer_wheel_step(683, 2048);
+            start_polarizer_wheel_step(1366, 2200);
             k_sleep(K_SECONDS(3));
         } else {
             if (g_polarizer_wheel_instance.auto_homing.auto_homing_state !=
@@ -276,6 +275,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
             break;
         }
     }
+    start_polarizer_wheel_step(683, 100);
     return;
 }
 
