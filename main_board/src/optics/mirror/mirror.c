@@ -473,6 +473,7 @@ mirror_check_angle(uint32_t angle_millidegrees, motor_t motor)
 
 /**
  * Set relative angle from the current position
+ *
  * @param angle_millidegrees from current position
  * @param motor MOTOR_THETA_ANGLE or MOTOR_PHI_ANGLE
  * @retval RET_SUCCESS on success
@@ -480,9 +481,9 @@ mirror_check_angle(uint32_t angle_millidegrees, motor_t motor)
  * position given its current position
  */
 static ret_code_t
-mirror_set_angle_relative(int32_t angle_millidegrees, motor_t motor)
+mirror_set_angle_relative(const int32_t angle_millidegrees, const motor_t motor)
 {
-    int32_t stepper_position_absolute_microsteps =
+    const int32_t stepper_position_absolute_microsteps =
         (int32_t)motor_controller_spi_read(
             spi_bus_controller, TMC5041_REGISTERS[REG_IDX_XACTUAL][motor]);
 
@@ -495,16 +496,12 @@ mirror_set_angle_relative(int32_t angle_millidegrees, motor_t motor)
             -stepper_position_from_center_microsteps;
     }
 
-    int32_t angle_from_center_millidegrees =
+    const int32_t angle_from_center_millidegrees =
         calculate_millidegrees_from_center_position(
             stepper_position_from_center_microsteps, motor);
 
-    int32_t target_angle_from_center_millidegrees =
+    const int32_t target_angle_from_center_millidegrees =
         angle_from_center_millidegrees + angle_millidegrees;
-    ret_code_t ret =
-        mirror_check_angle((uint32_t)(target_angle_from_center_millidegrees +
-                                      mirror_center_angles[motor]),
-                           motor);
 
     LOG_DBG(
         "Set relative angle: old_pos_microsteps = %d, from_center_microsteps = "
@@ -513,14 +510,8 @@ mirror_set_angle_relative(int32_t angle_millidegrees, motor_t motor)
         stepper_position_from_center_microsteps, angle_from_center_millidegrees,
         target_angle_from_center_millidegrees);
 
-    if (ret != RET_SUCCESS) {
-        return ret;
-    }
-
-    ret = mirror_set_angle_from_center(target_angle_from_center_millidegrees,
-                                       motor);
-
-    return ret;
+    return mirror_set_angle_from_center(target_angle_from_center_millidegrees,
+                                        motor);
 }
 
 ret_code_t
