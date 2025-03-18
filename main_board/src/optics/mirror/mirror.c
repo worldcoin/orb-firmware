@@ -43,7 +43,22 @@ const uint8_t motor_irun_sgt[MOTORS_COUNT][2] = {
     [MOTOR_PHI_ANGLE] = {0x13, 6},
 };
 
-static motors_refs_t motors_refs[MOTORS_COUNT] = {0};
+/** Motor at Xactual = 0 steps is:
+ *      - looking upwards, steps increase when going down
+ *      - looking inwards / to the right, steps increase going left.
+ *  Meaning center (`steps_at_center_position`) is number of microsteps to
+ *  go to center given the zero position
+ */
+static motors_refs_t motors_refs[MOTORS_COUNT] = {
+    [MOTOR_THETA_ANGLE] =
+        {
+            .steps_at_center_position = MOTOR_THETA_CENTER_FROM_END_STEPS,
+            .full_stroke_steps = MOTOR_THETA_FULL_RANGE_STEPS,
+        },
+    [MOTOR_PHI_ANGLE] = {
+        .steps_at_center_position = MOTOR_PHI_CENTER_FROM_END_STEPS,
+        .full_stroke_steps = MOTOR_PHI_FULL_RANGE_STEPS,
+    }};
 
 static void
 mirror_set_stepper_position(int32_t position_steps, motor_t mirror)
@@ -74,6 +89,7 @@ mirror_set_angle_from_center(int32_t angle_from_center_millidegrees,
         calculate_microsteps_from_center_position(
             angle_from_center_millidegrees, motors_arm_length_mm[motor]);
 
+    // steps increase from right to left, but angle decreases (from 45º to 0º)
     if (motor == MOTOR_PHI_ANGLE) {
         stepper_position_from_center_microsteps =
             -stepper_position_from_center_microsteps;
@@ -146,11 +162,6 @@ mirror_set_angle_relative(const int32_t angle_millidegrees, const motor_t motor)
     int32_t stepper_position_from_center_microsteps =
         stepper_position_absolute_microsteps -
         motors_refs[motor].steps_at_center_position;
-
-    if (motor == MOTOR_PHI_ANGLE) {
-        stepper_position_from_center_microsteps =
-            -stepper_position_from_center_microsteps;
-    }
 
     const int32_t angle_from_center_millidegrees =
         calculate_millidegrees_from_center_position(

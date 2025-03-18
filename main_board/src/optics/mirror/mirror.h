@@ -1,13 +1,7 @@
 #pragma once
 
-#include "mirror_private.h"
 #include <errors.h>
 #include <zephyr/kernel.h>
-
-#define MOTOR_DRV_STATUS_STALLGUARD (1 << 24)
-#define MOTOR_DRV_STATUS_STANDSTILL (1 << 31)
-
-#define MOTOR_DRV_SW_MODE_SG_STOP (1 << 10)
 
 /**
  * Set phi angle
@@ -72,6 +66,8 @@ ret_code_t
 mirror_set_angle_theta_relative(int32_t angle_millidegrees);
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
+#include "mirror_private.h"
+
 /**
  * Perform homing by going to one end using the maximum number of steps
  * in the available mechanical range, then to center using half the range

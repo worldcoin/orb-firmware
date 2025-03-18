@@ -17,11 +17,38 @@
 #define MOTOR_THETA_ARM_LENGTH_MM 12.0f
 #define MOTOR_PHI_ARM_LENGTH_MM   18.71f
 
+// EV2 and later
+#define MOTOR_THETA_CENTER_FROM_END_STEPS 55000
+#define MOTOR_PHI_CENTER_FROM_END_STEPS   87000
+#define MOTOR_THETA_FULL_RANGE_STEPS      (2 * MOTOR_THETA_CENTER_FROM_END_STEPS)
+#define MOTOR_PHI_FULL_RANGE_STEPS        (2 * MOTOR_PHI_CENTER_FROM_END_STEPS)
+
 #define MIRROR_ANGLE_THETA_MIN_MILLIDEGREES (90000 - 17500)
 #define MIRROR_ANGLE_THETA_MAX_MILLIDEGREES (90000 + 17500)
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-#define MOTOR_THETA_ARM_LENGTH_MM 12.0f
-#define MOTOR_PHI_ARM_LENGTH_MM   12.0f
+#define MOTOR_THETA_ARM_LENGTH_MM             12.0f
+#define MOTOR_PHI_ARM_LENGTH_MM               12.0f
+
+/*
+ * Motor stroke definitions
+ * 1 turn = 360º / 18º * 256 µ-steps
+ */
+// theta
+#define MOTOR_THETA_CENTER_FROM_END_STEPS     80000
+#define MOTOR_THETA_FULL_RANGE_STEPS          (MOTOR_THETA_CENTER_FROM_END_STEPS * 2)
+// phi
+#define MOTOR_PHI_CENTER_FROM_INNER_END_TURNS (16.325)
+#define MOTOR_PHI_CENTER_FROM_FLAT_TURNS      (30.15)
+#define MOTOR_PHI_CENTER_FROM_INNER_END_STEPS                                  \
+    (MOTOR_PHI_CENTER_FROM_INNER_END_TURNS * (360 / 18) * 256)
+#define MOTOR_PHI_CENTER_FROM_FLAT_END_STEPS                                   \
+    (MOTOR_PHI_CENTER_FROM_FLAT_TURNS * (360 / 18) * 256)
+#define MOTOR_PHI_OFF_THE_WALL_STEPS (2 * (360 / 18) * 256) // 2 turns
+#define MOTOR_PHI_FULL_RANGE_STEPS                                             \
+    ((MOTOR_PHI_CENTER_FROM_INNER_END_TURNS +                                  \
+      MOTOR_PHI_CENTER_FROM_FLAT_TURNS) *                                      \
+     (360 / 18) * 256)
+#define MOTOR_PHI_CENTER_FROM_END_STEPS MOTOR_PHI_CENTER_FROM_INNER_END_STEPS
 
 #define MIRROR_ANGLE_THETA_MIN_MILLIDEGREES (90000 - 20000)
 #define MIRROR_ANGLE_THETA_MAX_MILLIDEGREES (90000 + 20000)
@@ -39,12 +66,15 @@
 
 enum mirror_homing_state {
     AH_UNINIT,
-    AH_INITIAL_SHIFT,
-    AH_LOOKING_FIRST_END,
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    AH_SHIFTED_SIDEWAYS,
+    AH_UP_TO_WALL,
+    AH_THETA_TO_CENTER,
+    AH_THETA_HOMED,
+#endif
+    AH_GO_HOME,
     AH_WAIT_STANDSTILL,
-    AH_GO_OTHER_END,
     AH_SUCCESS,
-    AH_FAIL,
 };
 
 /**
@@ -65,13 +95,18 @@ enum mirror_homing_state {
 typedef enum { MOTOR_THETA_ANGLE = 0, MOTOR_PHI_ANGLE, MOTORS_COUNT } motor_t;
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
 typedef enum { MOTOR_PHI_ANGLE = 0, MOTOR_THETA_ANGLE, MOTORS_COUNT } motor_t;
+#else
+#error "unsupported board definition"
 #endif
 
 // Motors configuration
-#define MOTOR_INIT_VMAX 100000
-#define MOTOR_INIT_AMAX (MOTOR_INIT_VMAX / 20)
-#define MOTOR_FS_VMAX   800000
-#define IHOLDDELAY      (1 << 16)
+#define MOTOR_INIT_VMAX             100000
+#define MOTOR_INIT_AMAX             (MOTOR_INIT_VMAX / 20)
+#define MOTOR_FS_VMAX               800000
+#define IHOLDDELAY                  (1 << 16)
+#define MOTOR_DRV_STATUS_STALLGUARD (1 << 24)
+#define MOTOR_DRV_STATUS_STANDSTILL (1 << 31)
+#define MOTOR_DRV_SW_MODE_SG_STOP   (1 << 10)
 
 typedef enum tmc5041_registers_e {
     REG_IDX_RAMPMODE,
@@ -89,18 +124,18 @@ typedef enum tmc5041_registers_e {
 } tmc5041_registers_t;
 
 typedef struct {
-    int32_t steps_at_center_position;
-    uint32_t full_course;
+    int32_t steps_at_center_position; //!< Xtarget (in microsteps) to center
+    uint32_t full_stroke_steps;       //!< in microsteps
     uint8_t velocity_mode_current;
-    uint8_t stall_guard_threshold;
+#ifdef CONFIG_BOARD_PEARL_MAIN
     enum mirror_homing_state auto_homing_state;
+#endif
     uint32_t motor_state;
     uint32_t angle_millidegrees;
 } motors_refs_t;
 
 extern const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][MOTORS_COUNT];
 extern const uint64_t position_mode_full_speed[MOTORS_COUNT][10];
-extern const uint32_t motors_full_course_maximum_steps[MOTORS_COUNT];
 extern const int32_t mirror_center_angles[MOTORS_COUNT];
 
 int32_t

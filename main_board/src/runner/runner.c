@@ -964,7 +964,7 @@ handle_do_homing(job_t *job)
             ret |= mirror_homing_one_axis(MOTOR_THETA_ANGLE);
         }
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-
+        ret = mirror_homing();
 #endif
 
         // send ack before timeout even though auto-homing not completed

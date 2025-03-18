@@ -60,9 +60,6 @@ const uint64_t position_mode_full_speed[MOTORS_COUNT][10] = {
         0xC000000000,                 // RAMPMODE = 0 position move
     }};
 
-// a bit more than mechanical range
-const uint32_t motors_full_course_maximum_steps[MOTORS_COUNT] = {
-    [MOTOR_THETA_ANGLE] = (500 * 256), [MOTOR_PHI_ANGLE] = (700 * 256)};
 const int32_t mirror_center_angles[MOTORS_COUNT] = {
     [MOTOR_THETA_ANGLE] = MIRROR_ANGLE_THETA_CENTER_MILLIDEGREES,
     [MOTOR_PHI_ANGLE] = MIRROR_ANGLE_PHI_CENTER_MILLIDEGREES};

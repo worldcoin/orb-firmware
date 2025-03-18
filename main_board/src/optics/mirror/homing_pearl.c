@@ -19,18 +19,16 @@ K_THREAD_STACK_DEFINE(stack_area_motor_theta_init,
 static struct k_thread thread_data_mirror_homing[MOTORS_COUNT];
 static struct k_sem homing_in_progress_sem[MOTORS_COUNT];
 
-// EV2 and later
-#define MOTOR_THETA_CENTER_FROM_END_STEPS 55000
-#define MOTOR_PHI_CENTER_FROM_END_STEPS   87000
-#define MOTOR_THETA_FULL_RANGE_STEPS      (2 * MOTOR_THETA_CENTER_FROM_END_STEPS)
-#define MOTOR_PHI_FULL_RANGE_STEPS        (2 * MOTOR_PHI_CENTER_FROM_END_STEPS)
-
 static const uint32_t motors_center_from_end_steps[MOTORS_COUNT] = {
     [MOTOR_THETA_ANGLE] = MOTOR_THETA_CENTER_FROM_END_STEPS,
     [MOTOR_PHI_ANGLE] = MOTOR_PHI_CENTER_FROM_END_STEPS};
 static const uint32_t motors_full_range_steps[MOTORS_COUNT] = {
     [MOTOR_THETA_ANGLE] = MOTOR_THETA_FULL_RANGE_STEPS,
     [MOTOR_PHI_ANGLE] = MOTOR_PHI_FULL_RANGE_STEPS};
+
+// a bit more than mechanical range
+const uint32_t motors_full_course_maximum_steps[MOTORS_COUNT] = {
+    [MOTOR_THETA_ANGLE] = (500 * 256), [MOTOR_PHI_ANGLE] = (700 * 256)};
 
 // To get motor driver status, we need to poll its register (interrupt pins not
 // connected)
@@ -72,14 +70,13 @@ mirror_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
             LOG_INF("Steps to one end: %i", steps);
             motor_controller_spi_write(
                 TMC5041_REGISTERS[REG_IDX_XTARGET][motor], steps);
-            motor_handle->auto_homing_state = AH_LOOKING_FIRST_END;
+            motor_handle->auto_homing_state = AH_GO_HOME;
         } break;
 
-        case AH_LOOKING_FIRST_END: {
+        case AH_GO_HOME: {
             if (status & MOTOR_DRV_STATUS_STANDSTILL) {
                 // write xactual = 0
                 motor_controller_spi_write(
-
                     TMC5041_REGISTERS[REG_IDX_XACTUAL][motor], 0x0);
 
                 motor_handle->steps_at_center_position =
@@ -94,13 +91,14 @@ mirror_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                 motor_handle->auto_homing_state = AH_WAIT_STANDSTILL;
             }
         } break;
-        case AH_INITIAL_SHIFT:
-            break;
         case AH_WAIT_STANDSTILL: {
             if (status & MOTOR_DRV_STATUS_STANDSTILL) {
                 uint32_t angle_range_millidegrees =
-                    2 * calculate_millidegrees_from_center_position(
-                            motor_handle->full_course / 2, motor);
+                    2 *
+                    calculate_millidegrees_from_center_position(
+                        motor_handle->full_course / 2,
+                        (motor == MOTOR_THETA_ANGLE ? MOTOR_THETA_ARM_LENGTH_MM
+                                                    : MOTOR_PHI_ARM_LENGTH_MM));
                 LOG_INF("Motor %u, x0: center: %d microsteps, range: %u "
                         "millidegrees",
                         motor, motor_handle->steps_at_center_position,
@@ -120,11 +118,7 @@ mirror_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                 motor_handle->auto_homing_state = AH_SUCCESS;
             }
         } break;
-        case AH_GO_OTHER_END:
-            break;
         case AH_SUCCESS:
-            break;
-        case AH_FAIL:
             break;
         }
 
