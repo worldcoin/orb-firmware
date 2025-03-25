@@ -4,6 +4,8 @@
 #include "homing.h"
 #include "orb_logs.h"
 #include "pubsub/pubsub.h"
+
+#include <app_assert.h>
 #include <app_config.h>
 #include <math.h>
 #include <stdlib.h>
@@ -19,7 +21,7 @@ K_THREAD_STACK_DEFINE(stack_area_mirror_work_queue, 2048);
 static struct k_work_q mirror_work_queue;
 
 static struct async_mirror_command {
-    struct k_work work;
+    struct k_work_delayable work;
     int32_t angle_millidegrees;
 } theta_angle_set_work_item, phi_angle_set_work_item;
 
@@ -129,8 +131,13 @@ mirror_check_angle(uint32_t angle_millidegrees, motor_t motor)
         }
         return RET_SUCCESS;
     case MOTOR_PHI_ANGLE:
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored                                                 \
+    "-Wtype-limits" // on diamond MIRROR_ANGLE_PHI_MIN_MILLIDEGREES is 0
         if (angle_millidegrees > MIRROR_ANGLE_PHI_MAX_MILLIDEGREES ||
             angle_millidegrees < MIRROR_ANGLE_PHI_MIN_MILLIDEGREES) {
+#pragma GCC diagnostic pop
+
             LOG_ERR("Mirror phi angle of %u out of range [%u;%u]",
                     angle_millidegrees, MIRROR_ANGLE_PHI_MIN_MILLIDEGREES,
                     MIRROR_ANGLE_PHI_MAX_MILLIDEGREES);
@@ -223,53 +230,57 @@ mirror_set_angle_theta(uint32_t angle_millidegrees)
 static void
 mirror_angle_theta_work_wrapper(struct k_work *item)
 {
-    struct async_mirror_command *cmd =
-        CONTAINER_OF(item, struct async_mirror_command, work);
-    mirror_set_angle_theta(cmd->angle_millidegrees);
+    UNUSED_PARAMETER(item);
+
+    int ret =
+        mirror_set_angle_theta(theta_angle_set_work_item.angle_millidegrees);
+    ASSERT_SOFT(ret);
 }
 
 static void
 mirror_angle_phi_work_wrapper(struct k_work *item)
 {
-    struct async_mirror_command *cmd =
-        CONTAINER_OF(item, struct async_mirror_command, work);
-    mirror_set_angle_phi(cmd->angle_millidegrees);
+    UNUSED_PARAMETER(item);
+
+    int ret = mirror_set_angle_phi(phi_angle_set_work_item.angle_millidegrees);
+    ASSERT_SOFT(ret);
 }
 
 ret_code_t
-mirror_set_angle_phi_async(int32_t angle_millidegrees)
+mirror_set_angle_phi_async(int32_t angle_millidegrees, uint32_t delay_ms)
 {
     ret_code_t ret = mirror_check_angle(angle_millidegrees, MOTOR_PHI_ANGLE);
     if (ret != RET_SUCCESS) {
         return ret;
     }
 
-    if (k_work_busy_get(&phi_angle_set_work_item.work)) {
+    if (k_work_delayable_busy_get(&phi_angle_set_work_item.work)) {
         LOG_ERR("async: Mirror phi set work item is busy!");
         return RET_ERROR_BUSY;
     }
 
     phi_angle_set_work_item.angle_millidegrees = angle_millidegrees;
-    k_work_submit_to_queue(&mirror_work_queue, &phi_angle_set_work_item.work);
-
+    k_work_schedule_for_queue(&mirror_work_queue, &phi_angle_set_work_item.work,
+                              K_MSEC(delay_ms));
     return RET_SUCCESS;
 }
 
 ret_code_t
-mirror_set_angle_theta_async(int32_t angle_millidegrees)
+mirror_set_angle_theta_async(int32_t angle_millidegrees, uint32_t delay_ms)
 {
     ret_code_t ret = mirror_check_angle(angle_millidegrees, MOTOR_THETA_ANGLE);
     if (ret != RET_SUCCESS) {
         return ret;
     }
 
-    if (k_work_busy_get(&theta_angle_set_work_item.work)) {
+    if (k_work_delayable_busy_get(&theta_angle_set_work_item.work)) {
         LOG_ERR("async: Mirror theta set work item is busy!");
         return RET_ERROR_BUSY;
     }
 
     theta_angle_set_work_item.angle_millidegrees = angle_millidegrees;
-    k_work_submit_to_queue(&mirror_work_queue, &theta_angle_set_work_item.work);
+    k_work_schedule_for_queue(
+        &mirror_work_queue, &theta_angle_set_work_item.work, K_MSEC(delay_ms));
 
     return RET_SUCCESS;
 }
@@ -301,11 +312,30 @@ mirror_homing_one_axis(const motor_t motor)
 }
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
 ret_code_t
-mirror_homing(void)
+mirror_autohoming(void)
 {
-    return mirror_homing_async(motors_refs);
+    return mirror_homing_overreach_ends_async(motors_refs);
 }
 #endif
+
+ret_code_t
+mirror_go_home(void)
+{
+    int ret = RET_SUCCESS;
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    /* home is center */
+    ret |= mirror_set_angle(MIRROR_ANGLE_THETA_CENTER_MILLIDEGREES,
+                            MOTOR_THETA_ANGLE);
+    ret |=
+        mirror_set_angle(MIRROR_ANGLE_PHI_CENTER_MILLIDEGREES, MOTOR_PHI_ANGLE);
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    /* home if flat */
+    ret |=
+        mirror_set_angle_theta_async(MIRROR_ANGLE_THETA_CENTER_MILLIDEGREES, 0);
+    ret |= mirror_set_angle_phi_async(0, 500);
+#endif
+    return ret;
+}
 
 ret_code_t
 mirror_init(void)
@@ -345,15 +375,16 @@ mirror_init(void)
         position_mode_full_speed[MOTOR_THETA_ANGLE],
         ARRAY_SIZE(position_mode_full_speed[MOTOR_THETA_ANGLE]));
 
-    ret_code_t err_code = mirror_homing_async(motors_refs);
+    ret_code_t err_code = mirror_homing_overreach_ends_async(motors_refs);
     if (err_code) {
         LOG_ERR("Error homing: %u", err_code);
         return RET_ERROR_INVALID_STATE;
     }
 
-    k_work_init(&theta_angle_set_work_item.work,
-                mirror_angle_theta_work_wrapper);
-    k_work_init(&phi_angle_set_work_item.work, mirror_angle_phi_work_wrapper);
+    k_work_init_delayable(&theta_angle_set_work_item.work,
+                          mirror_angle_theta_work_wrapper);
+    k_work_init_delayable(&phi_angle_set_work_item.work,
+                          mirror_angle_phi_work_wrapper);
 
     k_work_queue_init(&mirror_work_queue);
     k_work_queue_start(&mirror_work_queue, stack_area_mirror_work_queue,

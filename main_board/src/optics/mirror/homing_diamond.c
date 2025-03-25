@@ -26,7 +26,7 @@ static struct k_sem homing_in_progress_sem;
     (AUTOHOMING_TIMEOUT_MS / AUTOHOMING_POLL_DELAY_MS)
 
 void
-mirror_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
+mirror_auto_homing_overreach_end_thread(void *p1, void *p2, void *p3)
 {
     motors_refs_t *motors = p1;
     UNUSED(p2);
@@ -210,7 +210,7 @@ mirror_auto_homing_in_progress()
 }
 
 ret_code_t
-mirror_homing_async(motors_refs_t motors[MOTORS_COUNT])
+mirror_homing_overreach_ends_async(motors_refs_t motors[MOTORS_COUNT])
 {
     static bool is_init = false;
     if (!is_init) {
@@ -241,7 +241,7 @@ mirror_homing_async(motors_refs_t motors[MOTORS_COUNT])
 
     k_thread_create(&thread_data_mirror_homing, stack_area_motor_init,
                     K_THREAD_STACK_SIZEOF(stack_area_motor_init),
-                    (k_thread_entry_t)mirror_auto_homing_one_end_thread,
+                    (k_thread_entry_t)mirror_auto_homing_overreach_end_thread,
                     (void *)motors, NULL, NULL, THREAD_PRIORITY_MOTORS_INIT, 0,
                     delay);
     k_thread_name_set(&thread_data_mirror_homing, "mirror_homing");

@@ -16,4 +16,4 @@ mirror_homing_one_end(const motors_refs_t *motor_handle,
  * @return RET_SUCCESS on success
  */
 ret_code_t
-mirror_homing_async(motors_refs_t motors[MOTORS_COUNT]);
+mirror_homing_overreach_ends_async(motors_refs_t motors[MOTORS_COUNT]);

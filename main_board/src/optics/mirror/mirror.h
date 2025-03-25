@@ -18,11 +18,12 @@ mirror_set_angle_phi(uint32_t angle_millidegrees);
 /**
  * Queue job to call `mirror_set_angle_phi` later
  * @param angle_millidegrees
+ * @param delay_ms
  * @retval RET_ERROR_INVALID_PARAM invalid value for `angle_millidegrees`
  * @retval RET_ERROR_BUSY if the queue is busy
  */
 ret_code_t
-mirror_set_angle_phi_async(int32_t angle_millidegrees);
+mirror_set_angle_phi_async(int32_t angle_millidegrees, uint32_t delay_ms);
 
 /**
  * Set theta angle
@@ -39,11 +40,12 @@ mirror_set_angle_theta(uint32_t angle_millidegrees);
 /**
  * Queue job to call `mirror_set_angle_theta` later
  * @param angle_millidegrees angle
+ * @param delay_ms
  * @retval RET_ERROR_INVALID_PARAM invalid value for `angle_millidegrees`
  * @retval RET_ERROR_BUSY if the queue is busy
  */
 ret_code_t
-mirror_set_angle_theta_async(int32_t angle_millidegrees);
+mirror_set_angle_theta_async(int32_t angle_millidegrees, uint32_t delay_ms);
 
 /**
  * Set phi angle relative to current position
@@ -91,8 +93,15 @@ mirror_homing_one_axis(const motor_t motor);
  * @return
  */
 ret_code_t
-mirror_homing(void);
+mirror_autohoming(void);
 #endif
+
+/**
+ * Reset mirror to home position, given known coordinates
+ * @return error code
+ */
+ret_code_t
+mirror_go_home(void);
 
 /**
  * Check that auto-homing is in progress for at least one mirror

@@ -955,16 +955,34 @@ handle_do_homing(job_t *job)
         job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
     } else {
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-        if (axis == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
-            axis == orb_mcu_main_PerformMirrorHoming_Angle_HORIZONTAL_PHI) {
-            ret |= mirror_homing_one_axis(MOTOR_PHI_ANGLE);
-        }
-        if (axis == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
-            axis == orb_mcu_main_PerformMirrorHoming_Angle_VERTICAL_THETA) {
-            ret |= mirror_homing_one_axis(MOTOR_THETA_ANGLE);
+        if (mode == orb_mcu_main_PerformMirrorHoming_Mode_ONE_BLOCKING_END) {
+            if (axis == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
+                axis == orb_mcu_main_PerformMirrorHoming_Angle_HORIZONTAL_PHI) {
+                ret |= mirror_homing_one_axis(MOTOR_PHI_ANGLE);
+            }
+            if (axis == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
+                axis == orb_mcu_main_PerformMirrorHoming_Angle_VERTICAL_THETA) {
+                ret |= mirror_homing_one_axis(MOTOR_THETA_ANGLE);
+            }
+        } else if (
+            mode ==
+            orb_mcu_main_PerformMirrorHoming_Mode_WITH_KNOWN_COORDINATES) {
+
+        } else {
+            job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+            return;
         }
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-        ret = mirror_homing();
+        if (mode == orb_mcu_main_PerformMirrorHoming_Mode_ONE_BLOCKING_END) {
+            ret = mirror_autohoming();
+        } else if (
+            mode ==
+            orb_mcu_main_PerformMirrorHoming_Mode_WITH_KNOWN_COORDINATES) {
+            ret = mirror_go_home();
+        } else {
+            job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+            return;
+        }
 #endif
 
         // send ack before timeout even though auto-homing not completed

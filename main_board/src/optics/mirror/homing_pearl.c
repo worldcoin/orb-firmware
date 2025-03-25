@@ -27,7 +27,7 @@ static const uint32_t motors_full_range_steps[MOTORS_COUNT] = {
     [MOTOR_PHI_ANGLE] = MOTOR_PHI_FULL_RANGE_STEPS};
 
 // a bit more than mechanical range
-const uint32_t motors_full_course_maximum_steps[MOTORS_COUNT] = {
+const uint32_t motors_full_stroke_steps_maximum_steps[MOTORS_COUNT] = {
     [MOTOR_THETA_ANGLE] = (500 * 256), [MOTOR_PHI_ANGLE] = (700 * 256)};
 
 // To get motor driver status, we need to poll its register (interrupt pins not
@@ -66,7 +66,7 @@ mirror_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
             motor_controller_spi_send_commands(
                 position_mode_full_speed[motor],
                 ARRAY_SIZE(position_mode_full_speed[motor]));
-            int32_t steps = -motors_full_course_maximum_steps[motor];
+            int32_t steps = -motors_full_stroke_steps_maximum_steps[motor];
             LOG_INF("Steps to one end: %i", steps);
             motor_controller_spi_write(
                 TMC5041_REGISTERS[REG_IDX_XTARGET][motor], steps);
@@ -81,7 +81,8 @@ mirror_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
 
                 motor_handle->steps_at_center_position =
                     (int32_t)motors_center_from_end_steps[motor];
-                motor_handle->full_course = motors_full_range_steps[motor];
+                motor_handle->full_stroke_steps =
+                    motors_full_range_steps[motor];
 
                 // go to middle position
                 motor_controller_spi_write(
@@ -96,7 +97,7 @@ mirror_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                 uint32_t angle_range_millidegrees =
                     2 *
                     calculate_millidegrees_from_center_position(
-                        motor_handle->full_course / 2,
+                        motor_handle->full_stroke_steps / 2,
                         (motor == MOTOR_THETA_ANGLE ? MOTOR_THETA_ARM_LENGTH_MM
                                                     : MOTOR_PHI_ARM_LENGTH_MM));
                 LOG_INF("Motor %u, x0: center: %d microsteps, range: %u "
@@ -109,7 +110,7 @@ mirror_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                         (motor == MOTOR_THETA_ANGLE
                              ? orb_mcu_main_MotorRange_Motor_VERTICAL_THETA
                              : orb_mcu_main_MotorRange_Motor_HORIZONTAL_PHI),
-                    .range_microsteps = motor_handle->full_course,
+                    .range_microsteps = motor_handle->full_stroke_steps,
                     .range_millidegrees = angle_range_millidegrees};
                 publish_new(&range, sizeof(range),
                             orb_mcu_main_McuToJetson_motor_range_tag,

@@ -396,10 +396,12 @@ camera_sweep_isr(void *arg)
                     evaluate_mirror_sweep_polynomials(sweep_index);
                 mirror_set_angle_phi_async(
                     md.delta_phi_millidegrees +
-                    (int32_t)initial_mirror_angle_phi_millidegrees);
+                        (int32_t)initial_mirror_angle_phi_millidegrees,
+                    0);
                 mirror_set_angle_theta_async(
                     md.delta_theta_millidegrees +
-                    (int32_t)initial_mirror_angle_theta_millidegrees);
+                        (int32_t)initial_mirror_angle_theta_millidegrees,
+                    0);
             }
         } else {
             LOG_ERR("Nothing is in progress, this should not be possible!");
