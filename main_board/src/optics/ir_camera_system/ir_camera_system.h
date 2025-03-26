@@ -275,6 +275,8 @@ ir_camera_system_perform_mirror_sweep(void);
  * and one needs to call `ir_camera_system_init()`.
  * @retval RET_ERROR_BUSY: Some uninterruptible function is in progress, like a
  * focus sweep. Said function will terminate eventually.
+ * @retval RET_ERROR_FORBIDDEN: distance measured in front by 1d-tof is too
+ * close, or PVCC is not enabled because safety circuitry tripped.
  */
 ret_code_t
 ir_camera_system_get_status(void);
