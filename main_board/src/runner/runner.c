@@ -958,11 +958,13 @@ handle_do_homing(job_t *job)
         if (mode == orb_mcu_main_PerformMirrorHoming_Mode_ONE_BLOCKING_END) {
             if (axis == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
                 axis == orb_mcu_main_PerformMirrorHoming_Angle_HORIZONTAL_PHI) {
-                ret |= mirror_homing_one_axis(MOTOR_PHI_ANGLE);
+                const motor_t motor = MOTOR_PHI_ANGLE;
+                ret |= mirror_autohoming(&motor);
             }
             if (axis == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
                 axis == orb_mcu_main_PerformMirrorHoming_Angle_VERTICAL_THETA) {
-                ret |= mirror_homing_one_axis(MOTOR_THETA_ANGLE);
+                const motor_t motor = MOTOR_THETA_ANGLE;
+                ret |= mirror_autohoming(&motor);
             }
         } else if (
             mode ==
@@ -974,7 +976,7 @@ handle_do_homing(job_t *job)
         }
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
         if (mode == orb_mcu_main_PerformMirrorHoming_Mode_ONE_BLOCKING_END) {
-            ret = mirror_autohoming();
+            ret = mirror_autohoming(NULL);
         } else if (
             mode ==
             orb_mcu_main_PerformMirrorHoming_Mode_WITH_KNOWN_COORDINATES) {

@@ -304,19 +304,21 @@ mirror_get_theta_angle_millidegrees(void)
     return motors_refs[MOTOR_THETA_ANGLE].angle_millidegrees;
 }
 
+ret_code_t
+mirror_autohoming(const motor_t *motor)
+{
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-ret_code_t
-mirror_homing_one_axis(const motor_t motor)
-{
-    return mirror_homing_one_end(&motors_refs[motor], motor);
-}
+    if (motor == NULL || *motor >= MOTORS_COUNT) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    return mirror_homing_one_end(&motors_refs[*motor], *motor);
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-ret_code_t
-mirror_autohoming(void)
-{
+    UNUSED_PARAMETER(motor);
+
     return mirror_homing_overreach_ends_async(motors_refs);
-}
 #endif
+}
 
 ret_code_t
 mirror_go_home(void)

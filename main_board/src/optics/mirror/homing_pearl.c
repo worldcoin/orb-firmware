@@ -207,7 +207,7 @@ mirror_auto_homing_in_progress()
 }
 
 ret_code_t
-mirror_homing_async(motors_refs_t motors[MOTORS_COUNT])
+mirror_homing_overreach_ends_async(motors_refs_t motors[MOTORS_COUNT])
 {
     static bool is_init = false;
     if (!is_init) {

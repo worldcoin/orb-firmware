@@ -3,6 +3,8 @@
 #include <errors.h>
 #include <zephyr/kernel.h>
 
+#include "mirror_private.h"
+
 /**
  * Set phi angle
  * @param angle_millidegrees
@@ -67,34 +69,14 @@ mirror_set_angle_phi_relative(int32_t angle_millidegrees);
 ret_code_t
 mirror_set_angle_theta_relative(int32_t angle_millidegrees);
 
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-#include "mirror_private.h"
-
 /**
- * Perform homing by going to one end using the maximum number of steps
- * in the available mechanical range, then to center using half the range
- * This method does not allow for blockers detection
+ * Run autohoming
  *
- * Note. This method is not available on diamond devices, given the specific
- *       T-shaped range available: horizontal axis cannot be centered if the
- *       vertical position isn't known to be centered before.
- *
- * @param motor MOTOR_THETA_ANGLE or MOTOR_PHI_ANGLE
- * @retval RET_SUCCESS auto-homing has started
- * @retval RET_ERROR_INTERNAL unable to spawn auto-homing thread
- * @retval RET_ERROR_BUSY auto-homing already in progress
- */
-ret_code_t
-mirror_homing_one_axis(const motor_t motor);
-#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-/**
- * Perform homing.
- *
+ * @param motor axis to home, ⚠️ unused on diamond
  * @return
  */
 ret_code_t
-mirror_autohoming(void);
-#endif
+mirror_autohoming(const motor_t *motor);
 
 /**
  * Reset mirror to home position, given known coordinates
