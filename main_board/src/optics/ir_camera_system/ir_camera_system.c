@@ -6,6 +6,20 @@
 #include "ir_camera_timer_settings.h"
 #include "utils.h"
 
+#if !defined(IR_CAMERA_UNIT_TESTS)
+// include reference to function in case outside of unit tests, otherwise
+// mock them.
+#include <optics/1d_tof/tof_1d.h>
+#include <optics/optics.h>
+#else
+/** mocked function below for unit tests */
+static bool
+distance_is_safe()
+{
+    return true;
+}
+#endif
+
 #if defined(CONFIG_ZTEST)
 #include <zephyr/logging/log.h>
 #else
@@ -238,6 +252,8 @@ ir_camera_system_set_fps(uint16_t fps)
         ret = RET_ERROR_INVALID_PARAM;
     } else if (get_focus_sweep_in_progress() == true) {
         ret = RET_ERROR_BUSY;
+    } else if (!distance_is_safe()) {
+        ret = RET_ERROR_FORBIDDEN;
     } else {
         ret = ir_camera_system_set_fps_hw(fps);
     }
@@ -256,6 +272,8 @@ ir_camera_system_set_on_time_us(uint16_t on_time_us)
         ret = RET_ERROR_NOT_INITIALIZED;
     } else if (on_time_us > IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US) {
         ret = RET_ERROR_INVALID_PARAM;
+    } else if (!distance_is_safe()) {
+        ret = RET_ERROR_FORBIDDEN;
     } else {
         ret = ir_camera_system_set_on_time_us_hw(on_time_us);
     }
@@ -373,6 +391,8 @@ ir_camera_system_get_status(void)
     } else if (get_focus_sweep_in_progress() ||
                get_mirror_sweep_in_progress()) {
         ret = RET_ERROR_BUSY;
+    } else if (!distance_is_safe()) {
+        ret = RET_ERROR_FORBIDDEN;
     } else {
         ret = RET_SUCCESS;
     }
