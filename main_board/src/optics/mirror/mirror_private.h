@@ -14,14 +14,14 @@
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
 #define MIRROR_ANGLE_PHI_MIN_MILLIDEGREES (0) // facing user
 #define MIRROR_ANGLE_PHI_MAX_MILLIDEGREES                                      \
-    (MIRROR_ANGLE_PHI_CENTER_MILLIDEGREES + 13000)
+    (MIRROR_ANGLE_PHI_CENTER_MILLIDEGREES + 23000)
 #endif
 #define MIRROR_ANGLE_PHI_RANGE_MILLIDEGREES                                    \
     (MIRROR_ANGLE_PHI_MAX_MILLIDEGREES - MIRROR_ANGLE_PHI_MIN_MILLIDEGREES)
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-#define MOTOR_THETA_ARM_LENGTH_MM 12.0f
-#define MOTOR_PHI_ARM_LENGTH_MM   18.71f
+#define MOTOR_THETA_ARM_LENGTH_MM 12.0
+#define MOTOR_PHI_ARM_LENGTH_MM   18.71
 
 // EV2 and later
 #define MOTOR_THETA_CENTER_FROM_END_STEPS 55000
@@ -32,8 +32,8 @@
 #define MIRROR_ANGLE_THETA_MIN_MILLIDEGREES (90000 - 17500)
 #define MIRROR_ANGLE_THETA_MAX_MILLIDEGREES (90000 + 17500)
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-#define MOTOR_THETA_ARM_LENGTH_MM         18.0f
-#define MOTOR_PHI_ARM_LENGTH_MM           16.0f
+#define MOTOR_THETA_ARM_LENGTH_MM         18.0
+#define MOTOR_PHI_ARM_LENGTH_MM           16.0
 
 /*
  * Motor stroke definitions
@@ -142,11 +142,11 @@ extern const int32_t mirror_center_angles[MOTORS_COUNT];
 
 int32_t
 calculate_millidegrees_from_center_position(
-    int32_t microsteps_from_center_position, const float motors_arm_length_mm);
+    int32_t microsteps_from_center_position, const double motors_arm_length_mm);
 
 int32_t
 calculate_microsteps_from_center_position(
-    int32_t angle_from_center_millidegrees, const float motors_arm_length_mm);
+    int32_t angle_from_center_millidegrees, const double motors_arm_length_mm);
 
 void
 motor_controller_spi_send_commands(const uint64_t *cmds, size_t num_cmds);

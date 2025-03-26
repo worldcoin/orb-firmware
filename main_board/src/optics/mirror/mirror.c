@@ -35,7 +35,7 @@ static struct async_mirror_command {
 #define TMC5041_REG_GCONF 0x00
 #define REG_INPUT         0x04
 
-const float motors_arm_length_mm[MOTORS_COUNT] = {
+const double motors_arm_length_mm[MOTORS_COUNT] = {
     [MOTOR_THETA_ANGLE] = MOTOR_THETA_ARM_LENGTH_MM,
     [MOTOR_PHI_ANGLE] = MOTOR_PHI_ARM_LENGTH_MM};
 
@@ -90,12 +90,6 @@ mirror_set_angle_from_center(int32_t angle_from_center_millidegrees,
     int32_t stepper_position_from_center_microsteps =
         calculate_microsteps_from_center_position(
             angle_from_center_millidegrees, motors_arm_length_mm[motor]);
-
-    // steps increase from right to left, but angle decreases (from 45º to 0º)
-    if (motor == MOTOR_PHI_ANGLE) {
-        stepper_position_from_center_microsteps =
-            -stepper_position_from_center_microsteps;
-    }
 
     int32_t stepper_position_absolute_microsteps =
         motors_refs[motor].steps_at_center_position +
@@ -175,8 +169,26 @@ mirror_set_angle_relative(const int32_t angle_millidegrees, const motor_t motor)
             stepper_position_from_center_microsteps,
             motors_arm_length_mm[motor]);
 
-    const int32_t target_angle_from_center_millidegrees =
+    int32_t target_angle_from_center_millidegrees =
         angle_from_center_millidegrees + angle_millidegrees;
+
+    // the math above might end up outside the available
+    // mechanical range, so let's clamp to values inside the range.
+    if (motor == MOTOR_PHI_ANGLE) {
+        target_angle_from_center_millidegrees =
+            CLAMP(target_angle_from_center_millidegrees,
+                  (MIRROR_ANGLE_PHI_CENTER_MILLIDEGREES -
+                   MIRROR_ANGLE_PHI_MAX_MILLIDEGREES),
+                  (MIRROR_ANGLE_PHI_CENTER_MILLIDEGREES -
+                   MIRROR_ANGLE_PHI_MIN_MILLIDEGREES));
+    } else if (motor == MOTOR_THETA_ANGLE) {
+        target_angle_from_center_millidegrees =
+            CLAMP(target_angle_from_center_millidegrees,
+                  (MIRROR_ANGLE_THETA_CENTER_MILLIDEGREES -
+                   MIRROR_ANGLE_THETA_MAX_MILLIDEGREES),
+                  (MIRROR_ANGLE_THETA_CENTER_MILLIDEGREES -
+                   MIRROR_ANGLE_THETA_MIN_MILLIDEGREES));
+    }
 
     LOG_DBG(
         "Set relative angle: old_pos_microsteps = %d, from_center_microsteps = "
