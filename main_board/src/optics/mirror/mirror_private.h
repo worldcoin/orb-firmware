@@ -32,15 +32,17 @@
 #define MIRROR_ANGLE_THETA_MIN_MILLIDEGREES (90000 - 17500)
 #define MIRROR_ANGLE_THETA_MAX_MILLIDEGREES (90000 + 17500)
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-#define MOTOR_THETA_ARM_LENGTH_MM             12.0f
-#define MOTOR_PHI_ARM_LENGTH_MM               12.0f
+#define MOTOR_THETA_ARM_LENGTH_MM         18.0f
+#define MOTOR_PHI_ARM_LENGTH_MM           16.0f
 
 /*
  * Motor stroke definitions
  * 1 turn = 360º / 18º * 256 µ-steps
  */
 // theta
-#define MOTOR_THETA_CENTER_FROM_END_STEPS     80000
+#define MOTOR_THETA_CENTER_FROM_END_TURNS (15.4)
+#define MOTOR_THETA_CENTER_FROM_END_STEPS                                      \
+    (MOTOR_THETA_CENTER_FROM_END_TURNS * (360 / 18) * 256)
 #define MOTOR_THETA_FULL_RANGE_STEPS          (MOTOR_THETA_CENTER_FROM_END_STEPS * 2)
 // phi
 #define MOTOR_PHI_CENTER_FROM_INNER_END_TURNS (16.325)
