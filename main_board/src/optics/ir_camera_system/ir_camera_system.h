@@ -117,7 +117,9 @@ bool
 ir_camera_system_2d_tof_camera_is_enabled(void);
 
 /**
- * @brief Enable IR LEDs
+ * @brief Enable a group of IR LEDs, or disable them.
+ *
+ * Passing WAVELENGTH_NONE will disable LEDs and is accepted in any condition.
  *
  * @retval RET_SUCCESS LEDs enabled at corresponding @c wavelength
  * @retval RET_ERROR_NOT_INITIALIZED not initialized
@@ -148,6 +150,7 @@ ir_camera_system_get_time_until_update_us(void);
  * - IR-LEDs duty cycle (on-time) <= 15% (Pearl) OR <= 25% (Diamond)
  * AND
  * - the maximum Frames-Per-Second of 60Hz is not exceeded.
+ * It is allowed to reset the FPS to 0 in any condition.
  * @param fps Frames-Per-Second, maximum is 60
  * @retval RET_ERROR_INVALID_PARAM: FPS value isn't valid: max FPS or max duty
  *         cycle exceeded
@@ -167,10 +170,11 @@ ir_camera_system_get_fps(void);
 
 /**
  * Set IR LEDs on duration for 940nm and 850nm LEDs
- * Settings are computed if a duty cycle <= 15% (Pearl)/ 25% (Diamond) and a
+ * Settings are computed if a duty cycle <= 15% (Pearl) / 25% (Diamond) and a
  * maximum on-time of 5000 us (pearl) / 8000 us (diamond) is not exceeded.
  * Exceeding the maximum on-time will result in unchanged settings and an
  * RET_ERROR_INVALID_PARAM.
+ * It is allowed to reset the duration to 0 in any condition.
  *
  * @param on_time_us LED on duration, maximum is 5000 (pearl) / 8000 (diamond)
  * @retval RET_ERROR_INVALID_PARAM: \c on_time_us isn't valid, max duty cycle or

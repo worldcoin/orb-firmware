@@ -397,11 +397,12 @@ ZTEST(ir_camera_system_api, test_get_enabled_wavelength)
 
     set_focus_sweep_in_progress();
 
+	// allow force-stop in any condition
     ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
-    // should be unchanged
-    zassert_equal(enabled_led_wavelength, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_ONE);
+    // should have changed
+    zassert_equal(enabled_led_wavelength, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
     w = ir_camera_system_get_enabled_leds();
-    zassert_equal(w, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_ONE);
+    zassert_equal(w, orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
 }
 
 ZTEST(ir_camera_system_api, test_set_fps_success)
@@ -426,6 +427,7 @@ ZTEST(ir_camera_system_api, test_set_fps_fail_because_fps_out_of_range)
     ir_camera_system_init();
 
     ret = ir_camera_system_set_fps(IR_CAMERA_SYSTEM_MAX_FPS + 1);
+
     zassert_equal(ret, RET_ERROR_INVALID_PARAM);
 }
 

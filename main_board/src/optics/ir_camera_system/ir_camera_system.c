@@ -169,9 +169,6 @@ ir_camera_system_init(void)
         LOG_WRN("IR camera system already initialized");
         ret = RET_ERROR_ALREADY_INITIALIZED;
     } else {
-        clear_mirror_sweep_in_progress();
-        clear_focus_sweep_in_progress();
-
         ret = ir_camera_system_hw_init();
 
         if (ret == RET_SUCCESS) {
@@ -196,12 +193,11 @@ ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength wavelength)
     }
 
     if (ret == RET_SUCCESS) {
+        // check for deprecated wavelength first
         if (
 #if defined(CONFIG_BOARD_PEARL_MAIN)
             wavelength ==
-                orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM || // 740nm
-                                                                         // is
-                                                                         // deprecated
+                orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM ||
             wavelength ==
                 orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER ||
             wavelength ==
@@ -210,9 +206,7 @@ ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength wavelength)
                 orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
             wavelength ==
-                orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM || // 740nm
-            // is
-            // deprecated
+                orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM ||
             wavelength ==
                 orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT ||
             wavelength ==
@@ -250,13 +244,14 @@ ir_camera_system_get_fps(void)
     return ir_camera_system_get_fps_hw();
 }
 
-// Do not allow changing the FPS when a focus sweep is in progress.
 ret_code_t
 ir_camera_system_set_fps(uint16_t fps)
 {
     ret_code_t ret = RET_SUCCESS;
 
-    if (fps != 0) {
+    if (fps > IR_CAMERA_SYSTEM_MAX_FPS) {
+        ret = RET_ERROR_INVALID_PARAM;
+    } else if (fps != 0) {
         ret = ir_camera_system_get_status();
     }
 
@@ -267,18 +262,19 @@ ir_camera_system_set_fps(uint16_t fps)
     return ret;
 }
 
-// When a focus sweep is in progress, we _do_ want to allow the on time to be
-// changed, since the Jetson's auto exposure algorithm will still be running.
 ret_code_t
 ir_camera_system_set_on_time_us(uint16_t on_time_us)
 {
     ret_code_t ret = RET_SUCCESS;
 
-    if (on_time_us != 0) {
+    if (on_time_us > IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US) {
+        ret = RET_ERROR_INVALID_PARAM;
+    } else if (on_time_us != 0) {
         ret = ir_camera_system_get_status();
 
-        // if busy: focus sweep or mirror sweep in progress
-        // which is fine, continue setting on-time
+        // When a focus sweep is in progress, we _do_ want to allow the on time
+        // to be changed, since the Jetson's auto exposure algorithm will still
+        // be running.
         if (ret == RET_ERROR_BUSY) {
             ret = RET_SUCCESS;
         }
