@@ -160,7 +160,13 @@ optics_self_test(void)
         gpio_pin_set_dt(&ir_leds_gpios[i], 0);
         k_msleep(250);
 
-        bool pvcc_available = (gpio_pin_get_dt(&front_unit_pvcc_enabled) != 0);
+        bool pvcc_available = true;
+        int ret = gpio_pin_get_dt(&front_unit_pvcc_enabled);
+        if (ret < 0) {
+            ASSERT_SOFT(ret);
+        } else {
+            pvcc_available = (ret != 0);
+        }
         if (pvcc_available) {
             // eye safety circuitry doesn't respond to self test
             LOG_ERR("%s didn't disable PVCC via eye safety circuitry",
@@ -173,11 +179,18 @@ optics_self_test(void)
 
         // eye safety circuitry to reset
         power_vbat_5v_3v3_supplies_off();
+        k_msleep(50);
     }
 
     return RET_SUCCESS;
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
     // todo: implement for Diamond hardware
+    // static const char *ir_leds_names[] = {
+    //     "ir_850nm_center",
+    //     "ir_850nm_side",
+    //     "ir_940nm_left",
+    //     "ir_940nm_right",
+    // };
     return RET_SUCCESS;
 #endif
 }
