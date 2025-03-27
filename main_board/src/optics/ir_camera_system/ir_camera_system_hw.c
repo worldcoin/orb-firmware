@@ -590,8 +590,9 @@ disable_ir_leds(struct k_timer *timer)
 
     LOG_WRN("Turning off IR LEDs after %" PRIu32 "s of inactivity",
             IR_LED_AUTO_OFF_TIMEOUT_S);
-    ir_camera_system_enable_leds(
+    const int ret = ir_camera_system_enable_leds(
         orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    ASSERT_SOFT(ret);
 }
 
 static void
