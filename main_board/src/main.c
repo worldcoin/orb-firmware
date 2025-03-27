@@ -9,6 +9,7 @@
 #include "pubsub/pubsub.h"
 #include "runner/runner.h"
 #include "system/diag.h"
+#include "system/timer2_irq/timer2_irq.h"
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "temperature/fan/fan_tach.h"
@@ -247,6 +248,10 @@ initialize(void)
 
     err_code = ui_init();
     ASSERT_SOFT(err_code);
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    timer2_init();
+#endif
 
 #if !defined(CONFIG_NO_SUPER_CAPS) && !defined(CONFIG_CI_INTEGRATION_TESTS)
     err_code = boot_turn_on_super_cap_charger();
