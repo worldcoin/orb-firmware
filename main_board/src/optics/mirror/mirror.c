@@ -403,7 +403,7 @@ mirror_init(void)
     k_work_queue_init(&mirror_work_queue);
     k_work_queue_start(&mirror_work_queue, stack_area_mirror_work_queue,
                        K_THREAD_STACK_SIZEOF(stack_area_mirror_work_queue),
-                       THREAD_PRIORITY_MOTORS_INIT, NULL);
+                       THREAD_PRIORITY_MIRROR_INIT, NULL);
 
     return RET_SUCCESS;
 }

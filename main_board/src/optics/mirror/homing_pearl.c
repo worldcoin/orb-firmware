@@ -12,9 +12,9 @@
 
 LOG_MODULE_DECLARE(mirror, CONFIG_MIRROR_LOG_LEVEL);
 
-K_THREAD_STACK_DEFINE(stack_area_motor_phi_init, THREAD_STACK_SIZE_MOTORS_INIT);
+K_THREAD_STACK_DEFINE(stack_area_motor_phi_init, THREAD_STACK_SIZE_MIRROR_INIT);
 K_THREAD_STACK_DEFINE(stack_area_motor_theta_init,
-                      THREAD_STACK_SIZE_MOTORS_INIT);
+                      THREAD_STACK_SIZE_MIRROR_INIT);
 
 static struct k_thread thread_data_mirror_homing[MOTORS_COUNT];
 static struct k_sem homing_in_progress_sem[MOTORS_COUNT];
@@ -177,7 +177,7 @@ mirror_homing_one_end(const motors_refs_t *motor_handle, const motor_t motor_id)
                         K_THREAD_STACK_SIZEOF(stack_area_motor_theta_init),
                         (k_thread_entry_t)mirror_auto_homing_one_end_thread,
                         (void *)motor_handle, (void *)motor_id, NULL,
-                        THREAD_PRIORITY_MOTORS_INIT, 0, delay);
+                        THREAD_PRIORITY_MIRROR_INIT, 0, delay);
         k_thread_name_set(&thread_data_mirror_homing[motor_id],
                           "motor_ah_theta_one_end");
         break;
@@ -187,7 +187,7 @@ mirror_homing_one_end(const motors_refs_t *motor_handle, const motor_t motor_id)
                         K_THREAD_STACK_SIZEOF(stack_area_motor_phi_init),
                         (k_thread_entry_t)mirror_auto_homing_one_end_thread,
                         (void *)motor_handle, (void *)motor_id, NULL,
-                        THREAD_PRIORITY_MOTORS_INIT, 0, delay);
+                        THREAD_PRIORITY_MIRROR_INIT, 0, delay);
         k_thread_name_set(&thread_data_mirror_homing[motor_id],
                           "motor_ah_phi_one_end");
         break;

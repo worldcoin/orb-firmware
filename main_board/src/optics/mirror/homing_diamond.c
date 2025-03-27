@@ -10,10 +10,8 @@
 
 LOG_MODULE_DECLARE(mirror, CONFIG_MIRROR_LOG_LEVEL);
 
-#define THREAD_STACK_SIZE_MOTOR_INIT 2048
-
 static K_THREAD_STACK_DEFINE(stack_area_motor_init,
-                             THREAD_STACK_SIZE_MOTOR_INIT);
+                             THREAD_STACK_SIZE_MIRROR_INIT);
 static struct k_thread thread_data_mirror_homing;
 static struct k_sem homing_in_progress_sem;
 
@@ -242,7 +240,7 @@ mirror_homing_overreach_ends_async(motors_refs_t motors[MOTORS_COUNT])
     k_thread_create(&thread_data_mirror_homing, stack_area_motor_init,
                     K_THREAD_STACK_SIZEOF(stack_area_motor_init),
                     (k_thread_entry_t)mirror_auto_homing_overreach_end_thread,
-                    (void *)motors, NULL, NULL, THREAD_PRIORITY_MOTORS_INIT, 0,
+                    (void *)motors, NULL, NULL, THREAD_PRIORITY_MIRROR_INIT, 0,
                     delay);
     k_thread_name_set(&thread_data_mirror_homing, "mirror_homing");
 
