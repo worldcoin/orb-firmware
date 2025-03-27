@@ -35,13 +35,32 @@ LOG_MODULE_REGISTER(sound, CONFIG_SOUND_LOG_LEVEL);
 #define SOUND_AMP_REG_AGAIN  0x54
 #define SOUND_AMP_REG_DIE_ID 0x67
 
-#define ANALOG_GAIN_MINUS_3DB 6
+// Attenuation value in dB in increments of 0.5 from 0 to 15.5
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+#define ANALOG_GAIN_ATTENUATION_DB 3
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+#define ANALOG_GAIN_ATTENUATION_DB 10
+#endif
+
+BUILD_ASSERT(ANALOG_GAIN_ATTENUATION_DB >= 0 &&
+                 ANALOG_GAIN_ATTENUATION_DB <= 15.5,
+             "ANALOG_GAIN_ATTENUATION_DB out of range!");
+
+// The AGAIN register value may range from 0-31, where
+//  1 =  -0.5dB
+//  2 =  -1.0dB
+//  3 =  -1.5dB
+// ...
+// 31 = -15.5dB
+#define ANALOG_GAIN_ATTENUATION_DB_REG_VALUE                                   \
+    MIN(((unsigned)(ANALOG_GAIN_ATTENUATION_DB * 2)), 31)
 
 int
 sound_init(void)
 {
     int err_code = 0;
     uint8_t die_id = 0xFF;
+    uint8_t value;
 
     const struct device *level_shifter_en =
         DEVICE_DT_GET(LEVEL_SHIFTER_EN_CTLR);
@@ -85,11 +104,25 @@ sound_init(void)
             err_code = i2c_reg_read_byte(sound_i2c, SOUND_AMP_ADDR,
                                          SOUND_AMP_REG_DIE_ID, &die_id);
             ASSERT_SOFT(err_code);
+
             if (err_code == 0) {
-                err_code = i2c_reg_write_byte(sound_i2c, SOUND_AMP_ADDR,
-                                              SOUND_AMP_REG_AGAIN,
-                                              ANALOG_GAIN_MINUS_3DB);
+                LOG_INF("Setting audio amp attenuation to %.1fdB",
+                        (double)ANALOG_GAIN_ATTENUATION_DB);
+                err_code = i2c_reg_write_byte(
+                    sound_i2c, SOUND_AMP_ADDR, SOUND_AMP_REG_AGAIN,
+                    ANALOG_GAIN_ATTENUATION_DB_REG_VALUE);
                 ASSERT_SOFT(err_code);
+
+                err_code = i2c_reg_read_byte(sound_i2c, SOUND_AMP_ADDR,
+                                             SOUND_AMP_REG_AGAIN, &value);
+                ASSERT_SOFT(err_code);
+                if (value != ANALOG_GAIN_ATTENUATION_DB_REG_VALUE) {
+                    LOG_ERR(
+                        "Read back attenuation (%u) is different from the one "
+                        "set (%u)",
+                        value, ANALOG_GAIN_ATTENUATION_DB);
+                }
+
                 if (err_code == 0) {
                     err_code = i2c_reg_write_byte(sound_i2c, SOUND_AMP_ADDR,
                                                   SOUND_AMP_REG_CTRL2, 0x03);
