@@ -946,22 +946,46 @@ handle_do_homing(job_t *job)
 
     orb_mcu_main_PerformMirrorHoming_Mode mode =
         msg->payload.do_homing.homing_mode;
-    orb_mcu_main_PerformMirrorHoming_Angle angle = msg->payload.do_homing.angle;
-    LOG_DBG("Got do autohoming message, mode = %u, angle = %u", mode, angle);
+    orb_mcu_main_PerformMirrorHoming_Angle axis = msg->payload.do_homing.angle;
+    LOG_DBG("Got do autohoming message, mode = %u, axis = %u", mode, axis);
 
     if (mirror_auto_homing_in_progress()) {
         job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
     } else if (mode == orb_mcu_main_PerformMirrorHoming_Mode_STALL_DETECTION) {
         job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
     } else {
-        if (angle == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
-            angle == orb_mcu_main_PerformMirrorHoming_Angle_HORIZONTAL_PHI) {
-            ret |= mirror_auto_homing_one_end(MOTOR_PHI_ANGLE);
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+        if (mode == orb_mcu_main_PerformMirrorHoming_Mode_ONE_BLOCKING_END) {
+            if (axis == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
+                axis == orb_mcu_main_PerformMirrorHoming_Angle_HORIZONTAL_PHI) {
+                const motor_t motor = MOTOR_PHI_ANGLE;
+                ret |= mirror_autohoming(&motor);
+            }
+            if (axis == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
+                axis == orb_mcu_main_PerformMirrorHoming_Angle_VERTICAL_THETA) {
+                const motor_t motor = MOTOR_THETA_ANGLE;
+                ret |= mirror_autohoming(&motor);
+            }
+        } else if (
+            mode ==
+            orb_mcu_main_PerformMirrorHoming_Mode_WITH_KNOWN_COORDINATES) {
+
+        } else {
+            job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+            return;
         }
-        if (angle == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
-            angle == orb_mcu_main_PerformMirrorHoming_Angle_VERTICAL_THETA) {
-            ret |= mirror_auto_homing_one_end(MOTOR_THETA_ANGLE);
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+        if (mode == orb_mcu_main_PerformMirrorHoming_Mode_ONE_BLOCKING_END) {
+            ret = mirror_autohoming(NULL);
+        } else if (
+            mode ==
+            orb_mcu_main_PerformMirrorHoming_Mode_WITH_KNOWN_COORDINATES) {
+            ret = mirror_go_home();
+        } else {
+            job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+            return;
         }
+#endif
 
         // send ack before timeout even though auto-homing not completed
         if (ret) {
