@@ -19,14 +19,6 @@
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/logging/log.h>
 
-// Maximum number of notches needed to be encountered to finish homing
-#define POLARIZER_WHEEL_ENCODER_MAX_HOMING_NOTCHES 5
-// Minimum number of notches needed to be encountered to start homing
-#define POLARIZER_WHEEL_ENCODER_HOMING_NOTCHES_COMPARE_MIN 2
-
-// TODO get this correctly from the device tree
-#define POLARIZER_STEP_CHANNEL 2
-
 LOG_MODULE_REGISTER(polarizer, CONFIG_POLARIZER_LOG_LEVEL);
 
 K_THREAD_STACK_DEFINE(stack_area_polarizer_wheel_home,
@@ -264,7 +256,9 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
              POLARIZER_WHEEL_ENCODER_MAX_HOMING_NOTCHES)) {
             // 120 degrees in 3 seconds, move a total of 150 degrees
             // should hit encoder much sooner than 150 degrees
-            start_polarizer_wheel_step(1366, 2200);
+            start_polarizer_wheel_step(
+                POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
+                POLARIZER_WHEEL_STEPS_AUTOHOMING);
             k_sleep(K_SECONDS(3));
         } else {
             if (g_polarizer_wheel_instance.auto_homing.auto_homing_state !=
@@ -275,7 +269,8 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
             break;
         }
     }
-    start_polarizer_wheel_step(683, 100);
+    start_polarizer_wheel_step(POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
+                               POLARIZER_WHEEL_STEPS_CORRECTION);
     return;
 }
 
@@ -423,6 +418,9 @@ polarizer_wheel_get_position(void)
     return g_polarizer_wheel_instance.movement.current_position;
 }
 
+// TODO: This function will move the wheel from notch to notch but slowly
+//  Might need to implement a trapezoidal velocity profile to move the wheel
+//  faster without step loss Evaluate before DVT and signup integration
 ret_code_t
 polarizer_wheel_set_position(Polarizer_Wheel_Position_t position)
 {
@@ -435,24 +433,35 @@ polarizer_wheel_set_position(Polarizer_Wheel_Position_t position)
 
     switch (g_polarizer_wheel_instance.movement.current_position) {
     case POLARIZER_WHEEL_POSITION_PASS_THROUGH:
-        if (position == POLARIZER_WHEEL_POSITION_45_DEGREE) {
-            ret_val = start_polarizer_wheel_step(683, 2048);
+        if (position == POLARIZER_WHEEL_POSITION_0_DEGREE) {
+            ret_val = start_polarizer_wheel_step(
+                POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
+                POLARIZER_WHEEL_STEPS_PER_1_FILTER_WHEEL_POSITION);
         } else if (position == POLARIZER_WHEEL_POSITION_90_DEGREE) {
-            ret_val = start_polarizer_wheel_step(683, 4096);
+            ret_val = start_polarizer_wheel_step(
+                683, POLARIZER_WHEEL_STEPS_PER_2_FILTER_WHEEL_POSITION);
         }
         break;
-    case POLARIZER_WHEEL_POSITION_45_DEGREE:
+    case POLARIZER_WHEEL_POSITION_0_DEGREE:
         if (position == POLARIZER_WHEEL_POSITION_PASS_THROUGH) {
-            ret_val = start_polarizer_wheel_step(683, 4096);
+            ret_val = start_polarizer_wheel_step(
+                POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
+                POLARIZER_WHEEL_STEPS_PER_2_FILTER_WHEEL_POSITION);
         } else if (position == POLARIZER_WHEEL_POSITION_90_DEGREE) {
-            ret_val = start_polarizer_wheel_step(683, 2048);
+            ret_val = start_polarizer_wheel_step(
+                POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
+                POLARIZER_WHEEL_STEPS_PER_1_FILTER_WHEEL_POSITION);
         }
         break;
     case POLARIZER_WHEEL_POSITION_90_DEGREE:
         if (position == POLARIZER_WHEEL_POSITION_PASS_THROUGH) {
-            ret_val = start_polarizer_wheel_step(683, 2048);
-        } else if (position == POLARIZER_WHEEL_POSITION_45_DEGREE) {
-            ret_val = start_polarizer_wheel_step(683, 4096);
+            ret_val = start_polarizer_wheel_step(
+                POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
+                POLARIZER_WHEEL_STEPS_PER_1_FILTER_WHEEL_POSITION);
+        } else if (position == POLARIZER_WHEEL_POSITION_0_DEGREE) {
+            ret_val = start_polarizer_wheel_step(
+                POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
+                POLARIZER_WHEEL_STEPS_PER_2_FILTER_WHEEL_POSITION);
         }
         break;
     default:

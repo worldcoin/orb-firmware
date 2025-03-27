@@ -9,6 +9,7 @@
 #include "pubsub/pubsub.h"
 #include "runner/runner.h"
 #include "system/diag.h"
+#include "system/timer2_irq/timer2_irq.h"
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "temperature/fan/fan_tach.h"
@@ -300,6 +301,10 @@ initialize(void)
 
     err_code = fan_tach_init();
     ASSERT_SOFT(err_code);
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    timer2_init();
+#endif
 
     // wait that jetson boots to enable super-caps as it's drawing a lot of
     // current that is needed for proper jetson boot
