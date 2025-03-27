@@ -6,6 +6,25 @@
 #include "ir_camera_timer_settings.h"
 #include "utils.h"
 
+#if !defined(IR_CAMERA_UNIT_TESTS)
+// include reference to function in case outside of unit tests, otherwise
+// mock them.
+#include <optics/1d_tof/tof_1d.h>
+#include <optics/optics.h>
+#else
+/** mocked function below for unit tests */
+static bool
+distance_is_safe()
+{
+    return true;
+}
+static bool
+optics_safety_circuit_triggered()
+{
+    return false;
+}
+#endif
+
 #if defined(CONFIG_ZTEST)
 #include <zephyr/logging/log.h>
 #else
@@ -167,17 +186,18 @@ MAKE_CAMERA_ENABLE_DISABLE_GET_FUNCTIONS(2d_tof)
 ret_code_t
 ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength wavelength)
 {
-    ret_code_t ret;
+    ret_code_t ret = RET_SUCCESS;
 
-    ret = ir_camera_system_get_status();
+    if (wavelength != orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE) {
+        ret = ir_camera_system_get_status();
+    }
 
     if (ret == RET_SUCCESS) {
+        // check for deprecated wavelength first
         if (
 #if defined(CONFIG_BOARD_PEARL_MAIN)
             wavelength ==
-                orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM || // 740nm
-                                                                         // is
-                                                                         // deprecated
+                orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM ||
             wavelength ==
                 orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_CENTER ||
             wavelength ==
@@ -186,9 +206,7 @@ ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength wavelength)
                 orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
             wavelength ==
-                orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM || // 740nm
-                                                                         // is
-                                                                         // deprecated
+                orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM ||
             wavelength ==
                 orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_850NM_RIGHT ||
             wavelength ==
@@ -226,37 +244,43 @@ ir_camera_system_get_fps(void)
     return ir_camera_system_get_fps_hw();
 }
 
-// Do not allow changing the FPS when a focus sweep is in progress.
 ret_code_t
 ir_camera_system_set_fps(uint16_t fps)
 {
-    ret_code_t ret;
+    ret_code_t ret = RET_SUCCESS;
 
-    if (!ir_camera_system_initialized) {
-        ret = RET_ERROR_NOT_INITIALIZED;
-    } else if (fps > IR_CAMERA_SYSTEM_MAX_FPS) {
+    if (fps > IR_CAMERA_SYSTEM_MAX_FPS) {
         ret = RET_ERROR_INVALID_PARAM;
-    } else if (get_focus_sweep_in_progress() == true) {
-        ret = RET_ERROR_BUSY;
-    } else {
+    } else if (fps != 0) {
+        ret = ir_camera_system_get_status();
+    }
+
+    if (ret == RET_SUCCESS) {
         ret = ir_camera_system_set_fps_hw(fps);
     }
 
     return ret;
 }
 
-// When a focus sweep is in progress, we _do_ want to allow the on time to be
-// changed, since the Jetson's auto exposure algorithm will still be running.
 ret_code_t
 ir_camera_system_set_on_time_us(uint16_t on_time_us)
 {
-    ret_code_t ret;
+    ret_code_t ret = RET_SUCCESS;
 
-    if (!ir_camera_system_initialized) {
-        ret = RET_ERROR_NOT_INITIALIZED;
-    } else if (on_time_us > IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US) {
+    if (on_time_us > IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US) {
         ret = RET_ERROR_INVALID_PARAM;
-    } else {
+    } else if (on_time_us != 0) {
+        ret = ir_camera_system_get_status();
+
+        // When a focus sweep is in progress, we _do_ want to allow the on time
+        // to be changed, since the Jetson's auto exposure algorithm will still
+        // be running.
+        if (ret == RET_ERROR_BUSY) {
+            ret = RET_SUCCESS;
+        }
+    }
+
+    if (ret == RET_SUCCESS) {
         ret = ir_camera_system_set_on_time_us_hw(on_time_us);
     }
 
@@ -368,8 +392,12 @@ ir_camera_system_get_status(void)
 {
     ret_code_t ret;
 
+    /* ⚠️ ordered by level of importance as it's fine to set a new ir-led
+     * on duration during a sweep (busy) but not if unsafe conditions are met */
     if (!ir_camera_system_initialized) {
         ret = RET_ERROR_NOT_INITIALIZED;
+    } else if (!distance_is_safe() || optics_safety_circuit_triggered()) {
+        ret = RET_ERROR_FORBIDDEN;
     } else if (get_focus_sweep_in_progress() ||
                get_mirror_sweep_in_progress()) {
         ret = RET_ERROR_BUSY;

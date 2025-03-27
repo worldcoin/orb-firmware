@@ -166,6 +166,9 @@ handle_infrared_leds_message(job_t *job)
     case RET_ERROR_BUSY:
         job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
         break;
+    case RET_ERROR_FORBIDDEN:
+        job_ack(orb_mcu_Ack_ErrorCode_FORBIDDEN, job);
+        break;
     case RET_ERROR_INVALID_PARAM:
         job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
         break;
@@ -185,12 +188,19 @@ handle_led_on_time_message(job_t *job)
 
     LOG_DBG("Got LED on time message = %uus", on_time_us);
     ret_code_t ret = ir_camera_system_set_on_time_us(on_time_us);
-    if (ret == RET_SUCCESS) {
+    switch (ret) {
+    case RET_SUCCESS:
         job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
-    } else if (ret == RET_ERROR_INVALID_PARAM) {
+        break;
+    case RET_ERROR_FORBIDDEN:
+        job_ack(orb_mcu_Ack_ErrorCode_FORBIDDEN, job);
+        break;
+    case RET_ERROR_INVALID_PARAM:
         job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
-    } else {
+        break;
+    default:
         job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+        break;
     }
 }
 
@@ -866,14 +876,22 @@ handle_fps(job_t *job)
     LOG_DBG("Got FPS message = %u", fps);
 
     ret_code_t ret = ir_camera_system_set_fps(fps);
-    if (ret == RET_SUCCESS) {
+    switch (ret) {
+    case RET_SUCCESS:
         job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
-    } else if (ret == RET_ERROR_INVALID_PARAM) {
-        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
-    } else if (ret == RET_ERROR_BUSY) {
+        break;
+    case RET_ERROR_BUSY:
         job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
-    } else {
+        break;
+    case RET_ERROR_FORBIDDEN:
+        job_ack(orb_mcu_Ack_ErrorCode_FORBIDDEN, job);
+        break;
+    case RET_ERROR_INVALID_PARAM:
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
+        break;
+    default:
         job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+        break;
     }
 }
 
@@ -1190,6 +1208,8 @@ handle_perform_ir_eye_camera_focus_sweep(job_t *job)
         job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
     } else if (ret == RET_ERROR_INVALID_STATE) {
         job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
+    } else if (ret == RET_ERROR_FORBIDDEN) {
+        job_ack(orb_mcu_Ack_ErrorCode_FORBIDDEN, job);
     } else if (ret == RET_SUCCESS) {
         job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
     } else {
@@ -1241,6 +1261,8 @@ handle_perform_ir_eye_camera_mirror_sweep(job_t *job)
         job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
     } else if (ret == RET_ERROR_INVALID_STATE) {
         job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
+    } else if (ret == RET_ERROR_FORBIDDEN) {
+        job_ack(orb_mcu_Ack_ErrorCode_FORBIDDEN, job);
     } else if (ret == RET_SUCCESS) {
         job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
     } else {

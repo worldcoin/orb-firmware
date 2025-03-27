@@ -15,103 +15,29 @@ LOG_MODULE_REGISTER(optics);
 static orb_mcu_HardwareDiagnostic_Status self_test_status =
     orb_mcu_HardwareDiagnostic_Status_STATUS_UNKNOWN;
 
-static ATOMIC_DEFINE(fu_pvcc_enabled, 1);
-#define ATOMIC_FU_PVCC_ENABLED_BIT 0
-
 // pin allows us to check whether PVCC is enabled on the front unit
 // PVCC might be disabled by hardware due to an intense usage of the IR LEDs
 // that doesn't respect the eye safety constraints
 static struct gpio_dt_spec front_unit_pvcc_enabled = GPIO_DT_SPEC_GET_BY_IDX(
     DT_PATH(zephyr_user), front_unit_pvcc_enabled_gpios, 0);
 
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-
-static struct gpio_callback fu_pvcc_enabled_cb_data;
-
-static void
-front_unit_pvcc_update(struct k_work *work);
-
-static K_WORK_DEFINE(front_unit_pvcc_event_work, front_unit_pvcc_update);
-
-/// Handle PVCC/3v3 line modifications on the front unit
-/// Communicate change to Jetson
-static void
-front_unit_pvcc_update(struct k_work *work)
-{
-    ARG_UNUSED(work);
-
-    orb_mcu_HardwareDiagnostic_Status status =
-        orb_mcu_HardwareDiagnostic_Status_STATUS_OK;
-
-    bool pvcc_available = (gpio_pin_get_dt(&front_unit_pvcc_enabled) != 0);
-    if (pvcc_available) {
-        atomic_set_bit(fu_pvcc_enabled, ATOMIC_FU_PVCC_ENABLED_BIT);
-        LOG_INF("Circuitry allows usage of IR LEDs");
-    } else {
-        atomic_clear_bit(fu_pvcc_enabled, ATOMIC_FU_PVCC_ENABLED_BIT);
-
-        status = orb_mcu_HardwareDiagnostic_Status_STATUS_OK;
-        LOG_WRN("Eye safety circuitry tripped");
-    }
-
-    diag_set_status(orb_mcu_HardwareDiagnostic_Source_OPTICS_IR_LEDS, status);
-}
-
-static void
-interrupt_fu_pvcc_handler(const struct device *dev, struct gpio_callback *cb,
-                          uint32_t pins)
-{
-    ARG_UNUSED(dev);
-    ARG_UNUSED(cb);
-
-    if (pins & BIT(front_unit_pvcc_enabled.pin)) {
-        k_work_submit(&front_unit_pvcc_event_work);
-    }
-}
-
-static int
-configure_front_unit_3v3_detection(void)
-{
-    int ret = gpio_pin_configure_dt(&front_unit_pvcc_enabled, GPIO_INPUT);
-    if (ret) {
-        ASSERT_SOFT(ret);
-        return ret;
-    }
-
-    ret = gpio_pin_interrupt_configure_dt(&front_unit_pvcc_enabled,
-                                          GPIO_INT_EDGE_BOTH);
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return ret;
-    }
-
-    gpio_init_callback(&fu_pvcc_enabled_cb_data, interrupt_fu_pvcc_handler,
-                       BIT(front_unit_pvcc_enabled.pin));
-    ret = gpio_add_callback(front_unit_pvcc_enabled.port,
-                            &fu_pvcc_enabled_cb_data);
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-    }
-
-    // set initial state
-    k_work_submit(&front_unit_pvcc_event_work);
-
-    return ret;
-}
-#endif
-
-bool
-optics_usable(void)
-{
-    atomic_val_t pvcc_enabled = atomic_get(fu_pvcc_enabled);
-    return ((pvcc_enabled & BIT(ATOMIC_FU_PVCC_ENABLED_BIT)) != 0) &&
-           distance_is_safe();
-}
-
 bool
 optics_safety_circuit_triggered(void)
 {
-    atomic_val_t pvcc_enabled = atomic_get(fu_pvcc_enabled);
+    int ret = gpio_pin_get_dt(&front_unit_pvcc_enabled);
+    ASSERT_SOFT_BOOL(ret >= 0);
+
+    bool pvcc_enabled = (ret >= 0 && ret != 0);
+
+    // update status
+    if (pvcc_enabled) {
+        diag_set_status(orb_mcu_HardwareDiagnostic_Source_OPTICS_IR_LEDS,
+                        orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
+    } else {
+        diag_set_status(orb_mcu_HardwareDiagnostic_Source_OPTICS_IR_LEDS,
+                        orb_mcu_HardwareDiagnostic_Status_STATUS_SAFETY_ISSUE);
+    }
+
     return !pvcc_enabled;
 }
 
@@ -163,30 +89,16 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
         return err_code;
     }
 
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-    err_code = configure_front_unit_3v3_detection();
+    err_code = gpio_pin_configure_dt(&front_unit_pvcc_enabled, GPIO_INPUT);
     if (err_code) {
         ASSERT_SOFT(err_code);
         return err_code;
     }
-#else
-    int ret = gpio_pin_configure_dt(&front_unit_pvcc_enabled, GPIO_INPUT);
-    if (ret) {
-        ASSERT_SOFT(ret);
-        return ret;
-    }
 
-    ret = gpio_pin_get_dt(&front_unit_pvcc_enabled);
-    if (ret == 1) {
-        LOG_INF("Circuitry allows usage of IR LEDs");
-    } else {
-        LOG_WRN("IR LED cannot be used: gpio_pin_get_dt: %d", ret);
-    }
-
-    atomic_set_bit(fu_pvcc_enabled, ATOMIC_FU_PVCC_ENABLED_BIT);
-
-    UNUSED_PARAMETER(hw_version);
-#endif
+    // check pvcc (& update diag)
+    bool safety_triggered = optics_safety_circuit_triggered();
+    LOG_INF("Safety circuitry triggered: %u", safety_triggered);
+    UNUSED_VARIABLE(safety_triggered);
 
     return err_code;
 }
