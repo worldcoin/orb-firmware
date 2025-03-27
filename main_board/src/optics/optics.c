@@ -3,6 +3,7 @@
 #include "optics/ir_camera_system/ir_camera_system.h"
 #include "optics/liquid_lens/liquid_lens.h"
 #include "optics/mirror/mirror.h"
+#include "optics/polarizer_wheel/polarizer_wheel.h"
 #include "orb_logs.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
@@ -163,6 +164,19 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
         return err_code;
     }
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    err_code = polarizer_wheel_init();
+    if (err_code) {
+        ASSERT_SOFT(err_code);
+        return err_code;
+    }
+
+    err_code = polarizer_wheel_configure();
+    if (err_code) {
+        ASSERT_SOFT(err_code);
+        return err_code;
+    }
+#endif
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     err_code = configure_front_unit_3v3_detection();
     if (err_code) {

@@ -12,6 +12,7 @@
 
 #include "drv8434/drv8434.h"
 #include "polarizer_wheel_datatypes.h"
+#include "polarizer_wheel_defines.h"
 
 /**
  * @brief Initialize the Polarizer Wheel runtime context
