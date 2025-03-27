@@ -87,6 +87,12 @@ mirror_set_angle_from_center(int32_t angle_from_center_millidegrees,
         return motors_refs[motor].motor_state;
     }
 
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    if (motor == MOTOR_PHI_ANGLE) {
+        angle_from_center_millidegrees = -angle_from_center_millidegrees;
+    }
+#endif
+
     int32_t stepper_position_from_center_microsteps =
         calculate_microsteps_from_center_position(
             angle_from_center_millidegrees, motors_arm_length_mm[motor]);
