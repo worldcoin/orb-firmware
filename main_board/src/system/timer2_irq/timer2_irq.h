@@ -21,3 +21,15 @@ timer2_init(void);
 void
 timer2_register_callback(uint8_t channel, void (*callback)(void *context),
                          void *context);
+
+/**
+ * @brief Disable the timer2 interrupt
+ */
+void
+timer2_disable_isr(void);
+
+/**
+ * @brief Enable the timer2 interrupt
+ */
+void
+timer2_enable_isr(void);

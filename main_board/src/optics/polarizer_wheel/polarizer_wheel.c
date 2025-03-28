@@ -271,6 +271,9 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     }
     start_polarizer_wheel_step(POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
                                POLARIZER_WHEEL_STEPS_CORRECTION);
+    // Allow correction to complete
+    k_sleep(K_SECONDS(1));
+    timer2_disable_isr();
     return;
 }
 
@@ -401,6 +404,7 @@ polarizer_wheel_configure(void)
     // Configure the timer interrupt to be able to count stepss
     timer2_register_callback(POLARIZER_STEP_CHANNEL, polarizer_wheel_step_isr,
                              NULL);
+    timer2_enable_isr();
 
     k_tid_t tid = k_thread_create(
         &thread_data_polarizer_wheel_home, stack_area_polarizer_wheel_home,

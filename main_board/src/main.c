@@ -285,6 +285,12 @@ initialize(void)
     ASSERT_SOFT(err_code);
 #endif
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    // Wait for the polarizer wheel to be homed
+    // TODO: Find a way for both TIM2 IRQs to be serviced in tandem and remove
+    // delay
+    k_sleep(K_SECONDS(15));
+#endif
     err_code = fan_tach_init();
     ASSERT_SOFT(err_code);
 }

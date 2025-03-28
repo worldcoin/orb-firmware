@@ -263,8 +263,7 @@ config_timer(struct timer_info *timer_info)
     LL_TIM_EnableIT_UPDATE(timer_info->timer);
     enable_timer_cc_int[timer_info->channel - 1](timer_info->timer);
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    timer2_register_callback(timer_info->channel, fan_tachometer_isr,
-                             timer_info);
+    timer2_enable_isr();
 #else
     irq_enable(timer_info->irq);
 #endif
@@ -339,15 +338,19 @@ fan_tach_init(void)
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     IRQ_CONNECT(FAN_AUX_IRQn, 0, fan_tachometer_isr, &fan_aux_timer_info, 0);
-#endif
-
-    ret = config_timer(&fan_main_timer_info);
+    ret = config_timer(&fan_aux_timer_info);
     if (ret != RET_SUCCESS) {
         return ret;
     }
+#endif
 
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-    ret = config_timer(&fan_aux_timer_info);
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    timer2_register_callback(fan_main_timer_info.channel, fan_tachometer_isr,
+                             &fan_main_timer_info);
+    // IRQ_CONNECT(FAN_MAIN_IRQn, 0, fan_tachometer_isr, &fan_main_timer_info,
+    // 0);
+
+    ret = config_timer(&fan_main_timer_info);
     if (ret != RET_SUCCESS) {
         return ret;
     }
