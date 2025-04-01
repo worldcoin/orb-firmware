@@ -11,7 +11,7 @@
 #include <can_messaging.h>
 LOG_MODULE_REGISTER(isotp_rx, CONFIG_ISOTP_RX_LOG_LEVEL);
 
-#define ISOTP_FLOWCTRL_BS 8
+#define ISOTP_FLOWCTRL_BS CONFIG_ORB_LIB_CAN_ISOTP_BLOCKSIZE
 
 const struct device *can_dev = DEVICE_DT_GET_OR_NULL(DT_CHOSEN(zephyr_canbus));
 const struct isotp_fc_opts flow_control_opts = {.bs = ISOTP_FLOWCTRL_BS,
@@ -34,8 +34,7 @@ BUILD_ASSERT(CONFIG_ISOTP_RX_SF_FF_BUF_COUNT >=
                  (CONFIG_CAN_ISOTP_REMOTE_APP_COUNT + 1),
              "Not enough receiving buffers configured for the ISO-TP module");
 
-// one buffer takes ISOTP_FLOWCTRL_BS*7
-BUILD_ASSERT(CONFIG_ISOTP_RX_BUF_COUNT *ISOTP_FLOWCTRL_BS * 7 >= 541,
+BUILD_ASSERT(CONFIG_ISOTP_RX_BUF_COUNT *CONFIG_ISOTP_RX_BUF_SIZE >= 541,
              "We need enough buffers to receive 512-byte long messages");
 
 static void
