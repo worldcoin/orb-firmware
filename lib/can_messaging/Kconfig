@@ -72,4 +72,8 @@ config ORB_LIB_CAN_ISOTP_TX_QUEUE_SIZE
     int "CAN TX queue size"
     default 16
 
+config ORB_LIB_CAN_ISOTP_BLOCKSIZE
+    int "ISO-TP block size, which is number of frames between each control flow frame"
+    default 8
+
 endif
