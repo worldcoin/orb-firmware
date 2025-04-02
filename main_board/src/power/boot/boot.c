@@ -102,6 +102,9 @@ static const struct gpio_dt_spec usb_hub_reset_gpio_spec =
 
 static K_SEM_DEFINE(sem_reboot, 0, 1);
 static atomic_t reboot_delay_s = ATOMIC_INIT(0);
+// the jetson_shutdown_request gpio toggles very quickly, so jetson
+// initiated shutdown is stored into atomic variable.
+static atomic_t jetson_shutdown_req = ATOMIC_INIT(0);
 static k_tid_t reboot_tid = NULL;
 static struct gpio_callback shutdown_cb_data;
 
@@ -678,6 +681,33 @@ BUILD_ASSERT(CONFIG_LED_STRIP_INIT_PRIORITY <
 
 #define SYSTEM_RESET_UI_DELAY_MS 200
 
+static void
+shutdown_requested_work_handler(struct k_work *item)
+{
+    UNUSED(item);
+
+    const int ret = gpio_pin_set_dt(&jetson_power_enable_gpio_spec, 0);
+    ASSERT_SOFT(ret);
+
+    // offload reboot to power management thread
+    atomic_set(&jetson_shutdown_req, 1);
+    atomic_set(&reboot_delay_s, 1);
+    // wake up reboot thread in case already waiting for the reboot
+    // this will make the current event take precedence over the
+    // currently pending reboot as the reboot thread will now
+    // sleep for `reboot_delay_s` second before rebooting
+    k_wakeup(reboot_tid);
+    k_sem_give(&sem_reboot);
+
+    LOG_INF("Jetson shut down");
+
+#ifdef CONFIG_MEMFAULT
+    MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_UserShutdown);
+#endif
+}
+
+static K_WORK_DEFINE(shutdown_requested_work, shutdown_requested_work_handler);
+
 /// SHUTDOWN_REQ interrupt callback
 /// From the Jetson Datasheet DS-10184-001 § 2.6.2 Power Down
 ///     > When the baseboard sees low SHUTDOWN_REQ*, it should deassert POWER_EN
@@ -690,22 +720,7 @@ shutdown_requested(const struct device *dev, struct gpio_callback *cb,
     ARG_UNUSED(cb);
 
     if (pins & BIT(jetson_shutdown_request_gpio_spec.pin)) {
-        gpio_pin_set_dt(&jetson_power_enable_gpio_spec, 0);
-
-        // offload reboot to power management thread
-        atomic_set(&reboot_delay_s, 1);
-        // wake up reboot thread in case already waiting for the reboot
-        // this will make the current event take precedence over the
-        // currently pending reboot as the reboot thread will now
-        // sleep for `reboot_delay_s` second before rebooting
-        k_wakeup(reboot_tid);
-        k_sem_give(&sem_reboot);
-
-        LOG_INF("Jetson shut down");
-
-#ifdef CONFIG_MEMFAULT
-        MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_UserShutdown);
-#endif
+        k_work_submit(&shutdown_requested_work);
     }
 }
 
@@ -738,9 +753,9 @@ reboot_thread()
     }
 
     do {
-        // check if shutdown_pin is active, if so, it means Jetson
-        // needs proper shutdown
-        if (gpio_pin_get_dt(&jetson_shutdown_request_gpio_spec) == 1) {
+        // check if shutdown_pin is active with jetson_shutdown_req atomic var,
+        // if so, it means Jetson needs proper shutdown.
+        if (atomic_get(&jetson_shutdown_req) != 0) {
             // From the Jetson Datasheet DS-10184-001 § 2.6.2 Power Down:
             //  > Once POWER_EN is deasserted, the module will assert
             //  SYS_RESET*, and the baseboard may shut down. SoC 3.3V I/O must
