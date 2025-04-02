@@ -17,10 +17,19 @@ ZTEST(hil, test_motors_ah_past_the_end)
     // wait for motors to initialize themselves
     k_msleep(2000);
 
-    err_code = mirror_auto_homing_one_end(MOTOR_PHI_ANGLE);
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    // on pearl, each axis homed individually
+    motor_t angle = MOTOR_PHI_ANGLE;
+    err_code = mirror_autohoming(&angle);
     zassert_equal(err_code, RET_SUCCESS);
-    err_code = mirror_auto_homing_one_end(MOTOR_THETA_ANGLE);
+
+    motor_t angle = MOTOR_THETA_ANGLE;
+    err_code = mirror_autohoming(&angle);
     zassert_equal(err_code, RET_SUCCESS);
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    err_code = mirror_autohoming(NULL);
+    zassert_equal(err_code, RET_SUCCESS);
+#endif
 
     ah_progress = mirror_auto_homing_in_progress();
     zassert_true(ah_progress);
