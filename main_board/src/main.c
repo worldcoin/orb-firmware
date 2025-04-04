@@ -343,6 +343,9 @@ initialize(void)
     ASSERT_SOFT(err_code);
 #endif
 
+    err_code = voltage_measurement_selftest();
+    ASSERT_SOFT(err_code);
+
     // done booting
     LOG_INF("🚀");
 }
