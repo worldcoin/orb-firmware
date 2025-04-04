@@ -592,8 +592,8 @@
 
 &adc1 {
     // dmamux1: 8 = dma2,channel 1
-    dmas = < &dmamux1 LL_DMAMUX_CHANNEL_8 LL_DMAMUX_REQ_ADC1 (STM32_DMA_PERIPH_TO_MEMORY |
-    STM32_DMA_MEM_INC |  STM32_DMA_MEM_16BITS | STM32_DMA_PERIPH_16BITS) >;
+    dmas = <&dmamux1 LL_DMAMUX_CHANNEL_8 LL_DMAMUX_REQ_ADC1
+            (STM32_DMA_PERIPH_TO_MEMORY | STM32_DMA_MEM_INC | STM32_DMA_MEM_16BITS | STM32_DMA_PERIPH_16BITS)>;
     dma-names = "dmamux";
 
     status = "okay";

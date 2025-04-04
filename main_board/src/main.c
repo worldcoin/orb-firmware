@@ -78,6 +78,11 @@ run_tests()
     ztest_verify_all_test_suites_ran();
 #else
     fan_tach_self_test();
+
+    const int err_code = voltage_measurement_selftest();
+    ASSERT_SOFT(err_code);
+
+    orb_state_dump();
 #endif
 
 #if defined(CONFIG_ORB_LIB_ERRORS_TESTS)
