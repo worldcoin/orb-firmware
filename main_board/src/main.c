@@ -321,6 +321,9 @@ initialize(void)
     err_code = optics_init(&hw);
     ASSERT_SOFT(err_code);
 #endif // CONFIG_NO_SUPER_CAPS
+
+    err_code = voltage_measurement_selftest();
+    ASSERT_SOFT(err_code);
 }
 
 #ifdef CONFIG_ZTEST

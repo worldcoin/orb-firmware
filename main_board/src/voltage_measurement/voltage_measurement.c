@@ -29,11 +29,9 @@ K_THREAD_STACK_DEFINE(voltage_measurement_publish_thread_stack,
                       THREAD_STACK_SIZE_VOLTAGE_MEASUREMENT_PUBLISH);
 static struct k_thread voltage_measurement_publish_thread_data = {0};
 
-#ifdef CONFIG_VOLTAGE_MEASUREMENT_LOG_LEVEL_DBG
-K_THREAD_STACK_DEFINE(voltage_measurement_debug_thread_stack,
-                      THREAD_STACK_SIZE_VOLTAGE_MEASUREMENT_DEBUG);
-static struct k_thread voltage_measurement_debug_thread_data = {0};
-#endif
+K_THREAD_STACK_DEFINE(voltage_measurement_self_test_thread_stack,
+                      THREAD_STACK_SIZE_VOLTAGE_MEASUREMENT_SELFTEST);
+static struct k_thread voltage_self_test_data = {0};
 
 #if !DT_NODE_EXISTS(DT_PATH(voltage_measurement)) ||                           \
     !DT_NODE_HAS_PROP(DT_PATH(voltage_measurement), io_channels)
@@ -48,11 +46,6 @@ static struct k_thread voltage_measurement_debug_thread_data = {0};
 
 #define DT_STRING_UNQUOTED_AND_COMMA(node_id, prop, idx)                       \
     DT_STRING_UNQUOTED_BY_IDX(node_id, prop, idx),
-
-#ifdef CONFIG_VOLTAGE_MEASUREMENT_LOG_LEVEL_DBG
-static const struct gpio_dt_spec debug_led_gpio_spec =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), debug_led_gpios);
-#endif
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
 static const struct gpio_dt_spec super_cap_mux_gpios[] = {
@@ -132,6 +125,7 @@ typedef struct {
 #endif
             uint16_t raw_adc5[NUMBER_OF_CHANNELS_ADC_5];
         };
+
         uint16_t raw[NUMBER_OF_CHANNELS];
     };
 
@@ -143,6 +137,7 @@ typedef struct {
 #endif
             uint16_t raw_min_adc5[NUMBER_OF_CHANNELS_ADC_5];
         };
+
         uint16_t raw_min[NUMBER_OF_CHANNELS];
     };
 
@@ -154,6 +149,7 @@ typedef struct {
 #endif
             uint16_t raw_max_adc5[NUMBER_OF_CHANNELS_ADC_5];
         };
+
         uint16_t raw_max[NUMBER_OF_CHANNELS];
     };
 } adc_samples_buffers_t;
@@ -168,6 +164,25 @@ k_tid_t tid_publish = NULL;
 static atomic_t voltages_publish_period_ms = ATOMIC_INIT(0);
 
 static struct k_mutex *voltages_analog_mux_mutex;
+
+struct self_test_range {
+    int32_t min;
+    int32_t max;
+};
+
+static const struct self_test_range voltage_measurement_tests[] = {
+    [CHANNEL_VBAT_SW] = {.min = 12000, .max = 17000},
+    [CHANNEL_PVCC] = {.min = 30590, .max = 32430},
+    [CHANNEL_12V_CAPS] = {.min = 11700, .max = 12280},
+    [CHANNEL_3V3_UC] = {.min = 3159, .max = 3389},
+    [CHANNEL_1V8] = {.min = 1710, .max = 1890},
+    [CHANNEL_3V3] = {.min = 3265, .max = 3456},
+    [CHANNEL_5V] = {.min = 5061, .max = 5233},
+    [CHANNEL_VREFINT] = {.min = 1182, .max = 1232},
+    {0}};
+
+#define VOLTAGES_SELF_TEST_PERIOD_MS         1000
+#define VOLTAGES_SELF_TEST_SUSTAIN_PERIOD_MS 3000
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
 
@@ -348,9 +363,6 @@ adc1_callback(const struct device *dev, const struct adc_sequence *sequence,
     ARG_UNUSED(sequence);
     ARG_UNUSED(sampling_index);
 
-#ifdef CONFIG_VOLTAGE_MEASUREMENT_LOG_LEVEL_DBG
-    gpio_pin_set_dt(&debug_led_gpio_spec, 1);
-#endif
     memcpy((void *)adc_samples_buffers.raw_adc1, (void *)adc1_samples_buffer,
            sizeof(adc_samples_buffers.raw_adc1));
 
@@ -367,9 +379,7 @@ adc1_callback(const struct device *dev, const struct adc_sequence *sequence,
                 adc_samples_buffers.raw_adc1[i];
         }
     }
-#ifdef CONFIG_VOLTAGE_MEASUREMENT_LOG_LEVEL_DBG
-    gpio_pin_set_dt(&debug_led_gpio_spec, 0);
-#endif
+
     return ADC_ACTION_REPEAT;
 }
 
@@ -413,9 +423,6 @@ adc5_callback(const struct device *dev, const struct adc_sequence *sequence,
     ARG_UNUSED(sequence);
     ARG_UNUSED(sampling_index);
 
-#ifdef CONFIG_VOLTAGE_MEASUREMENT_LOG_LEVEL_DBG
-    gpio_pin_set_dt(&debug_led_gpio_spec, 1);
-#endif
     memcpy((void *)&adc_samples_buffers.raw_adc5, (void *)adc5_samples_buffer,
            sizeof(adc_samples_buffers.raw_adc5));
 
@@ -432,9 +439,7 @@ adc5_callback(const struct device *dev, const struct adc_sequence *sequence,
                 adc_samples_buffers.raw_adc5[i];
         }
     }
-#ifdef CONFIG_VOLTAGE_MEASUREMENT_LOG_LEVEL_DBG
-    gpio_pin_set_dt(&debug_led_gpio_spec, 0);
-#endif
+
     return ADC_ACTION_REPEAT;
 }
 
@@ -888,12 +893,6 @@ voltage_measurement_sample_switched_channels(void)
                                                     SUPER_CAP_MUX_POSITIONS]);
         }
 
-#ifdef CONFIG_VOLTAGE_MEASUREMENT_LOG_LEVEL_DBG
-        for (uint8_t i = 0; i < NUMBER_OF_SUPER_CAPS; i++) {
-            LOG_DBG("V_SCAP_%d = %d mV", i, super_cap_voltages_mv[i]);
-        }
-#endif
-
         gpio_pin_set_dt(&super_cap_enable_gpio, 0);
 
         // restore mux gpio values for not interfering with the i2c mux driver
@@ -969,41 +968,118 @@ voltage_measurement_set_publish_period(uint32_t publish_period_ms)
     k_wakeup(tid_publish);
 }
 
-#ifdef CONFIG_VOLTAGE_MEASUREMENT_LOG_LEVEL_DBG
 static void
-voltage_measurement_debug_thread()
+voltage_measurement_self_test_thread()
 {
-    while (1) {
-        LOG_DBG("analog voltages:");
+    // the test must pass for a few seconds
+    // to check if capacitors are not overcharging
+    uint32_t self_test_passed_ms = 0;
+    // test to last 10 seconds maximum
+    uint32_t timeout = 10;
 
-        for (uint8_t i = 0; i < CHANNEL_COUNT; i++) {
+    // reset all and gather first data
+    reset_statistics();
+    k_msleep(1000);
+
+    while (self_test_passed_ms < VOLTAGES_SELF_TEST_SUSTAIN_PERIOD_MS &&
+           timeout--) {
+        uint32_t fail_count = 0;
+        for (size_t i = 0; i < CHANNEL_COUNT; i++) {
             int32_t voltage_mv;
             int32_t min_voltage_mv;
             int32_t max_voltage_mv;
+
+            // skip pvcc test when super caps aren't enabled
+            if (IS_ENABLED(CONFIG_NO_SUPER_CAPS) && i == CHANNEL_PVCC) {
+                continue;
+            }
+
             ret_code_t ret = voltage_measurement_get_stats(
                 &adc_samples_buffers, i, &voltage_mv, &min_voltage_mv,
                 &max_voltage_mv);
 
-            LOG_DBG("%s = %d mV; min = %d mV; max = %d mV",
-                    voltage_measurement_channel_names[i], voltage_mv,
-                    min_voltage_mv, max_voltage_mv);
-
             if (ret != RET_SUCCESS) {
-                LOG_ERR("error = %d", ret);
+                LOG_ERR("voltage_measurement_get_stats returned %d", ret);
+                continue;
+            }
+
+            if (voltage_measurement_tests[i].min != 0 &&
+                voltage_measurement_tests[i].max != 0) {
+                if (voltage_mv < voltage_measurement_tests[i].min ||
+                    voltage_mv > voltage_measurement_tests[i].max) {
+                    LOG_ERR("[ FAIL ] %s = %d mV; NOT in range: [%d, %d]",
+                            voltage_measurement_channel_names[i], voltage_mv,
+                            voltage_measurement_tests[i].min,
+                            voltage_measurement_tests[i].max);
+                    fail_count++;
+                } else {
+                    if (self_test_passed_ms == 0) {
+                        LOG_INF(
+                            "[  OK  ] %s = %d mV; min = %d mV; max = %d mV; in "
+                            "range [%d, %d]",
+                            voltage_measurement_channel_names[i], voltage_mv,
+                            min_voltage_mv, max_voltage_mv,
+                            voltage_measurement_tests[i].min,
+                            voltage_measurement_tests[i].max);
+                    }
+                }
+            } else {
+                if (self_test_passed_ms == 0) {
+                    LOG_INF("[ SKIP ] %s = %d mV; min = %d mV; max = %d mV",
+                            voltage_measurement_channel_names[i], voltage_mv,
+                            min_voltage_mv, max_voltage_mv);
+                }
             }
         }
 
-        static uint32_t counter = 0;
-        counter++;
-        if (counter == 20) {
-            reset_statistics();
-            LOG_WRN("clearing states");
+        if (fail_count == 0) {
+            if (self_test_passed_ms == 0) {
+                LOG_INF(
+                    "✅ All voltages in range, checking that it can last %u ms",
+                    VOLTAGES_SELF_TEST_SUSTAIN_PERIOD_MS);
+            }
+            self_test_passed_ms += VOLTAGES_SELF_TEST_PERIOD_MS;
+        } else {
+            LOG_ERR("📈 Voltages not in range!");
+            if (self_test_passed_ms >= VOLTAGES_SELF_TEST_PERIOD_MS) {
+                self_test_passed_ms -= VOLTAGES_SELF_TEST_PERIOD_MS;
+            } else {
+                self_test_passed_ms = 0;
+            }
         }
 
-        k_sleep(K_MSEC(1000));
+        reset_statistics();
+
+        k_sleep(K_MSEC(VOLTAGES_SELF_TEST_PERIOD_MS));
+    }
+
+    if (timeout == 0) {
+        LOG_ERR("Voltage self-test timed out");
+    } else if (self_test_passed_ms == VOLTAGES_SELF_TEST_SUSTAIN_PERIOD_MS) {
+        LOG_INF("✅ Voltages self-test passed");
     }
 }
-#endif
+
+ret_code_t
+voltage_measurement_selftest(void)
+{
+    static bool initialized_once = false;
+
+    if (initialized_once == false ||
+        k_thread_join(&voltage_self_test_data, K_NO_WAIT) == 0) {
+        k_thread_create(
+            &voltage_self_test_data, voltage_measurement_self_test_thread_stack,
+            K_THREAD_STACK_SIZEOF(voltage_measurement_self_test_thread_stack),
+            (k_thread_entry_t)voltage_measurement_self_test_thread, NULL, NULL,
+            NULL, THREAD_PRIORITY_VOLTAGE_MEASUREMENT_SELFTEST, 0, K_NO_WAIT);
+        k_thread_name_set(&voltage_self_test_data,
+                          "voltage_measurement_self_test");
+    } else {
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    return RET_SUCCESS;
+}
 
 ret_code_t
 voltage_measurement_init(const orb_mcu_Hardware *hw_version,
@@ -1029,14 +1105,6 @@ voltage_measurement_init(const orb_mcu_Hardware *hw_version,
     if (ret != RET_SUCCESS) {
         return ret;
     }
-
-#ifdef CONFIG_VOLTAGE_MEASUREMENT_LOG_LEVEL_DBG
-    // initialize LED for measuring timings with a logic analyzer
-    ret = gpio_pin_configure_dt(&debug_led_gpio_spec, GPIO_OUTPUT);
-    ASSERT_SOFT(ret);
-    ret = gpio_pin_set_dt(&debug_led_gpio_spec, 0);
-    ASSERT_SOFT(ret);
-#endif
 
     /* Configure channels individually prior to sampling. */
     for (size_t i = 0U; i < ARRAY_SIZE(adc_channels); i++) {
@@ -1102,7 +1170,7 @@ voltage_measurement_init(const orb_mcu_Hardware *hw_version,
     // each boot of an Orb.
 #ifdef CONFIG_ZTEST
     // don't delay execution when ZTESTs are enabled otherwise no voltage
-    // messages are pubilshed when the test starts.
+    // messages are published when the test starts.
     const k_timeout_t delay = K_SECONDS(0);
 #else
     const k_timeout_t delay = K_SECONDS(10);
@@ -1114,16 +1182,6 @@ voltage_measurement_init(const orb_mcu_Hardware *hw_version,
         (k_thread_entry_t)voltage_measurement_publish_thread, NULL, NULL, NULL,
         THREAD_PRIORITY_VOLTAGE_MEASUREMENT_PUBLISH, 0, delay);
     k_thread_name_set(tid_publish, "voltage_measurement_publish");
-
-#ifdef CONFIG_VOLTAGE_MEASUREMENT_LOG_LEVEL_DBG
-    k_tid_t tid_debug = k_thread_create(
-        &voltage_measurement_debug_thread_data,
-        voltage_measurement_debug_thread_stack,
-        K_THREAD_STACK_SIZEOF(voltage_measurement_debug_thread_stack),
-        (k_thread_entry_t)voltage_measurement_debug_thread, NULL, NULL, NULL,
-        THREAD_PRIORITY_VOLTAGE_MEASUREMENT_DEBUG, 0, K_NO_WAIT);
-    k_thread_name_set(tid_debug, "voltage_measurement_debug");
-#endif
 
     return RET_SUCCESS;
 }
