@@ -31,8 +31,9 @@ BUILD_ASSERT(
 BUILD_ASSERT(INTER_MEASUREMENT_FREQ_HZ > 0,
              "INTER_MEASUREMENT_FREQ_HZ must be greater than 0");
 
+#if PROXIMITY_DETECTION_FOR_IR_SAFETY
 static void (*unsafe_cb)(void) = NULL;
-
+#endif
 /**
  * Mutex for I2C communication
  * Because the bus is shared between the vl53l1 `tof_sensor` sensor and the
@@ -126,6 +127,7 @@ tof_1d_thread()
             continue;
         }
 
+#if PROXIMITY_DETECTION_FOR_IR_SAFETY
         CRITICAL_SECTION_ENTER(k);
         long counter = atomic_get(&too_close_counter);
         // if val1 is 0, we are far away, so we can decrease the counter
@@ -143,6 +145,7 @@ tof_1d_thread()
         if (unsafe_cb && !distance_is_safe()) {
             unsafe_cb();
         }
+#endif
     }
 }
 
@@ -178,9 +181,13 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex)
     }
     ASSERT_SOFT(ret);
 
+#if PROXIMITY_DETECTION_FOR_IR_SAFETY
     if (distance_unsafe_cb) {
         unsafe_cb = distance_unsafe_cb;
     }
+#else
+    UNUSED(distance_unsafe_cb);
+#endif
 
     // set to autonomous mode by setting sampling frequency / inter measurement
     // period
