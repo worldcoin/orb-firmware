@@ -109,6 +109,9 @@ init_area(const struct flash_area *fa)
         storage_area.rd_idx = storage_area.wr_idx;
     }
 
+    LOG_DBG("Storage area initialized: rd: 0x%04lx, wr: 0x%04lx",
+            storage_area.rd_idx, storage_area.wr_idx);
+
     return RET_SUCCESS;
 }
 
