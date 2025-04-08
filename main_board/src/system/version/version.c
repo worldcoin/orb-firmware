@@ -458,23 +458,28 @@ version_init(void)
 
 #ifdef CONFIG_BOARD_PEARL_MAIN
 static const char hardware_versions_str[][14] = {
-    "UNKNOWN",   "PEARL_EV1", "PEARL_EV2", "PEARL_EV3",
-    "PEARL_EV4", "PEARL_EV5", "PEARL_EV6",
+    "PEARL_UNKNOWN", "PEARL_EV1", "PEARL_EV2", "PEARL_EV3",
+    "PEARL_EV4",     "PEARL_EV5", "PEARL_EV6",
 };
 static const char *software_type = "pearl-main-app";
 #elif CONFIG_BOARD_DIAMOND_MAIN
-static const char hardware_versions_str[][14] = {
-    "UNKNOWN",
-    "DIAMOND_POC1",
-    "DIAMOND_POC2",
-    "DIAMOND_B3",
-};
+static const char hardware_versions_str[][16] = {
+    "DIAMOND_UNKNOWN", "DIAMOND_POC1",    "DIAMOND_POC2",
+    "DIAMOND_B3",      "DIAMOND_EVT_4.3", "DIAMOND_EVT_4.4"};
 static const char *software_type = "diamond-main-app";
+
+BUILD_ASSERT(ARRAY_SIZE(hardware_versions_str) >=
+             orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4 -
+                 orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 + 1);
+
 #endif
 
 void
 memfault_platform_get_device_info(sMemfaultDeviceInfo *info)
 {
+    // report error only once
+    static bool hardware_version_error = false;
+
     const char *version_str = STRINGIFY(FW_VERSION_FULL);
     orb_mcu_Hardware hw_version = version_get();
     size_t hardware_version_idx = (size_t)hw_version.version;
@@ -483,6 +488,14 @@ memfault_platform_get_device_info(sMemfaultDeviceInfo *info)
                            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 +
                            1;
 #endif
+
+    if (hardware_version_idx > ARRAY_SIZE(hardware_versions_str)) {
+        if (hardware_version_error == false) {
+            ASSERT_SOFT(RET_ERROR_NOT_FOUND);
+            hardware_version_error = true;
+        }
+        hardware_version_idx = 0;
+    }
 
     // platform specific version information
     *info = (sMemfaultDeviceInfo){
