@@ -26,7 +26,7 @@ manifest:
       revision: 702de999f361458009247f0783e7b2dd71b22059
       path: modules/orb-messages/public
     - name: priv-orb-messages
-      revision: 814f52429ced94c8180f3fbe17eeec1f1a01b556
+      revision: b3350ef70b702761f1b5ff41e0a5cab93608f081
       path: modules/orb-messages
       groups: [internal]
     - name: plug-and-trust
