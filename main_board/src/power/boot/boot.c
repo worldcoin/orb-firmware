@@ -419,6 +419,7 @@ turn_on_power_supplies(void)
         ret = gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
         ASSERT_SOFT(ret);
         LOG_INF("3.3V SSD/SD Card power supply enabled");
+        k_msleep(50);
 
         ret = gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
         ASSERT_SOFT(ret);
