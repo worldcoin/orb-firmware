@@ -26,6 +26,9 @@
 #include <storage.h>
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
+#ifdef CONFIG_MEMFAULT
+#include <memfault/core/reboot_tracking.h>
+#endif
 
 #if CONFIG_ORB_LIB_WATCHDOG
 #include <watchdog.h>
@@ -113,6 +116,35 @@ app_assert_cb(fatal_error_info_t *err_info)
     } else if (err_info != NULL) {
         // TODO store error
     }
+}
+
+/**
+ * Called from thread so it's fine to call k_msleep
+ * @return doesn't return
+ */
+static int
+heartbeat_timeout_handler(void)
+{
+    const int32_t shutdown_delay_ms = 5000;
+    const orb_mcu_main_ShutdownScheduled shutdown = {
+        .shutdown_reason =
+            orb_mcu_main_ShutdownScheduled_ShutdownReason_HEARTBEAT_TIMEOUT,
+        .has_ms_until_shutdown = true,
+        .ms_until_shutdown = shutdown_delay_ms};
+    publish_new((void *)&shutdown, sizeof(shutdown),
+                orb_mcu_main_McuToJetson_shutdown_tag,
+                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+
+    k_msleep(shutdown_delay_ms);
+
+    // ☠️
+#ifdef CONFIG_MEMFAULT
+    MEMFAULT_REBOOT_MARK_RESET_IMMINENT(
+        kMfltRebootReason_HeartbeatFromJetsonTimeout);
+#endif
+
+    NVIC_SystemReset();
+    return 0;
 }
 
 static void
@@ -226,6 +258,10 @@ initialize(void)
 #if defined(CONFIG_ORB_LIB_LOGS_CAN) && !defined(CONFIG_ZTEST)
     err_code = logs_init(logs_can);
     ASSERT_SOFT(err_code);
+#endif
+
+#ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
+    heartbeat_register_cb(heartbeat_timeout_handler);
 #endif
 
     // check battery state early on
