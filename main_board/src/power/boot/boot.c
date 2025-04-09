@@ -454,8 +454,6 @@ turn_on_power_supplies(void)
     LOG_INF("2V8 enabled");
 #endif
 
-    k_msleep(100);
-
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     ret = gpio_pin_set_dt(&supply_12v_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
@@ -478,7 +476,7 @@ turn_on_power_supplies(void)
     ASSERT_SOFT(ret);
     LOG_INF("1.8V power supply enabled");
 
-    k_msleep(100);
+    k_msleep(200);
 
     return 0;
 }
