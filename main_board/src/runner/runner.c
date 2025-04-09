@@ -1296,8 +1296,25 @@ handle_perform_ir_eye_camera_mirror_sweep(job_t *job)
 }
 
 #if defined(CONFIG_MEMFAULT_METRICS_CONNECTIVITY_CONNECTED_TIME)
+
 /**
  * @brief Sets the Orb connection state to disconnected.
+ */
+static void
+connection_lost_work_handler(struct k_work *item)
+{
+    UNUSED_PARAMETER(item);
+
+    LOG_INF("Connection lost");
+
+    memfault_metrics_connectivity_connected_state_change(
+        kMemfaultMetricsConnectivityState_ConnectionLost);
+}
+
+static K_WORK_DEFINE(connection_lost_work, connection_lost_work_handler);
+
+/**
+ * ⚠️ ISR
  *
  * Timer expires when the Orb is disconnected from the internet
  * (Memfault backend not reachable) because the SyncDiagData
@@ -1310,9 +1327,14 @@ diag_disconnected(struct k_timer *timer)
 {
     UNUSED_PARAMETER(timer);
 
-    memfault_metrics_connectivity_connected_state_change(
-        kMemfaultMetricsConnectivityState_ConnectionLost);
+    // memfault_metrics_connectivity_connected_state_change uses mutex, cannot
+    // be used in ISR, so queue work.
+    const int ret = k_work_submit(&connection_lost_work);
+    if (ret < 0) {
+        ASSERT_SOFT(ret);
+    }
 }
+
 #endif
 
 /**
@@ -1338,7 +1360,6 @@ handle_sync_diag_data(job_t *job)
 
     uint32_t interval = msg->payload.sync_diag_data.interval;
     if (interval) {
-
         // start / reload the timer, acting as a heartbeat
         // and use it to detect orb's internet
         // connectivity
@@ -1702,7 +1723,7 @@ runner_init(void)
     k_thread_name_set(runner_tid, "runner");
 
 #if defined(CONFIG_MEMFAULT_METRICS_CONNECTIVITY_CONNECTED_TIME)
-    // The Orb is disconnected from the Internet when starting
-    diag_disconnected(NULL);
+    memfault_metrics_connectivity_connected_state_change(
+        kMemfaultMetricsConnectivityState_Started);
 #endif
 }
