@@ -18,6 +18,12 @@ LOG_MODULE_REGISTER(dfu, CONFIG_DFU_LOG_LEVEL);
 static void
 process_dfu_blocks_thread();
 
+#ifndef CONFIG_ZTEST
+// needs to be available for ztest
+static int
+dfu_secondary_check(uint32_t crc32);
+#endif
+
 K_THREAD_STACK_DEFINE(dfu_thread_stack, CONFIG_ORB_LIB_THREAD_STACK_SIZE_DFU);
 static struct k_thread dfu_thread_data = {0};
 static k_tid_t tid_dfu = NULL;
@@ -42,8 +48,6 @@ BUILD_ASSERT(DFU_BLOCKS_WRITE_SIZE % 8 == 0,
 
 STATIC_OR_EXTERN struct dfu_state_t dfu_state __ALIGN(8) = {0};
 
-static void (*dfu_block_process_cb)(void *ctx, int err) = NULL;
-
 // 1 producer and 1 consumer sharing dfu_state
 // we need two semaphores
 STATIC_OR_EXTERN K_SEM_DEFINE(sem_dfu_free_space, 1, 1);
@@ -54,8 +58,6 @@ dfu_load(uint32_t current_block_number, uint32_t block_count,
          const uint8_t *data, size_t size, void *ctx,
          void (*process_cb)(void *ctx, int err))
 {
-    dfu_block_process_cb = process_cb;
-
     // check params first
     if ((current_block_number != 0 &&
          current_block_number != dfu_state.block_number + 1) ||
@@ -78,6 +80,8 @@ dfu_load(uint32_t current_block_number, uint32_t block_count,
         dfu_state.block_count = block_count;
         dfu_state.flash_offset = 0;
         dfu_state.wr_idx = 0;
+        dfu_state.expected_crc32 = 0;
+        dfu_state.state = DFU_IN_PROGRESS;
 
         // create processing task now if it doesn't exist
         // priority set by Kconfig: CONFIG_ORB_LIB_DFU_THREAD_PRIORITY
@@ -102,6 +106,7 @@ dfu_load(uint32_t current_block_number, uint32_t block_count,
     dfu_state.wr_idx += size;
 
     dfu_state.ctx = ctx;
+    dfu_state.dfu_cb = process_cb;
 
     // write if enough bytes ready: DFU_BLOCKS_WRITE_SIZE
     // or last block
@@ -128,114 +133,130 @@ process_dfu_blocks_thread()
     const struct flash_area *flash_area_p = NULL;
     int err_code = RET_SUCCESS;
 
-    while (1) {
-        // setting thread as blocked while waiting for new block to be received
+    while (true) {
+        // setting thread as blocked while waiting for new block or event to
+        // be received
         k_sem_take(&sem_dfu_full, K_FOREVER);
 
-        do {
-            err_code = flash_area_open(
-                DT_FIXED_PARTITION_ID(DT_ALIAS(secondary_slot)), &flash_area_p);
-            if (err_code) {
-                LOG_ERR("Err flash_area_open %i", err_code);
-                err_code = RET_ERROR_INVALID_STATE;
-                break;
-            }
-
-            // if new image, check that area is large enough
-            if (dfu_state.flash_offset == 0) {
-                uint32_t image_slot_size = flash_area_get_size(flash_area_p);
-
-                // check image size to see if it fits
-                if (dfu_state.block_count * DFU_BLOCK_SIZE_MAX >
-                    image_slot_size) {
-                    LOG_ERR("Not enough size in Flash %u > %u",
-                            dfu_state.block_count * DFU_BLOCK_SIZE_MAX,
-                            image_slot_size);
-                    // reset internal state, a new image needs to be sent again
-                    // from scratch
-                    memset(&dfu_state, 0, sizeof(dfu_state));
-                    err_code = RET_ERROR_INVALID_PARAM;
+        switch (dfu_state.state) {
+        case DFU_IN_PROGRESS: {
+            do {
+                err_code = flash_area_open(
+                    DT_FIXED_PARTITION_ID(DT_ALIAS(secondary_slot)),
+                    &flash_area_p);
+                if (err_code) {
+                    LOG_ERR("Err flash_area_open %i", err_code);
+                    err_code = RET_ERROR_INVALID_STATE;
                     break;
                 }
-            }
 
-            // check how many bytes to write
-            // last block might be more or less than DFU_BLOCKS_WRITE_SIZE
-            size_t bytes_to_write = DFU_BLOCKS_WRITE_SIZE;
-            if (dfu_state.block_number == dfu_state.block_count - 1) {
-                bytes_to_write = dfu_state.wr_idx;
+                // if new image, check that area is large enough
+                if (dfu_state.flash_offset == 0) {
+                    uint32_t image_slot_size =
+                        flash_area_get_size(flash_area_p);
 
-                // if byte count to write is not multiple of double-word
-                // fill remaining bytes with 0xff
-                if (dfu_state.wr_idx % 8) {
-                    memset(&dfu_state.bytes[dfu_state.wr_idx], 0xff,
-                           8 - (dfu_state.wr_idx % 8));
-                    bytes_to_write += (8 - dfu_state.wr_idx % 8);
+                    // check image size to see if it fits
+                    if (dfu_state.block_count * DFU_BLOCK_SIZE_MAX >
+                        image_slot_size) {
+                        LOG_ERR("Not enough size in Flash %u > %u",
+                                dfu_state.block_count * DFU_BLOCK_SIZE_MAX,
+                                image_slot_size);
+                        // reset internal state, a new image needs to be sent
+                        // again from scratch
+                        memset(&dfu_state, 0, sizeof(dfu_state));
+                        err_code = RET_ERROR_INVALID_PARAM;
+                        break;
+                    }
                 }
-            }
 
-            // check whether on a sector boundary or
-            // bytes to write will use the next sector
-            if (dfu_state.flash_offset % DFU_FLASH_SECTOR_SIZE == 0 ||
-                ((bytes_to_write > DFU_BLOCKS_WRITE_SIZE) &&
-                 (dfu_state.flash_offset % DFU_FLASH_SECTOR_SIZE +
-                      bytes_to_write >
-                  DFU_FLASH_SECTOR_SIZE))) {
+                // check how many bytes to write
+                // last block might be more or less than DFU_BLOCKS_WRITE_SIZE
+                size_t bytes_to_write = DFU_BLOCKS_WRITE_SIZE;
+                if (dfu_state.block_number == dfu_state.block_count - 1) {
+                    bytes_to_write = dfu_state.wr_idx;
 
-                size_t offset = dfu_state.flash_offset;
-                // erase next sector if not on sector boundary
-                if (dfu_state.flash_offset % DFU_FLASH_SECTOR_SIZE) {
-                    offset = NEXT_SECTOR_BOUNDARY(offset);
+                    // if byte count to write is not multiple of double-word
+                    // fill remaining bytes with 0xff
+                    if (dfu_state.wr_idx % 8) {
+                        memset(&dfu_state.bytes[dfu_state.wr_idx], 0xff,
+                               8 - (dfu_state.wr_idx % 8));
+                        bytes_to_write += (8 - dfu_state.wr_idx % 8);
+                    }
+                    dfu_state.state = DFU_FINISHED_VERIFY;
                 }
-                // erase secondary slot
-                LOG_INF("Erasing Flash, offset 0x%08x", offset);
 
-                err_code = flash_area_erase(flash_area_p, (off_t)offset,
-                                            DFU_FLASH_SECTOR_SIZE);
-                if (err_code != 0) {
-                    LOG_ERR("Unable to erase sector @0x%x, err %i", offset,
-                            err_code);
+                // check whether on a sector boundary or
+                // bytes to write will use the next sector
+                if (dfu_state.flash_offset % DFU_FLASH_SECTOR_SIZE == 0 ||
+                    ((bytes_to_write > DFU_BLOCKS_WRITE_SIZE) &&
+                     (dfu_state.flash_offset % DFU_FLASH_SECTOR_SIZE +
+                          bytes_to_write >
+                      DFU_FLASH_SECTOR_SIZE))) {
+
+                    size_t offset = dfu_state.flash_offset;
+                    // erase next sector if not on sector boundary
+                    if (dfu_state.flash_offset % DFU_FLASH_SECTOR_SIZE) {
+                        offset = NEXT_SECTOR_BOUNDARY(offset);
+                    }
+                    // erase secondary slot
+                    LOG_INF("Erasing Flash, offset 0x%08x", offset);
+
+                    err_code = flash_area_erase(flash_area_p, (off_t)offset,
+                                                DFU_FLASH_SECTOR_SIZE);
+                    if (err_code != 0) {
+                        LOG_ERR("Unable to erase sector @0x%x, err %i", offset,
+                                err_code);
+                        err_code = RET_ERROR_INTERNAL;
+                        break;
+                    }
+                }
+
+                // ready to write block
+                LOG_INF("Writing firmware image %d%%",
+                        (dfu_state.block_number + 1) * 100 /
+                            dfu_state.block_count);
+                err_code =
+                    flash_area_write(flash_area_p, dfu_state.flash_offset,
+                                     dfu_state.bytes, bytes_to_write);
+                if (err_code) {
+                    LOG_ERR("Unable to write into Flash, err %i", err_code);
                     err_code = RET_ERROR_INTERNAL;
                     break;
                 }
+
+                if (dfu_state.wr_idx >= bytes_to_write) {
+                    // copy remaining bytes at the beginning of the buffer
+                    memcpy(dfu_state.bytes, &dfu_state.bytes[bytes_to_write],
+                           dfu_state.wr_idx - bytes_to_write);
+                    dfu_state.wr_idx = dfu_state.wr_idx - bytes_to_write;
+                } else {
+                    dfu_state.wr_idx = 0;
+                }
+
+                dfu_state.flash_offset += bytes_to_write;
+            } while (0);
+
+            // close Flash area
+            if (flash_area_p) {
+                flash_area_close(flash_area_p);
             }
 
-            // ready to write block
-            LOG_INF("Writing firmware image %d%%",
-                    (dfu_state.block_number + 1) * 100 / dfu_state.block_count);
-            err_code = flash_area_write(flash_area_p, dfu_state.flash_offset,
-                                        dfu_state.bytes, bytes_to_write);
-            if (err_code) {
-                LOG_ERR("Unable to write into Flash, err %i", err_code);
-                err_code = RET_ERROR_INTERNAL;
-                break;
+            // dfu_state has been consumed, semaphore can be freed
+            k_sem_give(&sem_dfu_free_space);
+
+            if (dfu_state.dfu_cb != NULL) {
+                if (err_code != RET_SUCCESS) {
+                    LOG_ERR("Error during dfu block processing");
+                }
+                dfu_state.dfu_cb(dfu_state.ctx, err_code);
             }
-
-            if (dfu_state.wr_idx >= bytes_to_write) {
-                // copy remaining bytes at the beginning of the buffer
-                memcpy(dfu_state.bytes, &dfu_state.bytes[bytes_to_write],
-                       dfu_state.wr_idx - bytes_to_write);
-                dfu_state.wr_idx = dfu_state.wr_idx - bytes_to_write;
-            } else {
-                dfu_state.wr_idx = 0;
+        } break;
+        case DFU_FINISHED_VERIFY: {
+            err_code = dfu_secondary_check(dfu_state.expected_crc32);
+            if (dfu_state.dfu_cb != NULL) {
+                dfu_state.dfu_cb(dfu_state.ctx, err_code);
             }
-
-            dfu_state.flash_offset += bytes_to_write;
-        } while (0);
-
-        // close Flash area
-        if (flash_area_p) {
-            flash_area_close(flash_area_p);
-        }
-
-        // dfu_state has been consumed, semaphore can be freed
-        k_sem_give(&sem_dfu_free_space);
-
-        if (dfu_block_process_cb != NULL) {
-            if (err_code != RET_SUCCESS) {
-                LOG_ERR("Error during dfu block processing");
-            }
-            dfu_block_process_cb(dfu_state.ctx, err_code);
+        } break;
         }
     }
 }
@@ -302,6 +323,27 @@ dfu_secondary_activate_temporarily(void)
 }
 
 int
+dfu_secondary_check_async(uint32_t crc32, void *context,
+                          void (*process_cb)(void *ctx, int err))
+{
+    // ensure block processing is over by taking `sem_dfu_free_space`
+    // also, make sure state is DFU_FINISHED_VERIFY, meaning that the
+    // last block has been processed
+    int ret = k_sem_take(&sem_dfu_free_space, K_MSEC(10));
+    if (ret == 0 && dfu_state.state == DFU_FINISHED_VERIFY) {
+        dfu_state.ctx = context;
+        dfu_state.dfu_cb = process_cb;
+        dfu_state.expected_crc32 = crc32;
+        k_sem_give(&sem_dfu_full);
+        ret = -EINPROGRESS;
+    } else {
+        ret = RET_ERROR_INVALID_STATE;
+    }
+
+    return ret;
+}
+
+STATIC_OR_EXTERN int
 dfu_secondary_check(uint32_t crc32)
 {
     // buffer needed to read external Flash (diamond) and compute CRC32
