@@ -9,7 +9,7 @@ timeout_cb(void)
     // declare unused stacked variable to ensure the
     // callback can do _enough_ work without stack overflow
     // we assume the callback to not use more than half of the stack
-    volatile char unused[THREAD_STACK_SIZE_HEARTBEAT / 2] = {0};
+    volatile char unused[CONFIG_ORB_LIB_THREAD_STACK_SIZE_HEARTBEAT / 2] = {0};
     UNUSED(unused);
 
     timed_out = true;
