@@ -411,18 +411,18 @@ static int
 turn_on_power_supplies(void)
 {
     int ret = 0;
-    orb_mcu_Hardware version = version_get();
 
     // might be a duplicate call, but it's preferable to be sure that
     // these supplies are on
     power_vbat_5v_3v3_supplies_on();
 
-    // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
-    if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
-        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT ||
-        version.version ==
-            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4) {
+#ifdef CONFIG_BOARD_PEARL_MAIN
+    orb_mcu_Hardware version = version_get();
+
+    // Control signals for 3V3_SSD and 3V3_WIFI only exist on Pearl EV5+
+    if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5)
+#endif
+    {
         ret = gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
         ASSERT_SOFT(ret);
         LOG_INF("3.3V SSD/SD Card power supply enabled");
@@ -452,9 +452,15 @@ turn_on_power_supplies(void)
     ret = gpio_pin_set_dt(&supply_2v8_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("2V8 enabled");
-#endif
 
-#if defined(CONFIG_BOARD_PEARL_MAIN)
+    /* it's important to have 3v3 SD on for at least 100ms for sd card to be
+     * recognized successfully, at least with ADATA cards
+     * pushing to 200ms to ensure none are failing.
+     */
+    k_msleep(200);
+#elif defined(CONFIG_BOARD_PEARL_MAIN)
+    k_msleep(100);
+
     ret = gpio_pin_set_dt(&supply_12v_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
 
