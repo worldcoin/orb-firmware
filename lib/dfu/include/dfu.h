@@ -42,6 +42,11 @@
 #define DFU_BLOCKS_BUFFER_SIZE                                                 \
     (DFU_BLOCKS_BUFFER_MIN_SIZE + 8 - (DFU_BLOCKS_BUFFER_MIN_SIZE % 8))
 
+enum dfu_state_e {
+    DFU_IN_PROGRESS,
+    DFU_FINISHED_VERIFY,
+};
+
 struct dfu_state_t {
     // make sure `bytes` is the first field to ensure alignment
     uint8_t bytes[DFU_BLOCKS_BUFFER_SIZE];
@@ -49,8 +54,11 @@ struct dfu_state_t {
     uint32_t block_number;
     uint32_t block_count;
     size_t flash_offset;
+    uint32_t expected_crc32;
     void *ctx; // pointer to the caller context, to be used with the
-    // `dfu_block_process_cb`
+               // `dfu_block_process_cb`
+    void (*dfu_cb)(void *ctx, int err);
+    enum dfu_state_e state;
 };
 
 /**
@@ -109,17 +117,22 @@ dfu_secondary_activate_temporarily(void);
 /**
  * Check image in secondary slot against a CRC32.
  * Use it to validate a new image has correctly been written on Flash.
+ * CRC processing is done in the dfu thread and thus the status of the check
+ * is returned with the `process_cb`.
  *
- * @warning this function allocates a flash-page sized buffer on the stack,
- *          which may be large
- *
- * @param crc32
- * @retval RET_ERROR_INVALID_STATE secondary slot not initialized or CRC32 does
- * not match
- * @retval RET_SUCCESS CRC32 match successfully
+ * @param crc32 expected CRC32 to be computed from read back content
+ * @retval -EINPROGRESS task successfully queued
+ * @retval RET_ERROR_INVALID_STATE current state doesn't allow checking CRC32
+ * over secondary slot: is the new image fully received and processed?
  */
 int
+dfu_secondary_check_async(uint32_t crc32, void *context,
+                          void (*process_cb)(void *ctx, int err));
+
+#ifdef CONFIG_ZTEST
+int
 dfu_secondary_check(uint32_t crc32);
+#endif
 
 /**
  * Confirm image in primary slot: will set the image as working accross reboot
