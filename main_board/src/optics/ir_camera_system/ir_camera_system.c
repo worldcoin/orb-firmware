@@ -29,9 +29,11 @@ distance_is_safe()
 }
 
 static bool
-optics_safety_circuit_triggered()
+optics_safety_circuit_triggered(const uint32_t timeout_ms, bool *triggered)
 {
-    return false;
+    ARG_UNUSED(timeout_ms);
+    *triggered = false;
+    return 0;
 }
 #endif
 
@@ -402,11 +404,19 @@ ir_camera_system_get_status(void)
 {
     ret_code_t ret;
 
+    /* it's fine to discard returned value when checking pvcc state
+     * because even if IR LEDs are mistakenly enabled, the circuitry won't
+     * power them.
+     * The user won't be informed though with a `forbidden` error code
+     */
+    bool safety_triggered = false;
+    optics_safety_circuit_triggered(0, &safety_triggered);
+
     /* ⚠️ ordered by level of importance as it's fine to set a new ir-led
      * on duration during a sweep (busy) but not if unsafe conditions are met */
     if (!ir_camera_system_initialized) {
         ret = RET_ERROR_NOT_INITIALIZED;
-    } else if (!distance_is_safe() || optics_safety_circuit_triggered()) {
+    } else if (!distance_is_safe() || safety_triggered) {
         ret = RET_ERROR_FORBIDDEN;
     } else if (get_focus_sweep_in_progress() ||
                get_mirror_sweep_in_progress()) {

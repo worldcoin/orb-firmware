@@ -372,8 +372,11 @@ ZTEST(ir_camera, test_ir_camera_invalid_wavelengths)
 ZTEST(ir_camera, test_ir_camera_valid_on_time_and_duty_limits)
 {
     bool safety_circuit_tripped;
+    int ret;
 
-    safety_circuit_tripped = optics_safety_circuit_triggered();
+    ret = optics_safety_circuit_triggered(10, &safety_circuit_tripped);
+    zassert_equal(ret, RET_SUCCESS,
+                  "Failed to get safety circuit triggered state");
     zassert_false(safety_circuit_tripped, "PVCC not available");
 
     // set valid on-time
@@ -383,7 +386,9 @@ ZTEST(ir_camera, test_ir_camera_valid_on_time_and_duty_limits)
         1000); // should pass safety circuit shouldn't trip
     ir_camera_system_set_fps(low_fps);
     k_msleep(100);
-    safety_circuit_tripped = optics_safety_circuit_triggered();
+    ret = optics_safety_circuit_triggered(10, &safety_circuit_tripped);
+    zassert_equal(ret, RET_SUCCESS,
+                  "Failed to get safety circuit triggered state");
     zassert_false(
         safety_circuit_tripped,
         "safety circuit tripped but shouldn't at %d fps with %d us on-time",
@@ -417,7 +422,9 @@ ZTEST(ir_camera, test_ir_camera_valid_on_time_and_duty_limits)
         ir_camera_system_set_on_time_us(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US);
         k_msleep(100);
 
-        safety_circuit_tripped = optics_safety_circuit_triggered();
+        ret = optics_safety_circuit_triggered(10, &safety_circuit_tripped);
+        zassert_equal(ret, RET_SUCCESS,
+                      "Failed to get safety circuit triggered state");
         zassert_false(safety_circuit_tripped,
                       "safety circuit tripped but shouldn't at %d fps with %d "
                       "us on-time, wavelength %d",
@@ -456,7 +463,9 @@ ZTEST(ir_camera, test_ir_camera_valid_on_time_and_duty_limits)
             ir_camera_system_set_fps(fps);
             k_msleep(100);
 
-            safety_circuit_tripped = optics_safety_circuit_triggered();
+            ret = optics_safety_circuit_triggered(10, &safety_circuit_tripped);
+            zassert_equal(ret, RET_SUCCESS,
+                          "Failed to get safety circuit triggered state");
             zassert_false(safety_circuit_tripped,
                           "safety circuit tripped but shouldn't at %d fps with "
                           "%d us on-time, wavelength %d",

@@ -21,24 +21,49 @@ static orb_mcu_HardwareDiagnostic_Status self_test_status =
 static struct gpio_dt_spec front_unit_pvcc_enabled = GPIO_DT_SPEC_GET_BY_IDX(
     DT_PATH(zephyr_user), front_unit_pvcc_enabled_gpios, 0);
 
-bool
-optics_safety_circuit_triggered(void)
+static struct k_mutex *i2c1_mutex = NULL;
+
+int
+optics_safety_circuit_triggered(const uint32_t timeout_ms, bool *triggered)
 {
-    int ret = gpio_pin_get_dt(&front_unit_pvcc_enabled);
-    ASSERT_SOFT_BOOL(ret >= 0);
+    int ret;
 
-    bool pvcc_enabled = (ret >= 0 && ret != 0);
+    /* protect i2c1 usage to check on pvcc from gpio expander with mutex */
+    {
+        if (i2c1_mutex == NULL) {
+            return RET_ERROR_INVALID_STATE;
+        }
 
-    // update status
-    if (pvcc_enabled) {
-        diag_set_status(orb_mcu_HardwareDiagnostic_Source_OPTICS_IR_LEDS,
-                        orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
-    } else {
-        diag_set_status(orb_mcu_HardwareDiagnostic_Source_OPTICS_IR_LEDS,
-                        orb_mcu_HardwareDiagnostic_Status_STATUS_SAFETY_ISSUE);
+        if (k_mutex_lock(i2c1_mutex, K_MSEC(timeout_ms)) != 0) {
+            return RET_ERROR_BUSY;
+        }
+
+        ret = gpio_pin_get_dt(&front_unit_pvcc_enabled);
+
+        // unlock asap
+        k_mutex_unlock(i2c1_mutex);
     }
 
-    return !pvcc_enabled;
+    if (ret < 0) {
+        ASSERT_SOFT(ret);
+        return ret;
+    }
+
+    const bool pvcc_enabled = (ret >= 0 && ret != 0);
+    // update status on state change
+    if (pvcc_enabled) {
+        ret = diag_set_status(orb_mcu_HardwareDiagnostic_Source_OPTICS_IR_LEDS,
+                              orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
+        ASSERT_SOFT(ret);
+    } else {
+        ret = diag_set_status(
+            orb_mcu_HardwareDiagnostic_Source_OPTICS_IR_LEDS,
+            orb_mcu_HardwareDiagnostic_Status_STATUS_SAFETY_ISSUE);
+        ASSERT_SOFT(ret);
+    }
+    *triggered = !pvcc_enabled;
+
+    return RET_SUCCESS;
 }
 
 /**
@@ -61,9 +86,12 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
 {
     int err_code;
 
-    diag_set_status(
+    err_code = diag_set_status(
         orb_mcu_HardwareDiagnostic_Source_OPTICS_EYE_SAFETY_CIRCUIT_SELF_TEST,
         self_test_status);
+    ASSERT_SOFT(err_code);
+
+    i2c1_mutex = mutex;
 
     err_code = ir_camera_system_init();
     if (err_code) {
@@ -100,7 +128,9 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
     }
 
     // check pvcc (& update diag)
-    bool safety_triggered = optics_safety_circuit_triggered();
+    bool safety_triggered;
+    err_code = optics_safety_circuit_triggered(10, &safety_triggered);
+    ASSERT_SOFT(err_code);
     LOG_INF("Safety circuitry triggered: %u", safety_triggered);
     UNUSED_VARIABLE(safety_triggered);
 
