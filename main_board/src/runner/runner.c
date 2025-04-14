@@ -113,6 +113,7 @@ handle_err_code(void *ctx, int err)
     if (context->remote == CAN_MESSAGING) {
         orb_mcu_Ack ack = {.ack_number = context->ack_number,
                            .error = orb_mcu_Ack_ErrorCode_FAIL};
+
         switch (err) {
         case RET_SUCCESS:
             ack.error = orb_mcu_Ack_ErrorCode_SUCCESS;
@@ -133,7 +134,7 @@ handle_err_code(void *ctx, int err)
             break;
 
         default:
-            /* nothing */
+            ack.error = orb_mcu_Ack_ErrorCode_FAIL;
             break;
         }
 
@@ -790,11 +791,23 @@ handle_fw_img_crc(job_t *job)
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_fw_image_check_tag);
 
     LOG_DBG("Got CRC comparison");
-    int ret = dfu_secondary_check(msg->payload.fw_image_check.crc32);
-    if (ret) {
-        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+
+    // must be static to be used by callback
+    static struct handle_error_context_s context = {0};
+    context.remote = job->remote;
+    context.remote_addr = job->remote_addr;
+    context.ack_number = job->ack_number;
+
+    int ret = dfu_secondary_check_async(msg->payload.fw_image_check.crc32,
+                                        (void *)&context, handle_err_code);
+    if (ret == -EINPROGRESS) {
+        return;
+    }
+
+    if (ret == RET_ERROR_INVALID_STATE) {
+        job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
     } else {
-        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     }
 }
 
