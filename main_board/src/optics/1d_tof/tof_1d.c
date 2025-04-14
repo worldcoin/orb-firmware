@@ -43,7 +43,7 @@ static void (*unsafe_cb)(void) = NULL;
  * Otherwise, concurrent access to the i2c bus can cause a bus error.
  * ARBITRATION LOST (ARLO) error have been observed, followed by a NACK.
  */
-static struct k_mutex *i2c_mutex = NULL;
+static struct k_mutex *i2c1_mutex = NULL;
 
 bool
 distance_is_safe(void)
@@ -74,25 +74,25 @@ tof_1d_thread()
 
         tick = k_uptime_get_32();
 
-        if (i2c_mutex) {
-            k_mutex_lock(i2c_mutex, K_FOREVER);
+        if (i2c1_mutex) {
+            k_mutex_lock(i2c1_mutex, K_FOREVER);
         }
         ret = sensor_sample_fetch_chan(tof_1d_device, SENSOR_CHAN_ALL);
-        if (i2c_mutex) {
-            k_mutex_unlock(i2c_mutex);
+        if (i2c1_mutex) {
+            k_mutex_unlock(i2c1_mutex);
         }
         if (ret != 0) {
             LOG_WRN("Error fetching %d", ret);
             continue;
         }
 
-        if (i2c_mutex) {
-            k_mutex_lock(i2c_mutex, K_FOREVER);
+        if (i2c1_mutex) {
+            k_mutex_lock(i2c1_mutex, K_FOREVER);
         }
         ret = sensor_channel_get(tof_1d_device, SENSOR_CHAN_DISTANCE,
                                  &distance_value);
-        if (i2c_mutex) {
-            k_mutex_unlock(i2c_mutex);
+        if (i2c1_mutex) {
+            k_mutex_unlock(i2c1_mutex);
         }
         if (ret != 0) {
             // print error with debug level because the range status
@@ -114,13 +114,13 @@ tof_1d_thread()
 
         // check proximity from sensor itself
         memset(&distance_value, 0, sizeof(distance_value));
-        if (i2c_mutex) {
-            k_mutex_lock(i2c_mutex, K_FOREVER);
+        if (i2c1_mutex) {
+            k_mutex_lock(i2c1_mutex, K_FOREVER);
         }
         ret = sensor_channel_get(tof_1d_device, SENSOR_CHAN_PROX,
                                  &distance_value);
-        if (i2c_mutex) {
-            k_mutex_unlock(i2c_mutex);
+        if (i2c1_mutex) {
+            k_mutex_unlock(i2c1_mutex);
         }
         if (ret != 0) {
             LOG_DBG("Error getting prox data %d", ret);
@@ -160,7 +160,7 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex)
     }
 
     if (mutex) {
-        i2c_mutex = mutex;
+        i2c1_mutex = mutex;
     }
 
     k_thread_create(&tof_1d_thread_data, stack_area_tof_1d,
@@ -171,13 +171,13 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex)
 
     // set short distance mode
     struct sensor_value distance_config = {.val1 = 1 /* short */, .val2 = 0};
-    if (i2c_mutex) {
-        k_mutex_lock(i2c_mutex, K_FOREVER);
+    if (i2c1_mutex) {
+        k_mutex_lock(i2c1_mutex, K_FOREVER);
     }
     ret = sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
                           SENSOR_ATTR_CONFIGURATION, &distance_config);
-    if (i2c_mutex) {
-        k_mutex_unlock(i2c_mutex);
+    if (i2c1_mutex) {
+        k_mutex_unlock(i2c1_mutex);
     }
     ASSERT_SOFT(ret);
 
@@ -194,13 +194,13 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex)
     // the driver doesn't allow for sampling frequency below 1Hz
     distance_config.val1 = INTER_MEASUREMENT_FREQ_HZ;
     distance_config.val2 = 0; // fractional part, not used
-    if (i2c_mutex) {
-        k_mutex_lock(i2c_mutex, K_FOREVER);
+    if (i2c1_mutex) {
+        k_mutex_lock(i2c1_mutex, K_FOREVER);
     }
     ret = sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
                           SENSOR_ATTR_SAMPLING_FREQUENCY, &distance_config);
-    if (i2c_mutex) {
-        k_mutex_unlock(i2c_mutex);
+    if (i2c1_mutex) {
+        k_mutex_unlock(i2c1_mutex);
     }
     ASSERT_SOFT(ret);
 
