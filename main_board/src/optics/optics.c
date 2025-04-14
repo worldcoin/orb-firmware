@@ -85,13 +85,13 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
 
 #if PROXIMITY_DETECTION_FOR_IR_SAFETY
     err_code = tof_1d_init(distance_is_unsafe_cb, mutex);
-#else
-    err_code = tof_1d_init(NULL, mutex);
-#endif
     if (err_code) {
         ASSERT_SOFT(err_code);
         return err_code;
     }
+#else
+    UNUSED_PARAMETER(mutex);
+#endif
 
     err_code = gpio_pin_configure_dt(&front_unit_pvcc_enabled, GPIO_INPUT);
     if (err_code) {
