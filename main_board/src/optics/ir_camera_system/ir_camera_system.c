@@ -7,10 +7,19 @@
 #include "utils.h"
 
 #if !defined(IR_CAMERA_UNIT_TESTS)
-// include reference to function in case outside of unit tests, otherwise
+// include reference to function in case outside unit tests, otherwise
 // mock them.
 #include <optics/1d_tof/tof_1d.h>
 #include <optics/optics.h>
+
+#ifndef CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY
+bool
+distance_is_safe()
+{
+    return true;
+}
+#endif
+
 #else
 /** mocked function below for unit tests */
 static bool
@@ -18,6 +27,7 @@ distance_is_safe()
 {
     return true;
 }
+
 static bool
 optics_safety_circuit_triggered()
 {

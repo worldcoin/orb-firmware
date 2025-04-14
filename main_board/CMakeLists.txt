@@ -81,7 +81,6 @@ list(APPEND SOURCES_FILES
     src/main.c
 
     src/optics/optics.c
-    src/optics/1d_tof/tof_1d.c
     src/optics/ir_camera_system/ir_camera_timer_settings.c
     src/optics/ir_camera_system/ir_camera_system_hw.c
     src/optics/ir_camera_system/ir_camera_system.c
@@ -135,6 +134,10 @@ if (CONFIG_BOARD_DIAMOND_MAIN)
         list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds.c)
     endif()
     list(APPEND SOURCES_FILES src/ui/white_leds/white_leds.c)
+endif()
+
+if (CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY)
+    list(APPEND SOURCES_FILES src/optics/1d_tof/tof_1d.c)
 endif()
 
 if (CONFIG_ZTEST)
