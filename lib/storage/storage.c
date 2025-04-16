@@ -125,50 +125,64 @@ reset_area(const struct flash_area *fa)
 int
 storage_peek(char *buffer, size_t *size)
 {
-    int ret = RET_SUCCESS;
+    int flash_read_ret = 0;
+    int err_code = RET_SUCCESS;
     k_sem_take(&sem_storage, K_FOREVER);
 
     if (storage_area.fa == NULL) {
-        ret = RET_ERROR_NOT_INITIALIZED;
+        err_code = RET_ERROR_NOT_INITIALIZED;
         goto exit;
     }
 
     // verify storage is not empty
     if (storage_area.rd_idx == storage_area.wr_idx) {
-        ret = RET_ERROR_NOT_FOUND;
+        err_code = RET_ERROR_NOT_FOUND;
         goto exit;
     }
 
     // read header
     storage_header_t header = {0};
-    ret = flash_area_read(storage_area.fa, storage_area.rd_idx, (void *)&header,
-                          sizeof(storage_header_t));
-
-    // verify `record` can hold the next record to read
-    if (ret || *size < header.record_size) {
-        ret = RET_ERROR_NO_MEM;
+    flash_read_ret = flash_area_read(storage_area.fa, storage_area.rd_idx,
+                                     (void *)&header, sizeof(storage_header_t));
+    if (flash_read_ret) {
+        goto exit;
+    } else if (*size < header.record_size) {
+        err_code = RET_ERROR_NO_MEM;
         goto exit;
     }
 
     // read record
-    ret =
+    flash_read_ret =
         flash_area_read(storage_area.fa,
                         (off_t)(storage_area.rd_idx + sizeof(storage_header_t)),
                         (void *)buffer, header.record_size);
-    // verify record is valid with correct CRC
-    if (ret || header.magic_state != RECORD_VALID ||
-        (header.crc16 !=
-         crc16_ccitt(0xffff, (const uint8_t *)buffer, header.record_size))) {
-        ret = RET_ERROR_INVALID_STATE;
+    if (flash_read_ret) {
+        goto exit;
+    } else if (header.magic_state != RECORD_VALID ||
+               (header.crc16 != crc16_ccitt(0xffff, (const uint8_t *)buffer,
+                                            header.record_size))) {
+        err_code = RET_ERROR_INVALID_STATE;
         goto exit;
     }
 
     *size = header.record_size;
 
 exit:
+    if (flash_read_ret || err_code == RET_ERROR_INVALID_STATE) {
+        const uint32_t rd_idx = storage_area.rd_idx;
+        const uint32_t wr_idx = storage_area.wr_idx;
+        reset_area(storage_area.fa);
+        // print log after area reset to keep it in flash in case remote not
+        // accessible
+        LOG_ERR("Area in invalid state has been reset (flash read ret %d); rd: "
+                "0x%04x, wr: 0x%04x",
+                flash_read_ret, rd_idx, wr_idx);
+        err_code = RET_ERROR_INVALID_STATE;
+    }
+
     k_sem_give(&sem_storage);
 
-    return ret;
+    return err_code;
 }
 
 int
