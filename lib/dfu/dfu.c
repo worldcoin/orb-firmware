@@ -253,6 +253,7 @@ process_dfu_blocks_thread()
         } break;
         case DFU_FINISHED_VERIFY: {
             err_code = dfu_secondary_check(dfu_state.expected_crc32);
+            k_sem_give(&sem_dfu_free_space);
             if (dfu_state.dfu_cb != NULL) {
                 dfu_state.dfu_cb(dfu_state.ctx, err_code);
             }
@@ -330,12 +331,16 @@ dfu_secondary_check_async(uint32_t crc32, void *context,
     // also, make sure state is DFU_FINISHED_VERIFY, meaning that the
     // last block has been processed
     int ret = k_sem_take(&sem_dfu_free_space, K_MSEC(10));
-    if (ret == 0 && dfu_state.state == DFU_FINISHED_VERIFY) {
-        dfu_state.ctx = context;
-        dfu_state.dfu_cb = process_cb;
-        dfu_state.expected_crc32 = crc32;
-        k_sem_give(&sem_dfu_full);
-        ret = -EINPROGRESS;
+    if (ret == 0) {
+        if (dfu_state.state == DFU_FINISHED_VERIFY) {
+            dfu_state.ctx = context;
+            dfu_state.dfu_cb = process_cb;
+            dfu_state.expected_crc32 = crc32;
+            k_sem_give(&sem_dfu_full);
+            ret = -EINPROGRESS;
+        } else {
+            k_sem_give(&sem_dfu_free_space);
+        }
     } else {
         ret = RET_ERROR_INVALID_STATE;
     }
