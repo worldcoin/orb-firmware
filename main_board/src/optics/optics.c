@@ -124,7 +124,7 @@ optics_safety_circuit_triggered(void)
  * check the distance safety so this function only serves
  * in case the ir-leds are not actuated anymore.
  */
-static void
+__maybe_unused static void
 distance_is_unsafe_cb(void)
 {
     ir_camera_system_set_on_time_us(0);
@@ -157,7 +157,11 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
         return err_code;
     }
 
+#if PROXIMITY_DETECTION_FOR_IR_SAFETY
     err_code = tof_1d_init(distance_is_unsafe_cb, mutex);
+#else
+    err_code = tof_1d_init(NULL, mutex);
+#endif
     if (err_code) {
         ASSERT_SOFT(err_code);
         return err_code;

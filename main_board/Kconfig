@@ -4,6 +4,12 @@ menu "Log levels"
 rsource "log_levels.Kconfig"
 endmenu
 
+config PROXIMITY_DETECTION_FOR_IR_SAFETY
+    bool "Ensure safe usage of IR LEDs."
+    default true
+    help
+        Use 1d-tof sensor to detect any object in close proximity and disable IR LED.
+
 comment "Diamond options"
 
 config DT_HAS_DIAMOND_CONE_ENABLED
