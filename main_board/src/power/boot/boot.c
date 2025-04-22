@@ -411,28 +411,15 @@ static int
 turn_on_power_supplies(void)
 {
     int ret = 0;
-    orb_mcu_Hardware version = version_get();
-
     // might be a duplicate call, but it's preferable to be sure that
     // these supplies are on
     power_vbat_5v_3v3_supplies_on();
 
-    // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
-    if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
-        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT ||
-        version.version ==
-            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4) {
-        ret = gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
-        ASSERT_SOFT(ret);
-        LOG_INF("3.3V SSD/SD Card power supply enabled");
-
-        ret = gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
-        ASSERT_SOFT(ret);
-        LOG_INF("3.3V WIFI power supply enabled");
-    }
-
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    ret = gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
+    LOG_INF("3.3V WIFI power supply enabled");
+
     ret = gpio_pin_set_dt(&supply_12v_caps_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("12V_CAPS enabled");
@@ -452,11 +439,18 @@ turn_on_power_supplies(void)
     ret = gpio_pin_set_dt(&supply_2v8_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("2V8 enabled");
-#endif
+#elif defined(CONFIG_BOARD_PEARL_MAIN)
+    orb_mcu_Hardware version = version_get();
+    if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+        ret = gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
+        ASSERT_SOFT(ret);
+        LOG_INF("3.3V SSD/SD Card power supply enabled");
 
-    k_msleep(100);
+        ret = gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
+        ASSERT_SOFT(ret);
+        LOG_INF("3.3V WIFI power supply enabled");
+    }
 
-#if defined(CONFIG_BOARD_PEARL_MAIN)
     ret = gpio_pin_set_dt(&supply_12v_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
 
@@ -473,12 +467,6 @@ turn_on_power_supplies(void)
         LOG_INF("3.8V enabled");
     }
 #endif
-
-    ret = gpio_pin_set_dt(&supply_1v8_enable_gpio_spec, 1);
-    ASSERT_SOFT(ret);
-    LOG_INF("1.8V power supply enabled");
-
-    k_msleep(100);
 
     return 0;
 }
@@ -854,24 +842,46 @@ shutdown_req_uninit(void)
 int
 boot_turn_on_jetson(void)
 {
+    int ret = 0;
+
     LOG_INF("Enabling Jetson power");
-    gpio_pin_set_dt(&jetson_power_enable_gpio_spec, 1);
+    ret = gpio_pin_set_dt(&jetson_power_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
 
     LOG_INF("Waiting for reset done signal from Jetson");
-    while (gpio_pin_get_dt(&jetson_system_reset_gpio_spec) != 0)
-        ;
+    do {
+        ret = gpio_pin_get_dt(&jetson_system_reset_gpio_spec);
+    } while (ret > 0);
+    ASSERT_SOFT(ret);
+
     LOG_INF("Reset done");
+    k_msleep(20);
+
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+    // sd card power supply
+    ret = gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
+    LOG_INF("3.3V SD card power supply enabled");
+#endif
+
+    k_msleep(100);
+
+    ret = gpio_pin_set_dt(&supply_1v8_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
+    LOG_INF("1.8V power supply enabled");
 
     LOG_INF("Setting Jetson to WAKE mode");
-    gpio_pin_set_dt(&jetson_sleep_wake_gpio_spec, 1);
+    ret = gpio_pin_set_dt(&jetson_sleep_wake_gpio_spec, 1);
+    ASSERT_SOFT(ret);
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     LOG_INF("Enabling LTE, GPS, and USB");
-    gpio_pin_set_dt(&lte_gps_usb_reset_gpio_spec, 0);
+    ret = gpio_pin_set_dt(&lte_gps_usb_reset_gpio_spec, 0);
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
     LOG_INF("Enabling USB");
-    gpio_pin_set_dt(&usb_hub_reset_gpio_spec, 0);
+    ret = gpio_pin_set_dt(&usb_hub_reset_gpio_spec, 0);
 #endif
+    ASSERT_SOFT(ret);
 
     shutdown_req_init();
 
@@ -882,6 +892,8 @@ boot_turn_on_jetson(void)
                         (k_thread_entry_t)reboot_thread, NULL, NULL, NULL,
                         THREAD_PRIORITY_POWER_MANAGEMENT, 0, K_NO_WAIT);
     k_thread_name_set(reboot_tid, "reboot");
+
+    k_msleep(500);
 
     return RET_SUCCESS;
 }
