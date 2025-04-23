@@ -194,11 +194,9 @@ BUILD_ASSERT(ARRAY_SIZE(pin_controls) == ARRAY_SIZE(all_pclken),
 #define MASTER_TIMER_ALTERNATE_UPDATE_IRQn                                     \
     DT_IRQ_BY_NAME(DT_PARENT(MASTER_TIMER_NODE), global, irq)
 
-static volatile bool ab_mode_enabled = false;
+static volatile bool ab_mode_enabled = true;
 static volatile bool ir_mode_enabled =
     true; // Tracks if eye camera should be enabled on current cycle
-#define CC_PREEMPT_COUNTS                                                      \
-    20 // Number of counts before ARR to trigger CC interrupt
 
 #define TIMER_MAX_CH 4
 
@@ -958,21 +956,25 @@ setup_alternating_eye_trigger(void)
     // Connect ISR
     IRQ_CONNECT(MASTER_TIMER_ALTERNATE_UPDATE_IRQn,
                 MASTER_TIMER_CC_INTERRUPT_PRIO, master_timer_cc_isr, NULL, 0);
+    irq_enable(MASTER_TIMER_ALTERNATE_UPDATE_IRQn);
 
     return 0;
 }
 
-// Update CC value when ARR changes
+/**
+ * Setup interrupt at half the period to modify pulse config and
+ * alternate between pulse and non-pulse
+ * @return
+ */
 static ret_code_t
 update_alternating_cc_value(void)
 {
     uint32_t cc_value;
 
-    // For very small ARR, return an error (should never happen)
-    if (global_timer_settings.master_arr <= CC_PREEMPT_COUNTS) {
+    if (global_timer_settings.master_arr == 0) {
         return RET_ERROR_INTERNAL;
     } else {
-        cc_value = global_timer_settings.master_arr - CC_PREEMPT_COUNTS;
+        cc_value = global_timer_settings.master_arr / 2;
     }
 
     LL_TIM_OC_SetCompareCH2(MASTER_TIMER, cc_value);
@@ -1005,9 +1007,7 @@ apply_new_timer_settings()
     LL_TIM_SetAutoReload(MASTER_TIMER, global_timer_settings.master_arr);
 
     // Update the CC value for alternating trigger
-    if (RET_SUCCESS != update_alternating_cc_value()) {
-        LOG_ERR("Error updating CC value");
-    }
+    update_alternating_cc_value();
 
     // Rest of the original function...
     set_trigger_arr(ir_camera_system_ir_eye_camera_is_enabled(),
