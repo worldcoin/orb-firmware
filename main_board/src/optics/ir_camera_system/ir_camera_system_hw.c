@@ -40,10 +40,18 @@ LOG_MODULE_DECLARE(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
 // START --- IR camera system master timer
 #define MASTER_TIMER_NODE DT_NODELABEL(ir_camera_system_master_timer)
 PINCTRL_DT_DEFINE(MASTER_TIMER_NODE);
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+// 2 channels for AB mode
 BUILD_ASSERT(
     DT_PROP_LEN(MASTER_TIMER_NODE, channels) == 2,
+    "For ir_camera_system_master_timer, we expect two channels in the device "
+    "tree node");
+#else
+BUILD_ASSERT(
+    DT_PROP_LEN(MASTER_TIMER_NODE, channels) == 1,
     "For ir_camera_system_master_timer, we expect one channel in the device "
     "tree node");
+#endif
 BUILD_ASSERT(DT_PROP_LEN(MASTER_TIMER_NODE, pinctrl_0) == 0,
              "For ir_camera_system_master_timer, we expect the pinctrl-0 "
              "property to contain zero entries in the device tree node");
@@ -191,12 +199,15 @@ BUILD_ASSERT(ARRAY_SIZE(pin_controls) == ARRAY_SIZE(all_pclken),
              "Each array must be the same length");
 // END --- combined
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+
 #define MASTER_TIMER_ALTERNATE_UPDATE_IRQn                                     \
     DT_IRQ_BY_NAME(DT_PARENT(MASTER_TIMER_NODE), global, irq)
 
 static volatile bool ab_mode_enabled = true;
 static volatile bool ir_mode_enabled =
     true; // Tracks if eye camera should be enabled on current cycle
+#endif
 
 #define TIMER_MAX_CH 4
 
@@ -891,6 +902,7 @@ set_trigger_arr(bool enabled, int channel)
     }
 }
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
 // ISR for master timer CC interrupt
 static void
 master_timer_cc_isr(void *arg)
@@ -983,6 +995,7 @@ update_alternating_cc_value(void)
 
     return RET_SUCCESS;
 }
+#endif
 
 static void
 apply_new_timer_settings()
@@ -1006,8 +1019,10 @@ apply_new_timer_settings()
     LL_TIM_SetPrescaler(MASTER_TIMER, global_timer_settings.master_psc);
     LL_TIM_SetAutoReload(MASTER_TIMER, global_timer_settings.master_arr);
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
     // Update the CC value for alternating trigger
     update_alternating_cc_value();
+#endif
 
     // Rest of the original function...
     set_trigger_arr(ir_camera_system_ir_eye_camera_is_enabled(),
@@ -1349,12 +1364,13 @@ ir_camera_system_hw_init(void)
         return RET_ERROR_INTERNAL;
     }
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
     err_code = setup_alternating_eye_trigger();
     if (err_code < 0) {
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
-
+#endif
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     IRQ_CONNECT(LED_940NM_GLOBAL_IRQn, LED_940NM_GLOBAL_INTERRUPT_PRIO,
                 ir_leds_pulse_finished_isr, NULL, 0);
