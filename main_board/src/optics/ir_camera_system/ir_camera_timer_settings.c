@@ -69,9 +69,17 @@ timer_settings_from_fps(uint16_t fps,
         ret = RET_SUCCESS;
         ts = *current_settings;
         ts.fps = fps;
-        ts.master_psc =
-            TIMER_CLOCK_FREQ_HZ / ((1 << TIMER_COUNTER_WIDTH_BITS) * ts.fps);
-        ts.master_arr = TIMER_CLOCK_FREQ_HZ / ((ts.master_psc + 1) * ts.fps);
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+        // AB triggering with ox05 camera has to be twice as fast to get
+        // the commanded fps
+        uint32_t master_fps = fps * 2;
+#else
+        uint32_t master_fps = fps;
+#endif
+        ts.master_psc = TIMER_CLOCK_FREQ_HZ /
+                        ((1 << TIMER_COUNTER_WIDTH_BITS) * master_fps);
+        ts.master_arr =
+            TIMER_CLOCK_FREQ_HZ / ((ts.master_psc + 1) * master_fps);
 
         if (current_settings->on_time_in_us != 0) {
             uint16_t max_on_time_us_for_this_fps =
