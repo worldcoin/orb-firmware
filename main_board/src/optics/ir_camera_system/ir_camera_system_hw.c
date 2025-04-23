@@ -913,12 +913,14 @@ master_timer_cc_isr(void *arg)
                     LL_TIM_CC_EnableChannel(
                         CAMERA_TRIGGER_TIMER,
                         ch2ll[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+                    ir_camera_system_enable_cc_channels();
                 }
             } else {
                 // Disable IR eye camera channel for this frame
                 LL_TIM_CC_DisableChannel(
                     CAMERA_TRIGGER_TIMER,
                     ch2ll[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+                disable_all_led_cc_channels();
             }
         }
     }
