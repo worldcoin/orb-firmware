@@ -411,52 +411,48 @@ static int
 turn_on_power_supplies(void)
 {
     int ret = 0;
-    orb_mcu_Hardware version = version_get();
 
     // might be a duplicate call, but it's preferable to be sure that
     // these supplies are on
     power_vbat_5v_3v3_supplies_on();
 
-    // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
-    if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
-        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT ||
-        version.version ==
-            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4) {
-        ret = gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
-        ASSERT_SOFT(ret);
-        LOG_INF("3.3V SSD/SD Card power supply enabled");
-
-        ret = gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
-        ASSERT_SOFT(ret);
-        LOG_INF("3.3V WIFI power supply enabled");
-    }
-
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     ret = gpio_pin_set_dt(&supply_12v_caps_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("12V_CAPS enabled");
+    k_msleep(20);
 
     ret = gpio_pin_set_dt(&supply_5v_rgb_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("5V_RGB enabled");
+    k_msleep(20);
 
     ret = gpio_pin_set_dt(&supply_3v6_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("3V6 enabled");
+    k_msleep(20);
 
     ret = gpio_pin_set_dt(&supply_3v3_lte_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("3V3_LTE enabled");
+    k_msleep(20);
 
     ret = gpio_pin_set_dt(&supply_2v8_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("2V8 enabled");
-#endif
+    k_msleep(20);
 
-    k_msleep(100);
+    ret = gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
+    LOG_INF("3.3V SD card power supply enabled");
+    k_msleep(20);
 
-#if defined(CONFIG_BOARD_PEARL_MAIN)
+    ret = gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
+    LOG_INF("3.3V WIFI power supply enabled");
+#elif defined(CONFIG_BOARD_PEARL_MAIN)
+    orb_mcu_Hardware version = version_get();
+
     ret = gpio_pin_set_dt(&supply_12v_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
 
@@ -472,7 +468,19 @@ turn_on_power_supplies(void)
         ASSERT_SOFT(ret);
         LOG_INF("3.8V enabled");
     }
+
+    if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+        ret = gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
+        ASSERT_SOFT(ret);
+        LOG_INF("3.3V SSD power supply enabled");
+        k_msleep(20);
+
+        ret = gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
+        ASSERT_SOFT(ret);
+        LOG_INF("3.3V WIFI power supply enabled");
+    }
 #endif
+    k_msleep(100);
 
     ret = gpio_pin_set_dt(&supply_1v8_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);

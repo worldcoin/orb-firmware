@@ -284,6 +284,26 @@ initialize(void)
     err_code = ui_init();
     ASSERT_SOFT(err_code);
 
+    err_code = als_init(&hw, &analog_and_i2c_mutex);
+    ASSERT_SOFT(err_code);
+
+    err_code = dfu_init();
+    ASSERT_SOFT(err_code);
+
+    err_code = button_init();
+    ASSERT_SOFT(err_code);
+
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    err_code = gnss_init();
+    ASSERT_SOFT(err_code);
+#endif
+
+    err_code = fan_tach_init();
+    ASSERT_SOFT(err_code);
+
+    // wait that jetson boots to enable super-caps as it's drawing a lot of
+    // current that is needed for proper jetson boot
+    k_msleep(20000);
 #if !defined(CONFIG_NO_SUPER_CAPS) && !defined(CONFIG_CI_INTEGRATION_TESTS)
     err_code = boot_turn_on_super_cap_charger();
     if (err_code == RET_SUCCESS) {
@@ -301,23 +321,6 @@ initialize(void)
     err_code = optics_init(&hw);
     ASSERT_SOFT(err_code);
 #endif // CONFIG_NO_SUPER_CAPS
-
-    err_code = als_init(&hw, &analog_and_i2c_mutex);
-    ASSERT_SOFT(err_code);
-
-    err_code = dfu_init();
-    ASSERT_SOFT(err_code);
-
-    err_code = button_init();
-    ASSERT_SOFT(err_code);
-
-#if defined(CONFIG_BOARD_PEARL_MAIN)
-    err_code = gnss_init();
-    ASSERT_SOFT(err_code);
-#endif
-
-    err_code = fan_tach_init();
-    ASSERT_SOFT(err_code);
 }
 
 #ifdef CONFIG_ZTEST
