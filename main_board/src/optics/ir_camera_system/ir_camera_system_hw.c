@@ -40,10 +40,18 @@ LOG_MODULE_DECLARE(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
 // START --- IR camera system master timer
 #define MASTER_TIMER_NODE DT_NODELABEL(ir_camera_system_master_timer)
 PINCTRL_DT_DEFINE(MASTER_TIMER_NODE);
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+// 2 channels for AB mode
+BUILD_ASSERT(
+    DT_PROP_LEN(MASTER_TIMER_NODE, channels) == 2,
+    "For ir_camera_system_master_timer, we expect two channels in the device "
+    "tree node");
+#else
 BUILD_ASSERT(
     DT_PROP_LEN(MASTER_TIMER_NODE, channels) == 1,
     "For ir_camera_system_master_timer, we expect one channel in the device "
     "tree node");
+#endif
 BUILD_ASSERT(DT_PROP_LEN(MASTER_TIMER_NODE, pinctrl_0) == 0,
              "For ir_camera_system_master_timer, we expect the pinctrl-0 "
              "property to contain zero entries in the device tree node");
@@ -190,6 +198,16 @@ static const struct pinctrl_dev_config *pin_controls[] = {
 BUILD_ASSERT(ARRAY_SIZE(pin_controls) == ARRAY_SIZE(all_pclken),
              "Each array must be the same length");
 // END --- combined
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+
+#define MASTER_TIMER_ALTERNATE_UPDATE_IRQn                                     \
+    DT_IRQ_BY_NAME(DT_PARENT(MASTER_TIMER_NODE), global, irq)
+
+static volatile bool ab_mode_enabled = true;
+static volatile bool ir_mode_enabled =
+    true; // Tracks if eye camera should be enabled on current cycle
+#endif
 
 #define TIMER_MAX_CH 4
 
@@ -884,6 +902,101 @@ set_trigger_arr(bool enabled, int channel)
     }
 }
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+// ISR for master timer CC interrupt
+static void
+master_timer_cc_isr(void *arg)
+{
+    ARG_UNUSED(arg);
+
+    if (LL_TIM_IsActiveFlag_CC2(MASTER_TIMER)) {
+        // Clear the interrupt flag
+        LL_TIM_ClearFlag_CC2(MASTER_TIMER);
+
+        if (ab_mode_enabled) {
+            // Toggle the state for the next frame
+            ir_mode_enabled = !ir_mode_enabled;
+
+            if (ir_mode_enabled) {
+                // Enable IR eye camera channel for this frame
+                if (ir_camera_system_ir_eye_camera_is_enabled()) {
+                    LL_TIM_CC_EnableChannel(
+                        CAMERA_TRIGGER_TIMER,
+                        ch2ll[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+                    ir_camera_system_enable_cc_channels();
+                }
+            } else {
+                // Disable IR eye camera channel for this frame
+                LL_TIM_CC_DisableChannel(
+                    CAMERA_TRIGGER_TIMER,
+                    ch2ll[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+                disable_all_led_cc_channels();
+            }
+        }
+    }
+
+    if (LL_TIM_IsActiveFlag_UPDATE(MASTER_TIMER)) {
+        // Clear the update interrupt flag
+        LL_TIM_ClearFlag_UPDATE(MASTER_TIMER);
+    }
+}
+
+// Configure the master timer CC interrupt for alternating eye trigger
+static int
+setup_alternating_eye_trigger(void)
+{
+    // Setup capture compare channel on master timer
+    LL_TIM_OC_InitTypeDef oc_init;
+    LL_TIM_OC_StructInit(&oc_init);
+
+    // Configure CC to trigger slightly before ARR
+    oc_init.OCMode = LL_TIM_OCMODE_ACTIVE;
+    oc_init.OCState = LL_TIM_OCSTATE_ENABLE;
+    // Initial value will be updated in apply_new_timer_settings
+    oc_init.CompareValue = 0;
+
+    // Initialize capture compare on channel 2
+    if (LL_TIM_OC_Init(MASTER_TIMER, LL_TIM_CHANNEL_CH2, &oc_init) != SUCCESS) {
+        LOG_ERR("Could not initialize master timer CC channel");
+        return -EIO;
+    }
+
+    // Enable CC preload and interrupt
+    LL_TIM_OC_EnablePreload(MASTER_TIMER, LL_TIM_CHANNEL_CH2);
+    LL_TIM_EnableIT_CC2(MASTER_TIMER);
+
+    // Connect ISR
+    IRQ_CONNECT(MASTER_TIMER_ALTERNATE_UPDATE_IRQn,
+                MASTER_TIMER_CC_INTERRUPT_PRIO, master_timer_cc_isr, NULL, 0);
+    irq_enable(MASTER_TIMER_ALTERNATE_UPDATE_IRQn);
+
+    return 0;
+}
+
+/**
+ * Setup interrupt at half the period to modify pulse config and
+ * alternate between pulse and non-pulse
+ * @return
+ */
+static ret_code_t
+update_alternating_cc_value(void)
+{
+    uint32_t cc_value;
+
+    if (global_timer_settings.master_arr == 0) {
+        return RET_ERROR_INTERNAL;
+    } else {
+        cc_value = global_timer_settings.master_arr / 2;
+    }
+
+    LL_TIM_OC_SetCompareCH2(MASTER_TIMER, cc_value);
+
+    LL_TIM_EnableIT_CC2(MASTER_TIMER);
+
+    return RET_SUCCESS;
+}
+#endif
+
 static void
 apply_new_timer_settings()
 {
@@ -906,6 +1019,12 @@ apply_new_timer_settings()
     LL_TIM_SetPrescaler(MASTER_TIMER, global_timer_settings.master_psc);
     LL_TIM_SetAutoReload(MASTER_TIMER, global_timer_settings.master_arr);
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    // Update the CC value for alternating trigger
+    update_alternating_cc_value();
+#endif
+
+    // Rest of the original function...
     set_trigger_arr(ir_camera_system_ir_eye_camera_is_enabled(),
                     IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     set_trigger_arr(ir_camera_system_ir_face_camera_is_enabled(),
@@ -1245,6 +1364,13 @@ ir_camera_system_hw_init(void)
         return RET_ERROR_INTERNAL;
     }
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    err_code = setup_alternating_eye_trigger();
+    if (err_code < 0) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+#endif
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     IRQ_CONNECT(LED_940NM_GLOBAL_IRQn, LED_940NM_GLOBAL_INTERRUPT_PRIO,
                 ir_leds_pulse_finished_isr, NULL, 0);
