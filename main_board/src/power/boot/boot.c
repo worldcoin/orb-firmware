@@ -417,15 +417,10 @@ turn_on_power_supplies(void)
     power_vbat_5v_3v3_supplies_on();
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    /* an empty super cap takes ~3 to 4 seconds to charge */
-    ret = boot_turn_on_super_cap_charger();
-    ASSERT_SOFT(ret);
-    k_msleep(2000);
-
     ret = gpio_pin_set_dt(&supply_12v_caps_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("12V_CAPS enabled");
-    k_msleep(1000);
+    k_msleep(20);
 
     ret = gpio_pin_set_dt(&supply_5v_rgb_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
@@ -449,7 +444,7 @@ turn_on_power_supplies(void)
 
     ret = gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
-    LOG_INF("3.3V SSD/SD Card power supply enabled");
+    LOG_INF("3.3V SD card power supply enabled");
     k_msleep(20);
 
     ret = gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
@@ -477,7 +472,7 @@ turn_on_power_supplies(void)
     if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         ret = gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
         ASSERT_SOFT(ret);
-        LOG_INF("3.3V SSD/SD Card power supply enabled");
+        LOG_INF("3.3V SSD power supply enabled");
         k_msleep(20);
 
         ret = gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
