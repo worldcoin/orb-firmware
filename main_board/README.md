@@ -36,10 +36,12 @@ Let's build and run the application, you have several options:
 
 #### With Makefile
 
-- Go to `utils/docker`.
+- Go to `<this_repo_root>/utils/docker`.
 - Run `make help` to see all options
 
-To Build: `make main_board-build`
+Note: You will probably need to build the Docker image first via `make build`.
+
+To Build: `make mcu-build`
 
 To Flash: `make mcu-flash`
 
