@@ -1,3 +1,5 @@
+#pragma once
+
 /******************************************************************************
  * @file drv8434_datatypes.h
  * @brief Header file for Texas Instruments DRV8434 stepper motor driver

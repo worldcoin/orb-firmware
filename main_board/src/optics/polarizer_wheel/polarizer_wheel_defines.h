@@ -1,3 +1,5 @@
+#pragma once
+
 /******************************************************************************
  * @file polarizer_wheel_defines.h
  * @brief Defines for Polarizer Wheel Mechanical Setup, Diamond EVT
@@ -26,7 +28,6 @@
  * (microsteps) = 6144 steps/rev 6144 steps/rev / 3 = 2048 steps per filter
  * wheel position For Auto-homing, we can move slow, To move 120 degrees in 1.5
  * seconds, PWM frequency = 2048 / 1.5 = 1365.33 Hz
- *
  */
 #define POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING 1366
 

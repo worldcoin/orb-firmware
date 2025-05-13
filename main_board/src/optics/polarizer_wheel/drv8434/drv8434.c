@@ -18,7 +18,7 @@
 static DRV8434_Instance_t g_drv8434_instance;
 
 ret_code_t
-drv8434_init(DRV8434_DriverCfg_t *cfg)
+drv8434_init(const DRV8434_DriverCfg_t *cfg)
 {
     // Wipe instance
     memset(&g_drv8434_instance, 0, sizeof(DRV8434_Instance_t));
@@ -45,9 +45,7 @@ drv8434_init(DRV8434_DriverCfg_t *cfg)
 ret_code_t
 drv8434_disable(void)
 {
-    // Carry over existing bits in CTRL 2
     DRV8434_CTRL2_REG_t ctrl2 = g_drv8434_instance.registers.ctrl2;
-    // Disable outputs
     ctrl2.EN_OUT = false;
     return drv8434_private_reg_write(DRV8434_REG_CTRL2_ADDR, ctrl2.raw,
                                      &g_drv8434_instance);
@@ -56,9 +54,7 @@ drv8434_disable(void)
 ret_code_t
 drv8434_enable(void)
 {
-    // Carry over existing bits in CTRL 2
     DRV8434_CTRL2_REG_t ctrl2 = g_drv8434_instance.registers.ctrl2;
-    // Enable outputs
     ctrl2.EN_OUT = true;
     return drv8434_private_reg_write(DRV8434_REG_CTRL2_ADDR, ctrl2.raw,
                                      &g_drv8434_instance);
@@ -67,9 +63,7 @@ drv8434_enable(void)
 ret_code_t
 drv8434_clear_fault(void)
 {
-    // Carry over existing bits in CTRL 2
     DRV8434_CTRL4_REG_t ctrl4 = g_drv8434_instance.registers.ctrl4;
-    // Enable outputs
     ctrl4.CLR_FLT = true;
     return drv8434_private_reg_write(DRV8434_REG_CTRL4_ADDR, ctrl4.raw,
                                      &g_drv8434_instance);
@@ -78,9 +72,7 @@ drv8434_clear_fault(void)
 ret_code_t
 drv8434_unlock_control_registers(void)
 {
-    // Carry over existing bits in CTRL 2
     DRV8434_CTRL4_REG_t ctrl4 = g_drv8434_instance.registers.ctrl4;
-    // Enable outputs
     ctrl4.LOCK = DRV8434_REG_CTRL4_VAL_UNLOCK;
     return drv8434_private_reg_write(DRV8434_REG_CTRL4_ADDR, ctrl4.raw,
                                      &g_drv8434_instance);
@@ -89,16 +81,14 @@ drv8434_unlock_control_registers(void)
 ret_code_t
 drv8434_lock_control_registers(void)
 {
-    // Carry over existing bits in CTRL 2
     DRV8434_CTRL4_REG_t ctrl4 = g_drv8434_instance.registers.ctrl4;
-    // Enable outputs
     ctrl4.LOCK = DRV8434_REG_CTRL4_VAL_LOCK;
     return drv8434_private_reg_write(DRV8434_REG_CTRL4_ADDR, ctrl4.raw,
                                      &g_drv8434_instance);
 }
 
 ret_code_t
-drv8434_write_config(DRV8434_DeviceCfg_t *cfg)
+drv8434_write_config(DRV8434_DeviceCfg_t const *const cfg)
 {
     // Copy over desired device config to runtime context
     memcpy(&g_drv8434_instance.device_cfg, cfg, sizeof(DRV8434_DeviceCfg_t));
@@ -197,9 +187,7 @@ drv8434_verify_config(void)
 ret_code_t
 drv8434_enable_stall_guard(void)
 {
-    // Carry over existing bits in CTRL 5
     DRV8434_CTRL5_REG_t ctrl5 = g_drv8434_instance.registers.ctrl5;
-    // Disable outputs
     ctrl5.EN_STL = true;
     return drv8434_private_reg_write(DRV8434_REG_CTRL5_ADDR, ctrl5.raw,
                                      &g_drv8434_instance);
@@ -209,8 +197,6 @@ ret_code_t
 drv8434_scale_current(enum DRV8434_TRQ_DAC_Val current)
 {
     DRV8434_CTRL1_REG_t ctrl1 = g_drv8434_instance.registers.ctrl1;
-
-    // Apply scale current
     ctrl1.TRQ_DAC = current;
     return drv8434_private_reg_write(DRV8434_REG_CTRL1_ADDR, ctrl1.raw,
                                      &g_drv8434_instance);
