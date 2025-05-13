@@ -9,7 +9,6 @@
 #include "pubsub/pubsub.h"
 #include "runner/runner.h"
 #include "system/diag.h"
-#include "system/timer2_irq/timer2_irq.h"
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "temperature/fan/fan_tach.h"
@@ -299,13 +298,6 @@ initialize(void)
     ASSERT_SOFT(err_code);
 #endif
 
-    err_code = fan_tach_init();
-    ASSERT_SOFT(err_code);
-
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    timer2_init();
-#endif
-
     // wait that jetson boots to enable super-caps as it's drawing a lot of
     // current that is needed for proper jetson boot
     k_msleep(20000);
@@ -326,6 +318,13 @@ initialize(void)
     err_code = optics_init(&hw);
     ASSERT_SOFT(err_code);
 #endif // CONFIG_NO_SUPER_CAPS
+
+    // fixme leave some time for polarizer homing
+    // pwm cannot be used as output and input for same timer
+    // but both fan tach and stepper use timer2
+    k_msleep(15000);
+    err_code = fan_tach_init();
+    ASSERT_SOFT(err_code);
 }
 
 #ifdef CONFIG_ZTEST

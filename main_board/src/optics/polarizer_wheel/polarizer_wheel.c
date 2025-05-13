@@ -9,7 +9,6 @@
  *
  ******************************************************************************/
 #include "polarizer_wheel.h"
-#include "system/timer2_irq/timer2_irq.h"
 #include <app_config.h>
 #include <math.h>
 #include <stdlib.h>
@@ -26,7 +25,7 @@ K_THREAD_STACK_DEFINE(stack_area_polarizer_wheel_home,
 
 static Polarizer_Wheel_Instance_t g_polarizer_wheel_instance;
 
-#define SPI_DEVICE_POLARIZER DT_NODELABEL(polarizer_controller)
+#define TIMER2_IRQn DT_IRQN(DT_NODELABEL(timers2))
 
 // Peripherals (Motor Driver SPI, motor driver enable, encoder enable, encoder
 // feedback, step PWM)
@@ -69,11 +68,21 @@ disable_encoder_interrupt(void)
                                            GPIO_INT_DISABLE);
 }
 
+// clear the polarizer wheel step interrupt flag
+static ret_code_t
+clear_step_interrupt(void)
+{
+    LL_TIM_ClearFlag_CC2(polarizer_step_timer);
+
+    return RET_SUCCESS;
+}
+
 // Enable polarizer wheel step interrupt
 static ret_code_t
 enable_step_interrupt(void)
 {
-    polarizer_step_timer->DIER |= TIM_DIER_CC2IE;
+    clear_step_interrupt();
+    LL_TIM_EnableIT_CC2(polarizer_step_timer);
 
     return RET_SUCCESS;
 }
@@ -82,16 +91,7 @@ enable_step_interrupt(void)
 static ret_code_t
 disable_step_interrupt(void)
 {
-    polarizer_step_timer->DIER &= ~TIM_DIER_CC2IE;
-
-    return RET_SUCCESS;
-}
-
-// clear the polarizer wheel step interrupt flag
-static ret_code_t
-clear_step_interrupt(void)
-{
-    polarizer_step_timer->SR &= ~TIM_SR_CC2IF;
+    LL_TIM_DisableIT_CC2(polarizer_step_timer);
 
     return RET_SUCCESS;
 }
@@ -132,29 +132,34 @@ encoder_callback(const struct device *dev, struct gpio_callback *cb,
 }
 
 static void
-polarizer_wheel_step_isr(void *arg)
+polarizer_wheel_step_isr(const void *arg)
 {
     ARG_UNUSED(arg);
 
-    atomic_inc(&g_polarizer_wheel_instance.step_count.step_count_current);
-    atomic_t current =
-        atomic_get(&g_polarizer_wheel_instance.step_count.step_count_current);
-    if (current >= g_polarizer_wheel_instance.step_count.step_count_target) {
-        pwm_set_dt(&polarizer_step_pwm_spec, 0, 0);
-        g_polarizer_wheel_instance.movement.wheel_moving = false;
-        atomic_set(&g_polarizer_wheel_instance.step_count.step_count_current,
-                   0);
-        g_polarizer_wheel_instance.step_count.step_count_target = 0;
-        if (g_polarizer_wheel_instance.movement.target_position !=
-            POLARIZER_WHEEL_POSITION_UNKNOWN) {
-            g_polarizer_wheel_instance.movement.current_position =
-                g_polarizer_wheel_instance.movement.target_position;
-            g_polarizer_wheel_instance.movement.target_position =
-                POLARIZER_WHEEL_POSITION_UNKNOWN;
+    if (LL_TIM_IsActiveFlag_CC2(polarizer_step_timer)) {
+        atomic_inc(&g_polarizer_wheel_instance.step_count.step_count_current);
+        atomic_t current = atomic_get(
+            &g_polarizer_wheel_instance.step_count.step_count_current);
+        LOG_DBG("step: %ld", current);
+
+        if (current >=
+            g_polarizer_wheel_instance.step_count.step_count_target) {
+            pwm_set_dt(&polarizer_step_pwm_spec, 0, 0);
+            g_polarizer_wheel_instance.movement.wheel_moving = false;
+            atomic_set(
+                &g_polarizer_wheel_instance.step_count.step_count_current, 0);
+            g_polarizer_wheel_instance.step_count.step_count_target = 0;
+            if (g_polarizer_wheel_instance.movement.target_position !=
+                POLARIZER_WHEEL_POSITION_UNKNOWN) {
+                g_polarizer_wheel_instance.movement.current_position =
+                    g_polarizer_wheel_instance.movement.target_position;
+                g_polarizer_wheel_instance.movement.target_position =
+                    POLARIZER_WHEEL_POSITION_UNKNOWN;
+            }
+            disable_step_interrupt();
         }
-        disable_step_interrupt();
+        clear_step_interrupt();
     }
-    clear_step_interrupt();
 }
 
 // Check if all peripherals are ready for use
@@ -271,7 +276,11 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     }
     start_polarizer_wheel_step(POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
                                POLARIZER_WHEEL_STEPS_CORRECTION);
-    return;
+
+    // wait for completion and disconnect interrupt
+    k_sleep(K_SECONDS(1));
+    irq_disable(TIMER2_IRQn);
+    irq_disconnect_dynamic(TIMER2_IRQn, 0, polarizer_wheel_step_isr, NULL, 0);
 }
 
 ret_code_t
@@ -394,13 +403,9 @@ polarizer_wheel_configure(void)
         return ret_val;
     }
 
-    if (ret_val != RET_SUCCESS) {
-        return ret_val;
-    }
-
-    // Configure the timer interrupt to be able to count stepss
-    timer2_register_callback(POLARIZER_STEP_CHANNEL, polarizer_wheel_step_isr,
-                             NULL);
+    irq_connect_dynamic(TIMER2_IRQn, 0, polarizer_wheel_step_isr, NULL, 0);
+    clear_step_interrupt();
+    irq_enable(TIMER2_IRQn);
 
     k_tid_t tid = k_thread_create(
         &thread_data_polarizer_wheel_home, stack_area_polarizer_wheel_home,
