@@ -1053,8 +1053,8 @@
     };
 
     polarizer_controller: polarizer_controller@1 {
-        compatible = "zephyr,spi-device";
-        reg = <1>;  /* This will use the I/O expander CS */
+        compatible = "ti,drv8434s";
+        reg = <1>;
         spi-max-frequency = <4000000>;
         status = "okay";
     };

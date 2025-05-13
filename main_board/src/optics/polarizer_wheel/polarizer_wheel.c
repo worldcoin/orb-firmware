@@ -25,6 +25,7 @@ LOG_MODULE_REGISTER(polarizer, CONFIG_POLARIZER_LOG_LEVEL);
 
 K_THREAD_STACK_DEFINE(stack_area_polarizer_wheel_home,
                       THREAD_STACK_SIZE_POLARIZER_WHEEL_HOME);
+static struct k_thread thread_data_polarizer_wheel_home;
 
 static polarizer_wheel_instance_t g_polarizer_wheel_instance;
 
@@ -48,12 +49,17 @@ static const struct gpio_dt_spec polarizer_encoder_enable_spec =
 static const struct gpio_dt_spec polarizer_encoder_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), polarizer_stepper_encoder_gpios);
 
-// TODO get this correctly from the device tree
-static TIM_TypeDef *polarizer_step_timer = TIM2;
-
-static struct k_thread thread_data_polarizer_wheel_home;
-
+static TIM_TypeDef *polarizer_step_timer =
+    (TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(DT_NODELABEL(polarizer_step_pwm)));
 static struct gpio_callback polarizer_encoder_cb_data;
+
+// Set up the DRV8434 driver configuration
+static const DRV8434_DriverCfg_t drv8434_cfg = {
+    .spi = (struct spi_dt_spec)SPI_DT_SPEC_GET(
+        DT_NODELABEL(polarizer_controller),
+        SPI_WORD_SET(8) | SPI_OP_MODE_MASTER | SPI_MODE_CPHA | SPI_TRANSFER_MSB,
+        0),
+    .spi_cs_gpio = &polarizer_spi_cs_gpio};
 
 // Enable encoder interrupt
 static ret_code_t
@@ -420,16 +426,6 @@ polarizer_wheel_init(void)
 
     // Clear the Polarizer Wheel runtime context
     memset(&g_polarizer_wheel_instance, 0, sizeof(polarizer_wheel_instance_t));
-
-    // Set up the DRV8434 driver configuration
-    DRV8434_DriverCfg_t drv8434_cfg = {0};
-    drv8434_cfg.spi_cfg = (struct spi_config){
-        .frequency = 1000000,
-        .operation = SPI_WORD_SET(8) | SPI_OP_MODE_MASTER | SPI_MODE_CPHA |
-                     SPI_TRANSFER_MSB,
-    };
-    drv8434_cfg.spi_bus_controller = polarizer_spi_bus_controller;
-    drv8434_cfg.spi_cs_gpio = &polarizer_spi_cs_gpio;
 
     // Initialize the DRV8434 driver
     ret_val = drv8434_init(&drv8434_cfg);
