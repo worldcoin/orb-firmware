@@ -18,6 +18,7 @@
 #include "ui/ui.h"
 #include "voltage_measurement/voltage_measurement.h"
 #include <heartbeat.h>
+#include <optics/polarizer_wheel/polarizer_wheel.h>
 #include <pb_decode.h>
 #include <stdlib.h>
 #include <uart_messaging.h>
@@ -951,7 +952,7 @@ handle_dfu_block_message(job_t *job)
 }
 
 static void
-handle_do_homing(job_t *job)
+handle_do_mirror_homing(job_t *job)
 {
     ret_code_t ret = RET_SUCCESS;
     orb_mcu_main_JetsonToMcu *msg = &job->message;
@@ -1045,6 +1046,34 @@ handle_liquid_lens(job_t *job)
         }
     }
 }
+
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+static void
+handle_polarizer(job_t *job)
+{
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_polarizer_tag);
+
+    ret_code_t err_code;
+
+    switch (msg->payload.polarizer.command) {
+    case orb_mcu_main_Polarizer_Command_POLARIZER_HOME: {
+        err_code = polarizer_wheel_home_async();
+        if (err_code == RET_SUCCESS) {
+            job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+        } else {
+            job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
+        }
+    } break;
+    case orb_mcu_main_Polarizer_Command_POLARIZER_PASS_THROUGH:
+    case orb_mcu_main_Polarizer_Command_POLARIZER_0_HORIZONTAL:
+    case orb_mcu_main_Polarizer_Command_POLARIZER_90_VERTICAL:
+    default:
+        // not implemented yet
+        job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+    }
+}
+#endif
 
 static void
 handle_voltage_request(job_t *job)
@@ -1454,7 +1483,7 @@ static const hm_callback handle_message_callbacks[] = {
     [orb_mcu_main_JetsonToMcu_shutdown_tag] = handle_shutdown,
     [orb_mcu_main_JetsonToMcu_reboot_tag] = handle_reboot_message,
     [orb_mcu_main_JetsonToMcu_mirror_angle_tag] = handle_mirror_angle_message,
-    [orb_mcu_main_JetsonToMcu_do_homing_tag] = handle_do_homing,
+    [orb_mcu_main_JetsonToMcu_do_homing_tag] = handle_do_mirror_homing,
     [orb_mcu_main_JetsonToMcu_infrared_leds_tag] = handle_infrared_leds_message,
     [orb_mcu_main_JetsonToMcu_led_on_time_tag] = handle_led_on_time_message,
     [orb_mcu_main_JetsonToMcu_user_leds_pattern_tag] = handle_user_leds_pattern,
@@ -1516,6 +1545,7 @@ static const hm_callback handle_message_callbacks[] = {
     [orb_mcu_main_JetsonToMcu_cone_leds_pattern_tag] = handle_cone_leds_pattern,
     [orb_mcu_main_JetsonToMcu_white_leds_brightness_tag] =
         handle_white_leds_brightness,
+    [orb_mcu_main_JetsonToMcu_polarizer_tag] = handle_polarizer,
 #elif defined(CONFIG_BOARD_PEARL_MAIN)
     [orb_mcu_main_JetsonToMcu_cone_leds_sequence_tag] = handle_not_supported,
     [orb_mcu_main_JetsonToMcu_cone_leds_pattern_tag] = handle_not_supported,
@@ -1525,7 +1555,7 @@ static const hm_callback handle_message_callbacks[] = {
 #endif
 };
 
-BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 48),
+BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 49),
              "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
