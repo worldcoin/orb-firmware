@@ -51,7 +51,9 @@ polarizer_wheel_set_position(polarizer_wheel_position_t position);
  * The maximum number of steps perform is if the initial position is between
  * notch #3 and #0 (more than one entire revolution)
  *
- * @retval RET_ERROR_INVALID_STATE if already in progress
+ * @retval RET_ERROR_BUSY if already in progress
+ * @retval RET_ERROR_NOT_INITIALIZED if module not initialized or no wheel
+ * detected
  * @retval RET_SUCCESS spawned successfully
  */
 ret_code_t

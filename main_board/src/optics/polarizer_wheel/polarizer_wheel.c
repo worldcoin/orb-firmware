@@ -118,13 +118,10 @@ encoder_callback(const struct device *dev, struct gpio_callback *cb,
     ARG_UNUSED(cb);
 
     if (pins & BIT(polarizer_encoder_spec.pin)) {
-        if (g_polarizer_wheel_instance.homing.state ==
-            POLARIZER_WHEEL_AUTO_HOMING_STATE_IN_PROGRESS) {
-            if (gpio_pin_get_dt(&polarizer_encoder_spec) == 1) {
-                LOG_DBG("notches detected: %u",
-                        g_polarizer_wheel_instance.homing.notch_count);
-                k_sem_give(&home_sem);
-            }
+        if (gpio_pin_get_dt(&polarizer_encoder_spec) == 1) {
+            LOG_DBG("notches detected: %u",
+                    g_polarizer_wheel_instance.homing.notch_count);
+            k_sem_give(&home_sem);
         }
     }
 }
@@ -186,6 +183,8 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     ARG_UNUSED(p2);
     ARG_UNUSED(p3);
 
+    drv8434_scale_current(DRV8434_TRQ_DAC_75);
+
     // enable pwm interrupt
     irq_connect_dynamic(TIMER2_IRQn, 0, polarizer_wheel_step_isr, NULL, 0);
     clear_step_interrupt();
@@ -202,7 +201,14 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
 
     while (!homed) {
         // wait for notch detection
-        k_sem_take(&home_sem, K_FOREVER);
+        const int ret = k_sem_take(&home_sem, K_SECONDS(10));
+        if (ret != 0) {
+            // no wheel?
+            g_polarizer_wheel_instance.status =
+                orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
+            LOG_ERR("polarizer wheel not detected");
+            return;
+        }
 
         LOG_INF("homing: steps: %ld, notch count: %d",
                 atomic_get(&g_polarizer_wheel_instance.step_count.current),
@@ -304,8 +310,15 @@ polarizer_wheel_home_async(void)
 {
     static bool started_once = false;
 
+    if (g_polarizer_wheel_instance.status !=
+        orb_mcu_HardwareDiagnostic_Status_STATUS_OK) {
+        return RET_ERROR_NOT_INITIALIZED;
+    }
+
     if (started_once == false ||
         k_thread_join(&thread_data_polarizer_wheel_home, K_NO_WAIT) == 0) {
+        // homing not in progress, status must be successful, otherwise
+        // it tells us that
         k_thread_create(
             &thread_data_polarizer_wheel_home, stack_area_polarizer_wheel_home,
             K_THREAD_STACK_SIZEOF(stack_area_polarizer_wheel_home),
@@ -315,7 +328,7 @@ polarizer_wheel_home_async(void)
                           "polarizer_homing");
         started_once = true;
     } else {
-        return RET_ERROR_INVALID_STATE;
+        return RET_ERROR_BUSY;
     }
 
     return RET_SUCCESS;
@@ -342,6 +355,11 @@ polarizer_wheel_init(void)
         ASSERT_SOFT(RET_ERROR_INVALID_STATE);
         return RET_ERROR_INVALID_STATE;
     }
+
+    // Clear the Polarizer Wheel runtime context
+    memset(&g_polarizer_wheel_instance, 0, sizeof(g_polarizer_wheel_instance));
+    g_polarizer_wheel_instance.status =
+        orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
 
     // Enable the polarizer SPI CS pin
     ret_val =
@@ -396,9 +414,6 @@ polarizer_wheel_init(void)
         return RET_ERROR_INTERNAL;
     }
 
-    // Clear the Polarizer Wheel runtime context
-    memset(&g_polarizer_wheel_instance, 0, sizeof(g_polarizer_wheel_instance));
-
     // Initialize the DRV8434 driver
     ret_val = drv8434_init(&drv8434_cfg);
     if (ret_val != 0) {
@@ -425,6 +440,9 @@ polarizer_wheel_init(void)
 
     ret_val = drv8434_write_config(&drv8434_cfg);
     ASSERT_SOFT(ret_val);
+    if (ret_val) {
+        return ret_val;
+    }
 
     ret_val = drv8434_read_config();
     ASSERT_SOFT(ret_val);
@@ -445,6 +463,8 @@ polarizer_wheel_init(void)
         return ret_val;
     }
 
+    g_polarizer_wheel_instance.status =
+        orb_mcu_HardwareDiagnostic_Status_STATUS_OK;
     ret_val = polarizer_wheel_home_async();
     return ret_val;
 }
