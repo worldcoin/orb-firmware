@@ -1056,6 +1056,11 @@ handle_polarizer(job_t *job)
 
     ret_code_t err_code;
 
+    uint32_t frequency_usteps_per_second =
+        msg->payload.polarizer.speed == 0
+            ? POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN
+            : POLARIZER_MICROSTEPS_PER_SECOND(msg->payload.polarizer.speed);
+
     switch (msg->payload.polarizer.command) {
     case orb_mcu_main_Polarizer_Command_POLARIZER_HOME: {
         err_code = polarizer_wheel_home_async();
@@ -1067,13 +1072,40 @@ handle_polarizer(job_t *job)
             // no wheel detected during homing or module not initialized
             job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
         }
+        return;
     } break;
     case orb_mcu_main_Polarizer_Command_POLARIZER_PASS_THROUGH:
+        err_code = polarizer_wheel_set_angle(
+            frequency_usteps_per_second,
+            POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE);
+        break;
     case orb_mcu_main_Polarizer_Command_POLARIZER_0_HORIZONTAL:
+        err_code = polarizer_wheel_set_angle(
+            frequency_usteps_per_second,
+            POLARIZER_WHEEL_HORIZONTALLY_POLARIZED_ANGLE);
+        break;
     case orb_mcu_main_Polarizer_Command_POLARIZER_90_VERTICAL:
+        err_code = polarizer_wheel_set_angle(
+            frequency_usteps_per_second,
+            POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE);
+        break;
+    case orb_mcu_main_Polarizer_Command_POLARIZER_CUSTOM_ANGLE:
+        err_code =
+            polarizer_wheel_set_angle(frequency_usteps_per_second,
+                                      msg->payload.polarizer.angle_decidegrees);
+        break;
     default:
         // not implemented yet
         job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+        return;
+    }
+
+    if (err_code == RET_SUCCESS) {
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+    } else if (err_code == RET_ERROR_INVALID_PARAM) {
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
+    } else {
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     }
 }
 #endif

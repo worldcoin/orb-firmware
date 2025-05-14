@@ -9,7 +9,6 @@
  *
  ******************************************************************************/
 #include "polarizer_wheel.h"
-#include "polarizer_wheel_defines.h"
 #include <app_assert.h>
 #include <app_config.h>
 #include <math.h>
@@ -107,6 +106,43 @@ disable_step_interrupt(void)
     return RET_SUCCESS;
 }
 
+int
+polarizer_move(uint32_t frequency)
+{
+    enable_step_interrupt();
+    return pwm_set_dt(&polarizer_step_pwm_spec, NSEC_PER_SEC / frequency,
+                      (NSEC_PER_SEC / frequency) / 2);
+}
+
+int
+polarizer_stop()
+{
+    disable_step_interrupt();
+    return pwm_set_dt(&polarizer_step_pwm_spec, 0, 0);
+}
+
+int
+set_direction(const enum polarizer_wheel_direction_e direction)
+{
+    int ret;
+    switch (direction) {
+    case POLARIZER_WHEEL_DIRECTION_BACKWARD:
+        ret = gpio_pin_set_dt(&polarizer_step_dir_spec, 1);
+        break;
+    case POLARIZER_WHEEL_DIRECTION_FORWARD:
+        ret = gpio_pin_set_dt(&polarizer_step_dir_spec, 0);
+        break;
+    default:
+        ret = RET_ERROR_INVALID_PARAM;
+    }
+
+    if (ret == 0) {
+        g_polarizer_wheel_instance.step_count.direction = direction;
+    }
+
+    return ret;
+}
+
 // Define callback function
 static void
 encoder_callback(const struct device *dev, struct gpio_callback *cb,
@@ -132,46 +168,65 @@ polarizer_wheel_step_isr(const void *arg)
     ARG_UNUSED(arg);
 
     if (LL_TIM_IsActiveFlag_CC2(polarizer_step_timer)) {
-        atomic_inc(&g_polarizer_wheel_instance.step_count.current);
+        if (g_polarizer_wheel_instance.step_count.direction ==
+            POLARIZER_WHEEL_DIRECTION_BACKWARD) {
+            atomic_dec(&g_polarizer_wheel_instance.step_count.current);
+        } else {
+            atomic_inc(&g_polarizer_wheel_instance.step_count.current);
+        }
+
+        // handle wraps around
         if (atomic_get(&g_polarizer_wheel_instance.step_count.current) >
-            POLARIZER_WHEEL_STEPS_PER_1_FILTER_WHEEL_POSITION * 3) {
+            POLARIZER_WHEEL_MICROSTEPS_360_DEGREES) {
             atomic_clear(&g_polarizer_wheel_instance.step_count.current);
+        }
+        if (atomic_get(&g_polarizer_wheel_instance.step_count.current) < 0) {
+            atomic_set(&g_polarizer_wheel_instance.step_count.current,
+                       POLARIZER_WHEEL_MICROSTEPS_360_DEGREES - 1);
         }
 
         if (g_polarizer_wheel_instance.step_count.target ==
             g_polarizer_wheel_instance.step_count.current) {
             LOG_DBG("Reached target (%lu), stopping motor",
                     g_polarizer_wheel_instance.step_count.target);
-            pwm_set_dt(&polarizer_step_pwm_spec, 0, 0);
+            polarizer_stop();
         }
+
         clear_step_interrupt();
     }
 }
 
 static ret_code_t
-start_polarizer_wheel_step(uint32_t frequency, uint32_t step_count)
+start_polarizer_wheel_step_relative(uint32_t frequency, int32_t step_count)
 {
     int ret_val = RET_SUCCESS;
 
-    if (frequency == 0 || step_count == 0) {
+    if (frequency == 0 || step_count == 0 ||
+        step_count > POLARIZER_WHEEL_MICROSTEPS_360_DEGREES) {
         return RET_ERROR_INVALID_PARAM;
     }
 
-    // Calculate period and pulse width in nanoseconds
-    const uint32_t period_ns = NSEC_PER_SEC / frequency;
-    const uint32_t pulse_ns = period_ns / 2;
-
-    // Start PWM
-    ret_val = pwm_set_dt(&polarizer_step_pwm_spec, period_ns, pulse_ns);
-    ASSERT_SOFT(ret_val);
-
-    if (ret_val == 0) {
-        // Reset pulse counter
-        atomic_clear(&g_polarizer_wheel_instance.step_count.current);
-        atomic_set(&g_polarizer_wheel_instance.step_count.target, step_count);
-        // Enable channel 2 compare interrupt
-        enable_step_interrupt();
+    if (step_count < 0) {
+        set_direction(POLARIZER_WHEEL_DIRECTION_BACKWARD);
+        if (g_polarizer_wheel_instance.step_count.current + step_count < 0) {
+            int32_t target =
+                POLARIZER_WHEEL_MICROSTEPS_360_DEGREES +
+                (g_polarizer_wheel_instance.step_count.current + step_count);
+            atomic_set(&g_polarizer_wheel_instance.step_count.target, target);
+        } else {
+            int32_t target =
+                g_polarizer_wheel_instance.step_count.current + step_count;
+            atomic_set(&g_polarizer_wheel_instance.step_count.target, target);
+        }
+    } else {
+        set_direction(POLARIZER_WHEEL_DIRECTION_FORWARD);
+        int32_t target =
+            (g_polarizer_wheel_instance.step_count.current + step_count) %
+            POLARIZER_WHEEL_MICROSTEPS_360_DEGREES;
+        atomic_set(&g_polarizer_wheel_instance.step_count.target, target);
     }
+
+    ret_val = polarizer_move(frequency);
 
     return ret_val;
 }
@@ -183,29 +238,27 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     ARG_UNUSED(p2);
     ARG_UNUSED(p3);
 
-    drv8434_scale_current(DRV8434_TRQ_DAC_75);
-
-    // enable pwm interrupt
-    irq_connect_dynamic(TIMER2_IRQn, 0, polarizer_wheel_step_isr, NULL, 0);
     clear_step_interrupt();
-    irq_enable(TIMER2_IRQn);
 
     // enable encoder interrupt to detect notches
     enable_encoder_interrupt();
 
     bool homed = false;
     g_polarizer_wheel_instance.homing.notch_count = 0;
-    start_polarizer_wheel_step(
-        POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
-        POLARIZER_WHEEL_STEPS_PER_1_FILTER_WHEEL_POSITION * 4);
+    set_direction(POLARIZER_WHEEL_DIRECTION_FORWARD);
 
     while (!homed) {
+        start_polarizer_wheel_step_relative(
+            POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN,
+            POLARIZER_WHEEL_MICROSTEPS_120_DEGREES * 2);
+
         // wait for notch detection
         const int ret = k_sem_take(&home_sem, K_SECONDS(10));
         if (ret != 0) {
             // no wheel?
             g_polarizer_wheel_instance.status =
                 orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
+            polarizer_stop();
             LOG_ERR("polarizer wheel not detected");
             return;
         }
@@ -218,7 +271,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
         // counter resets and actually start counting steps afterwards
         if (g_polarizer_wheel_instance.homing.notch_count != 0 &&
             g_polarizer_wheel_instance.step_count.current < 1000) {
-            pwm_set_dt(&polarizer_step_pwm_spec, 0, 0);
+            polarizer_stop();
             homed = true;
         }
 
@@ -226,81 +279,62 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
         atomic_clear(&g_polarizer_wheel_instance.step_count.current);
     }
 
-    start_polarizer_wheel_step(POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
-                               POLARIZER_WHEEL_STEPS_CORRECTION);
+    start_polarizer_wheel_step_relative(
+        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN,
+        POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER +
+            POLARIZER_WHEEL_MICROSTEPS_120_DEGREES);
 
     // wait for completion and disconnect interrupt
-    k_sleep(K_SECONDS(1));
+    k_sleep(K_SECONDS(2));
     disable_step_interrupt();
-    irq_disable(TIMER2_IRQn);
-    irq_disconnect_dynamic(TIMER2_IRQn, 0, polarizer_wheel_step_isr, NULL, 0);
 
     LOG_INF("Polarizer wheel homed");
-    drv8434_scale_current(DRV8434_TRQ_DAC_25);
 
     // reset step counter
     atomic_clear(&g_polarizer_wheel_instance.step_count.current);
 }
 
-polarizer_wheel_position_t
-polarizer_wheel_get_position(void)
-{
-    return g_polarizer_wheel_instance.step_count.current;
-}
-
-// TODO: This function will move the wheel from notch to notch but slowly
-//  Might need to implement a trapezoidal velocity profile to move the wheel
-//  faster without step loss Evaluate before DVT and signup integration
 ret_code_t
-polarizer_wheel_set_position(polarizer_wheel_position_t position)
+polarizer_wheel_set_angle(uint32_t frequency, uint32_t angle_decidegrees)
 {
     ret_code_t ret_val = RET_SUCCESS;
 
-    if (position == POLARIZER_WHEEL_POSITION_UNKNOWN) {
+    if (angle_decidegrees > 3600 ||
+        frequency > POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_1SEC_PER_TURN) {
         return RET_ERROR_INVALID_PARAM;
     }
-    g_polarizer_wheel_instance.step_count.target = position;
 
-    switch (g_polarizer_wheel_instance.step_count.current) {
-    case POLARIZER_WHEEL_POSITION_PASS_THROUGH:
-        if (position == POLARIZER_WHEEL_POSITION_0_DEGREE) {
-            ret_val = start_polarizer_wheel_step(
-                POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
-                POLARIZER_WHEEL_STEPS_PER_1_FILTER_WHEEL_POSITION);
-        } else if (position == POLARIZER_WHEEL_POSITION_90_DEGREE) {
-            ret_val = start_polarizer_wheel_step(
-                683, POLARIZER_WHEEL_STEPS_PER_2_FILTER_WHEEL_POSITION);
-        }
-        break;
-    case POLARIZER_WHEEL_POSITION_0_DEGREE:
-        if (position == POLARIZER_WHEEL_POSITION_PASS_THROUGH) {
-            ret_val = start_polarizer_wheel_step(
-                POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
-                POLARIZER_WHEEL_STEPS_PER_2_FILTER_WHEEL_POSITION);
-        } else if (position == POLARIZER_WHEEL_POSITION_90_DEGREE) {
-            ret_val = start_polarizer_wheel_step(
-                POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
-                POLARIZER_WHEEL_STEPS_PER_1_FILTER_WHEEL_POSITION);
-        }
-        break;
-    case POLARIZER_WHEEL_POSITION_90_DEGREE:
-        if (position == POLARIZER_WHEEL_POSITION_PASS_THROUGH) {
-            ret_val = start_polarizer_wheel_step(
-                POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
-                POLARIZER_WHEEL_STEPS_PER_1_FILTER_WHEEL_POSITION);
-        } else if (position == POLARIZER_WHEEL_POSITION_0_DEGREE) {
-            ret_val = start_polarizer_wheel_step(
-                POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
-                POLARIZER_WHEEL_STEPS_PER_2_FILTER_WHEEL_POSITION);
-        }
-        break;
-    default:
-        break;
+    uint32_t target_step =
+        angle_decidegrees * POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 3600;
+    uint32_t current =
+        atomic_get(&g_polarizer_wheel_instance.step_count.current);
+
+    if (target_step == current) {
+        return RET_SUCCESS;
     }
 
-    if (ret_val != RET_SUCCESS) {
-        return ret_val;
+    if (target_step >= current) {
+        if ((target_step - current) <
+            POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 2) {
+            set_direction(POLARIZER_WHEEL_DIRECTION_FORWARD);
+        } else {
+            set_direction(POLARIZER_WHEEL_DIRECTION_BACKWARD);
+        }
+    } else {
+        if (current - target_step >
+            POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 2) {
+            set_direction(POLARIZER_WHEEL_DIRECTION_FORWARD);
+        } else {
+            set_direction(POLARIZER_WHEEL_DIRECTION_BACKWARD);
+        }
     }
+
+    LOG_INF("angle(deci): %u, target_step: %u, current: %u, dir: %d",
+            angle_decidegrees, target_step, current,
+            g_polarizer_wheel_instance.step_count.direction);
+    atomic_set(&g_polarizer_wheel_instance.step_count.target, target_step);
+
+    ret_val = polarizer_move(frequency);
 
     return ret_val;
 }
@@ -462,6 +496,10 @@ polarizer_wheel_init(void)
     } else {
         return ret_val;
     }
+
+    // enable pwm interrupt
+    irq_connect_dynamic(TIMER2_IRQn, 0, polarizer_wheel_step_isr, NULL, 0);
+    irq_enable(TIMER2_IRQn);
 
     g_polarizer_wheel_instance.status =
         orb_mcu_HardwareDiagnostic_Status_STATUS_OK;
