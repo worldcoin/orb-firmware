@@ -8,6 +8,7 @@
  *
  ******************************************************************************/
 
+#include <common.pb.h>
 #include <zephyr/sys/atomic.h>
 
 typedef enum {
@@ -17,33 +18,17 @@ typedef enum {
     POLARIZER_WHEEL_POSITION_90_DEGREE = 4096,
 } polarizer_wheel_position_t;
 
-typedef enum {
-    POLARIZER_WHEEL_AUTO_HOMING_STATE_IN_PROGRESS,
-    POLARIZER_WHEEL_AUTO_HOMING_STATE_FAILED,
-    POLARIZER_WHEEL_AUTO_HOMING_STATE_SUCCESS,
-} polarizer_homing_state_t;
-
 typedef struct {
-    // General Information
-    struct {
-        bool init_done;
-        bool auto_homing_done;
-    } general;
+    // polarizer wheel status
+    orb_mcu_HardwareDiagnostic_Status status;
 
     struct {
-        polarizer_homing_state_t state;
         uint8_t notch_count;
+        bool success;
     } homing;
 
     struct {
         atomic_t current;
         atomic_t target;
     } step_count;
-
-    struct {
-        uint8_t spi_error;
-        uint8_t init_error;
-        uint8_t configure_error;
-    } errors;
-
 } polarizer_wheel_instance_t;

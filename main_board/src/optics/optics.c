@@ -124,10 +124,7 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     err_code = polarizer_wheel_init();
-    if (err_code) {
-        ASSERT_SOFT(err_code);
-        return err_code;
-    }
+    ASSERT_SOFT(err_code);
 #endif
 
     err_code = gpio_pin_configure_dt(&front_unit_pvcc_enabled, GPIO_INPUT);

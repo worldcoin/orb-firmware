@@ -1061,8 +1061,11 @@ handle_polarizer(job_t *job)
         err_code = polarizer_wheel_home_async();
         if (err_code == RET_SUCCESS) {
             job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
-        } else {
+        } else if (err_code == RET_ERROR_BUSY) {
             job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
+        } else {
+            // no wheel detected during homing or module not initialized
+            job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
         }
     } break;
     case orb_mcu_main_Polarizer_Command_POLARIZER_PASS_THROUGH:
