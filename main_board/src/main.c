@@ -300,8 +300,8 @@ initialize(void)
 
     // wait that jetson boots to enable super-caps as it's drawing a lot of
     // current that is needed for proper jetson boot
-    k_msleep(20000);
 #if !defined(CONFIG_NO_SUPER_CAPS) && !defined(CONFIG_CI_INTEGRATION_TESTS)
+    k_msleep(20000);
     err_code = boot_turn_on_super_cap_charger();
     if (err_code == RET_SUCCESS) {
         err_code = boot_turn_on_pvcc();
@@ -315,7 +315,7 @@ initialize(void)
         ASSERT_SOFT(err_code);
     }
 #else
-    err_code = optics_init(&hw);
+    err_code = optics_init(&hw, &analog_and_i2c_mutex);
     ASSERT_SOFT(err_code);
 #endif // CONFIG_NO_SUPER_CAPS
 
