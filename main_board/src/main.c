@@ -298,13 +298,10 @@ initialize(void)
     ASSERT_SOFT(err_code);
 #endif
 
-    err_code = fan_tach_init();
-    ASSERT_SOFT(err_code);
-
     // wait that jetson boots to enable super-caps as it's drawing a lot of
     // current that is needed for proper jetson boot
-    k_msleep(20000);
 #if !defined(CONFIG_NO_SUPER_CAPS) && !defined(CONFIG_CI_INTEGRATION_TESTS)
+    k_msleep(20000);
     err_code = boot_turn_on_super_cap_charger();
     if (err_code == RET_SUCCESS) {
         err_code = boot_turn_on_pvcc();
@@ -318,9 +315,16 @@ initialize(void)
         ASSERT_SOFT(err_code);
     }
 #else
-    err_code = optics_init(&hw);
+    err_code = optics_init(&hw, &analog_and_i2c_mutex);
     ASSERT_SOFT(err_code);
 #endif // CONFIG_NO_SUPER_CAPS
+
+    // fixme leave some time for polarizer homing
+    // pwm cannot be used as output and input for same timer
+    // but both fan tach and stepper use timer2
+    k_msleep(15000);
+    err_code = fan_tach_init();
+    ASSERT_SOFT(err_code);
 }
 
 #ifdef CONFIG_ZTEST

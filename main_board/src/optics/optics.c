@@ -3,6 +3,7 @@
 #include "optics/ir_camera_system/ir_camera_system.h"
 #include "optics/liquid_lens/liquid_lens.h"
 #include "optics/mirror/mirror.h"
+#include "optics/polarizer_wheel/polarizer_wheel.h"
 #include "orb_logs.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
@@ -119,6 +120,11 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
     }
 #else
     UNUSED_PARAMETER(mutex);
+#endif
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    err_code = polarizer_wheel_init();
+    ASSERT_SOFT(err_code);
 #endif
 
     err_code = gpio_pin_configure_dt(&front_unit_pvcc_enabled, GPIO_INPUT);

@@ -1,0 +1,5 @@
+description: "drv8434 motor controller"
+
+include: spi-device.yaml
+
+compatible: "ti,drv8434s"
