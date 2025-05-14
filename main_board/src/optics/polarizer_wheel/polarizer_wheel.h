@@ -15,19 +15,48 @@
 #include "drv8434/drv8434.h"
 #include "polarizer_wheel_datatypes.h"
 
-/**
- * @brief Get current position of the Polarizer Wheel
- * @return Returns positional enum
+/*
+ * - Motor Used: 26M048B1B, datasheet found here:
+ *   https://www.digikey.de/en/products/detail/portescap/26M048B1B/417812
+ * - Motor Driver used: DRV8434s
+ * - Motor Step Angle: 7.5 degrees
+ *   Microstepping configured (128 microsteps / step)
+ *
+ * (360 degrees / 7.5 degrees per step) * 128 (microsteps)
+ *   = 6144 steps/revolution
  */
-polarizer_wheel_position_t
-polarizer_wheel_get_position(void);
+#define POLARIZER_WHEEL_DEGREES_PER_STEP    7.5
+#define POLARIZER_WHEEL_MICROSTEPS_PER_STEP 128
+#define POLARIZER_WHEEL_STEPS_PER_TURN                                         \
+    (int)(360.0 / POLARIZER_WHEEL_DEGREES_PER_STEP)
+
+#define POLARIZER_WHEEL_MICROSTEPS_360_DEGREES                                 \
+    (POLARIZER_WHEEL_STEPS_PER_TURN * POLARIZER_WHEEL_MICROSTEPS_PER_STEP)
+#define POLARIZER_WHEEL_MICROSTEPS_120_DEGREES                                 \
+    (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 3)
+
+#define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN                       \
+    (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 3)
+#define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_1SEC_PER_TURN                       \
+    (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES)
+
+#define POLARIZER_MICROSTEPS_PER_SECOND(ms)                                    \
+    (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES * 1000 / ms)
+
+// from notch edge to notch center
+#define POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER 100
 
 /**
- * @brief Set current position of the Polarizer Wheel
- * @return Returns positional enum
+ * Set angle to polarizer wheel
+ * 0º being the passthrough glass once homing is completed
+ *
+ * @param frequency microsteps/sec, maximum is
+ * POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_1SEC_PER_TURN
+ * @param angle [0, 360]
+ * @return RET_SUCCESS on succes, RET_ERROR_INVALID_PARAM if out of range
  */
 ret_code_t
-polarizer_wheel_set_position(polarizer_wheel_position_t position);
+polarizer_wheel_set_angle(uint32_t frequency, uint32_t angle);
 
 /**
  * Spawn homing thread
