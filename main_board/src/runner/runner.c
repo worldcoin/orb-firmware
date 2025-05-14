@@ -1047,6 +1047,7 @@ handle_liquid_lens(job_t *job)
     }
 }
 
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
 static void
 handle_polarizer(job_t *job)
 {
@@ -1075,6 +1076,7 @@ handle_polarizer(job_t *job)
         job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
     }
 }
+#endif
 
 static void
 handle_voltage_request(job_t *job)
