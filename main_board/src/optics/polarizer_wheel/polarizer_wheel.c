@@ -27,7 +27,7 @@ K_THREAD_STACK_DEFINE(stack_area_polarizer_wheel_home,
                       THREAD_STACK_SIZE_POLARIZER_WHEEL_HOME);
 static struct k_thread thread_data_polarizer_wheel_home;
 
-static polarizer_wheel_instance_t g_polarizer_wheel_instance;
+static polarizer_wheel_instance_t g_polarizer_wheel_instance = {0};
 
 #define TIMER2_IRQn DT_IRQN(DT_NODELABEL(timers2))
 
@@ -60,6 +60,8 @@ static const DRV8434_DriverCfg_t drv8434_cfg = {
         SPI_WORD_SET(8) | SPI_OP_MODE_MASTER | SPI_MODE_CPHA | SPI_TRANSFER_MSB,
         0),
     .spi_cs_gpio = &polarizer_spi_cs_gpio};
+
+static K_SEM_DEFINE(home_sem, 0, 1);
 
 // Enable encoder interrupt
 static ret_code_t
@@ -116,26 +118,13 @@ encoder_callback(const struct device *dev, struct gpio_callback *cb,
     ARG_UNUSED(cb);
 
     if (pins & BIT(polarizer_encoder_spec.pin)) {
-        if (gpio_pin_get_dt(&polarizer_encoder_spec) == 1) {
-            LOG_DBG("encoder detected: %u",
-                    g_polarizer_wheel_instance.auto_homing.notches_encountered);
-            if (!g_polarizer_wheel_instance.auto_homing.start_notch_found) {
-                g_polarizer_wheel_instance.auto_homing.start_notch_found = true;
-            } else {
-                g_polarizer_wheel_instance.auto_homing.notches_encountered++;
-                g_polarizer_wheel_instance.auto_homing
-                    .steps_to_last_notch_prev =
-                    g_polarizer_wheel_instance.auto_homing.steps_to_last_notch;
-                g_polarizer_wheel_instance.auto_homing.steps_to_last_notch =
-                    atomic_get(&g_polarizer_wheel_instance.step_count
-                                    .step_count_current);
+        if (g_polarizer_wheel_instance.homing.state ==
+            POLARIZER_WHEEL_AUTO_HOMING_STATE_IN_PROGRESS) {
+            if (gpio_pin_get_dt(&polarizer_encoder_spec) == 1) {
+                LOG_DBG("notches detected: %u",
+                        g_polarizer_wheel_instance.homing.notch_count);
+                k_sem_give(&home_sem);
             }
-            // Stop the PWM
-            pwm_set_dt(&polarizer_step_pwm_spec, 0, 0);
-            g_polarizer_wheel_instance.movement.wheel_moving = false;
-            // Disable the step interrupt
-            disable_step_interrupt();
-            clear_step_interrupt();
         }
     }
 }
@@ -146,57 +135,20 @@ polarizer_wheel_step_isr(const void *arg)
     ARG_UNUSED(arg);
 
     if (LL_TIM_IsActiveFlag_CC2(polarizer_step_timer)) {
-        atomic_inc(&g_polarizer_wheel_instance.step_count.step_count_current);
-        atomic_t current = atomic_get(
-            &g_polarizer_wheel_instance.step_count.step_count_current);
-        LOG_DBG("step: %ld", current);
+        atomic_inc(&g_polarizer_wheel_instance.step_count.current);
+        if (atomic_get(&g_polarizer_wheel_instance.step_count.current) >
+            POLARIZER_WHEEL_STEPS_PER_1_FILTER_WHEEL_POSITION * 3) {
+            atomic_clear(&g_polarizer_wheel_instance.step_count.current);
+        }
 
-        if (current >=
-            g_polarizer_wheel_instance.step_count.step_count_target) {
+        if (g_polarizer_wheel_instance.step_count.target ==
+            g_polarizer_wheel_instance.step_count.current) {
+            LOG_DBG("Reached target (%lu), stopping motor",
+                    g_polarizer_wheel_instance.step_count.target);
             pwm_set_dt(&polarizer_step_pwm_spec, 0, 0);
-            g_polarizer_wheel_instance.movement.wheel_moving = false;
-            atomic_set(
-                &g_polarizer_wheel_instance.step_count.step_count_current, 0);
-            g_polarizer_wheel_instance.step_count.step_count_target = 0;
-            if (g_polarizer_wheel_instance.movement.target_position !=
-                POLARIZER_WHEEL_POSITION_UNKNOWN) {
-                g_polarizer_wheel_instance.movement.current_position =
-                    g_polarizer_wheel_instance.movement.target_position;
-                g_polarizer_wheel_instance.movement.target_position =
-                    POLARIZER_WHEEL_POSITION_UNKNOWN;
-            }
-            disable_step_interrupt();
         }
         clear_step_interrupt();
     }
-}
-
-// Check if all peripherals are ready for use
-static bool
-polarizer_wheel_peripherals_ready(void)
-{
-    if (!device_is_ready(polarizer_spi_bus_controller)) {
-        return false;
-    }
-    if (!device_is_ready(polarizer_spi_cs_gpio.port)) {
-        return false;
-    }
-    if (!device_is_ready(polarizer_step_pwm_spec.dev)) {
-        return false;
-    }
-    if (!device_is_ready(polarizer_enable_spec.port)) {
-        return false;
-    }
-    if (!device_is_ready(polarizer_step_dir_spec.port)) {
-        return false;
-    }
-    if (!device_is_ready(polarizer_encoder_enable_spec.port)) {
-        return false;
-    }
-    if (!device_is_ready(polarizer_encoder_spec.port)) {
-        return false;
-    }
-    return true;
 }
 
 static ret_code_t
@@ -218,10 +170,8 @@ start_polarizer_wheel_step(uint32_t frequency, uint32_t step_count)
 
     if (ret_val == 0) {
         // Reset pulse counter
-        atomic_clear(&g_polarizer_wheel_instance.step_count.step_count_current);
-        atomic_set(&g_polarizer_wheel_instance.step_count.step_count_target,
-                   step_count);
-        g_polarizer_wheel_instance.movement.wheel_moving = true;
+        atomic_clear(&g_polarizer_wheel_instance.step_count.current);
+        atomic_set(&g_polarizer_wheel_instance.step_count.target, step_count);
         // Enable channel 2 compare interrupt
         enable_step_interrupt();
     }
@@ -236,69 +186,60 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     ARG_UNUSED(p2);
     ARG_UNUSED(p3);
 
-    g_polarizer_wheel_instance.auto_homing.auto_homing_state =
-        POLARIZER_WHEEL_AUTO_HOMING_STATE_IN_PROGRESS;
-    g_polarizer_wheel_instance.auto_homing.notches_encountered = 0;
-    g_polarizer_wheel_instance.auto_homing.start_notch_found = false;
+    // enable pwm interrupt
+    irq_connect_dynamic(TIMER2_IRQn, 0, polarizer_wheel_step_isr, NULL, 0);
+    clear_step_interrupt();
+    irq_enable(TIMER2_IRQn);
 
-    // Enable the encoder interrupt to be able to detect notches
+    // enable encoder interrupt to detect notches
     enable_encoder_interrupt();
 
-    while ((g_polarizer_wheel_instance.auto_homing.notches_encountered <=
-            POLARIZER_WHEEL_ENCODER_MAX_HOMING_NOTCHES) &&
-           (!g_polarizer_wheel_instance.movement.wheel_moving)) {
-        if (g_polarizer_wheel_instance.auto_homing.start_notch_found == true) {
-            switch (
-                g_polarizer_wheel_instance.auto_homing.notches_encountered) {
-            case 0:
-            case 1:
-                break;
-            default:
-                if (abs((int32_t)(g_polarizer_wheel_instance.auto_homing
-                                      .steps_to_last_notch) -
-                        (int32_t)(g_polarizer_wheel_instance.auto_homing
-                                      .steps_to_last_notch_prev)) <= 100) {
-                    g_polarizer_wheel_instance.auto_homing.auto_homing_state =
-                        POLARIZER_WHEEL_AUTO_HOMING_STATE_SUCCESS;
-                    g_polarizer_wheel_instance.movement.current_position =
-                        POLARIZER_WHEEL_POSITION_PASS_THROUGH;
-                    disable_encoder_interrupt();
-                }
-                break;
-            }
+    bool homed = false;
+    g_polarizer_wheel_instance.homing.notch_count = 0;
+    start_polarizer_wheel_step(
+        POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
+        POLARIZER_WHEEL_STEPS_PER_1_FILTER_WHEEL_POSITION * 4);
+
+    while (!homed) {
+        // wait for notch detection
+        k_sem_take(&home_sem, K_FOREVER);
+
+        LOG_INF("homing: steps: %ld, notch count: %d",
+                atomic_get(&g_polarizer_wheel_instance.step_count.current),
+                g_polarizer_wheel_instance.homing.notch_count);
+
+        // notch #0 can be anywhere, so continue spinning to make sure the step
+        // counter resets and actually start counting steps afterwards
+        if (g_polarizer_wheel_instance.homing.notch_count != 0 &&
+            g_polarizer_wheel_instance.step_count.current < 1000) {
+            pwm_set_dt(&polarizer_step_pwm_spec, 0, 0);
+            homed = true;
         }
-        if ((g_polarizer_wheel_instance.auto_homing.auto_homing_state !=
-             POLARIZER_WHEEL_AUTO_HOMING_STATE_SUCCESS) &&
-            (g_polarizer_wheel_instance.auto_homing.notches_encountered <
-             POLARIZER_WHEEL_ENCODER_MAX_HOMING_NOTCHES)) {
-            // 120 degrees in 3 seconds, move a total of 150 degrees
-            // should hit encoder much sooner than 150 degrees
-            start_polarizer_wheel_step(
-                POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
-                POLARIZER_WHEEL_STEPS_AUTOHOMING);
-            k_sleep(K_SECONDS(3));
-        } else {
-            if (g_polarizer_wheel_instance.auto_homing.auto_homing_state !=
-                POLARIZER_WHEEL_AUTO_HOMING_STATE_SUCCESS) {
-                g_polarizer_wheel_instance.auto_homing.auto_homing_state =
-                    POLARIZER_WHEEL_AUTO_HOMING_STATE_FAILED;
-            }
-            break;
-        }
+
+        g_polarizer_wheel_instance.homing.notch_count++;
+        atomic_clear(&g_polarizer_wheel_instance.step_count.current);
     }
+
     start_polarizer_wheel_step(POLARIZER_WHEEL_SPIN_PWN_FREQUENCY_AUTO_HOMING,
                                POLARIZER_WHEEL_STEPS_CORRECTION);
 
     // wait for completion and disconnect interrupt
     k_sleep(K_SECONDS(1));
+    disable_step_interrupt();
     irq_disable(TIMER2_IRQn);
     irq_disconnect_dynamic(TIMER2_IRQn, 0, polarizer_wheel_step_isr, NULL, 0);
+
+    LOG_INF("Polarizer wheel homed");
+    drv8434_scale_current(DRV8434_TRQ_DAC_25);
+
+    // reset step counter
+    atomic_clear(&g_polarizer_wheel_instance.step_count.current);
 }
 
 polarizer_wheel_position_t
 polarizer_wheel_get_position(void)
 {
-    return g_polarizer_wheel_instance.movement.current_position;
+    return g_polarizer_wheel_instance.step_count.current;
 }
 
 // TODO: This function will move the wheel from notch to notch but slowly
@@ -312,9 +253,9 @@ polarizer_wheel_set_position(polarizer_wheel_position_t position)
     if (position == POLARIZER_WHEEL_POSITION_UNKNOWN) {
         return RET_ERROR_INVALID_PARAM;
     }
-    g_polarizer_wheel_instance.movement.target_position = position;
+    g_polarizer_wheel_instance.step_count.target = position;
 
-    switch (g_polarizer_wheel_instance.movement.current_position) {
+    switch (g_polarizer_wheel_instance.step_count.current) {
     case POLARIZER_WHEEL_POSITION_PASS_THROUGH:
         if (position == POLARIZER_WHEEL_POSITION_0_DEGREE) {
             ret_val = start_polarizer_wheel_step(
@@ -355,10 +296,41 @@ polarizer_wheel_set_position(polarizer_wheel_position_t position)
         return ret_val;
     }
 
-    g_polarizer_wheel_instance.movement.current_position =
-        POLARIZER_WHEEL_POSITION_UNKNOWN;
-
     return ret_val;
+}
+
+ret_code_t
+polarizer_wheel_home_async(void)
+{
+    static bool started_once = false;
+
+    if (started_once == false ||
+        k_thread_join(&thread_data_polarizer_wheel_home, K_NO_WAIT) == 0) {
+        k_thread_create(
+            &thread_data_polarizer_wheel_home, stack_area_polarizer_wheel_home,
+            K_THREAD_STACK_SIZEOF(stack_area_polarizer_wheel_home),
+            (k_thread_entry_t)polarizer_wheel_auto_homing_thread, NULL, NULL,
+            NULL, THREAD_PRIORITY_POLARIZER_WHEEL_HOME, 0, K_NO_WAIT);
+        k_thread_name_set(&thread_data_polarizer_wheel_home,
+                          "polarizer_homing");
+        started_once = true;
+    } else {
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    return RET_SUCCESS;
+}
+
+static bool
+devices_ready(void)
+{
+    return device_is_ready(polarizer_spi_bus_controller) &&
+           device_is_ready(polarizer_spi_cs_gpio.port) &&
+           device_is_ready(polarizer_step_pwm_spec.dev) &&
+           device_is_ready(polarizer_enable_spec.port) &&
+           device_is_ready(polarizer_step_dir_spec.port) &&
+           device_is_ready(polarizer_encoder_enable_spec.port) &&
+           device_is_ready(polarizer_encoder_spec.port);
 }
 
 ret_code_t
@@ -366,7 +338,8 @@ polarizer_wheel_init(void)
 {
     ret_code_t ret_val = RET_SUCCESS;
 
-    if (!polarizer_wheel_peripherals_ready()) {
+    if (!devices_ready()) {
+        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
         return RET_ERROR_INVALID_STATE;
     }
 
@@ -374,26 +347,24 @@ polarizer_wheel_init(void)
     ret_val =
         gpio_pin_configure_dt(&polarizer_spi_cs_gpio, GPIO_OUTPUT_INACTIVE);
     if (ret_val != 0) {
+        ASSERT_SOFT(ret_val);
         return RET_ERROR_INTERNAL;
     }
 
     // Enable the DRV8434 motor driver
-    ret_val =
-        gpio_pin_configure_dt(&polarizer_enable_spec, GPIO_OUTPUT_INACTIVE);
+    ret_val = gpio_pin_configure_dt(&polarizer_enable_spec, GPIO_OUTPUT_ACTIVE);
     if (ret_val != 0) {
+        ASSERT_SOFT(ret_val);
         return RET_ERROR_INTERNAL;
     }
-
-    gpio_pin_set_dt(&polarizer_enable_spec, 1);
 
     // Enable the polarizer motor encoder
     ret_val = gpio_pin_configure_dt(&polarizer_encoder_enable_spec,
-                                    GPIO_OUTPUT_INACTIVE);
+                                    GPIO_OUTPUT_ACTIVE);
     if (ret_val != 0) {
+        ASSERT_SOFT(ret_val);
         return RET_ERROR_INTERNAL;
     }
-
-    gpio_pin_set_dt(&polarizer_encoder_enable_spec, 1);
 
     // Configure and set the polarizer motor direction pin
     ret_val =
@@ -402,12 +373,11 @@ polarizer_wheel_init(void)
         return RET_ERROR_INTERNAL;
     }
 
-    gpio_pin_set_dt(&polarizer_step_dir_spec, 1);
-
     // Configure the encoder input pin as an input and set up callback, keep
     // interrupt disabled
     ret_val = gpio_pin_configure_dt(&polarizer_encoder_spec, GPIO_INPUT);
     if (ret_val != 0) {
+        ASSERT_SOFT(ret_val);
         return RET_ERROR_INTERNAL;
     }
 
@@ -416,27 +386,25 @@ polarizer_wheel_init(void)
     ret_val = gpio_add_callback(polarizer_encoder_spec.port,
                                 &polarizer_encoder_cb_data);
     if (ret_val != 0) {
+        ASSERT_SOFT(ret_val);
         return RET_ERROR_INTERNAL;
     }
 
     ret_val = disable_encoder_interrupt();
     if (ret_val != 0) {
+        ASSERT_SOFT(ret_val);
         return RET_ERROR_INTERNAL;
     }
 
     // Clear the Polarizer Wheel runtime context
-    memset(&g_polarizer_wheel_instance, 0, sizeof(polarizer_wheel_instance_t));
+    memset(&g_polarizer_wheel_instance, 0, sizeof(g_polarizer_wheel_instance));
 
     // Initialize the DRV8434 driver
     ret_val = drv8434_init(&drv8434_cfg);
-
-    return ret_val;
-}
-
-ret_code_t
-polarizer_wheel_configure(void)
-{
-    ret_code_t ret_val = RET_SUCCESS;
+    if (ret_val != 0) {
+        ASSERT_SOFT(ret_val);
+        return RET_ERROR_INTERNAL;
+    }
 
     // Set up the DRV8434 device configuration
     const DRV8434_DeviceCfg_t drv8434_cfg = {
@@ -452,13 +420,13 @@ polarizer_wheel_configure(void)
         .ctrl7.EN_SSC = DRV8434_REG_CTRL7_VAL_ENSSC_ENABLE,
         .ctrl7.TRQ_SCALE = DRV8434_REG_CTRL7_VAL_TRQSCALE_NOSCALE};
 
-    drv8434_clear_fault();
+    ret_val = drv8434_clear_fault();
     ASSERT_SOFT(ret_val);
 
-    drv8434_write_config(&drv8434_cfg);
+    ret_val = drv8434_write_config(&drv8434_cfg);
     ASSERT_SOFT(ret_val);
 
-    drv8434_read_config();
+    ret_val = drv8434_read_config();
     ASSERT_SOFT(ret_val);
 
     ret_val = drv8434_verify_config();
@@ -477,16 +445,6 @@ polarizer_wheel_configure(void)
         return ret_val;
     }
 
-    irq_connect_dynamic(TIMER2_IRQn, 0, polarizer_wheel_step_isr, NULL, 0);
-    clear_step_interrupt();
-    irq_enable(TIMER2_IRQn);
-
-    k_tid_t tid = k_thread_create(
-        &thread_data_polarizer_wheel_home, stack_area_polarizer_wheel_home,
-        K_THREAD_STACK_SIZEOF(stack_area_polarizer_wheel_home),
-        (k_thread_entry_t)polarizer_wheel_auto_homing_thread, NULL, NULL, NULL,
-        THREAD_PRIORITY_POLARIZER_WHEEL_HOME, 0, K_NO_WAIT);
-    k_thread_name_set(tid, "polarizer_homing");
-
+    ret_val = polarizer_wheel_home_async();
     return ret_val;
 }

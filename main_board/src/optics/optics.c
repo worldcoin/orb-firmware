@@ -128,12 +128,6 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
         ASSERT_SOFT(err_code);
         return err_code;
     }
-
-    err_code = polarizer_wheel_configure();
-    if (err_code) {
-        ASSERT_SOFT(err_code);
-        return err_code;
-    }
 #endif
 
     err_code = gpio_pin_configure_dt(&front_unit_pvcc_enabled, GPIO_INPUT);
