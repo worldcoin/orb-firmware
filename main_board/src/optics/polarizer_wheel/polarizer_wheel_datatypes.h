@@ -11,12 +11,16 @@
 #include <common.pb.h>
 #include <zephyr/sys/atomic.h>
 
-typedef enum {
-    POLARIZER_WHEEL_POSITION_UNKNOWN = -1,
-    POLARIZER_WHEEL_POSITION_PASS_THROUGH = 0,
-    POLARIZER_WHEEL_POSITION_0_DEGREE = 2048,
-    POLARIZER_WHEEL_POSITION_90_DEGREE = 4096,
-} polarizer_wheel_position_t;
+enum polarizer_wheel_angle_e {
+    POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE = 0,
+    POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE = 1200,
+    POLARIZER_WHEEL_HORIZONTALLY_POLARIZED_ANGLE = 2400,
+};
+
+enum polarizer_wheel_direction_e {
+    POLARIZER_WHEEL_DIRECTION_BACKWARD = -1,
+    POLARIZER_WHEEL_DIRECTION_FORWARD = 1,
+};
 
 typedef struct {
     // polarizer wheel status
@@ -28,7 +32,9 @@ typedef struct {
     } homing;
 
     struct {
+        // microsteps into range: [0; POLARIZER_WHEEL_MICROSTEPS_360_DEGREES]
         atomic_t current;
         atomic_t target;
+        enum polarizer_wheel_direction_e direction;
     } step_count;
 } polarizer_wheel_instance_t;
