@@ -27,7 +27,7 @@
  */
 
 ret_code_t
-drv8434_init(const DRV8434_DriverCfg_t *cfg);
+drv8434s_init(const DRV8434_DriverCfg_t *cfg);
 
 /**
  * @brief DRV8434 Disable Outputs of Half Bridges

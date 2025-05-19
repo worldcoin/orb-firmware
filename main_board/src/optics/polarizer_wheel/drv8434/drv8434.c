@@ -18,7 +18,7 @@
 static DRV8434_Instance_t g_drv8434_instance;
 
 ret_code_t
-drv8434_init(const DRV8434_DriverCfg_t *cfg)
+drv8434s_init(const DRV8434_DriverCfg_t *cfg)
 {
     // Wipe instance
     memset(&g_drv8434_instance, 0, sizeof(DRV8434_Instance_t));

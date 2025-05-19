@@ -5,15 +5,11 @@
  * @brief Header file for Polarizer wheel functions
  *
  * This file declares the interface layer between the polarizer wheel
- *application and the motor of choice
- *
- *
- * @author Srikar Chintapalli
+ * application and the motor of choice
  *
  ******************************************************************************/
 
 #include "drv8434/drv8434.h"
-#include "polarizer_wheel_datatypes.h"
 
 /*
  * - Motor Used: 26M048B1B, datasheet found here:
@@ -46,13 +42,19 @@
 // from notch edge to notch center
 #define POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER 100
 
+enum polarizer_wheel_angle_e {
+    POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE = 0,
+    POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE = 1200,
+    POLARIZER_WHEEL_HORIZONTALLY_POLARIZED_ANGLE = 2400,
+};
+
 /**
  * Set angle to polarizer wheel
  * 0º being the passthrough glass once homing is completed
  *
  * @param frequency microsteps/sec, maximum is
  * POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_1SEC_PER_TURN
- * @param angle [0, 360]
+ * @param angle [0, 3600], use `polarizer_wheel_angle_e` for predefined angles
  * @return RET_SUCCESS on succes, RET_ERROR_INVALID_PARAM if out of range
  */
 ret_code_t

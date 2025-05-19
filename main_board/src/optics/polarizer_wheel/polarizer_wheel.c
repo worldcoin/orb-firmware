@@ -5,12 +5,11 @@
  * This file defines the application level interface functions for the Polarizer
  * Wheel such as initialize, configure, and control
  *
- * @author Srikar Chintapalli
- *
  ******************************************************************************/
 #include "polarizer_wheel.h"
 #include <app_assert.h>
 #include <app_config.h>
+#include <common.pb.h>
 #include <math.h>
 #include <stdlib.h>
 #include <stm32g474xx.h>
@@ -25,6 +24,28 @@ LOG_MODULE_REGISTER(polarizer, CONFIG_POLARIZER_LOG_LEVEL);
 K_THREAD_STACK_DEFINE(stack_area_polarizer_wheel_home,
                       THREAD_STACK_SIZE_POLARIZER_WHEEL_HOME);
 static struct k_thread thread_data_polarizer_wheel_home;
+
+enum polarizer_wheel_direction_e {
+    POLARIZER_WHEEL_DIRECTION_BACKWARD = -1,
+    POLARIZER_WHEEL_DIRECTION_FORWARD = 1,
+};
+
+typedef struct {
+    // polarizer wheel status
+    orb_mcu_HardwareDiagnostic_Status status;
+
+    struct {
+        uint8_t notch_count;
+        bool success;
+    } homing;
+
+    struct {
+        // microsteps into range: [0; POLARIZER_WHEEL_MICROSTEPS_360_DEGREES]
+        atomic_t current;
+        atomic_t target;
+        enum polarizer_wheel_direction_e direction;
+    } step_count;
+} polarizer_wheel_instance_t;
 
 static polarizer_wheel_instance_t g_polarizer_wheel_instance = {0};
 
@@ -48,7 +69,7 @@ static const struct gpio_dt_spec polarizer_encoder_enable_spec =
 static const struct gpio_dt_spec polarizer_encoder_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), polarizer_stepper_encoder_gpios);
 
-static TIM_TypeDef *polarizer_step_timer =
+static TIM_TypeDef *const polarizer_step_timer =
     (TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(DT_NODELABEL(polarizer_step_pwm)));
 static struct gpio_callback polarizer_encoder_cb_data;
 
@@ -59,6 +80,10 @@ static const DRV8434_DriverCfg_t drv8434_cfg = {
         SPI_WORD_SET(8) | SPI_OP_MODE_MASTER | SPI_MODE_CPHA | SPI_TRANSFER_MSB,
         0),
     .spi_cs_gpio = &polarizer_spi_cs_gpio};
+
+// if less than 1000 µsteps between two notches: notch with small gap detected
+// we can then go to the 0/passthrough by applying a 120º+center degree movement
+#define POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS 1000
 
 static K_SEM_DEFINE(home_sem, 0, 1);
 
@@ -82,7 +107,13 @@ disable_encoder_interrupt(void)
 static ret_code_t
 clear_step_interrupt(void)
 {
-    LL_TIM_ClearFlag_CC2(polarizer_step_timer);
+    /* Channel to clearing capture flag mapping. */
+    static void __maybe_unused (*const clear_capture_interrupt[])(
+        TIM_TypeDef *) = {LL_TIM_ClearFlag_CC1, LL_TIM_ClearFlag_CC2,
+                          LL_TIM_ClearFlag_CC3, LL_TIM_ClearFlag_CC4};
+
+    clear_capture_interrupt[polarizer_step_pwm_spec.channel - 1](
+        polarizer_step_timer);
 
     return RET_SUCCESS;
 }
@@ -91,37 +122,48 @@ clear_step_interrupt(void)
 static ret_code_t
 enable_step_interrupt(void)
 {
+    /* Channel to enable capture interrupt mapping. */
+    static void __maybe_unused (*const enable_capture_interrupt[])(
+        TIM_TypeDef *) = {LL_TIM_EnableIT_CC1, LL_TIM_EnableIT_CC2,
+                          LL_TIM_EnableIT_CC3, LL_TIM_EnableIT_CC4};
+
     clear_step_interrupt();
-    LL_TIM_EnableIT_CC2(polarizer_step_timer);
+    enable_capture_interrupt[polarizer_step_pwm_spec.channel - 1](
+        polarizer_step_timer);
 
     return RET_SUCCESS;
 }
 
-// Disable the polarizer wheel step interrupt
 static ret_code_t
 disable_step_interrupt(void)
 {
-    LL_TIM_DisableIT_CC2(polarizer_step_timer);
+    /* Channel to disable capture interrupt mapping. */
+    static void __maybe_unused (*const disable_capture_interrupt[])(
+        TIM_TypeDef *) = {LL_TIM_DisableIT_CC1, LL_TIM_DisableIT_CC2,
+                          LL_TIM_DisableIT_CC3, LL_TIM_DisableIT_CC4};
+
+    disable_capture_interrupt[polarizer_step_pwm_spec.channel - 1](
+        polarizer_step_timer);
 
     return RET_SUCCESS;
 }
 
-int
-polarizer_move(uint32_t frequency)
+static int
+polarizer_move(const uint32_t frequency)
 {
     enable_step_interrupt();
     return pwm_set_dt(&polarizer_step_pwm_spec, NSEC_PER_SEC / frequency,
                       (NSEC_PER_SEC / frequency) / 2);
 }
 
-int
+static int
 polarizer_stop()
 {
     disable_step_interrupt();
     return pwm_set_dt(&polarizer_step_pwm_spec, 0, 0);
 }
 
-int
+static int
 set_direction(const enum polarizer_wheel_direction_e direction)
 {
     int ret;
@@ -143,13 +185,13 @@ set_direction(const enum polarizer_wheel_direction_e direction)
     return ret;
 }
 
-// Define callback function
+/**
+ * ISR to handle gpio interrupt on notch detection
+ */
 static void
 encoder_callback(const struct device *dev, struct gpio_callback *cb,
                  uint32_t pins)
 {
-    // Handle the interrupt here
-    // This function will be called on rising edge
     ARG_UNUSED(dev);
     ARG_UNUSED(cb);
 
@@ -162,12 +204,23 @@ encoder_callback(const struct device *dev, struct gpio_callback *cb,
     }
 }
 
+/**
+ * ISR to handle new pwm pulse (eq new step)
+ */
 static void
 polarizer_wheel_step_isr(const void *arg)
 {
     ARG_UNUSED(arg);
 
-    if (LL_TIM_IsActiveFlag_CC2(polarizer_step_timer)) {
+    static uint32_t __maybe_unused (*const is_capture_active[])(
+        const TIM_TypeDef *) = {
+        LL_TIM_IsActiveFlag_CC1, LL_TIM_IsActiveFlag_CC2,
+        LL_TIM_IsActiveFlag_CC3, LL_TIM_IsActiveFlag_CC4};
+
+    if (is_capture_active[polarizer_step_pwm_spec.channel - 1](
+            polarizer_step_timer)) {
+        clear_step_interrupt();
+
         if (g_polarizer_wheel_instance.step_count.direction ==
             POLARIZER_WHEEL_DIRECTION_BACKWARD) {
             atomic_dec(&g_polarizer_wheel_instance.step_count.current);
@@ -176,7 +229,7 @@ polarizer_wheel_step_isr(const void *arg)
         }
 
         // handle wraps around
-        if (atomic_get(&g_polarizer_wheel_instance.step_count.current) >
+        if (atomic_get(&g_polarizer_wheel_instance.step_count.current) >=
             POLARIZER_WHEEL_MICROSTEPS_360_DEGREES) {
             atomic_clear(&g_polarizer_wheel_instance.step_count.current);
         }
@@ -191,13 +244,11 @@ polarizer_wheel_step_isr(const void *arg)
                     g_polarizer_wheel_instance.step_count.target);
             polarizer_stop();
         }
-
-        clear_step_interrupt();
     }
 }
 
 static ret_code_t
-start_polarizer_wheel_step_relative(uint32_t frequency, int32_t step_count)
+polarizer_wheel_step_relative(uint32_t frequency, int32_t step_count)
 {
     int ret_val = RET_SUCCESS;
 
@@ -243,12 +294,20 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     // enable encoder interrupt to detect notches
     enable_encoder_interrupt();
 
-    bool homed = false;
+    /*
+     * Below is a representation of the notches on the wheel (encoder):
+     * |--->--|---->-|----|--| (and back)
+     * 0------1------2----3--0 notch number
+     * let's detect notch 0 by counting number of steps between notches when
+     * going in forward direction.
+     */
+    bool notch_0_detected = false;
     g_polarizer_wheel_instance.homing.notch_count = 0;
     set_direction(POLARIZER_WHEEL_DIRECTION_FORWARD);
-
-    while (!homed) {
-        start_polarizer_wheel_step_relative(
+    while (!notch_0_detected) {
+        // on each loop, turn the wheel more than 120º to detect the next
+        // encoder notch
+        polarizer_wheel_step_relative(
             POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN,
             POLARIZER_WHEEL_MICROSTEPS_120_DEGREES * 2);
 
@@ -259,6 +318,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
             g_polarizer_wheel_instance.status =
                 orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
             polarizer_stop();
+            disable_encoder_interrupt();
             LOG_ERR("polarizer wheel not detected");
             return;
         }
@@ -267,19 +327,25 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
                 atomic_get(&g_polarizer_wheel_instance.step_count.current),
                 g_polarizer_wheel_instance.homing.notch_count);
 
-        // notch #0 can be anywhere, so continue spinning to make sure the step
-        // counter resets and actually start counting steps afterwards
+        // at the very beginning (notch_count == 0), close notches (distance
+        // between notch #3 and #0), can be anywhere; so on first notch
+        // detection, all we do is to reset the step counter. From that point,
+        // we start counting steps between notches to detect the small gap, and
+        // thus, notch #0
         if (g_polarizer_wheel_instance.homing.notch_count != 0 &&
-            g_polarizer_wheel_instance.step_count.current < 1000) {
+            g_polarizer_wheel_instance.step_count.current <
+                POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS) {
             polarizer_stop();
-            homed = true;
+            notch_0_detected = true;
         }
 
         g_polarizer_wheel_instance.homing.notch_count++;
         atomic_clear(&g_polarizer_wheel_instance.step_count.current);
     }
 
-    start_polarizer_wheel_step_relative(
+    // wheel is on notch #0
+    // send wheel home / passthrough by applying constant number of microsteps
+    polarizer_wheel_step_relative(
         POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN,
         POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER +
             POLARIZER_WHEEL_MICROSTEPS_120_DEGREES);
@@ -287,6 +353,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     // wait for completion and disconnect interrupt
     k_sleep(K_SECONDS(2));
     disable_step_interrupt();
+    disable_encoder_interrupt();
 
     LOG_INF("Polarizer wheel homed");
 
@@ -304,9 +371,10 @@ polarizer_wheel_set_angle(uint32_t frequency, uint32_t angle_decidegrees)
         return RET_ERROR_INVALID_PARAM;
     }
 
-    uint32_t target_step =
-        angle_decidegrees * POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 3600;
-    uint32_t current =
+    atomic_val_t target_step = ((int)angle_decidegrees *
+                                POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 3600) %
+                               POLARIZER_WHEEL_MICROSTEPS_360_DEGREES;
+    atomic_val_t current =
         atomic_get(&g_polarizer_wheel_instance.step_count.current);
 
     if (target_step == current) {
@@ -329,7 +397,7 @@ polarizer_wheel_set_angle(uint32_t frequency, uint32_t angle_decidegrees)
         }
     }
 
-    LOG_INF("angle(deci): %u, target_step: %u, current: %u, dir: %d",
+    LOG_INF("angle(deci): %u, target_step: %ld, current: %ld, dir: %d",
             angle_decidegrees, target_step, current,
             g_polarizer_wheel_instance.step_count.direction);
     atomic_set(&g_polarizer_wheel_instance.step_count.target, target_step);
@@ -352,7 +420,7 @@ polarizer_wheel_home_async(void)
     if (started_once == false ||
         k_thread_join(&thread_data_polarizer_wheel_home, K_NO_WAIT) == 0) {
         // homing not in progress, status must be successful, otherwise
-        // it tells us that
+        // it tells us that thread isn't joined
         k_thread_create(
             &thread_data_polarizer_wheel_home, stack_area_polarizer_wheel_home,
             K_THREAD_STACK_SIZEOF(stack_area_polarizer_wheel_home),
@@ -390,12 +458,12 @@ polarizer_wheel_init(void)
         return RET_ERROR_INVALID_STATE;
     }
 
-    // Clear the Polarizer Wheel runtime context
+    // clear the polarizer wheel runtime context
     memset(&g_polarizer_wheel_instance, 0, sizeof(g_polarizer_wheel_instance));
     g_polarizer_wheel_instance.status =
         orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
 
-    // Enable the polarizer SPI CS pin
+    // Polarizer spi chip select is controlled manually, configure inactive
     ret_val =
         gpio_pin_configure_dt(&polarizer_spi_cs_gpio, GPIO_OUTPUT_INACTIVE);
     if (ret_val != 0) {
@@ -418,14 +486,14 @@ polarizer_wheel_init(void)
         return RET_ERROR_INTERNAL;
     }
 
-    // Configure and set the polarizer motor direction pin
+    // Configure the polarizer motor direction pin
     ret_val =
         gpio_pin_configure_dt(&polarizer_step_dir_spec, GPIO_OUTPUT_INACTIVE);
     if (ret_val != 0) {
         return RET_ERROR_INTERNAL;
     }
 
-    // Configure the encoder input pin as an input and set up callback, keep
+    // Configure the encoder pin as an input and set up callback, keep
     // interrupt disabled
     ret_val = gpio_pin_configure_dt(&polarizer_encoder_spec, GPIO_INPUT);
     if (ret_val != 0) {
@@ -448,15 +516,15 @@ polarizer_wheel_init(void)
         return RET_ERROR_INTERNAL;
     }
 
-    // Initialize the DRV8434 driver
-    ret_val = drv8434_init(&drv8434_cfg);
+    // Initialize the DRV8434s driver
+    ret_val = drv8434s_init(&drv8434_cfg);
     if (ret_val != 0) {
         ASSERT_SOFT(ret_val);
         return RET_ERROR_INTERNAL;
     }
 
-    // Set up the DRV8434 device configuration
-    const DRV8434_DeviceCfg_t drv8434_cfg = {
+    // Set up the DRV8434s device configuration
+    const DRV8434_DeviceCfg_t drv8434s_cfg = {
         .ctrl2.EN_OUT = DRV8434_REG_CTRL2_VAL_ENOUT_DISABLE,
         .ctrl2.TOFF = DRV8434_REG_CTRL2_VAL_TOFF_16US,
         .ctrl2.DECAY = DRV8434_REG_CTRL2_VAL_DECAY_SMARTRIPPLE,
@@ -472,7 +540,7 @@ polarizer_wheel_init(void)
     ret_val = drv8434_clear_fault();
     ASSERT_SOFT(ret_val);
 
-    ret_val = drv8434_write_config(&drv8434_cfg);
+    ret_val = drv8434_write_config(&drv8434s_cfg);
     ASSERT_SOFT(ret_val);
     if (ret_val) {
         return ret_val;
@@ -484,7 +552,7 @@ polarizer_wheel_init(void)
     ret_val = drv8434_verify_config();
     ASSERT_SOFT(ret_val);
 
-    // Enable the DRV8434 motor driver if configuration is successful
+    // Enable the DRV8434s motor driver if configuration is successful
     // Scale the current to 75% of the maximum current
     if (ret_val == RET_SUCCESS) {
         drv8434_scale_current(DRV8434_TRQ_DAC_75);
@@ -503,6 +571,8 @@ polarizer_wheel_init(void)
 
     g_polarizer_wheel_instance.status =
         orb_mcu_HardwareDiagnostic_Status_STATUS_OK;
+
+    // home polarizer wheel
     ret_val = polarizer_wheel_home_async();
     return ret_val;
 }
