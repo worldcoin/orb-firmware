@@ -9,7 +9,8 @@
  *
  ******************************************************************************/
 
-#include "drv8434/drv8434.h"
+#include <errors.h>
+#include <stdint.h>
 
 /*
  * - Motor Used: 26M048B1B, datasheet found here:

@@ -7,6 +7,7 @@
  *
  ******************************************************************************/
 #include "polarizer_wheel.h"
+#include "drv8434s/drv8434s.h"
 #include <app_assert.h>
 #include <app_config.h>
 #include <common.pb.h>
@@ -15,6 +16,7 @@
 #include <stm32g474xx.h>
 #include <stm32g4xx_ll_tim.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/logging/log.h>
@@ -74,7 +76,7 @@ static TIM_TypeDef *const polarizer_step_timer =
 static struct gpio_callback polarizer_encoder_cb_data;
 
 // Set up the DRV8434 driver configuration
-static const DRV8434_DriverCfg_t drv8434_cfg = {
+static const DRV8434S_DriverCfg_t drv8434_cfg = {
     .spi = (struct spi_dt_spec)SPI_DT_SPEC_GET(
         DT_NODELABEL(polarizer_controller),
         SPI_WORD_SET(8) | SPI_OP_MODE_MASTER | SPI_MODE_CPHA | SPI_TRANSFER_MSB,
@@ -524,39 +526,39 @@ polarizer_wheel_init(void)
     }
 
     // Set up the DRV8434s device configuration
-    const DRV8434_DeviceCfg_t drv8434s_cfg = {
-        .ctrl2.EN_OUT = DRV8434_REG_CTRL2_VAL_ENOUT_DISABLE,
-        .ctrl2.TOFF = DRV8434_REG_CTRL2_VAL_TOFF_16US,
-        .ctrl2.DECAY = DRV8434_REG_CTRL2_VAL_DECAY_SMARTRIPPLE,
-        .ctrl3.SPI_DIR = DRV8434_REG_CTRL3_VAL_SPIDIR_PIN,
-        .ctrl3.SPI_STEP = DRV8434_REG_CTRL3_VAL_SPISTEP_PIN,
-        .ctrl3.MICROSTEP_MODE = DRV8434_REG_CTRL3_VAL_MICROSTEP_MODE_1_128,
+    const DRV8434S_DeviceCfg_t drv8434s_cfg = {
+        .ctrl2.EN_OUT = DRV8434S_REG_CTRL2_VAL_ENOUT_DISABLE,
+        .ctrl2.TOFF = DRV8434S_REG_CTRL2_VAL_TOFF_16US,
+        .ctrl2.DECAY = DRV8434S_REG_CTRL2_VAL_DECAY_SMARTRIPPLE,
+        .ctrl3.SPI_DIR = DRV8434S_REG_CTRL3_VAL_SPIDIR_PIN,
+        .ctrl3.SPI_STEP = DRV8434S_REG_CTRL3_VAL_SPISTEP_PIN,
+        .ctrl3.MICROSTEP_MODE = DRV8434S_REG_CTRL3_VAL_MICROSTEP_MODE_1_128,
         // .ctrl4.CLR_FLT = true,
-        .ctrl4.LOCK = DRV8434_REG_CTRL4_VAL_UNLOCK,
-        .ctrl7.RC_RIPPLE = DRV8434_REG_CTRL7_VAL_RCRIPPLE_1PERCENT,
-        .ctrl7.EN_SSC = DRV8434_REG_CTRL7_VAL_ENSSC_ENABLE,
-        .ctrl7.TRQ_SCALE = DRV8434_REG_CTRL7_VAL_TRQSCALE_NOSCALE};
+        .ctrl4.LOCK = DRV8434S_REG_CTRL4_VAL_UNLOCK,
+        .ctrl7.RC_RIPPLE = DRV8434S_REG_CTRL7_VAL_RCRIPPLE_1PERCENT,
+        .ctrl7.EN_SSC = DRV8434S_REG_CTRL7_VAL_ENSSC_ENABLE,
+        .ctrl7.TRQ_SCALE = DRV8434S_REG_CTRL7_VAL_TRQSCALE_NOSCALE};
 
-    ret_val = drv8434_clear_fault();
+    ret_val = drv8434s_clear_fault();
     ASSERT_SOFT(ret_val);
 
-    ret_val = drv8434_write_config(&drv8434s_cfg);
+    ret_val = drv8434s_write_config(&drv8434s_cfg);
     ASSERT_SOFT(ret_val);
     if (ret_val) {
         return ret_val;
     }
 
-    ret_val = drv8434_read_config();
+    ret_val = drv8434s_read_config();
     ASSERT_SOFT(ret_val);
 
-    ret_val = drv8434_verify_config();
+    ret_val = drv8434s_verify_config();
     ASSERT_SOFT(ret_val);
 
     // Enable the DRV8434s motor driver if configuration is successful
     // Scale the current to 75% of the maximum current
     if (ret_val == RET_SUCCESS) {
-        drv8434_scale_current(DRV8434_TRQ_DAC_75);
-        ret_val = drv8434_enable();
+        drv8434s_scale_current(DRV8434S_TRQ_DAC_75);
+        ret_val = drv8434s_enable();
         ASSERT_SOFT(ret_val);
         if (ret_val != RET_SUCCESS) {
             return ret_val;

@@ -1,5 +1,5 @@
 /******************************************************************************
- * @file drv8434_private.h
+ * @file drv8434s_private.h
  * @brief Private header file for Texas Instruments DRV8434 stepper motor driver
  *
  * This file declares the register read/write functions, and the lowest
@@ -15,7 +15,7 @@
 
 #include "errors.h"
 
-#include "drv8434_datatypes.h"
+#include "drv8434s_datatypes.h"
 
 /**
  * @brief DRV8434 Register read function
@@ -32,7 +32,7 @@
  */
 
 ret_code_t
-drv8434_private_reg_read(uint8_t address, DRV8434_Instance_t *instance);
+drv8434s_private_reg_read(uint8_t address, DRV8434S_Instance_t *instance);
 
 /**
  * @brief DRV8434 Register write function
@@ -50,5 +50,5 @@ drv8434_private_reg_read(uint8_t address, DRV8434_Instance_t *instance);
  */
 
 ret_code_t
-drv8434_private_reg_write(uint8_t address, uint8_t data,
-                          DRV8434_Instance_t *instance);
+drv8434s_private_reg_write(uint8_t address, uint8_t data,
+                           DRV8434S_Instance_t *instance);

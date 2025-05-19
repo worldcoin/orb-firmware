@@ -13,7 +13,7 @@
  *
  ******************************************************************************/
 
-#include "drv8434_private.h"
+#include "drv8434s_private.h"
 
 /**
  * @brief Initialize the DRV8434 run-time context
@@ -27,7 +27,7 @@
  */
 
 ret_code_t
-drv8434s_init(const DRV8434_DriverCfg_t *cfg);
+drv8434s_init(const DRV8434S_DriverCfg_t *cfg);
 
 /**
  * @brief DRV8434 Disable Outputs of Half Bridges
@@ -38,7 +38,7 @@ drv8434s_init(const DRV8434_DriverCfg_t *cfg);
  */
 
 ret_code_t
-drv8434_disable(void);
+drv8434s_disable(void);
 
 /**
  * @brief DRV8434 Enable Outputs of Half Bridges
@@ -49,7 +49,7 @@ drv8434_disable(void);
  */
 
 ret_code_t
-drv8434_enable(void);
+drv8434s_enable(void);
 
 /**
  * @brief DRV8434 Write the ASIC specific device configuration
@@ -61,7 +61,7 @@ drv8434_enable(void);
  */
 
 ret_code_t
-drv8434_write_config(DRV8434_DeviceCfg_t const *const cfg);
+drv8434s_write_config(DRV8434S_DeviceCfg_t const *const cfg);
 
 /**
  * @brief DRV8434 Read back the ASIC specific device configuration
@@ -73,7 +73,7 @@ drv8434_write_config(DRV8434_DeviceCfg_t const *const cfg);
  */
 
 ret_code_t
-drv8434_read_config(void);
+drv8434s_read_config(void);
 
 /**
  * @brief DRV8434 Verify the ASIC specific device configuration
@@ -85,7 +85,7 @@ drv8434_read_config(void);
  */
 
 ret_code_t
-drv8434_verify_config(void);
+drv8434s_verify_config(void);
 
 /**
  * @brief DRV8434 Enable Stall Guard
@@ -97,7 +97,7 @@ drv8434_verify_config(void);
  */
 
 ret_code_t
-drv8434_enable_stall_guard(void);
+drv8434s_enable_stall_guard(void);
 
 /**
  * @brief DRV8434 Enable Stall Guard
@@ -110,7 +110,7 @@ drv8434_enable_stall_guard(void);
  */
 
 ret_code_t
-drv8434_scale_current(enum DRV8434_TRQ_DAC_Val current);
+drv8434s_scale_current(enum DRV8434S_TRQ_DAC_Val current);
 
 /**
  * @brief DRV8434 Get a copy of register data
@@ -124,7 +124,7 @@ drv8434_scale_current(enum DRV8434_TRQ_DAC_Val current);
  */
 
 ret_code_t
-drv8434_get_register_data(DRV8434_Registers_t *reg);
+drv8434s_get_register_data(DRV8434S_Registers_t *reg);
 
 /**
  * @brief DRV8434 Clear Fault
@@ -136,7 +136,7 @@ drv8434_get_register_data(DRV8434_Registers_t *reg);
  */
 
 ret_code_t
-drv8434_clear_fault(void);
+drv8434s_clear_fault(void);
 
 /**
  * @brief DRV8434 Unlock Control Registers
@@ -148,7 +148,7 @@ drv8434_clear_fault(void);
  */
 
 ret_code_t
-drv8434_unlock_control_registers(void);
+drv8434s_unlock_control_registers(void);
 
 /**
  * @brief DRV8434 Lock Control Registers
@@ -160,4 +160,4 @@ drv8434_unlock_control_registers(void);
  */
 
 ret_code_t
-drv8434_lock_control_registers(void);
+drv8434s_lock_control_registers(void);
