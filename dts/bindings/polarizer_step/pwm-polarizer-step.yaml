@@ -1,0 +1,8 @@
+description: PWM for polarizer step
+
+compatible: "pwm-polarizer-step"
+
+properties:
+  pwms:
+    required: true
+    type: phandle-array
