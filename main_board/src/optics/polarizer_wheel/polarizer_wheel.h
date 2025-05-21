@@ -9,6 +9,7 @@
  *
  ******************************************************************************/
 
+#include <common.pb.h>
 #include <errors.h>
 #include <stdint.h>
 
@@ -99,3 +100,12 @@ polarizer_wheel_home_async(void);
  */
 ret_code_t
 polarizer_wheel_init(void);
+
+/**
+ * Get polarizer status
+ *
+ * @return polarizer status
+ *  - orb_mcu_HardwareDiagnostic_Status_STATUS_OK if detected and homed
+ */
+orb_mcu_HardwareDiagnostic_Status
+polarizer_wheel_get_status(void);

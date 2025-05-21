@@ -21,6 +21,7 @@
 #include <app_assert.h>
 #include <can_messaging.h>
 #include <dfu.h>
+#include <optics/polarizer_wheel/polarizer_wheel.h>
 #include <orb_fatal.h>
 #include <pb_encode.h>
 #include <storage.h>
@@ -319,12 +320,28 @@ initialize(void)
     ASSERT_SOFT(err_code);
 #endif // CONFIG_NO_SUPER_CAPS
 
-    // fixme leave some time for polarizer homing
-    // pwm cannot be used as output and input for same timer
-    // but both fan tach and stepper use timer2
-    k_msleep(15000);
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    if (hw.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4 ||
+        hw.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
+        // on diamond evt, timer2 is used by fan tach & stepper but
+        // pwm cannot be used as output and input for same timer
+        // so we default to polarizer if one is detected
+        // wait 10 seconds for polarizer homing to finish, if unsuccessful (no
+        // polarizer dectected?): use fan tach
+        k_msleep(10000);
+        if (polarizer_wheel_get_status() !=
+            orb_mcu_HardwareDiagnostic_Status_STATUS_OK) {
+            err_code = fan_tach_init();
+            ASSERT_SOFT(err_code);
+        }
+    } else {
+        err_code = fan_tach_init();
+        ASSERT_SOFT(err_code);
+    }
+#else
     err_code = fan_tach_init();
     ASSERT_SOFT(err_code);
+#endif
 }
 
 #ifdef CONFIG_ZTEST

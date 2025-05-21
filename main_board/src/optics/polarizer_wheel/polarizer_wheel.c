@@ -358,6 +358,8 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     disable_encoder_interrupt();
 
     LOG_INF("Polarizer wheel homed");
+    g_polarizer_wheel_instance.status =
+        orb_mcu_HardwareDiagnostic_Status_STATUS_OK;
 
     // reset step counter
     atomic_clear(&g_polarizer_wheel_instance.step_count.current);
@@ -413,11 +415,6 @@ ret_code_t
 polarizer_wheel_home_async(void)
 {
     static bool started_once = false;
-
-    if (g_polarizer_wheel_instance.status !=
-        orb_mcu_HardwareDiagnostic_Status_STATUS_OK) {
-        return RET_ERROR_NOT_INITIALIZED;
-    }
 
     if (started_once == false ||
         k_thread_join(&thread_data_polarizer_wheel_home, K_NO_WAIT) == 0) {
@@ -571,10 +568,13 @@ polarizer_wheel_init(void)
     irq_connect_dynamic(TIMER2_IRQn, 0, polarizer_wheel_step_isr, NULL, 0);
     irq_enable(TIMER2_IRQn);
 
-    g_polarizer_wheel_instance.status =
-        orb_mcu_HardwareDiagnostic_Status_STATUS_OK;
-
     // home polarizer wheel
     ret_val = polarizer_wheel_home_async();
     return ret_val;
+}
+
+orb_mcu_HardwareDiagnostic_Status
+polarizer_wheel_get_status(void)
+{
+    return g_polarizer_wheel_instance.status;
 }
