@@ -23,7 +23,7 @@ ZTEST(hil, test_motors_ah_past_the_end)
     err_code = mirror_autohoming(&angle);
     zassert_equal(err_code, RET_SUCCESS);
 
-    motor_t angle = MOTOR_THETA_ANGLE;
+    angle = MOTOR_THETA_ANGLE;
     err_code = mirror_autohoming(&angle);
     zassert_equal(err_code, RET_SUCCESS);
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)

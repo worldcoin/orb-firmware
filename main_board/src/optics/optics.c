@@ -112,7 +112,7 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
         return err_code;
     }
 
-#if PROXIMITY_DETECTION_FOR_IR_SAFETY
+#ifdef CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY
     err_code = tof_1d_init(distance_is_unsafe_cb, mutex);
     if (err_code) {
         ASSERT_SOFT(err_code);

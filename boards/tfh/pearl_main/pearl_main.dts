@@ -686,7 +686,7 @@
     pinctrl-names = "default";
 
     clocks = <&rcc STM32_CLOCK(APB1, 25U)>,
-             <&rcc STM32_SRC_PCLK FDCAN_SEL(2)>;
+             <&rcc STM32_SRC_HSE FDCAN_SEL(0)>;
 
     /*
      * 1. Choose the highest available CAN clock frequency: PCLK1 is used
@@ -715,7 +715,9 @@
              <&rcc STM32_SRC_HSE FDCAN_SEL(0)>;
 
     bitrate = <1000000>;
+    sample-point = <853>;
     bitrate-data = <1000000>;
+    sample-point-data = <853>;
     status = "okay";
 };
 
