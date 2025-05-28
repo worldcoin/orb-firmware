@@ -4,8 +4,9 @@ on:
     types: [created, edited]
 jobs:
   fast-forward:
-    # Only run if the comment contains the /fast-forward command.
+    # Only run if @fouge commented with /fast-forward command.
     if: ${{ contains(github.event.comment.body, '/fast-forward')
+      && github.event.comment.user.login == 'fouge'
       && github.event.issue.pull_request }}
     runs-on: ubuntu-latest
 
