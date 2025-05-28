@@ -6,7 +6,7 @@ endmenu
 
 config PROXIMITY_DETECTION_FOR_IR_SAFETY
     bool "Ensure safe usage of IR LEDs."
-    default true
+    default y
     help
         Use 1d-tof sensor to detect any object in close proximity and disable IR LED.
 
@@ -77,7 +77,7 @@ config APP_TESTS_ALL
 
 config CI_INTEGRATION_TESTS
 	bool "Send specific string in logs when testing UART with mcu-util"
-	default false
+	default n
 	select NO_SUPER_CAPS
 	help
 	  UART communication is unidirectional and doesn't allow
