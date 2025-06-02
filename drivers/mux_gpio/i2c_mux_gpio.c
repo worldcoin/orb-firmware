@@ -212,7 +212,7 @@ static const struct i2c_driver_api i2c_mux_gpio_api_funcs = {
     };                                                                         \
     BUILD_ASSERT(                                                              \
         DT_REG_ADDR(node_id) <                                                 \
-            (1 << DT_PROP_LEN(DT_PARENT(node_id), mux_gpios)),                 \
+            (1 << DT_PROP_LEN_OR(DT_PARENT(node_id), mux_gpios, 0)),           \
         "Address (reg) cannot be used with the specified number of IOs");      \
     DEVICE_DT_DEFINE(node_id, i2c_mux_gpio_channel_init, NULL, NULL,           \
                      &i2c_mux_gpio_down_config_##node_id, POST_KERNEL,         \
@@ -222,12 +222,17 @@ static const struct i2c_driver_api i2c_mux_gpio_api_funcs = {
 #define I2C_MUX_GPIO_ROOT_DEFINE(inst)                                         \
     static const struct i2c_mux_gpio_root_config i2c_mux_gpio_cfg_##inst = {   \
         .i2c_device = DEVICE_DT_GET(DT_INST_PHANDLE(inst, i2c_parent)),        \
-        .enable_gpio = GPIO_DT_SPEC_GET_OR(DT_INST(inst, tfh_i2c_mux_gpio),    \
-                                           enable_gpios, {0}),                 \
+        .enable_gpio =                                                         \
+            GPIO_DT_SPEC_GET_OR(DT_DRV_INST(inst), enable_gpios, {0}),         \
         .number_of_mux_gpios =                                                 \
-            DT_PROP_LEN(DT_INST(inst, tfh_i2c_mux_gpio), mux_gpios),           \
-        .mux_gpios = {DT_FOREACH_PROP_ELEM_SEP(                                \
-            DT_DRV_INST(inst), mux_gpios, GPIO_DT_SPEC_GET_BY_IDX, (, ))}};    \
+            COND_CODE_1(DT_INST_NODE_HAS_PROP(inst, mux_gpios),                \
+                        (DT_INST_PROP_LEN(inst, mux_gpios)), (0)),             \
+        .mux_gpios = {COND_CODE_1(                                             \
+            DT_INST_NODE_HAS_PROP(inst, mux_gpios),                            \
+            (DT_INST_FOREACH_PROP_ELEM_SEP(inst, mux_gpios,                    \
+                                           GPIO_DT_SPEC_GET_BY_IDX, (, ))),    \
+            ({0}))},                                                           \
+    };                                                                         \
     static struct i2c_mux_gpio_root_data i2c_mux_gpio_data_##inst = {          \
         .lock = Z_MUTEX_INITIALIZER(i2c_mux_gpio_data_##inst.lock),            \
     };                                                                         \
