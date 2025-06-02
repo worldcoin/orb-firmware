@@ -364,7 +364,7 @@
             #address-cells = <1>;
             #size-cells = <0>;
 
-            // FIXME: bring back on front unit 6.4
+            // FIXME: bring back on front unit 6.3D
             // front_unit_als: bu27030@38 {
             //     compatible = "rohm,bu27030";
             //     status = "okay";
@@ -398,12 +398,13 @@
         };
     };
 
-    i2c-mux-gpio-power-board {
+    i2c-mux-gpio-power-board-evt {
         compatible = "tfh,i2c-mux-gpio";
         status = "okay";
         #address-cells = <1>;
         #size-cells = <0>;
-        enable-gpios = <&gpio_exp_pwr_brd 7 GPIO_ACTIVE_HIGH>;
+        mux-gpios = <&gpio_exp_pwr_brd 13 GPIO_ACTIVE_HIGH>, <&gpio_exp_pwr_brd 14 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&gpio_exp_pwr_brd 15 GPIO_ACTIVE_HIGH>;
         i2c-parent = <&i2c1>;
 
         mux_i2c@0 {
@@ -437,6 +438,57 @@
                 reg = <0x4b>;
             };
         };
+    };
+
+    i2c-mux-gpio-power-board-dvt {
+        compatible = "tfh,i2c-mux-gpio";
+        status = "okay";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        enable-gpios = <&gpio_exp_pwr_brd 7 GPIO_ACTIVE_HIGH>;
+        i2c-parent = <&i2c1>;
+
+        mux_i2c@0 {
+            compatible = "tfh,i2c-mux-gpio-channel";
+            status = "okay";
+            reg = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            power_board_tmp_sensor_super_cap_charger_dvt: tmp112@48 {
+                compatible = "ti,tmp112";
+                status = "okay";
+                reg = <0x48>;
+            };
+
+            power_board_tmp_sensor_pvcc_supply_dvt: tmp112@49 {
+                compatible = "ti,tmp112";
+                status = "okay";
+                reg = <0x49>;
+            };
+
+            power_board_tmp_sensor_super_caps_left_dvt: tmp112@4a {
+                compatible = "ti,tmp112";
+                status = "okay";
+                reg = <0x4a>;
+            };
+
+            power_board_tmp_sensor_super_caps_right_dvt: tmp112@4b {
+                compatible = "ti,tmp112";
+                status = "okay";
+                reg = <0x4b>;
+            };
+        };
+    };
+
+    // ic3
+    super-caps-adc-mux-power-board {
+        compatible = "tfh,generic-mux";
+        status = "okay";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        mux-gpios = <&gpio_exp_pwr_brd 13 GPIO_ACTIVE_HIGH>, <&gpio_exp_pwr_brd 14 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&gpio_exp_pwr_brd 15 GPIO_ACTIVE_HIGH>;
     };
 
     spi-mux-rgb-led {
