@@ -403,8 +403,7 @@
         status = "okay";
         #address-cells = <1>;
         #size-cells = <0>;
-        mux-gpios = <&gpio_exp_pwr_brd 13 GPIO_ACTIVE_HIGH>, <&gpio_exp_pwr_brd 14 GPIO_ACTIVE_HIGH>;
-        enable-gpios = <&gpio_exp_pwr_brd 15 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&gpio_exp_pwr_brd 7 GPIO_ACTIVE_HIGH>;
         i2c-parent = <&i2c1>;
 
         mux_i2c@0 {
