@@ -750,10 +750,6 @@ void
 temperature_init(const orb_mcu_Hardware *hw_version,
                  struct k_mutex *i2c_mux_mutex)
 {
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    ARG_UNUSED(hw_version);
-#endif
-
     temperature_i2c_mux_mutex = i2c_mux_mutex;
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
@@ -761,11 +757,23 @@ temperature_init(const orb_mcu_Hardware *hw_version,
         orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         sensors_and_channels[TEMPERATURE_SENSOR_LIQUID_LENS].sensor =
             DEVICE_DT_GET(DT_NODELABEL(liquid_lens_tmp_sensor_ev5));
-    } else {
-#endif
-        sensors_and_channels[TEMPERATURE_SENSOR_LIQUID_LENS].sensor =
-            DEVICE_DT_GET(DT_NODELABEL(liquid_lens_tmp_sensor));
-#if defined(CONFIG_BOARD_PEARL_MAIN)
+    }
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    // overwrite dvt sensors from differently wired mux (2 nodes in device tree)
+    if (hw_version->power_board ==
+        orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_5) {
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAP_CHARGER]
+            .sensor = DEVICE_DT_GET(
+            DT_NODELABEL(power_board_tmp_sensor_super_cap_charger_dvt));
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_PVCC_SUPPLY]
+            .sensor =
+            DEVICE_DT_GET(DT_NODELABEL(power_board_tmp_sensor_pvcc_supply_dvt));
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_RIGHT]
+            .sensor = DEVICE_DT_GET(
+            DT_NODELABEL(power_board_tmp_sensor_super_caps_left_dvt));
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_LEFT]
+            .sensor = DEVICE_DT_GET(
+            DT_NODELABEL(power_board_tmp_sensor_super_caps_right_dvt));
     }
 #endif
 
