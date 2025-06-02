@@ -40,7 +40,7 @@
 #include "system/logs.h"
 #endif
 
-LOG_MODULE_REGISTER(main);
+LOG_MODULE_REGISTER(main, CONFIG_MAIN_LOG_LEVEL);
 
 static bool jetson_up_and_running = false;
 
@@ -219,8 +219,6 @@ initialize(void)
     fatal_init();
     diag_init();
 
-    LOG_INF("🚀");
-
     err_code = storage_init();
     ASSERT_SOFT(err_code);
 
@@ -248,7 +246,9 @@ initialize(void)
     ASSERT_SOFT(err_code);
 
     orb_mcu_Hardware hw = version_get();
-    LOG_INF("Hardware version: %u", hw.version);
+    LOG_INF("Hardware version: main board: %u, power board: %u, front-unit: "
+            "%u, reset board: %u",
+            hw.version, hw.power_board, hw.front_unit, hw.reset_board);
 
     // voltage_measurement module is used by battery and boot -> must be
     // initialized before
@@ -342,6 +342,9 @@ initialize(void)
     err_code = fan_tach_init();
     ASSERT_SOFT(err_code);
 #endif
+
+    // done booting
+    LOG_INF("🚀");
 }
 
 #ifdef CONFIG_ZTEST
