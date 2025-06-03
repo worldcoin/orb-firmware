@@ -654,6 +654,7 @@
         reg = <0x4a>;
         conversions-per-second = "1";
         resolution = <8>;
+        zephyr,deferred-init;
     };
 
     // on EV5 the I2C address of the MAX31875R2 is translated from 0x4a to 0x5a for solving an address conflict
@@ -663,6 +664,7 @@
         reg = <0x5a>;
         conversions-per-second = "1";
         resolution = <8>;
+        zephyr,deferred-init;
     };
 
     main_board_tmp_sensor: tmp112@49 {
