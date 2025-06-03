@@ -750,6 +750,7 @@ void
 temperature_init(const orb_mcu_Hardware *hw_version,
                  struct k_mutex *i2c_mux_mutex)
 {
+    int ret;
     temperature_i2c_mux_mutex = i2c_mux_mutex;
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
@@ -758,23 +759,46 @@ temperature_init(const orb_mcu_Hardware *hw_version,
         sensors_and_channels[TEMPERATURE_SENSOR_LIQUID_LENS].sensor =
             DEVICE_DT_GET(DT_NODELABEL(liquid_lens_tmp_sensor_ev5));
     }
+    ret = device_init(
+        sensors_and_channels[TEMPERATURE_SENSOR_LIQUID_LENS].sensor);
+    ASSERT_SOFT(ret);
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-    // overwrite dvt sensors from differently wired mux (2 nodes in device tree)
-    if (hw_version->power_board ==
+    // overwrite evt sensors from differently wired mux (2 nodes in device tree)
+    if (hw_version->power_board <
         orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_5) {
         sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAP_CHARGER]
             .sensor = DEVICE_DT_GET(
-            DT_NODELABEL(power_board_tmp_sensor_super_cap_charger_dvt));
+            DT_NODELABEL(power_board_tmp_sensor_super_cap_charger_evt));
         sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_PVCC_SUPPLY]
             .sensor =
-            DEVICE_DT_GET(DT_NODELABEL(power_board_tmp_sensor_pvcc_supply_dvt));
-        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_RIGHT]
+            DEVICE_DT_GET(DT_NODELABEL(power_board_tmp_sensor_pvcc_supply_evt));
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_BOT]
             .sensor = DEVICE_DT_GET(
-            DT_NODELABEL(power_board_tmp_sensor_super_caps_left_dvt));
-        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_LEFT]
+            DT_NODELABEL(power_board_tmp_sensor_super_caps_bot_evt));
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_12V_CAPS_BOT]
             .sensor = DEVICE_DT_GET(
-            DT_NODELABEL(power_board_tmp_sensor_super_caps_right_dvt));
+            DT_NODELABEL(power_board_tmp_sensor_12v_caps_bot_evt));
     }
+    ret = device_init(
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAP_CHARGER]
+            .sensor);
+    ASSERT_SOFT(ret);
+
+    ret = device_init(
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_PVCC_SUPPLY]
+            .sensor);
+    ASSERT_SOFT(ret);
+
+    ret = device_init(
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_BOT]
+            .sensor);
+    ASSERT_SOFT(ret);
+
+    ret = device_init(
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_12V_CAPS_BOT]
+            .sensor);
+    ASSERT_SOFT(ret);
+
 #endif
 
     check_ready();

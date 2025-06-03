@@ -414,28 +414,32 @@
             #address-cells = <1>;
             #size-cells = <0>;
 
-            power_board_tmp_sensor_super_cap_charger: tmp112@48 {
+            power_board_tmp_sensor_super_cap_charger_evt: tmp112@48 {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x48>;
+                zephyr,deferred-init;
             };
 
-            power_board_tmp_sensor_pvcc_supply: tmp112@49 {
+            power_board_tmp_sensor_pvcc_supply_evt: tmp112@49 {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x49>;
+                zephyr,deferred-init;
             };
 
-            power_board_tmp_sensor_super_caps_bot: tmp112@4a {
+            power_board_tmp_sensor_super_caps_bot_evt: tmp112@4a {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4a>;
+                zephyr,deferred-init;
             };
 
-            power_board_tmp_sensor_12v_caps_bot: tmp112@4b {
+            power_board_tmp_sensor_12v_caps_bot_evt: tmp112@4b {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4b>;
+                zephyr,deferred-init;
             };
         };
     };
@@ -455,28 +459,32 @@
             #address-cells = <1>;
             #size-cells = <0>;
 
-            power_board_tmp_sensor_super_cap_charger_dvt: tmp112@48 {
+            power_board_tmp_sensor_super_cap_charger: tmp112@48 {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x48>;
+                zephyr,deferred-init;
             };
 
-            power_board_tmp_sensor_pvcc_supply_dvt: tmp112@49 {
+            power_board_tmp_sensor_pvcc_supply: tmp112@49 {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x49>;
+                zephyr,deferred-init;
             };
 
-            power_board_tmp_sensor_super_caps_left_dvt: tmp112@4a {
+            power_board_tmp_sensor_super_caps_bot: tmp112@4a {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4a>;
+                zephyr,deferred-init;
             };
 
-            power_board_tmp_sensor_super_caps_right_dvt: tmp112@4b {
+            power_board_tmp_sensor_12v_caps_bot: tmp112@4b {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4b>;
+                zephyr,deferred-init;
             };
         };
     };
