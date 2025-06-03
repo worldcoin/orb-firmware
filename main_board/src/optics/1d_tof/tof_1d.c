@@ -13,6 +13,10 @@
 LOG_MODULE_REGISTER(1d_tof, CONFIG_TOF_1D_LOG_LEVEL);
 
 const struct device *tof_1d_device = DEVICE_DT_GET(DT_NODELABEL(tof_sensor));
+#if CONFIG_BOARD_DIAMOND_MAIN
+const struct device *tof_1d_device_dvt =
+    DEVICE_DT_GET(DT_NODELABEL(tof_sensor_dvt));
+#endif
 
 K_THREAD_STACK_DEFINE(stack_area_tof_1d, THREAD_STACK_SIZE_1DTOF);
 static struct k_thread tof_1d_thread_data;
@@ -31,7 +35,7 @@ BUILD_ASSERT(
 BUILD_ASSERT(INTER_MEASUREMENT_FREQ_HZ > 0,
              "INTER_MEASUREMENT_FREQ_HZ must be greater than 0");
 
-#if PROXIMITY_DETECTION_FOR_IR_SAFETY
+#if CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY
 static void (*unsafe_cb)(void) = NULL;
 #endif
 /**
@@ -127,7 +131,7 @@ tof_1d_thread()
             continue;
         }
 
-#if PROXIMITY_DETECTION_FOR_IR_SAFETY
+#if CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY
         CRITICAL_SECTION_ENTER(k);
         long counter = atomic_get(&too_close_counter);
         // if val1 is 0, we are far away, so we can decrease the counter
@@ -150,9 +154,25 @@ tof_1d_thread()
 }
 
 int
-tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex)
+tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
+            const orb_mcu_Hardware *hw_version)
 {
     int ret;
+
+#if CONFIG_BOARD_DIAMOND_MAIN
+    /* on diamond, select correct 1d-tof device from device tree as it differs
+     * from evt to dvt and initialize it (deferred, to prevent init failures)
+     */
+    if (hw_version->version >=
+        orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5) {
+        tof_1d_device = tof_1d_device_dvt;
+    }
+
+    ret = device_init(tof_1d_device);
+    ASSERT_SOFT(ret);
+#else
+    UNUSED_PARAMETER(hw_version);
+#endif
 
     if (!device_is_ready(tof_1d_device)) {
         LOG_ERR("VL53L1 not ready!");
@@ -181,7 +201,7 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex)
     }
     ASSERT_SOFT(ret);
 
-#if PROXIMITY_DETECTION_FOR_IR_SAFETY
+#if CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY
     if (distance_unsafe_cb) {
         unsafe_cb = distance_unsafe_cb;
     }
