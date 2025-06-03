@@ -11,7 +11,7 @@
 #include <app_assert.h>
 #include <zephyr/drivers/gpio.h>
 
-LOG_MODULE_REGISTER(optics);
+LOG_MODULE_REGISTER(optics, CONFIG_OPTICS_LOG_LEVEL);
 
 static orb_mcu_HardwareDiagnostic_Status self_test_status =
     orb_mcu_HardwareDiagnostic_Status_STATUS_UNKNOWN;
@@ -79,6 +79,7 @@ optics_safety_circuit_triggered(const uint32_t timeout_ms, bool *triggered)
 __maybe_unused static void
 distance_is_unsafe_cb(void)
 {
+    LOG_INF("⚠️ Distance (1D ToF) is unsafe");
     ir_camera_system_set_on_time_us(0);
 }
 
@@ -113,7 +114,7 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
     }
 
 #ifdef CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY
-    err_code = tof_1d_init(distance_is_unsafe_cb, mutex);
+    err_code = tof_1d_init(distance_is_unsafe_cb, mutex, hw_version);
     if (err_code) {
         ASSERT_SOFT(err_code);
         return err_code;
