@@ -68,7 +68,7 @@ compatible: "tfh,i2c-mux-gpio"
 properties:
   mux-gpios:
     type: phandle-array
-    required: true
+    required: false
   enable-gpios:
     type: phandle-array
     required: false
