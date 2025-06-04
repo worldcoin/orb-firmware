@@ -306,25 +306,25 @@
             #address-cells = <1>;
             #size-cells = <0>;
 
-            front_unit_tmp_sensor_850_730_left_top: tmp112@48 {
+            front_unit_tmp_sensor_940_left_top: tmp112@48 {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x48>;
             };
 
-            front_unit_tmp_sensor_940_left_top: tmp112@49 {
+            front_unit_tmp_sensor_850_left_top: tmp112@49 {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x49>;
             };
 
-            front_unit_tmp_sensor_850_730_left_bot: tmp112@4a {
+            front_unit_tmp_sensor_940_left_bot: tmp112@4a {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4a>;
             };
 
-            front_unit_tmp_sensor_940_left_bot: tmp112@4b {
+            front_unit_tmp_sensor_850_left_bot: tmp112@4b {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4b>;
@@ -338,7 +338,7 @@
             #address-cells = <1>;
             #size-cells = <0>;
 
-            front_unit_tmp_sensor_850_730_right_top: tmp112@48 {
+            front_unit_tmp_sensor_850_right_top: tmp112@48 {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x48>;
@@ -378,13 +378,13 @@
                 reg = <0x48>;
             };
 
-            front_unit_tmp_sensor_white_top: tmp112@49 {
+            front_unit_tmp_sensor_white_rgb_left_bot: tmp112@49 {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x49>;
             };
 
-            front_unit_tmp_sensor_850_center_top: tmp112@4a {
+            front_unit_tmp_sensor_white_rgb_right_bot: tmp112@4a {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4a>;
@@ -426,13 +426,13 @@
                 reg = <0x49>;
             };
 
-            power_board_tmp_sensor_super_caps_left: tmp112@4a {
+            power_board_tmp_sensor_super_caps_bot: tmp112@4a {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4a>;
             };
 
-            power_board_tmp_sensor_super_caps_right: tmp112@4b {
+            power_board_tmp_sensor_12v_caps_bot: tmp112@4b {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4b>;
