@@ -191,6 +191,9 @@ fan_init(void)
                 main_fan_enable_spec.port->name, main_fan_enable_spec.pin);
         return RET_ERROR_INTERNAL;
     }
+
+    orb_mcu_Hardware version = version_get();
+    // set specs depending on current hardware
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     ret = gpio_pin_configure_dt(&aux_fan_enable_spec, GPIO_OUTPUT);
     if (ret) {
@@ -198,10 +201,7 @@ fan_init(void)
                 aux_fan_enable_spec.port->name, aux_fan_enable_spec.pin);
         return RET_ERROR_INTERNAL;
     }
-#endif
-    // set specs depending on current hardware
-    orb_mcu_Hardware version = version_get();
-#if defined(CONFIG_BOARD_PEARL_MAIN)
+
     if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1 ||
         version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
         fan_specs = fan_ev1_2_specs;
@@ -212,15 +212,13 @@ fan_init(void)
                version.version ==
                    orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         fan_specs = fan_ev3_specs;
-#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-    if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
-        orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT ||
-        orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4) {
-        fan_specs = fan_diamond_specs;
-#endif
     } else {
         LOG_ERR("Not supported main board: %u", version.version);
     }
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    UNUSED_VARIABLE(version);
+    fan_specs = fan_diamond_specs;
+#endif
 
 #ifdef CONFIG_TEST_FAN
     uint32_t max_speed_pulse_width_ns = 0;
@@ -251,7 +249,9 @@ fan_init(void)
                version.version ==
                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT ||
                version.version ==
-                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4) {
+                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4 ||
+               version.version ==
+                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5) {
         max_speed_pulse_width_ns = 40000;
 
         // min is 30% duty cycle = 0.3*40000

@@ -271,7 +271,9 @@ power_configure_gpios(void)
         version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
         version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT ||
         version.version ==
-            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4) {
+            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4 ||
+        version.version ==
+            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5) {
         if (!device_is_ready(supply_3v3_ssd_enable_gpio_spec.port) ||
             !device_is_ready(supply_3v3_wifi_enable_gpio_spec.port)) {
             return RET_ERROR_INTERNAL;
@@ -783,7 +785,9 @@ reboot_thread()
                 version.version ==
                     orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT ||
                 version.version ==
-                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4) {
+                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4 ||
+                version.version ==
+                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5) {
                 gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 0);
                 gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 0);
             }

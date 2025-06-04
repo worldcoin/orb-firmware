@@ -68,7 +68,7 @@ als_init(const orb_mcu_Hardware *hw_version, struct k_mutex *i2c_mux_mutex)
     als_i2c_mux_mutex = i2c_mux_mutex;
 
     // skip if als_device is not defined, or
-    // on front unit 6.3x as the ALS is not assembled
+    // on front unit 6.3A to 6.3C as the ALS is not assembled
     if (als_device == NULL ||
         (hw_version->front_unit >=
              orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3A &&
