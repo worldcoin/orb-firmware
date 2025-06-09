@@ -1,3 +1,7 @@
+module = MAIN
+module-str = MAIN
+source "subsys/logging/Kconfig.template.log_config"
+
 module = TEMPERATURE
 module-str = TEMPERATURE
 source "subsys/logging/Kconfig.template.log_config"
