@@ -10,13 +10,16 @@ if [ $# -lt 2 ]; then
     exit 1
 fi
 
-f=$(mktemp)
+tmpfile=$(mktemp 2>/dev/null || mktemp -t 'mytmpfile')
 
 for arg; do
-    cat "$arg" >> "$f"
+    cat "$arg" >> "$tmpfile"
 done
 
-sed -i '/^:00000001FF/d' "$f"
-echo ':00000001FF' >> "$f"
+# sed -i doesn't expect the same args on macos and linux
+# so this below is a universal command that will create another temporary file
+sed '/^:00000001FF/d' "$tmpfile" > "${tmpfile}.tmp" && mv "${tmpfile}.tmp" "$tmpfile"
 
-cat "$f"
+echo ':00000001FF' >> "$tmpfile"
+
+cat "$tmpfile"

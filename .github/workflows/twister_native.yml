@@ -16,7 +16,7 @@ jobs:
       - name: Initialize West repo
         run: |
           cd ${{ github.job }}
-          git config --global --add url."https://wc-cicd:${{ secrets.GIT_HUB_TOKEN }}@github.com/worldcoin/".insteadOf "git@github.com:worldcoin/"
+          git config --global --add url."https://wc-cicd:${{ secrets.ORB_GIT_HUB_TOKEN }}@github.com/worldcoin/".insteadOf "git@github.com:worldcoin/"
           cd orb && west init -l --mf west.yml . || echo "Ignoring west init error $?" # might be already initialized
           west update --narrow --fetch-opt=--depth=1
       - name: Twister unit tests

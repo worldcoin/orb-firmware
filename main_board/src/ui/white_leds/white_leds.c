@@ -32,7 +32,7 @@ white_leds_thread()
 
         int ret = pwm_set_dt(&white_leds_pwm_spec, white_leds_pwm_spec.period,
                              white_leds_pwm_spec.period *
-                                 brightness_thousandth / 1000);
+                                 brightness_thousandth / 1000UL);
         if (ret) {
             LOG_ERR("Error setting PWM parameters: %d", ret);
         }

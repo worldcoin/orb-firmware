@@ -42,7 +42,6 @@
     };
 
     aliases {
-        battery-can-bus = &fdcan2;
         watchdog0 = &iwdg;
         secondary-slot = &slot1_partition;
         spi-flash0 = &w25q32jv;
@@ -73,10 +72,13 @@
         supply-vbat-sw-enable-gpios = <&gpio_exp_pwr_brd 12 GPIO_ACTIVE_HIGH>;
         front-unit-pvcc-enabled-gpios = <&gpio_exp_front_unit 0 GPIO_ACTIVE_HIGH>;
 
-        // The signals FUSE_RST and FUSE_ACTIVE are available only on Front Unit 6.0 (PoC1) and 6.1 (PoC2)
+        polarizer-stepper-direction-gpios = <&gpio_exp1 1 GPIO_ACTIVE_HIGH>;
+        polarizer-stepper-enable-gpios = <&gpio_exp1 2 GPIO_ACTIVE_HIGH>;
+        polarizer-stepper-encoder-enable-gpios = <&gpio_exp1 3 GPIO_ACTIVE_LOW>;
+        polarizer-stepper-encoder-gpios = <&gpioc 11 GPIO_ACTIVE_HIGH>;
+        polarizer-stepper-spi-cs-gpios = <&gpio_exp1 0 GPIO_ACTIVE_LOW>;
+
         // On Front Unit 6.2 (B3) the signal EN_5V_SWITCHED is connected to the port expander pin P02 instead.
-        front-unit-fuse-reset-gpios = <&gpio_exp_front_unit 2 GPIO_ACTIVE_LOW>;     // PoC1 & PoC2 only
-        front-unit-fuse-active-gpios = <&gpio_exp_front_unit 6 GPIO_ACTIVE_LOW>;    // PoC1 & PoC2 only
         front-unit-en-5v-switched-gpios = <&gpio_exp_front_unit 2 GPIO_ACTIVE_HIGH>;      // B3 only
 
         supply-12v-caps-enable-gpios = <&gpio_exp_pwr_brd 4 GPIO_ACTIVE_LOW>;
@@ -160,7 +162,12 @@
 
     white_leds {
         compatible = "pwm-white-leds";
-        pwms = <&white_leds_pwm 2 100000 PWM_POLARITY_NORMAL>;
+        pwms = <&white_leds_pwm 2 65535 PWM_POLARITY_NORMAL>;
+    };
+
+    polarizer_step {
+        compatible = "pwm-polarizer-step";
+        pwms = <&polarizer_step_pwm 2 100000 PWM_POLARITY_NORMAL>;
     };
 
     liquid_lens {
@@ -183,41 +190,41 @@
         // io-channels = <adc-device channel-number>, ...
         // adc1:
         // [0]: VBAT_SW
-        //      Diamond PoC2: R1=94k, R2=10k
+        //      Diamond: R1=94k, R2=10k
         // [1]: 3V3_SSD
-        //      Diamond PoC2: R1=10k, R2=10k
+        //      Diamond: R1=10k, R2=10k
         // [2]: 3V3_WIFI
-        //      Diamond PoC2: R1=10k, R2=10k
+        //      Diamond: R1=10k, R2=10k
         // [3]: PVCC
-        //      Diamond PoC2: R1=442k, R2=23.5k
+        //      Diamond: R1=442k, R2=23.5k
         // [4]: 12V_CAPS
-        //      Diamond PoC2: R1=57k, R2=10k
+        //      Diamond: R1=57k, R2=10k
         // [5]: V_SCAP_LOW
-        //      Diamond PoC2
+        //      Diamond
         // [6]: V_SCAP_HIGH
-        //      Diamond PoC2
+        //      Diamond
         // [7]: Die Temperature
         // [8]: Vbat / 3
         // adc4:
         // [9]: 1V8_SEC
-        //       Diamond PoC2: R1=27R, R2=inf
+        //       Diamond: R1=27R, R2=inf
         // [10]: 4V7_SEC
-        //       Diamond PoC2: R1=2*47k, R2=47k
+        //       Diamond: R1=2*47k, R2=47k
         // adc5:
         // [11]: 1V8
-        //       Diamond PoC2: R1=27R, R2=inf
+        //       Diamond: R1=27R, R2=inf
         // [12]: 3V3
-        //       Diamond PoC2: R1=10k, R2=10k
+        //       Diamond: R1=10k, R2=10k
         // [13]: 5V
-        //       Diamond PoC2: R1=20k, R2=10k
+        //       Diamond: R1=20k, R2=10k
         // [14]: 3V6
-        //       Diamond PoC2: R1=10k, R2=10k
+        //       Diamond: R1=10k, R2=10k
         // [15]: 3V3_LTE
-        //       Diamond PoC2: R1=10k, R2=10k
+        //       Diamond: R1=10k, R2=10k
         // [16]: 1V2
-        //       Diamond PoC2: R1=27R, R2=inf
+        //       Diamond: R1=27R, R2=inf
         // [17]: 2V8
-        //       Diamond PoC2: R1=10k, R2=10k
+        //       Diamond: R1=10k, R2=10k
         // [18]: VREFINT (typ. 1.212 V)
         //
         io-channels = <&adc1 1>, <&adc1 2>, <&adc1 3>, <&adc1 7>, <&adc1 9>, <&adc1 11>, <&adc1 14>, <&adc1 16>, <&adc1 17>,<&adc4 1>, <&adc4 2>, <&adc5 7>, <&adc5 8>, <&adc5 9>, <&adc5 12>, <&adc5 13>, <&adc5 14>, <&adc5 15>, <&adc5 18>;
@@ -264,6 +271,12 @@
                 status = "okay";
                 reg = <0x4b>;
             };
+
+            tof_sensor_dvt: vl53l1x@29 {
+                compatible = "st,vl53l1x";
+                reg = <0x29>;
+                zephyr,deferred-init;
+            };
         };
 
         mux_i2c@1 {
@@ -299,25 +312,25 @@
             #address-cells = <1>;
             #size-cells = <0>;
 
-            front_unit_tmp_sensor_850_730_left_top: tmp112@48 {
+            front_unit_tmp_sensor_940_left_top: tmp112@48 {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x48>;
             };
 
-            front_unit_tmp_sensor_940_left_top: tmp112@49 {
+            front_unit_tmp_sensor_850_left_top: tmp112@49 {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x49>;
             };
 
-            front_unit_tmp_sensor_850_730_left_bot: tmp112@4a {
+            front_unit_tmp_sensor_940_left_bot: tmp112@4a {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4a>;
             };
 
-            front_unit_tmp_sensor_940_left_bot: tmp112@4b {
+            front_unit_tmp_sensor_850_left_bot: tmp112@4b {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4b>;
@@ -331,7 +344,7 @@
             #address-cells = <1>;
             #size-cells = <0>;
 
-            front_unit_tmp_sensor_850_730_right_top: tmp112@48 {
+            front_unit_tmp_sensor_850_right_top: tmp112@48 {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x48>;
@@ -357,11 +370,13 @@
             #address-cells = <1>;
             #size-cells = <0>;
 
-            front_unit_als: bu27030@38 {
-                compatible = "rohm,bu27030";
-                status = "okay";
-                reg = <0x38>;
-            };
+            // FIXME: bring back on front unit 6.3D
+            // front_unit_als: bu27030@38 {
+            //     compatible = "rohm,bu27030";
+            //     status = "okay";
+            //     reg = <0x38>;
+            // };
+            //
 
             front_unit_tmp_sensor_shroud_rgb_top: tmp112@48 {
                 compatible = "ti,tmp112";
@@ -369,13 +384,13 @@
                 reg = <0x48>;
             };
 
-            front_unit_tmp_sensor_white_top: tmp112@49 {
+            front_unit_tmp_sensor_white_rgb_left_bot: tmp112@49 {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x49>;
             };
 
-            front_unit_tmp_sensor_850_center_top: tmp112@4a {
+            front_unit_tmp_sensor_white_rgb_right_bot: tmp112@4a {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4a>;
@@ -389,7 +404,7 @@
         };
     };
 
-    i2c-mux-gpio-power-board {
+    i2c-mux-gpio-power-board-evt {
         compatible = "tfh,i2c-mux-gpio";
         status = "okay";
         #address-cells = <1>;
@@ -405,30 +420,89 @@
             #address-cells = <1>;
             #size-cells = <0>;
 
+            power_board_tmp_sensor_super_cap_charger_evt: tmp112@48 {
+                compatible = "ti,tmp112";
+                status = "okay";
+                reg = <0x48>;
+                zephyr,deferred-init;
+            };
+
+            power_board_tmp_sensor_pvcc_supply_evt: tmp112@49 {
+                compatible = "ti,tmp112";
+                status = "okay";
+                reg = <0x49>;
+                zephyr,deferred-init;
+            };
+
+            power_board_tmp_sensor_super_caps_bot_evt: tmp112@4a {
+                compatible = "ti,tmp112";
+                status = "okay";
+                reg = <0x4a>;
+                zephyr,deferred-init;
+            };
+
+            power_board_tmp_sensor_12v_caps_bot_evt: tmp112@4b {
+                compatible = "ti,tmp112";
+                status = "okay";
+                reg = <0x4b>;
+                zephyr,deferred-init;
+            };
+        };
+    };
+
+    i2c-mux-gpio-power-board-dvt {
+        compatible = "tfh,i2c-mux-gpio";
+        status = "okay";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        enable-gpios = <&gpio_exp_pwr_brd 7 GPIO_ACTIVE_HIGH>;
+        i2c-parent = <&i2c1>;
+
+        mux_i2c@0 {
+            compatible = "tfh,i2c-mux-gpio-channel";
+            status = "okay";
+            reg = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
             power_board_tmp_sensor_super_cap_charger: tmp112@48 {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x48>;
+                zephyr,deferred-init;
             };
 
             power_board_tmp_sensor_pvcc_supply: tmp112@49 {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x49>;
+                zephyr,deferred-init;
             };
 
-            power_board_tmp_sensor_super_caps_left: tmp112@4a {
+            power_board_tmp_sensor_super_caps_bot: tmp112@4a {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4a>;
+                zephyr,deferred-init;
             };
 
-            power_board_tmp_sensor_super_caps_right: tmp112@4b {
+            power_board_tmp_sensor_12v_caps_bot: tmp112@4b {
                 compatible = "ti,tmp112";
                 status = "okay";
                 reg = <0x4b>;
+                zephyr,deferred-init;
             };
         };
+    };
+
+    // ic3
+    super-caps-adc-mux-power-board {
+        compatible = "tfh,generic-mux";
+        status = "okay";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        mux-gpios = <&gpio_exp_pwr_brd 13 GPIO_ACTIVE_HIGH>, <&gpio_exp_pwr_brd 14 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&gpio_exp_pwr_brd 15 GPIO_ACTIVE_HIGH>;
     };
 
     spi-mux-rgb-led {
@@ -778,6 +852,12 @@
         pinctrl-names = "default";
         channels = <3>;
     };
+
+    polarizer_step_pwm: pwm {
+        status = "okay";
+        pinctrl-0 = <&tim2_ch2_pd4>;
+        pinctrl-names = "default";
+    };
 };
 
 &timers3 {
@@ -937,6 +1017,7 @@
     tof_sensor: vl53l1x@29 {
         compatible = "st,vl53l1x";
         reg = <0x29>;
+        zephyr,deferred-init;
     };
 
     // io-expander on the front unit 0x23
@@ -1011,21 +1092,13 @@
     pinctrl-0 = <&fdcan1_rx_pd0 &fdcan1_tx_pd1>;
     pinctrl-names = "default";
 
-    /*
-     * 1. Choose the highest available CAN clock frequency: PCLK1 is used
-     * 2. Set the BRPA bit-rate prescaler equal BRPB: done within Zephyr
-     * 3. Choose BRPA and BRPD as low as possible: done within Zephyr
-     * 4. Configure all CAN FD nodes to have the same arbitration phase SP
-     *    and the same data phase SP: 85,2%
-     * 5. Chose sjwD and sjwA as large as possible: MIN(PS1,PS2). Configuration
-     * on the Jetson allows for a maximum of 4. We use 4 to keep the
-     * configuration homogeneous (same Tq on all nodes)
-     * 6. Enable TDC for data bit-rates higher than 1 Mbit/s
-     */
+    clocks = <&rcc STM32_CLOCK(APB1, 25U)>,
+            <&rcc STM32_SRC_HSE FDCAN_SEL(0)>;
+
     bitrate = <1000000>;
     sample-point = <853>;
     bitrate-data = <1000000>;
-    sample-point-data = <853>; // closest value
+    sample-point-data = <853>;
     status = "okay";
 };
 
@@ -1038,6 +1111,13 @@
     motion_controller: motion_controller@0 {
         compatible = "tmc,5041-spi";
         reg = <0>;
+        spi-max-frequency = <4000000>;
+        status = "okay";
+    };
+
+    polarizer_controller: polarizer_controller@1 {
+        compatible = "ti,drv8434s";
+        reg = <1>;
         spi-max-frequency = <4000000>;
         status = "okay";
     };

@@ -396,10 +396,12 @@ camera_sweep_isr(void *arg)
                     evaluate_mirror_sweep_polynomials(sweep_index);
                 mirror_set_angle_phi_async(
                     md.delta_phi_millidegrees +
-                    (int32_t)initial_mirror_angle_phi_millidegrees);
+                        (int32_t)initial_mirror_angle_phi_millidegrees,
+                    0);
                 mirror_set_angle_theta_async(
                     md.delta_theta_millidegrees +
-                    (int32_t)initial_mirror_angle_theta_millidegrees);
+                        (int32_t)initial_mirror_angle_theta_millidegrees,
+                    0);
             }
         } else {
             LOG_ERR("Nothing is in progress, this should not be possible!");
@@ -590,8 +592,9 @@ disable_ir_leds(struct k_timer *timer)
 
     LOG_WRN("Turning off IR LEDs after %" PRIu32 "s of inactivity",
             IR_LED_AUTO_OFF_TIMEOUT_S);
-    ir_camera_system_enable_leds(
+    const int ret = ir_camera_system_enable_leds(
         orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    ASSERT_SOFT(ret);
 }
 
 static void
@@ -1137,69 +1140,6 @@ ir_camera_system_get_time_until_update_us_internal(void)
     return time_until_update_us;
 }
 
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-// Fuse available on Front Unit versions 6.0 and 6.1 only!
-static ret_code_t
-reset_fuse(void)
-{
-    int err_code;
-
-    const struct gpio_dt_spec fuse_reset =
-        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_fuse_reset_gpios);
-    const struct gpio_dt_spec fuse_active =
-        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_fuse_active_gpios);
-
-    err_code = gpio_pin_configure_dt(&fuse_active, GPIO_INPUT);
-    if (err_code) {
-        ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
-    }
-
-    err_code = gpio_pin_configure_dt(&fuse_reset, GPIO_OUTPUT_INACTIVE);
-    if (err_code) {
-        ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
-    }
-
-    if (gpio_pin_get_dt(&fuse_active) == 0) {
-        LOG_WRN("Resetting blown fuse");
-
-        err_code = gpio_pin_set_dt(&fuse_reset, 1);
-        if (err_code) {
-            ASSERT_SOFT(err_code);
-            return RET_ERROR_INTERNAL;
-        }
-
-        k_msleep(100);
-        err_code = gpio_pin_set_dt(&fuse_reset, 0);
-        if (err_code) {
-            ASSERT_SOFT(err_code);
-            return RET_ERROR_INTERNAL;
-        }
-    }
-
-    return RET_SUCCESS;
-}
-
-// 5V switch not available on Front Unit versions 6.0 and 6.1!
-static ret_code_t
-enable_5v_switched(void)
-{
-    int err_code;
-
-    const struct gpio_dt_spec en_5v_switched =
-        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_en_5v_switched_gpios);
-
-    err_code = gpio_pin_configure_dt(&en_5v_switched, GPIO_OUTPUT_ACTIVE);
-    if (err_code) {
-        ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
-    }
-
-    return RET_SUCCESS;
-}
-#endif
-
 ret_code_t
 ir_camera_system_set_fps_hw(uint16_t fps)
 {
@@ -1316,15 +1256,13 @@ ir_camera_system_hw_init(void)
 #endif
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    const orb_mcu_Hardware version = version_get();
+    const struct gpio_dt_spec en_5v_switched =
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_en_5v_switched_gpios);
 
-    if (version.version ==
-            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 ||
-        version.version ==
-            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2) {
-        reset_fuse();
-    } else {
-        enable_5v_switched();
+    err_code = gpio_pin_configure_dt(&en_5v_switched, GPIO_OUTPUT_ACTIVE);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
     }
 #endif
 

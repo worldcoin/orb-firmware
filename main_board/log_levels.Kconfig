@@ -1,3 +1,7 @@
+module = MAIN
+module-str = MAIN
+source "subsys/logging/Kconfig.template.log_config"
+
 module = TEMPERATURE
 module-str = TEMPERATURE
 source "subsys/logging/Kconfig.template.log_config"
@@ -70,6 +74,10 @@ module = BUTTON
 module-str = BUTTON
 source "subsys/logging/Kconfig.template.log_config"
 
+module = OPTICS
+module-str = OPTICS
+source "subsys/logging/Kconfig.template.log_config"
+
 module = TOF_1D
 module-str = TOF_1D
 source "subsys/logging/Kconfig.template.log_config"
@@ -88,4 +96,8 @@ source "subsys/logging/Kconfig.template.log_config"
 
 module = SC18IS606
 module-str = SC18IS606
+source "subsys/logging/Kconfig.template.log_config"
+
+module = POLARIZER
+module-str = POLARIZER
 source "subsys/logging/Kconfig.template.log_config"

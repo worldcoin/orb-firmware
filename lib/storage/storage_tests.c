@@ -17,6 +17,7 @@ ZTEST(hil, test_storage)
     struct storage_area_s area;
 
     // start by erasing flash content
+    LOG_INF("Erasing storage area");
     ret = flash_area_open(FIXED_PARTITION_ID(storage_partition), &fa);
     zassert_equal(ret, 0, "flash_area_open failed %d", ret);
     ret = flash_area_erase(fa, 0, fa->fa_size);
@@ -40,6 +41,7 @@ ZTEST(hil, test_storage)
     }
 
     // write tests
+    LOG_INF("Writing 1 dummy record to storage area");
 #if FLASH_WRITE_BLOCK_SIZE == 1
     const size_t record_size = 8;
 #else
@@ -60,6 +62,8 @@ ZTEST(hil, test_storage)
         (off_t)(area.rd_idx + sizeof(storage_header_t) + sizeof(dummy_record)),
         "write must be pushed after the last written record");
 
+    LOG_INF(
+        "Writing 1 dummy record (to be padded to block size) to storage area");
     char dummy_record_padded[record_size * 2 + 2];
     for (size_t i = 0; i < sizeof(dummy_record_padded); ++i) {
         dummy_record_padded[i] = rand() % 256;
@@ -84,6 +88,7 @@ ZTEST(hil, test_storage)
 #endif
 
     // read back aligned record
+    LOG_INF("Read back records, check content and free up storage");
     char read_record[record_size * 3];
     memset(read_record, 0x00, sizeof(read_record));
     size_t size = 0;
@@ -134,6 +139,8 @@ ZTEST(hil, test_storage)
     ret = storage_free();
     zassert_not_equal(ret, RET_SUCCESS);
 
+    LOG_INF("Add one record and re-initialize area to ensure correct "
+            "initialization");
     // set initial content with 1 record not at the beginning of the area
     ret = storage_push(dummy_record, sizeof(dummy_record));
     zassert_equal(ret, RET_SUCCESS, "storage_push failed %d (aligned record)",
@@ -152,6 +159,8 @@ ZTEST(hil, test_storage)
         "storage_init must find the `record_aligned` record");
 
     // fill storage entirely
+    LOG_INF("Fill storage entirely, start from erased content");
+
     // erase flash content
     flash_area_erase(fa, 0, fa->fa_size);
     ret = storage_init();
@@ -174,6 +183,7 @@ ZTEST(hil, test_storage)
                   record_count_expected, count);
 
     // make sure we are able to initialize a full area
+    LOG_INF("Initializing a full area");
     ret = storage_init();
     zassert_equal(ret, RET_SUCCESS);
 

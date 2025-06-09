@@ -1,0 +1,42 @@
+description: |
+  GPIO-based multiplexer
+
+
+   +---------------+
+   | SoC           |                    |+---+
+   |               |          /--------+| IO |
+   |   +---------+ |  +------+          +----+
+   |   | ADC root|-|--| Mux  | ---------[...]
+   |   +---------+ |  +--+---+           +----+
+   |               |     |    \----------| IO |
+   |     +-------+ |     |               +----+
+   |     | GPIOs |-|-----+
+   |     +-------+ |
+   +---------------+
+
+  An example IC for realising the Mux in hardware is the TMUX1209 from Texas Instruments.
+
+  Required properties:
+  - compatible: "tfh,generic-mux"
+  - mux-gpios: List of gpios used to control the muxer. The first gpio in this list corresponds to the least
+               significant bit in the child bus address.
+
+  Example:
+    adc-mux-gpio {
+      compatible = "tfh,adc-mux-gpio";
+      status = "okay";
+      #address-cells = <1>;
+      #size-cells = <0>;
+      mux-gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>, <&gpioe 5 GPIO_ACTIVE_HIGH>;
+      enable-gpios = <&gpiob 1 GPIO_ACTIVE_HIGH>;
+    };
+
+compatible: "tfh,generic-mux"
+
+properties:
+  mux-gpios:
+    type: phandle-array
+    required: true
+  enable-gpios:
+    type: phandle-array
+    required: false

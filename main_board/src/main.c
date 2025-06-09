@@ -21,11 +21,15 @@
 #include <app_assert.h>
 #include <can_messaging.h>
 #include <dfu.h>
+#include <optics/polarizer_wheel/polarizer_wheel.h>
 #include <orb_fatal.h>
 #include <pb_encode.h>
 #include <storage.h>
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
+#ifdef CONFIG_MEMFAULT
+#include <memfault/core/reboot_tracking.h>
+#endif
 
 #if CONFIG_ORB_LIB_WATCHDOG
 #include <watchdog.h>
@@ -36,7 +40,7 @@
 #include "system/logs.h"
 #endif
 
-LOG_MODULE_REGISTER(main);
+LOG_MODULE_REGISTER(main, CONFIG_MAIN_LOG_LEVEL);
 
 static bool jetson_up_and_running = false;
 
@@ -115,6 +119,35 @@ app_assert_cb(fatal_error_info_t *err_info)
     }
 }
 
+/**
+ * Called from thread so it's fine to call k_msleep
+ * @return doesn't return
+ */
+static int
+heartbeat_timeout_handler(void)
+{
+    const int32_t shutdown_delay_ms = 5000;
+    const orb_mcu_main_ShutdownScheduled shutdown = {
+        .shutdown_reason =
+            orb_mcu_main_ShutdownScheduled_ShutdownReason_HEARTBEAT_TIMEOUT,
+        .has_ms_until_shutdown = true,
+        .ms_until_shutdown = shutdown_delay_ms};
+    publish_new((void *)&shutdown, sizeof(shutdown),
+                orb_mcu_main_McuToJetson_shutdown_tag,
+                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+
+    k_msleep(shutdown_delay_ms);
+
+    // ☠️
+#ifdef CONFIG_MEMFAULT
+    MEMFAULT_REBOOT_MARK_RESET_IMMINENT(
+        kMfltRebootReason_HeartbeatFromJetsonTimeout);
+#endif
+
+    NVIC_SystemReset();
+    return 0;
+}
+
 static void
 send_reset_reason(void)
 {
@@ -186,8 +219,6 @@ initialize(void)
     fatal_init();
     diag_init();
 
-    LOG_INF("🚀");
-
     err_code = storage_init();
     ASSERT_SOFT(err_code);
 
@@ -215,7 +246,9 @@ initialize(void)
     ASSERT_SOFT(err_code);
 
     orb_mcu_Hardware hw = version_get();
-    LOG_INF("Hardware version: %u", hw.version);
+    LOG_INF("Hardware version: main board: %u, power board: %u, front-unit: "
+            "%u, reset board: %u",
+            hw.version, hw.power_board, hw.front_unit, hw.reset_board);
 
     // voltage_measurement module is used by battery and boot -> must be
     // initialized before
@@ -226,6 +259,10 @@ initialize(void)
 #if defined(CONFIG_ORB_LIB_LOGS_CAN) && !defined(CONFIG_ZTEST)
     err_code = logs_init(logs_can);
     ASSERT_SOFT(err_code);
+#endif
+
+#ifdef CONFIG_ORB_LIB_HEALTH_MONITORING
+    heartbeat_register_cb(heartbeat_timeout_handler);
 #endif
 
     // check battery state early on
@@ -248,24 +285,6 @@ initialize(void)
     err_code = ui_init();
     ASSERT_SOFT(err_code);
 
-#if !defined(CONFIG_NO_SUPER_CAPS) && !defined(CONFIG_CI_INTEGRATION_TESTS)
-    err_code = boot_turn_on_super_cap_charger();
-    if (err_code == RET_SUCCESS) {
-        err_code = boot_turn_on_pvcc();
-        if (err_code == RET_SUCCESS) {
-            err_code = optics_init(&hw, &analog_and_i2c_mutex);
-            ASSERT_SOFT(err_code);
-        } else {
-            ASSERT_SOFT(err_code);
-        }
-    } else {
-        ASSERT_SOFT(err_code);
-    }
-#else
-    err_code = optics_init(&hw);
-    ASSERT_SOFT(err_code);
-#endif // CONFIG_NO_SUPER_CAPS
-
     err_code = als_init(&hw, &analog_and_i2c_mutex);
     ASSERT_SOFT(err_code);
 
@@ -280,8 +299,52 @@ initialize(void)
     ASSERT_SOFT(err_code);
 #endif
 
+    // wait that jetson boots to enable super-caps as it's drawing a lot of
+    // current that is needed for proper jetson boot
+#if !defined(CONFIG_NO_SUPER_CAPS) && !defined(CONFIG_CI_INTEGRATION_TESTS)
+    k_msleep(20000);
+    err_code = boot_turn_on_super_cap_charger();
+    if (err_code == RET_SUCCESS) {
+        err_code = boot_turn_on_pvcc();
+        if (err_code == RET_SUCCESS) {
+            err_code = optics_init(&hw, &analog_and_i2c_mutex);
+            ASSERT_SOFT(err_code);
+        } else {
+            ASSERT_SOFT(err_code);
+        }
+    } else {
+        ASSERT_SOFT(err_code);
+    }
+#else
+    err_code = optics_init(&hw, &analog_and_i2c_mutex);
+    ASSERT_SOFT(err_code);
+#endif // CONFIG_NO_SUPER_CAPS
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    if (hw.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4 ||
+        hw.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
+        // on diamond evt, timer2 is used by fan tach & stepper but
+        // pwm cannot be used as output and input for same timer
+        // so we default to polarizer if one is detected
+        // wait 10 seconds for polarizer homing to finish, if unsuccessful (no
+        // polarizer dectected?): use fan tach
+        k_msleep(10000);
+        if (polarizer_wheel_get_status() !=
+            orb_mcu_HardwareDiagnostic_Status_STATUS_OK) {
+            err_code = fan_tach_init();
+            ASSERT_SOFT(err_code);
+        }
+    } else {
+        err_code = fan_tach_init();
+        ASSERT_SOFT(err_code);
+    }
+#else
     err_code = fan_tach_init();
     ASSERT_SOFT(err_code);
+#endif
+
+    // done booting
+    LOG_INF("🚀");
 }
 
 #ifdef CONFIG_ZTEST

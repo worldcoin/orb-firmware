@@ -143,11 +143,13 @@ pub_stored_thread()
             // no more records, terminate thread
             return;
         case RET_ERROR_NO_MEM:
-        case RET_ERROR_INVALID_STATE:
-        default:
-            LOG_ERR("Discarding stored record, err %u", err_code);
             storage_free();
             continue;
+
+        case RET_ERROR_INVALID_STATE:
+            // area has been reset on error, no more records
+        default:
+            return;
         }
 
         if (!publish_is_started(record.destination)) {

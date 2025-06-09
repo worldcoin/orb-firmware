@@ -18,6 +18,7 @@
 #include "ui/ui.h"
 #include "voltage_measurement/voltage_measurement.h"
 #include <heartbeat.h>
+#include <optics/polarizer_wheel/polarizer_wheel.h>
 #include <pb_decode.h>
 #include <stdlib.h>
 #include <uart_messaging.h>
@@ -113,6 +114,7 @@ handle_err_code(void *ctx, int err)
     if (context->remote == CAN_MESSAGING) {
         orb_mcu_Ack ack = {.ack_number = context->ack_number,
                            .error = orb_mcu_Ack_ErrorCode_FAIL};
+
         switch (err) {
         case RET_SUCCESS:
             ack.error = orb_mcu_Ack_ErrorCode_SUCCESS;
@@ -133,7 +135,7 @@ handle_err_code(void *ctx, int err)
             break;
 
         default:
-            /* nothing */
+            ack.error = orb_mcu_Ack_ErrorCode_FAIL;
             break;
         }
 
@@ -166,6 +168,9 @@ handle_infrared_leds_message(job_t *job)
     case RET_ERROR_BUSY:
         job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
         break;
+    case RET_ERROR_FORBIDDEN:
+        job_ack(orb_mcu_Ack_ErrorCode_FORBIDDEN, job);
+        break;
     case RET_ERROR_INVALID_PARAM:
         job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
         break;
@@ -185,12 +190,19 @@ handle_led_on_time_message(job_t *job)
 
     LOG_DBG("Got LED on time message = %uus", on_time_us);
     ret_code_t ret = ir_camera_system_set_on_time_us(on_time_us);
-    if (ret == RET_SUCCESS) {
+    switch (ret) {
+    case RET_SUCCESS:
         job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
-    } else if (ret == RET_ERROR_INVALID_PARAM) {
+        break;
+    case RET_ERROR_FORBIDDEN:
+        job_ack(orb_mcu_Ack_ErrorCode_FORBIDDEN, job);
+        break;
+    case RET_ERROR_INVALID_PARAM:
         job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
-    } else {
+        break;
+    default:
         job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+        break;
     }
 }
 
@@ -780,11 +792,23 @@ handle_fw_img_crc(job_t *job)
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_fw_image_check_tag);
 
     LOG_DBG("Got CRC comparison");
-    int ret = dfu_secondary_check(msg->payload.fw_image_check.crc32);
-    if (ret) {
-        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+
+    // must be static to be used by callback
+    static struct handle_error_context_s context = {0};
+    context.remote = job->remote;
+    context.remote_addr = job->remote_addr;
+    context.ack_number = job->ack_number;
+
+    int ret = dfu_secondary_check_async(msg->payload.fw_image_check.crc32,
+                                        (void *)&context, handle_err_code);
+    if (ret == -EINPROGRESS) {
+        return;
+    }
+
+    if (ret == RET_ERROR_INVALID_STATE) {
+        job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
     } else {
-        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     }
 }
 
@@ -866,14 +890,22 @@ handle_fps(job_t *job)
     LOG_DBG("Got FPS message = %u", fps);
 
     ret_code_t ret = ir_camera_system_set_fps(fps);
-    if (ret == RET_SUCCESS) {
+    switch (ret) {
+    case RET_SUCCESS:
         job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
-    } else if (ret == RET_ERROR_INVALID_PARAM) {
-        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
-    } else if (ret == RET_ERROR_BUSY) {
+        break;
+    case RET_ERROR_BUSY:
         job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
-    } else {
+        break;
+    case RET_ERROR_FORBIDDEN:
+        job_ack(orb_mcu_Ack_ErrorCode_FORBIDDEN, job);
+        break;
+    case RET_ERROR_INVALID_PARAM:
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
+        break;
+    default:
         job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+        break;
     }
 }
 
@@ -920,7 +952,7 @@ handle_dfu_block_message(job_t *job)
 }
 
 static void
-handle_do_homing(job_t *job)
+handle_do_mirror_homing(job_t *job)
 {
     ret_code_t ret = RET_SUCCESS;
     orb_mcu_main_JetsonToMcu *msg = &job->message;
@@ -928,22 +960,46 @@ handle_do_homing(job_t *job)
 
     orb_mcu_main_PerformMirrorHoming_Mode mode =
         msg->payload.do_homing.homing_mode;
-    orb_mcu_main_PerformMirrorHoming_Angle angle = msg->payload.do_homing.angle;
-    LOG_DBG("Got do autohoming message, mode = %u, angle = %u", mode, angle);
+    orb_mcu_main_PerformMirrorHoming_Angle axis = msg->payload.do_homing.angle;
+    LOG_DBG("Got do autohoming message, mode = %u, axis = %u", mode, axis);
 
     if (mirror_auto_homing_in_progress()) {
         job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
     } else if (mode == orb_mcu_main_PerformMirrorHoming_Mode_STALL_DETECTION) {
         job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
     } else {
-        if (angle == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
-            angle == orb_mcu_main_PerformMirrorHoming_Angle_HORIZONTAL_PHI) {
-            ret |= mirror_auto_homing_one_end(MOTOR_PHI_ANGLE);
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+        if (mode == orb_mcu_main_PerformMirrorHoming_Mode_ONE_BLOCKING_END) {
+            if (axis == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
+                axis == orb_mcu_main_PerformMirrorHoming_Angle_HORIZONTAL_PHI) {
+                const motor_t motor = MOTOR_PHI_ANGLE;
+                ret |= mirror_autohoming(&motor);
+            }
+            if (axis == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
+                axis == orb_mcu_main_PerformMirrorHoming_Angle_VERTICAL_THETA) {
+                const motor_t motor = MOTOR_THETA_ANGLE;
+                ret |= mirror_autohoming(&motor);
+            }
+        } else if (
+            mode ==
+            orb_mcu_main_PerformMirrorHoming_Mode_WITH_KNOWN_COORDINATES) {
+
+        } else {
+            job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+            return;
         }
-        if (angle == orb_mcu_main_PerformMirrorHoming_Angle_BOTH ||
-            angle == orb_mcu_main_PerformMirrorHoming_Angle_VERTICAL_THETA) {
-            ret |= mirror_auto_homing_one_end(MOTOR_THETA_ANGLE);
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+        if (mode == orb_mcu_main_PerformMirrorHoming_Mode_ONE_BLOCKING_END) {
+            ret = mirror_autohoming(NULL);
+        } else if (
+            mode ==
+            orb_mcu_main_PerformMirrorHoming_Mode_WITH_KNOWN_COORDINATES) {
+            ret = mirror_go_home();
+        } else {
+            job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+            return;
         }
+#endif
 
         // send ack before timeout even though auto-homing not completed
         if (ret) {
@@ -990,6 +1046,69 @@ handle_liquid_lens(job_t *job)
         }
     }
 }
+
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+static void
+handle_polarizer(job_t *job)
+{
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_polarizer_tag);
+
+    ret_code_t err_code;
+
+    uint32_t frequency_usteps_per_second =
+        msg->payload.polarizer.speed == 0
+            ? POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN
+            : POLARIZER_MICROSTEPS_PER_SECOND(msg->payload.polarizer.speed);
+
+    switch (msg->payload.polarizer.command) {
+    case orb_mcu_main_Polarizer_Command_POLARIZER_HOME: {
+        err_code = polarizer_wheel_home_async();
+        if (err_code == RET_SUCCESS) {
+            job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+        } else if (err_code == RET_ERROR_BUSY) {
+            job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
+        } else {
+            // no wheel detected during homing or module not initialized
+            job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
+        }
+        return;
+    } break;
+    case orb_mcu_main_Polarizer_Command_POLARIZER_PASS_THROUGH:
+        err_code = polarizer_wheel_set_angle(
+            frequency_usteps_per_second,
+            POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE);
+        break;
+    case orb_mcu_main_Polarizer_Command_POLARIZER_0_HORIZONTAL:
+        err_code = polarizer_wheel_set_angle(
+            frequency_usteps_per_second,
+            POLARIZER_WHEEL_HORIZONTALLY_POLARIZED_ANGLE);
+        break;
+    case orb_mcu_main_Polarizer_Command_POLARIZER_90_VERTICAL:
+        err_code = polarizer_wheel_set_angle(
+            frequency_usteps_per_second,
+            POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE);
+        break;
+    case orb_mcu_main_Polarizer_Command_POLARIZER_CUSTOM_ANGLE:
+        err_code =
+            polarizer_wheel_set_angle(frequency_usteps_per_second,
+                                      msg->payload.polarizer.angle_decidegrees);
+        break;
+    default:
+        // not implemented yet
+        job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+        return;
+    }
+
+    if (err_code == RET_SUCCESS) {
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+    } else if (err_code == RET_ERROR_INVALID_PARAM) {
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
+    } else {
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+    }
+}
+#endif
 
 static void
 handle_voltage_request(job_t *job)
@@ -1190,6 +1309,8 @@ handle_perform_ir_eye_camera_focus_sweep(job_t *job)
         job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
     } else if (ret == RET_ERROR_INVALID_STATE) {
         job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
+    } else if (ret == RET_ERROR_FORBIDDEN) {
+        job_ack(orb_mcu_Ack_ErrorCode_FORBIDDEN, job);
     } else if (ret == RET_SUCCESS) {
         job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
     } else {
@@ -1241,6 +1362,8 @@ handle_perform_ir_eye_camera_mirror_sweep(job_t *job)
         job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
     } else if (ret == RET_ERROR_INVALID_STATE) {
         job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
+    } else if (ret == RET_ERROR_FORBIDDEN) {
+        job_ack(orb_mcu_Ack_ErrorCode_FORBIDDEN, job);
     } else if (ret == RET_SUCCESS) {
         job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
     } else {
@@ -1250,8 +1373,25 @@ handle_perform_ir_eye_camera_mirror_sweep(job_t *job)
 }
 
 #if defined(CONFIG_MEMFAULT_METRICS_CONNECTIVITY_CONNECTED_TIME)
+
 /**
  * @brief Sets the Orb connection state to disconnected.
+ */
+static void
+connection_lost_work_handler(struct k_work *item)
+{
+    UNUSED_PARAMETER(item);
+
+    LOG_INF("Connection lost");
+
+    memfault_metrics_connectivity_connected_state_change(
+        kMemfaultMetricsConnectivityState_ConnectionLost);
+}
+
+static K_WORK_DEFINE(connection_lost_work, connection_lost_work_handler);
+
+/**
+ * ⚠️ ISR
  *
  * Timer expires when the Orb is disconnected from the internet
  * (Memfault backend not reachable) because the SyncDiagData
@@ -1264,9 +1404,14 @@ diag_disconnected(struct k_timer *timer)
 {
     UNUSED_PARAMETER(timer);
 
-    memfault_metrics_connectivity_connected_state_change(
-        kMemfaultMetricsConnectivityState_ConnectionLost);
+    // memfault_metrics_connectivity_connected_state_change uses mutex, cannot
+    // be used in ISR, so queue work.
+    const int ret = k_work_submit(&connection_lost_work);
+    if (ret < 0) {
+        ASSERT_SOFT(ret);
+    }
 }
+
 #endif
 
 /**
@@ -1292,7 +1437,6 @@ handle_sync_diag_data(job_t *job)
 
     uint32_t interval = msg->payload.sync_diag_data.interval;
     if (interval) {
-
         // start / reload the timer, acting as a heartbeat
         // and use it to detect orb's internet
         // connectivity
@@ -1374,7 +1518,7 @@ static const hm_callback handle_message_callbacks[] = {
     [orb_mcu_main_JetsonToMcu_shutdown_tag] = handle_shutdown,
     [orb_mcu_main_JetsonToMcu_reboot_tag] = handle_reboot_message,
     [orb_mcu_main_JetsonToMcu_mirror_angle_tag] = handle_mirror_angle_message,
-    [orb_mcu_main_JetsonToMcu_do_homing_tag] = handle_do_homing,
+    [orb_mcu_main_JetsonToMcu_do_homing_tag] = handle_do_mirror_homing,
     [orb_mcu_main_JetsonToMcu_infrared_leds_tag] = handle_infrared_leds_message,
     [orb_mcu_main_JetsonToMcu_led_on_time_tag] = handle_led_on_time_message,
     [orb_mcu_main_JetsonToMcu_user_leds_pattern_tag] = handle_user_leds_pattern,
@@ -1436,6 +1580,7 @@ static const hm_callback handle_message_callbacks[] = {
     [orb_mcu_main_JetsonToMcu_cone_leds_pattern_tag] = handle_cone_leds_pattern,
     [orb_mcu_main_JetsonToMcu_white_leds_brightness_tag] =
         handle_white_leds_brightness,
+    [orb_mcu_main_JetsonToMcu_polarizer_tag] = handle_polarizer,
 #elif defined(CONFIG_BOARD_PEARL_MAIN)
     [orb_mcu_main_JetsonToMcu_cone_leds_sequence_tag] = handle_not_supported,
     [orb_mcu_main_JetsonToMcu_cone_leds_pattern_tag] = handle_not_supported,
@@ -1445,7 +1590,7 @@ static const hm_callback handle_message_callbacks[] = {
 #endif
 };
 
-BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 48),
+BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 49),
              "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
@@ -1656,7 +1801,7 @@ runner_init(void)
     k_thread_name_set(runner_tid, "runner");
 
 #if defined(CONFIG_MEMFAULT_METRICS_CONNECTIVITY_CONNECTED_TIME)
-    // The Orb is disconnected from the Internet when starting
-    diag_disconnected(NULL);
+    memfault_metrics_connectivity_connected_state_change(
+        kMemfaultMetricsConnectivityState_Started);
 #endif
 }

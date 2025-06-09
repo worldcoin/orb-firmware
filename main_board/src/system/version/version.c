@@ -24,6 +24,8 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * - v4.1 p[13..10] = 1
  * - v4.2 p[13..10] = 2
  * - v4.3 p[13..10] = 3
+ * - v4.4 p[13..10] = 4 // evt
+ * - v4.5 p[13..10] = 5 // dvt
  *
  * ## Front unit
  * Hardware version can be fetched using IO expander on the front unit:
@@ -31,9 +33,10 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * - v6.1 p[13..10] = 1
  * - v6.2A p[13..10] = 2
  * - v6.2B p[13..10] = 3
- * - v6.3A p[13..10] = 4
- * - v6.3B p[13..10] = 5
- * - v6.3C p[13..10] = 7
+ * - v6.3A p[13..10] = 4 // evt
+ * - v6.3B p[13..10] = 5 // evt
+ * - v6.3C p[13..10] = 7 // evt
+ * - v6.3D p[13..10] = 8 // dvt
  *
  * ## Power board
  * Hardware version can be fetched using IO expander on the power board:
@@ -41,6 +44,8 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * - v1.1: p[13..10] = 1
  * - v1.2: p[13..10] = 2
  * - v1.3: p[13..10] = 3
+ * - v1.4: p[13..10] = 4 // evt
+ * - v1.5: p[13..10] = 5 // dvt
  **/
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
@@ -262,6 +267,14 @@ version_fetch_hardware_rev(orb_mcu_Hardware *hw_version)
             hw_version->version =
                 orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT;
             break;
+        case 4:
+            hw_version->version =
+                orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4;
+            break;
+        case 5:
+            hw_version->version =
+                orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5;
+            break;
         default:
             LOG_ERR("Unknown main board from IO expander: %d", hw_bits);
             break;
@@ -334,6 +347,10 @@ version_get_front_unit_rev(void)
             front_unit_version =
                 orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3C;
             break;
+        case 8:
+            front_unit_version =
+                orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3D;
+            break;
         default:
             LOG_ERR("Unknown front unit from IO expander: %d", hw_bits);
             front_unit_version =
@@ -376,6 +393,14 @@ version_get_power_board_rev(void)
         case 3:
             power_board_version =
                 orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_3;
+            break;
+        case 4:
+            power_board_version =
+                orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_4;
+            break;
+        case 5:
+            power_board_version =
+                orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_5;
             break;
         default:
             LOG_ERR("Unknown power board from IO expander: %d", hw_bits);
@@ -448,23 +473,28 @@ version_init(void)
 
 #ifdef CONFIG_BOARD_PEARL_MAIN
 static const char hardware_versions_str[][14] = {
-    "UNKNOWN",   "PEARL_EV1", "PEARL_EV2", "PEARL_EV3",
-    "PEARL_EV4", "PEARL_EV5", "PEARL_EV6",
+    "PEARL_UNKNOWN", "PEARL_EV1", "PEARL_EV2", "PEARL_EV3",
+    "PEARL_EV4",     "PEARL_EV5", "PEARL_EV6",
 };
 static const char *software_type = "pearl-main-app";
 #elif CONFIG_BOARD_DIAMOND_MAIN
-static const char hardware_versions_str[][14] = {
-    "UNKNOWN",
-    "DIAMOND_POC1",
-    "DIAMOND_POC2",
-    "DIAMOND_B3",
-};
+static const char hardware_versions_str[][16] = {
+    "DIAMOND_UNKNOWN", "DIAMOND_POC1",    "DIAMOND_POC2",
+    "DIAMOND_B3",      "DIAMOND_EVT_4.3", "DIAMOND_EVT_4.4"};
 static const char *software_type = "diamond-main-app";
+
+BUILD_ASSERT(ARRAY_SIZE(hardware_versions_str) >=
+             orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5 -
+                 orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 + 1);
+
 #endif
 
 void
 memfault_platform_get_device_info(sMemfaultDeviceInfo *info)
 {
+    // report error only once
+    static bool hardware_version_error = false;
+
     const char *version_str = STRINGIFY(FW_VERSION_FULL);
     orb_mcu_Hardware hw_version = version_get();
     size_t hardware_version_idx = (size_t)hw_version.version;
@@ -473,6 +503,14 @@ memfault_platform_get_device_info(sMemfaultDeviceInfo *info)
                            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 +
                            1;
 #endif
+
+    if (hardware_version_idx > ARRAY_SIZE(hardware_versions_str)) {
+        if (hardware_version_error == false) {
+            ASSERT_SOFT(RET_ERROR_NOT_FOUND);
+            hardware_version_error = true;
+        }
+        hardware_version_idx = 0;
+    }
 
     // platform specific version information
     *info = (sMemfaultDeviceInfo){

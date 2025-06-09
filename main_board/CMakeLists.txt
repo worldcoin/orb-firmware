@@ -81,12 +81,12 @@ list(APPEND SOURCES_FILES
     src/main.c
 
     src/optics/optics.c
-    src/optics/1d_tof/tof_1d.c
     src/optics/ir_camera_system/ir_camera_timer_settings.c
     src/optics/ir_camera_system/ir_camera_system_hw.c
     src/optics/ir_camera_system/ir_camera_system.c
     src/optics/liquid_lens/liquid_lens.c
     src/optics/mirror/mirror.c
+    src/optics/mirror/mirror_private.c
 
     src/power/boot/boot.c
 
@@ -123,17 +123,24 @@ endif()
 
 if (CONFIG_BOARD_PEARL_MAIN)
     list(APPEND SOURCES_FILES src/gnss/gnss.c)
+    list(APPEND SOURCES_FILES src/optics/mirror/homing_pearl.c)
     list(APPEND SOURCES_FILES src/power/battery/battery_ruby.c)
 endif()
 
 if (CONFIG_BOARD_DIAMOND_MAIN)
+    list(APPEND SOURCES_FILES src/optics/mirror/homing_diamond.c)
     list(APPEND SOURCES_FILES src/power/battery/battery_amber.c)
+    list(APPEND SOURCES_FILES src/optics/polarizer_wheel/drv8434s/drv8434s_private.c)
+    list(APPEND SOURCES_FILES src/optics/polarizer_wheel/drv8434s/drv8434s.c)
+    list(APPEND SOURCES_FILES src/optics/polarizer_wheel/polarizer_wheel.c)
     if (CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
-    list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds.c)
+        list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds.c)
     endif()
-
     list(APPEND SOURCES_FILES src/ui/white_leds/white_leds.c)
-    list(APPEND SOURCES_FILES src/power/battery/battery_amber.c)
+endif()
+
+if (CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY)
+    list(APPEND SOURCES_FILES src/optics/1d_tof/tof_1d.c)
 endif()
 
 if (CONFIG_ZTEST)

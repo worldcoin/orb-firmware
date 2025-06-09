@@ -10,7 +10,8 @@
 
 LOG_MODULE_REGISTER(heartbeat, CONFIG_HEARTBEAT_LOG_LEVEL);
 
-K_THREAD_STACK_DEFINE(heartbeat_stack_area, THREAD_STACK_SIZE_HEARTBEAT);
+K_THREAD_STACK_DEFINE(heartbeat_stack_area,
+                      CONFIG_ORB_LIB_THREAD_STACK_SIZE_HEARTBEAT);
 static struct k_thread health_monitoring_thread_data;
 static k_tid_t thread_id;
 

@@ -99,18 +99,18 @@ enum temperature_sensors {
     TEMPERATURE_SENSOR_MAIN_BOARD_AUDIO_AMPLIFIER,
     TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAP_CHARGER,
     TEMPERATURE_SENSOR_POWER_BOARD_PVCC_SUPPLY,
-    TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_LEFT,
-    TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_RIGHT,
-    TEMPERATURE_SENSOR_FRONT_UNIT_850_730_LEFT_TOP,
-    TEMPERATURE_SENSOR_FRONT_UNIT_850_730_LEFT_BOTTOM,
-    TEMPERATURE_SENSOR_FRONT_UNIT_850_730_RIGHT_TOP,
+    TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_BOT,
+    TEMPERATURE_SENSOR_POWER_BOARD_12V_CAPS_BOT,
+    TEMPERATURE_SENSOR_FRONT_UNIT_850_LEFT_TOP,
+    TEMPERATURE_SENSOR_FRONT_UNIT_850_LEFT_BOTTOM,
+    TEMPERATURE_SENSOR_FRONT_UNIT_850_RIGHT_TOP,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_LEFT_TOP,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_LEFT_BOTTOM,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_RIGHT_TOP,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_RIGHT_BOTTOM,
-    TEMPERATURE_SENSOR_FRONT_UNIT_850_CENTER_TOP,
     TEMPERATURE_SENSOR_FRONT_UNIT_850_CENTER_BOTTOM,
-    TEMPERATURE_SENSOR_FRONT_UNIT_940_WHITE_TOP,
+    TEMPERATURE_SENSOR_FRONT_UNIT_WHITE_RGB_LEFT_BOT,
+    TEMPERATURE_SENSOR_FRONT_UNIT_WHITE_RGB_RIGHT_BOT,
     TEMPERATURE_SENSOR_FRONT_UNIT_940_SHROUD_RGB_TOP,
 #endif
     TEMPERATURE_SENSOR_COUNT
@@ -285,12 +285,12 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
-    [TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_LEFT] =
-        {.sensor = DEVICE_DT_GET(
-             DT_NODELABEL(power_board_tmp_sensor_super_caps_left)),
+    [TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_BOT] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(power_board_tmp_sensor_super_caps_bot)),
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
-             orb_mcu_Temperature_TemperatureSource_POWER_BOARD_SUPER_CAPS_LEFT,
+             orb_mcu_Temperature_TemperatureSource_POWER_BOARD_SUPER_CAPS_BOT,
          .hardware_diagnostic_source =
              orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
          .cb = NULL,
@@ -298,12 +298,12 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
-    [TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_RIGHT] =
-        {.sensor = DEVICE_DT_GET(
-             DT_NODELABEL(power_board_tmp_sensor_super_caps_right)),
+    [TEMPERATURE_SENSOR_POWER_BOARD_12V_CAPS_BOT] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(power_board_tmp_sensor_12v_caps_bot)),
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
-             orb_mcu_Temperature_TemperatureSource_POWER_BOARD_SUPER_CAPS_RIGHT,
+             orb_mcu_Temperature_TemperatureSource_POWER_BOARD_12V_CAPS_BOT,
          .hardware_diagnostic_source =
              orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
          .cb = NULL,
@@ -311,12 +311,12 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
-    [TEMPERATURE_SENSOR_FRONT_UNIT_850_730_LEFT_TOP] =
-        {.sensor = DEVICE_DT_GET(
-             DT_NODELABEL(front_unit_tmp_sensor_850_730_left_top)),
+    [TEMPERATURE_SENSOR_FRONT_UNIT_850_LEFT_TOP] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_850_left_top)),
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
-             orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_730_LEFT_TOP,
+             orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_LEFT_TOP,
          .hardware_diagnostic_source =
              orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
          .cb = NULL,
@@ -324,12 +324,12 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
-    [TEMPERATURE_SENSOR_FRONT_UNIT_850_730_LEFT_BOTTOM] =
-        {.sensor = DEVICE_DT_GET(
-             DT_NODELABEL(front_unit_tmp_sensor_850_730_left_bot)),
+    [TEMPERATURE_SENSOR_FRONT_UNIT_850_LEFT_BOTTOM] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_850_left_bot)),
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
-             orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_730_LEFT_BOTTOM,
+             orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_LEFT_BOTTOM,
          .hardware_diagnostic_source =
              orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
          .cb = NULL,
@@ -337,12 +337,12 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
-    [TEMPERATURE_SENSOR_FRONT_UNIT_850_730_RIGHT_TOP] =
-        {.sensor = DEVICE_DT_GET(
-             DT_NODELABEL(front_unit_tmp_sensor_850_730_right_top)),
+    [TEMPERATURE_SENSOR_FRONT_UNIT_850_RIGHT_TOP] =
+        {.sensor =
+             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_850_right_top)),
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
-             orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_730_RIGHT_TOP,
+             orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_RIGHT_TOP,
          .hardware_diagnostic_source =
              orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
          .cb = NULL,
@@ -402,12 +402,12 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
-    [TEMPERATURE_SENSOR_FRONT_UNIT_850_CENTER_TOP] =
-        {.sensor =
-             DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_850_center_top)),
+    [TEMPERATURE_SENSOR_FRONT_UNIT_WHITE_RGB_RIGHT_BOT] =
+        {.sensor = DEVICE_DT_GET(
+             DT_NODELABEL(front_unit_tmp_sensor_white_rgb_right_bot)),
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
-             orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_CENTER_TOP,
+             orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_WHITE_RGB_RIGHT_BOT,
          .hardware_diagnostic_source =
              orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
          .cb = NULL,
@@ -428,11 +428,12 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
-    [TEMPERATURE_SENSOR_FRONT_UNIT_940_WHITE_TOP] =
-        {.sensor = DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor_white_top)),
+    [TEMPERATURE_SENSOR_FRONT_UNIT_WHITE_RGB_LEFT_BOT] =
+        {.sensor = DEVICE_DT_GET(
+             DT_NODELABEL(front_unit_tmp_sensor_white_rgb_left_bot)),
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
-             orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_WHITE_TOP,
+             orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_WHITE_RGB_LEFT_BOT,
          .hardware_diagnostic_source =
              orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
          .cb = NULL,
@@ -688,7 +689,7 @@ temperature_thread()
             if (sensors_and_channels[i].temperature_source >=
                     orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_730_LEFT_TOP &&
                 sensors_and_channels[i].temperature_source <=
-                    orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_CENTER_BOTTOM &&
+                    orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_WHITE_RGB_LEFT_BOT &&
                 sensors_and_channels[i].average != TEMPERATURE_SENTINEL_VALUE) {
                 front_unit_avg += sensors_and_channels[i].average;
                 front_unit_count++;
@@ -749,10 +750,7 @@ void
 temperature_init(const orb_mcu_Hardware *hw_version,
                  struct k_mutex *i2c_mux_mutex)
 {
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    ARG_UNUSED(hw_version);
-#endif
-
+    int ret;
     temperature_i2c_mux_mutex = i2c_mux_mutex;
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
@@ -760,12 +758,47 @@ temperature_init(const orb_mcu_Hardware *hw_version,
         orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
         sensors_and_channels[TEMPERATURE_SENSOR_LIQUID_LENS].sensor =
             DEVICE_DT_GET(DT_NODELABEL(liquid_lens_tmp_sensor_ev5));
-    } else {
-#endif
-        sensors_and_channels[TEMPERATURE_SENSOR_LIQUID_LENS].sensor =
-            DEVICE_DT_GET(DT_NODELABEL(liquid_lens_tmp_sensor));
-#if defined(CONFIG_BOARD_PEARL_MAIN)
     }
+    ret = device_init(
+        sensors_and_channels[TEMPERATURE_SENSOR_LIQUID_LENS].sensor);
+    ASSERT_SOFT(ret);
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    // overwrite evt sensors from differently wired mux (2 nodes in device tree)
+    if (hw_version->power_board <
+        orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_5) {
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAP_CHARGER]
+            .sensor = DEVICE_DT_GET(
+            DT_NODELABEL(power_board_tmp_sensor_super_cap_charger_evt));
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_PVCC_SUPPLY]
+            .sensor =
+            DEVICE_DT_GET(DT_NODELABEL(power_board_tmp_sensor_pvcc_supply_evt));
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_BOT]
+            .sensor = DEVICE_DT_GET(
+            DT_NODELABEL(power_board_tmp_sensor_super_caps_bot_evt));
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_12V_CAPS_BOT]
+            .sensor = DEVICE_DT_GET(
+            DT_NODELABEL(power_board_tmp_sensor_12v_caps_bot_evt));
+    }
+    ret = device_init(
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAP_CHARGER]
+            .sensor);
+    ASSERT_SOFT(ret);
+
+    ret = device_init(
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_PVCC_SUPPLY]
+            .sensor);
+    ASSERT_SOFT(ret);
+
+    ret = device_init(
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_SUPER_CAPS_BOT]
+            .sensor);
+    ASSERT_SOFT(ret);
+
+    ret = device_init(
+        sensors_and_channels[TEMPERATURE_SENSOR_POWER_BOARD_12V_CAPS_BOT]
+            .sensor);
+    ASSERT_SOFT(ret);
+
 #endif
 
     check_ready();

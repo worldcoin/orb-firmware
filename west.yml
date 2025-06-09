@@ -8,7 +8,7 @@ manifest:
     remote: worldcoin
   projects:
     - name: zephyr
-      revision: 7a914a2d726ee541b2d24da31e5460489aa068f5
+      revision: 98623d948f922dd17be62082fbd070233856c059 # Zephyr 4.1.0 + patches on worldcoin/zephyr
       import:
         name-allowlist:
           - cmsis
@@ -23,10 +23,10 @@ manifest:
       remote: memfault
       revision: 1.19.0
     - name: orb-messages
-      revision: 8311d10dd292f78c879384aa79549dbacfc6d57a
+      revision: a169291163a489cd4aa1085261293b65df8a4d02
       path: modules/orb-messages/public
     - name: priv-orb-messages
-      revision: 814f52429ced94c8180f3fbe17eeec1f1a01b556
+      revision: 58da861808b3b8453c8998d3b1c3931a02286697
       path: modules/orb-messages
       groups: [internal]
     - name: plug-and-trust

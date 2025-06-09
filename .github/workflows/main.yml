@@ -14,7 +14,7 @@ jobs:
       board: pearl_main
       app_path: orb/main_board
     secrets:
-      gh_token: ${{ secrets.GIT_HUB_TOKEN }}
+      gh_token: ${{ secrets.ORB_GIT_HUB_TOKEN }}
 
   build-diamond-main:
     name: Build for Diamond
@@ -23,4 +23,4 @@ jobs:
       board: diamond_main
       app_path: orb/main_board
     secrets:
-      gh_token: ${{ secrets.GIT_HUB_TOKEN }}
+      gh_token: ${{ secrets.ORB_GIT_HUB_TOKEN }}

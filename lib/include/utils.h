@@ -66,5 +66,5 @@
 // definition of M_PI, so let's redefine it
 #if defined(_ANSI_SOURCE)
 // taken from math.h
-#define M_PI 3.14159265358979323846f
+#define M_PI 3.14159265358979323846
 #endif

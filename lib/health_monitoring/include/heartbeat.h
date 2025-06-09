@@ -5,9 +5,6 @@
 #ifndef THREAD_PRIORITY_HEARTBEAT
 #define THREAD_PRIORITY_HEARTBEAT 8
 #endif
-#ifndef THREAD_STACK_SIZE_HEARTBEAT
-#define THREAD_STACK_SIZE_HEARTBEAT 512
-#endif
 
 /**
  * @brief Make the heart beat with maximum delay until beat maker death

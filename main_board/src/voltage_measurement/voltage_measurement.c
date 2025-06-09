@@ -55,11 +55,21 @@ static const struct gpio_dt_spec debug_led_gpio_spec =
 #endif
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-static const struct gpio_dt_spec super_cap_mux_gpios[] = {
-    DT_FOREACH_PROP_ELEM_SEP(DT_PATH(i2c_mux_gpio_power_board), mux_gpios,
+static const struct gpio_dt_spec super_cap_mux_gpios_evt[] = {
+    DT_FOREACH_PROP_ELEM_SEP(DT_PATH(i2c_mux_gpio_power_board_evt), mux_gpios,
                              GPIO_DT_SPEC_GET_BY_IDX, (, ))};
-static const struct gpio_dt_spec super_cap_enable_gpio =
-    GPIO_DT_SPEC_GET(DT_PATH(i2c_mux_gpio_power_board), enable_gpios);
+static const struct gpio_dt_spec super_cap_enable_gpio_evt =
+    GPIO_DT_SPEC_GET(DT_PATH(i2c_mux_gpio_power_board_evt), enable_gpios);
+
+static const struct gpio_dt_spec super_cap_mux_gpios_dvt[] = {
+    DT_FOREACH_PROP_ELEM_SEP(DT_PATH(super_caps_adc_mux_power_board), mux_gpios,
+                             GPIO_DT_SPEC_GET_BY_IDX, (, ))};
+static const struct gpio_dt_spec super_cap_enable_gpio_dvt =
+    GPIO_DT_SPEC_GET(DT_PATH(super_caps_adc_mux_power_board), enable_gpios);
+
+static const struct gpio_dt_spec *super_cap_mux_gpios = super_cap_mux_gpios_evt;
+static const struct gpio_dt_spec *super_cap_enable_gpio_ptr =
+    &super_cap_enable_gpio_evt;
 #endif
 
 /* Data of ADC io-channels specified in devicetree. */
@@ -845,7 +855,7 @@ voltage_measurement_sample_switched_channels(void)
         mux_store[0] = gpio_pin_get_dt(&super_cap_mux_gpios[0]);
         mux_store[1] = gpio_pin_get_dt(&super_cap_mux_gpios[1]);
 
-        gpio_pin_set_dt(&super_cap_enable_gpio, 1);
+        gpio_pin_set_dt(super_cap_enable_gpio_ptr, 1);
 
         int32_t vref_mv = DT_PROP(DT_PATH(zephyr_user), vref_mv);
 
@@ -894,7 +904,7 @@ voltage_measurement_sample_switched_channels(void)
         }
 #endif
 
-        gpio_pin_set_dt(&super_cap_enable_gpio, 0);
+        gpio_pin_set_dt(super_cap_enable_gpio_ptr, 0);
 
         // restore mux gpio values for not interfering with the i2c mux driver
         gpio_pin_set_dt(&super_cap_mux_gpios[0], mux_store[0]);
@@ -1075,6 +1085,12 @@ voltage_measurement_init(const orb_mcu_Hardware *hw_version,
     k_thread_name_set(tid_adc1, "voltage_measurement_adc1");
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    if (hw_version->front_unit ==
+        orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3D) {
+        super_cap_mux_gpios = super_cap_mux_gpios_dvt;
+        super_cap_enable_gpio_ptr = &super_cap_enable_gpio_dvt;
+    }
+
     k_tid_t tid_adc4 = k_thread_create(
         &voltage_measurement_adc4_thread_data,
         voltage_measurement_adc4_thread_stack,

@@ -654,6 +654,7 @@
         reg = <0x4a>;
         conversions-per-second = "1";
         resolution = <8>;
+        zephyr,deferred-init;
     };
 
     // on EV5 the I2C address of the MAX31875R2 is translated from 0x4a to 0x5a for solving an address conflict
@@ -663,6 +664,7 @@
         reg = <0x5a>;
         conversions-per-second = "1";
         resolution = <8>;
+        zephyr,deferred-init;
     };
 
     main_board_tmp_sensor: tmp112@49 {
@@ -684,6 +686,9 @@
 &fdcan1 {
     pinctrl-0 = <&fdcan1_rx_pd0 &fdcan1_tx_pd1>;
     pinctrl-names = "default";
+
+    clocks = <&rcc STM32_CLOCK(APB1, 25U)>,
+             <&rcc STM32_SRC_HSE FDCAN_SEL(0)>;
 
     /*
      * 1. Choose the highest available CAN clock frequency: PCLK1 is used
@@ -707,8 +712,14 @@
 &fdcan2 {
     pinctrl-0 = <&fdcan2_rx_pb5 &fdcan2_tx_pb6>;
     pinctrl-names = "default";
+
+    clocks = <&rcc STM32_CLOCK(APB1, 25U)>,
+             <&rcc STM32_SRC_HSE FDCAN_SEL(0)>;
+
     bitrate = <1000000>;
+    sample-point = <853>;
     bitrate-data = <1000000>;
+    sample-point-data = <853>;
     status = "okay";
 };
 

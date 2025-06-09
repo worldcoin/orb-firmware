@@ -38,10 +38,11 @@ app_assert_hard_handler(int32_t error_code, uint32_t line_num,
  * @param error_code
  * @param line_num
  * @param p_file_name
+ * @param opt_message optional message
  */
 void
 app_assert_soft_handler(int32_t error_code, uint32_t line_num,
-                        const uint8_t *p_file_name);
+                        const uint8_t *p_file_name, const uint8_t *opt_message);
 
 /**@brief Macro for calling error handler function if supplied error code any
  * other than 0.
@@ -51,8 +52,17 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
 #define ASSERT_SOFT(ERR_CODE)                                                  \
     do {                                                                       \
         if (ERR_CODE != 0) {                                                   \
+            app_assert_soft_handler((ERR_CODE), __LINE__, (uint8_t *)__FILE__, \
+                                    NULL);                                     \
+        }                                                                      \
+    } while (0)
+
+#define ASSERT_SOFT_WITH_MSG(ERR_CODE, MESSAGE)                                \
+    do {                                                                       \
+        if (ERR_CODE != 0) {                                                   \
             app_assert_soft_handler((ERR_CODE), __LINE__,                      \
-                                    (uint8_t *)__FILE__);                      \
+                                    (const uint8_t *)__FILE__,                 \
+                                    (const uint8_t *)MESSAGE);                 \
         }                                                                      \
     } while (0)
 
@@ -105,7 +115,7 @@ app_assert_soft_handler(int32_t error_code, uint32_t line_num,
 #define ASSERT_SOFT_BOOL(BOOLEAN_VALUE)                                        \
     do {                                                                       \
         if (!(BOOLEAN_VALUE)) {                                                \
-            app_assert_soft_handler(0, __LINE__, (uint8_t *)__FILE__);         \
+            app_assert_soft_handler(0, __LINE__, (uint8_t *)__FILE__, NULL);   \
         }                                                                      \
     } while (0)
 

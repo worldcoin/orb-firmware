@@ -5,24 +5,16 @@
 #include <zephyr/kernel.h>
 
 /**
- * @brief Check whether the optics components are usable
- *
- * @details Check if the hardware eye safety circuitry has been tripped in case
- *  IR leds are too heavily used or if the distance of any object in front
- *  isn't too close.
- *
- * @return true if usable, false otherwise
- */
-bool
-optics_usable(void);
-
-/**
  * @brief Check if the eye safety circuitry has been tripped
  *
- * @return true if tripped, false otherwise
+ * ⚠️ on diamond: not ISR-safe, because pvcc-enabled pin is on gpio expander
+ * @param timeout_ms time in ms allocated to take the mutex (i2c bus)
+ * @param triggered pointer to status variable, filled on RET_SUCCESS
+ * @return RET_SUCCESS on successfully reading the pvcc-enabled pin
+ * error code otherwise
  */
-bool
-optics_safety_circuit_triggered(void);
+int
+optics_safety_circuit_triggered(const uint32_t timeout_ms, bool *triggered);
 
 /**
  * @brief Initialize the optics components

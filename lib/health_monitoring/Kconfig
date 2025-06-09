@@ -1,2 +1,8 @@
 config ORB_LIB_HEALTH_MONITORING
     bool "Health monitoring"
+
+config ORB_LIB_THREAD_STACK_SIZE_HEARTBEAT
+    int "Heartbeat thread stack size"
+    default 512
+    help
+        "Tweak depending on the heartbeat timeout handler"

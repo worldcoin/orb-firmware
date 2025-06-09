@@ -102,6 +102,9 @@ static const struct gpio_dt_spec usb_hub_reset_gpio_spec =
 
 static K_SEM_DEFINE(sem_reboot, 0, 1);
 static atomic_t reboot_delay_s = ATOMIC_INIT(0);
+// the jetson_shutdown_request gpio toggles very quickly, so jetson
+// initiated shutdown is stored into atomic variable.
+static atomic_t jetson_shutdown_req = ATOMIC_INIT(0);
 static k_tid_t reboot_tid = NULL;
 static struct gpio_callback shutdown_cb_data;
 
@@ -265,10 +268,12 @@ power_configure_gpios(void)
 
     // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
     if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-        version.version ==
-            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
         version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
-        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
+        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT ||
+        version.version ==
+            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4 ||
+        version.version ==
+            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5) {
         if (!device_is_ready(supply_3v3_ssd_enable_gpio_spec.port) ||
             !device_is_ready(supply_3v3_wifi_enable_gpio_spec.port)) {
             return RET_ERROR_INTERNAL;
@@ -408,52 +413,48 @@ static int
 turn_on_power_supplies(void)
 {
     int ret = 0;
-    orb_mcu_Hardware version = version_get();
 
     // might be a duplicate call, but it's preferable to be sure that
     // these supplies are on
     power_vbat_5v_3v3_supplies_on();
 
-    // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
-    if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-        version.version ==
-            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
-        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
-        ret = gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
-        ASSERT_SOFT(ret);
-        LOG_INF("3.3V SSD/SD Card power supply enabled");
-
-        ret = gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
-        ASSERT_SOFT(ret);
-        LOG_INF("3.3V WIFI power supply enabled");
-    }
-
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     ret = gpio_pin_set_dt(&supply_12v_caps_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("12V_CAPS enabled");
+    k_msleep(20);
 
     ret = gpio_pin_set_dt(&supply_5v_rgb_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("5V_RGB enabled");
+    k_msleep(20);
 
     ret = gpio_pin_set_dt(&supply_3v6_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("3V6 enabled");
+    k_msleep(20);
 
     ret = gpio_pin_set_dt(&supply_3v3_lte_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("3V3_LTE enabled");
+    k_msleep(20);
 
     ret = gpio_pin_set_dt(&supply_2v8_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("2V8 enabled");
-#endif
+    k_msleep(20);
 
-    k_msleep(100);
+    ret = gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
+    LOG_INF("3.3V SD card power supply enabled");
+    k_msleep(20);
 
-#if defined(CONFIG_BOARD_PEARL_MAIN)
+    ret = gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
+    LOG_INF("3.3V WIFI power supply enabled");
+#elif defined(CONFIG_BOARD_PEARL_MAIN)
+    orb_mcu_Hardware version = version_get();
+
     ret = gpio_pin_set_dt(&supply_12v_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
 
@@ -469,7 +470,19 @@ turn_on_power_supplies(void)
         ASSERT_SOFT(ret);
         LOG_INF("3.8V enabled");
     }
+
+    if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+        ret = gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 1);
+        ASSERT_SOFT(ret);
+        LOG_INF("3.3V SSD power supply enabled");
+        k_msleep(20);
+
+        ret = gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
+        ASSERT_SOFT(ret);
+        LOG_INF("3.3V WIFI power supply enabled");
+    }
 #endif
+    k_msleep(100);
 
     ret = gpio_pin_set_dt(&supply_1v8_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
@@ -507,8 +520,7 @@ BUILD_ASSERT(SYS_INIT_I2C1_INIT_PRIORITY > SYS_INIT_POWER_SUPPLY_INIT_PRIORITY,
              "I2C1 must be initialized _after_ the power supplies so that the "
              "safety circuit doesn't get tripped");
 
-SYS_INIT(init_i2c1_front_pca95xx, POST_KERNEL,
-         SYS_INIT_POWER_SUPPLY_INIT_PRIORITY);
+SYS_INIT(init_i2c1_front_pca95xx, POST_KERNEL, SYS_INIT_I2C1_INIT_PRIORITY);
 #endif
 
 #ifdef CONFIG_GPIO_PCA95XX_INIT_PRIORITY
@@ -679,6 +691,33 @@ BUILD_ASSERT(CONFIG_LED_STRIP_INIT_PRIORITY <
 
 #define SYSTEM_RESET_UI_DELAY_MS 200
 
+static void
+shutdown_requested_work_handler(struct k_work *item)
+{
+    UNUSED(item);
+
+    const int ret = gpio_pin_set_dt(&jetson_power_enable_gpio_spec, 0);
+    ASSERT_SOFT(ret);
+
+    // offload reboot to power management thread
+    atomic_set(&jetson_shutdown_req, 1);
+    atomic_set(&reboot_delay_s, 1);
+    // wake up reboot thread in case already waiting for the reboot
+    // this will make the current event take precedence over the
+    // currently pending reboot as the reboot thread will now
+    // sleep for `reboot_delay_s` second before rebooting
+    k_wakeup(reboot_tid);
+    k_sem_give(&sem_reboot);
+
+    LOG_INF("Jetson shut down");
+
+#ifdef CONFIG_MEMFAULT
+    MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_UserShutdown);
+#endif
+}
+
+static K_WORK_DEFINE(shutdown_requested_work, shutdown_requested_work_handler);
+
 /// SHUTDOWN_REQ interrupt callback
 /// From the Jetson Datasheet DS-10184-001 § 2.6.2 Power Down
 ///     > When the baseboard sees low SHUTDOWN_REQ*, it should deassert POWER_EN
@@ -691,22 +730,7 @@ shutdown_requested(const struct device *dev, struct gpio_callback *cb,
     ARG_UNUSED(cb);
 
     if (pins & BIT(jetson_shutdown_request_gpio_spec.pin)) {
-        gpio_pin_set_dt(&jetson_power_enable_gpio_spec, 0);
-
-        // offload reboot to power management thread
-        atomic_set(&reboot_delay_s, 1);
-        // wake up reboot thread in case already waiting for the reboot
-        // this will make the current event take precedence over the
-        // currently pending reboot as the reboot thread will now
-        // sleep for `reboot_delay_s` second before rebooting
-        k_wakeup(reboot_tid);
-        k_sem_give(&sem_reboot);
-
-        LOG_INF("Jetson shut down");
-
-#ifdef CONFIG_MEMFAULT
-        MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_UserShutdown);
-#endif
+        k_work_submit(&shutdown_requested_work);
     }
 }
 
@@ -739,9 +763,9 @@ reboot_thread()
     }
 
     do {
-        // check if shutdown_pin is active, if so, it means Jetson
-        // needs proper shutdown
-        if (gpio_pin_get_dt(&jetson_shutdown_request_gpio_spec) == 1) {
+        // check if shutdown_pin is active with jetson_shutdown_req atomic var,
+        // if so, it means Jetson needs proper shutdown.
+        if (atomic_get(&jetson_shutdown_req) != 0) {
             // From the Jetson Datasheet DS-10184-001 § 2.6.2 Power Down:
             //  > Once POWER_EN is deasserted, the module will assert
             //  SYS_RESET*, and the baseboard may shut down. SoC 3.3V I/O must
@@ -757,11 +781,13 @@ reboot_thread()
             if (version.version ==
                     orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
                 version.version ==
-                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC2 ||
-                version.version ==
                     orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
                 version.version ==
-                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
+                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT ||
+                version.version ==
+                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4 ||
+                version.version ==
+                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5) {
                 gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 0);
                 gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 0);
             }

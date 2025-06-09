@@ -76,16 +76,26 @@ app_assert_hard_handler(int32_t error_code, uint32_t line_num,
 
 __WEAK void
 app_assert_soft_handler(int32_t error_code, uint32_t line_num,
-                        const uint8_t *p_file_name)
+                        const uint8_t *p_file_name, const uint8_t *opt_message)
 {
 #if defined(CONFIG_MEMFAULT)
     // trace, no need to use line_num & p_file_name, cause the backtrace
     // is collected
     UNUSED_PARAMETER(line_num);
     UNUSED_PARAMETER(p_file_name);
-    MEMFAULT_TRACE_EVENT_WITH_LOG(assert, "err %d", error_code);
+    if (opt_message) {
+        MEMFAULT_TRACE_EVENT_WITH_LOG(assert, "err %d: %s", error_code,
+                                      opt_message);
+    } else {
+        MEMFAULT_TRACE_EVENT_WITH_LOG(assert, "err %d", error_code);
+    }
 #else
-    LOG_ERR("%s:%d, error %d", p_file_name, line_num, error_code);
+    if (opt_message != NULL) {
+        LOG_ERR("%s:%d, error %d: %s", p_file_name, line_num, error_code,
+                opt_message);
+    } else {
+        LOG_ERR("%s:%d, error %d", p_file_name, line_num, error_code);
+    }
 #endif
 
     ++error_count;
