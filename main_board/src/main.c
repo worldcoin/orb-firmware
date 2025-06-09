@@ -342,6 +342,9 @@ initialize(void)
     err_code = fan_tach_init();
     ASSERT_SOFT(err_code);
 #endif
+
+    err_code = voltage_measurement_selftest();
+    ASSERT_SOFT(err_code);
 }
 
 #ifdef CONFIG_ZTEST
