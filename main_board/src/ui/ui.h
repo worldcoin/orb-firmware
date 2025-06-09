@@ -1,5 +1,6 @@
 #pragma once
 
+#include <common.pb.h>
 #include <stdint.h>
 
 /**
@@ -14,4 +15,4 @@ ui_cone_present_send(uint32_t remote);
  * @return error code
  */
 int
-ui_init(void);
+ui_init(const orb_mcu_Hardware *hw_version);

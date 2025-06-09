@@ -2,6 +2,8 @@ description: PWM for polarizer step
 
 compatible: "pwm-polarizer-step"
 
+include: [base.yaml]
+
 properties:
   pwms:
     required: true

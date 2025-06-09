@@ -1,5 +1,7 @@
 #include "white_leds.h"
 #include "orb_logs.h"
+
+#include <app_assert.h>
 #include <app_config.h>
 #include <utils.h>
 #include <zephyr/device.h>
@@ -13,8 +15,11 @@ static K_THREAD_STACK_DEFINE(white_leds_stack_area,
 static struct k_thread white_leds_thread_data;
 static K_SEM_DEFINE(sem_new_setting, 0, 1);
 
-static const struct pwm_dt_spec white_leds_pwm_spec =
+static const struct pwm_dt_spec white_leds_pwm_spec_dvt =
     PWM_DT_SPEC_GET(DT_PATH(white_leds));
+static const struct pwm_dt_spec white_leds_pwm_spec_evt =
+    PWM_DT_SPEC_GET(DT_PATH(white_leds_evt));
+static const struct pwm_dt_spec *white_leds_pwm_spec = &white_leds_pwm_spec_dvt;
 
 static uint32_t global_brightness_thousandth = 0;
 
@@ -30,8 +35,8 @@ white_leds_thread()
         brightness_thousandth = global_brightness_thousandth;
         CRITICAL_SECTION_EXIT(k);
 
-        int ret = pwm_set_dt(&white_leds_pwm_spec, white_leds_pwm_spec.period,
-                             white_leds_pwm_spec.period *
+        int ret = pwm_set_dt(white_leds_pwm_spec, white_leds_pwm_spec->period,
+                             white_leds_pwm_spec->period *
                                  brightness_thousandth / 1000UL);
         if (ret) {
             LOG_ERR("Error setting PWM parameters: %d", ret);
@@ -53,9 +58,23 @@ white_leds_set_brightness(uint32_t brightness_thousandth)
 }
 
 ret_code_t
-white_leds_init(void)
+white_leds_init(const orb_mcu_Hardware *hw_version)
 {
-    if (!device_is_ready(white_leds_pwm_spec.dev)) {
+    if (hw_version == NULL) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    if (hw_version->version <=
+        orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4) {
+        white_leds_pwm_spec = &white_leds_pwm_spec_evt;
+    }
+
+    if (!device_is_ready(white_leds_pwm_spec->dev)) {
+        const int ret = device_init(white_leds_pwm_spec->dev);
+        ASSERT_SOFT(ret);
+    }
+
+    if (!device_is_ready(white_leds_pwm_spec->dev)) {
         LOG_ERR("PWM for white LEDs not ready!");
         return RET_ERROR_INTERNAL;
     }

@@ -282,7 +282,7 @@ initialize(void)
     err_code = sound_init();
     ASSERT_SOFT(err_code);
 
-    err_code = ui_init();
+    err_code = ui_init(&hw);
     ASSERT_SOFT(err_code);
 
     err_code = als_init(&hw, &analog_and_i2c_mutex);
