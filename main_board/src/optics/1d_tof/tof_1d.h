@@ -1,5 +1,6 @@
 #pragma once
 
+#include <common.pb.h>
 #include <stdbool.h>
 #include <zephyr/kernel.h>
 
@@ -19,4 +20,5 @@ distance_is_safe(void);
  * isn't ready
  */
 int
-tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex);
+tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
+            const orb_mcu_Hardware *hw_version);

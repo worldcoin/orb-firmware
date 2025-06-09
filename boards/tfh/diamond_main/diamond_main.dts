@@ -271,6 +271,12 @@
                 status = "okay";
                 reg = <0x4b>;
             };
+
+            tof_sensor_dvt: vl53l1x@29 {
+                compatible = "st,vl53l1x";
+                reg = <0x29>;
+                zephyr,deferred-init;
+            };
         };
 
         mux_i2c@1 {
@@ -1011,6 +1017,7 @@
     tof_sensor: vl53l1x@29 {
         compatible = "st,vl53l1x";
         reg = <0x29>;
+        zephyr,deferred-init;
     };
 
     // io-expander on the front unit 0x23
