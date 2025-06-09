@@ -27,7 +27,7 @@
 
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/logging/log_ctrl.h>
-LOG_MODULE_REGISTER(power_sequence, CONFIG_POWER_SEQUENCE_LOG_LEVEL);
+LOG_MODULE_REGISTER(boot, CONFIG_BOOT_LOG_LEVEL);
 
 // Power supplies turned on in two phases:
 // - Phase 1 initializes just enough power supplies to use the button and
@@ -994,23 +994,49 @@ shutdown_req_uninit(void)
 int
 boot_turn_on_jetson(void)
 {
-    LOG_INF("Enabling Jetson power");
-    gpio_pin_set_dt(&jetson_power_enable_gpio_spec, 1);
+    int ret;
 
-    LOG_INF("Waiting for reset done signal from Jetson");
-    while (gpio_pin_get_dt(&jetson_system_reset_gpio_spec) != 0)
-        ;
-    LOG_INF("Reset done");
+    ret = gpio_pin_set_dt(&jetson_power_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
+    if (ret == 0) {
+        LOG_INF("Jetson power enabled");
+    }
 
-    LOG_INF("Setting Jetson to WAKE mode");
-    gpio_pin_set_dt(&jetson_sleep_wake_gpio_spec, 1);
+    LOG_INF("Awaiting signal from Jetson (reset)");
+    uint32_t timeout_ms = 500;
+    while (gpio_pin_get_dt(&jetson_system_reset_gpio_spec) != 0 &&
+           timeout_ms--) {
+        k_msleep(1);
+    }
+
+    if (timeout_ms == 0) {
+        LOG_ERR(
+            "Jetson cannot boot, ensure it's correctly connected & functional");
+        k_msleep(1000);
+        ASSERT_HARD(RET_ERROR_INVALID_STATE);
+        // 💀
+    } else {
+        LOG_INF("Jetson is booting");
+    }
+
+    ret = gpio_pin_set_dt(&jetson_sleep_wake_gpio_spec, 1);
+    ASSERT_SOFT(ret);
+    if (ret == 0) {
+        LOG_INF("Jetson wake mode enabled");
+    }
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-    LOG_INF("Enabling LTE, GPS, and USB");
-    gpio_pin_set_dt(&lte_gps_usb_reset_gpio_spec, 0);
+    ret = gpio_pin_set_dt(&lte_gps_usb_reset_gpio_spec, 0);
+    ASSERT_SOFT(ret);
+    if (ret == 0) {
+        LOG_INF("LTE, GPS & USB enabled");
+    }
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-    LOG_INF("Enabling USB");
-    gpio_pin_set_dt(&usb_hub_reset_gpio_spec, 0);
+    ret = gpio_pin_set_dt(&usb_hub_reset_gpio_spec, 0);
+    ASSERT_SOFT(ret);
+    if (ret == 0) {
+        LOG_INF("USB enabled");
+    }
 #endif
 
     shutdown_req_init();
