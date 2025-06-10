@@ -21,8 +21,10 @@ const struct device *tof_1d_device_dvt =
 K_THREAD_STACK_DEFINE(stack_area_tof_1d, THREAD_STACK_SIZE_1DTOF);
 static struct k_thread tof_1d_thread_data;
 
+#if CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY
 static atomic_t too_close_counter = ATOMIC_INIT(0);
 #define TOO_CLOSE_THRESHOLD 3
+#endif
 
 #define INTER_MEASUREMENT_FREQ_HZ   ((int32_t)3)
 #define INTER_MEASUREMENT_PERIOD_MS ((int32_t)1000 / INTER_MEASUREMENT_FREQ_HZ)
@@ -52,9 +54,13 @@ static struct k_mutex *i2c1_mutex = NULL;
 bool
 distance_is_safe(void)
 {
+#ifdef CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY
     long counter = atomic_get(&too_close_counter);
     bool is_safe = counter < TOO_CLOSE_THRESHOLD;
     return is_safe;
+#else
+    return true;
+#endif
 }
 
 _Noreturn void
@@ -159,6 +165,10 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
 {
     int ret;
 
+    if (mutex) {
+        i2c1_mutex = mutex;
+    }
+
 #if CONFIG_BOARD_DIAMOND_MAIN
     /* on diamond, select correct 1d-tof device from device tree as it differs
      * from evt to dvt and initialize it (deferred, to prevent init failures)
@@ -168,8 +178,14 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
         tof_1d_device = tof_1d_device_dvt;
     }
 
+    if (i2c1_mutex) {
+        k_mutex_lock(i2c1_mutex, K_FOREVER);
+    }
     ret = device_init(tof_1d_device);
     ASSERT_SOFT(ret);
+    if (i2c1_mutex) {
+        k_mutex_unlock(i2c1_mutex);
+    }
 #else
     UNUSED_PARAMETER(hw_version);
 #endif
@@ -177,10 +193,6 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
     if (!device_is_ready(tof_1d_device)) {
         LOG_ERR("VL53L1 not ready!");
         return RET_ERROR_INVALID_STATE;
-    }
-
-    if (mutex) {
-        i2c1_mutex = mutex;
     }
 
     k_thread_create(&tof_1d_thread_data, stack_area_tof_1d,

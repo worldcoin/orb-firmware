@@ -12,14 +12,6 @@
 #include <optics/1d_tof/tof_1d.h>
 #include <optics/optics.h>
 
-#ifndef CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY
-bool
-distance_is_safe()
-{
-    return true;
-}
-#endif
-
 #else
 /** mocked function below for unit tests */
 static bool

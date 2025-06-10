@@ -113,15 +113,8 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
         return err_code;
     }
 
-#ifdef CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY
     err_code = tof_1d_init(distance_is_unsafe_cb, mutex, hw_version);
-    if (err_code) {
-        ASSERT_SOFT(err_code);
-        return err_code;
-    }
-#else
-    UNUSED_PARAMETER(mutex);
-#endif
+    ASSERT_SOFT(err_code);
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     err_code = polarizer_wheel_init();
