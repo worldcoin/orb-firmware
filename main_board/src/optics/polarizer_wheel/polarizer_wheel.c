@@ -76,8 +76,11 @@ static const struct gpio_dt_spec polarizer_encoder_spec =
 // timer handle and irq number
 static TIM_TypeDef *polarizer_step_timer =
     (TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(DT_NODELABEL(polarizer_step_pwm)));
-static uint32_t pwm_timer_irq_n =
-    DT_IRQN(DT_PARENT(DT_NODELABEL(polarizer_step_pwm)));
+
+static uint32_t pwm_timer_irq_n = COND_CODE_1(
+    DT_IRQ_HAS_NAME(DT_PARENT(DT_NODELABEL(polarizer_step_pwm)), cc),
+    (DT_IRQ_BY_NAME(DT_PARENT(DT_NODELABEL(polarizer_step_pwm)), cc, irq)),
+    (DT_IRQ_BY_NAME(DT_PARENT(DT_NODELABEL(polarizer_step_pwm)), global, irq)));
 
 static struct gpio_callback polarizer_encoder_cb_data;
 
@@ -316,7 +319,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
         // on each loop, turn the wheel more than 120º to detect the next
         // encoder notch
         polarizer_wheel_step_relative(
-            POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN,
+            POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
             POLARIZER_WHEEL_MICROSTEPS_120_DEGREES * 2);
 
         // wait for notch detection
@@ -354,7 +357,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     // wheel is on notch #0
     // send wheel home / passthrough by applying constant number of microsteps
     polarizer_wheel_step_relative(
-        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN,
+        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
         POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER +
             POLARIZER_WHEEL_MICROSTEPS_120_DEGREES);
 
@@ -466,8 +469,13 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
         polarizer_step_pwm_spec = &polarizer_step_pwm_spec_evt;
         polarizer_step_timer = (TIM_TypeDef *)DT_REG_ADDR(
             DT_PARENT(DT_NODELABEL(polarizer_step_pwm_evt)));
-        pwm_timer_irq_n =
-            DT_IRQN(DT_PARENT(DT_NODELABEL(polarizer_step_pwm_evt)));
+        pwm_timer_irq_n = COND_CODE_1(
+            DT_IRQ_HAS_NAME(DT_PARENT(DT_NODELABEL(polarizer_step_pwm_evt)),
+                            cc),
+            (DT_IRQ_BY_NAME(DT_PARENT(DT_NODELABEL(polarizer_step_pwm_evt)), cc,
+                            irq)),
+            (DT_IRQ_BY_NAME(DT_PARENT(DT_NODELABEL(polarizer_step_pwm_evt)),
+                            global, irq)));
     }
 
     if (!device_is_ready(polarizer_step_pwm_spec->dev)) {
@@ -562,20 +570,36 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
     size_t timeout = 3;
     do {
         ret_val = drv8434s_clear_fault();
-        ASSERT_SOFT(ret_val);
+        if (ret_val) {
+            if (timeout == 0) {
+                ASSERT_SOFT(ret_val);
+            }
+            continue;
+        }
 
         ret_val = drv8434s_write_config(&drv8434s_cfg);
-        ASSERT_SOFT(ret_val);
         if (ret_val) {
+            if (timeout == 0) {
+                ASSERT_SOFT(ret_val);
+            }
             continue;
         }
 
         ret_val = drv8434s_read_config();
-        ASSERT_SOFT(ret_val);
+        if (ret_val) {
+            if (timeout == 0) {
+                ASSERT_SOFT(ret_val);
+            }
+            continue;
+        }
 
         ret_val = drv8434s_verify_config();
-        ASSERT_SOFT(ret_val);
-    } while (timeout-- && ret_val != 0);
+        if (ret_val) {
+            if (timeout == 0) {
+                ASSERT_SOFT(ret_val);
+            }
+        }
+    } while (timeout-- && ret_val != RET_SUCCESS);
 
     // Enable the DRV8434s motor driver if configuration is successful
     // Scale the current to 75% of the maximum current
