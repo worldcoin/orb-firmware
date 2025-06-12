@@ -5,6 +5,8 @@ dependencies:
   - pyserial
   - ccache
   - conda-forge::protobuf
+  - grpcio
+  - grpcio-tools
   - ninja
   - pthread-stubs
   - gperf
