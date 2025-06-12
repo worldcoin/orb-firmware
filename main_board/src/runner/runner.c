@@ -1058,7 +1058,7 @@ handle_polarizer(job_t *job)
 
     uint32_t frequency_usteps_per_second =
         msg->payload.polarizer.speed == 0
-            ? POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN
+            ? POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT
             : POLARIZER_MICROSTEPS_PER_SECOND(msg->payload.polarizer.speed);
 
     switch (msg->payload.polarizer.command) {
