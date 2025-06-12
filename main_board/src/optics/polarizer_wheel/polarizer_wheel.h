@@ -99,7 +99,7 @@ polarizer_wheel_home_async(void);
  * @return Indicates successful initialization
  */
 ret_code_t
-polarizer_wheel_init(void);
+polarizer_wheel_init(const orb_mcu_Hardware *hw_version);
 
 /**
  * Get polarizer status

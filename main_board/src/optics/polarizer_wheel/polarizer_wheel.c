@@ -51,16 +51,18 @@ typedef struct {
 
 static polarizer_wheel_instance_t g_polarizer_wheel_instance = {0};
 
-#define TIMER2_IRQn DT_IRQN(DT_NODELABEL(timers2))
-
 // Peripherals (Motor Driver SPI, motor driver enable, encoder enable, encoder
 // feedback, step PWM)
 static const struct device *polarizer_spi_bus_controller =
     DEVICE_DT_GET(DT_PARENT(DT_NODELABEL(polarizer_controller)));
 static const struct gpio_dt_spec polarizer_spi_cs_gpio =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), polarizer_stepper_spi_cs_gpios);
-static const struct pwm_dt_spec polarizer_step_pwm_spec =
+static const struct pwm_dt_spec polarizer_step_pwm_spec_evt =
+    PWM_DT_SPEC_GET(DT_PATH(polarizer_step_evt));
+static const struct pwm_dt_spec polarizer_step_pwm_spec_dvt =
     PWM_DT_SPEC_GET(DT_PATH(polarizer_step));
+static const struct pwm_dt_spec *polarizer_step_pwm_spec =
+    &polarizer_step_pwm_spec_dvt;
 static const struct gpio_dt_spec polarizer_enable_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), polarizer_stepper_enable_gpios);
 static const struct gpio_dt_spec polarizer_step_dir_spec =
@@ -71,8 +73,12 @@ static const struct gpio_dt_spec polarizer_encoder_enable_spec =
 static const struct gpio_dt_spec polarizer_encoder_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), polarizer_stepper_encoder_gpios);
 
-static TIM_TypeDef *const polarizer_step_timer =
+// timer handle and irq number
+static TIM_TypeDef *polarizer_step_timer =
     (TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(DT_NODELABEL(polarizer_step_pwm)));
+static uint32_t pwm_timer_irq_n =
+    DT_IRQN(DT_PARENT(DT_NODELABEL(polarizer_step_pwm)));
+
 static struct gpio_callback polarizer_encoder_cb_data;
 
 // Set up the DRV8434 driver configuration
@@ -114,7 +120,7 @@ clear_step_interrupt(void)
         TIM_TypeDef *) = {LL_TIM_ClearFlag_CC1, LL_TIM_ClearFlag_CC2,
                           LL_TIM_ClearFlag_CC3, LL_TIM_ClearFlag_CC4};
 
-    clear_capture_interrupt[polarizer_step_pwm_spec.channel - 1](
+    clear_capture_interrupt[polarizer_step_pwm_spec->channel - 1](
         polarizer_step_timer);
 
     return RET_SUCCESS;
@@ -130,7 +136,7 @@ enable_step_interrupt(void)
                           LL_TIM_EnableIT_CC3, LL_TIM_EnableIT_CC4};
 
     clear_step_interrupt();
-    enable_capture_interrupt[polarizer_step_pwm_spec.channel - 1](
+    enable_capture_interrupt[polarizer_step_pwm_spec->channel - 1](
         polarizer_step_timer);
 
     return RET_SUCCESS;
@@ -144,7 +150,7 @@ disable_step_interrupt(void)
         TIM_TypeDef *) = {LL_TIM_DisableIT_CC1, LL_TIM_DisableIT_CC2,
                           LL_TIM_DisableIT_CC3, LL_TIM_DisableIT_CC4};
 
-    disable_capture_interrupt[polarizer_step_pwm_spec.channel - 1](
+    disable_capture_interrupt[polarizer_step_pwm_spec->channel - 1](
         polarizer_step_timer);
 
     return RET_SUCCESS;
@@ -154,7 +160,7 @@ static int
 polarizer_move(const uint32_t frequency)
 {
     enable_step_interrupt();
-    return pwm_set_dt(&polarizer_step_pwm_spec, NSEC_PER_SEC / frequency,
+    return pwm_set_dt(polarizer_step_pwm_spec, NSEC_PER_SEC / frequency,
                       (NSEC_PER_SEC / frequency) / 2);
 }
 
@@ -162,7 +168,7 @@ static int
 polarizer_stop()
 {
     disable_step_interrupt();
-    return pwm_set_dt(&polarizer_step_pwm_spec, 0, 0);
+    return pwm_set_dt(polarizer_step_pwm_spec, 0, 0);
 }
 
 static int
@@ -219,7 +225,7 @@ polarizer_wheel_step_isr(const void *arg)
         LL_TIM_IsActiveFlag_CC1, LL_TIM_IsActiveFlag_CC2,
         LL_TIM_IsActiveFlag_CC3, LL_TIM_IsActiveFlag_CC4};
 
-    if (is_capture_active[polarizer_step_pwm_spec.channel - 1](
+    if (is_capture_active[polarizer_step_pwm_spec->channel - 1](
             polarizer_step_timer)) {
         clear_step_interrupt();
 
@@ -440,7 +446,7 @@ devices_ready(void)
 {
     return device_is_ready(polarizer_spi_bus_controller) &&
            device_is_ready(polarizer_spi_cs_gpio.port) &&
-           device_is_ready(polarizer_step_pwm_spec.dev) &&
+           device_is_ready(polarizer_step_pwm_spec->dev) &&
            device_is_ready(polarizer_enable_spec.port) &&
            device_is_ready(polarizer_step_dir_spec.port) &&
            device_is_ready(polarizer_encoder_enable_spec.port) &&
@@ -448,9 +454,26 @@ devices_ready(void)
 }
 
 ret_code_t
-polarizer_wheel_init(void)
+polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
 {
     ret_code_t ret_val = RET_SUCCESS;
+    if (hw_version == NULL) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    if (hw_version->version <=
+        orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4) {
+        polarizer_step_pwm_spec = &polarizer_step_pwm_spec_evt;
+        polarizer_step_timer = (TIM_TypeDef *)DT_REG_ADDR(
+            DT_PARENT(DT_NODELABEL(polarizer_step_pwm_evt)));
+        pwm_timer_irq_n =
+            DT_IRQN(DT_PARENT(DT_NODELABEL(polarizer_step_pwm_evt)));
+    }
+
+    if (!device_is_ready(polarizer_step_pwm_spec->dev)) {
+        const int ret = device_init(polarizer_step_pwm_spec->dev);
+        ASSERT_SOFT(ret);
+    }
 
     if (!devices_ready()) {
         ASSERT_SOFT(RET_ERROR_INVALID_STATE);
@@ -536,20 +559,23 @@ polarizer_wheel_init(void)
         .ctrl7.EN_SSC = DRV8434S_REG_CTRL7_VAL_ENSSC_ENABLE,
         .ctrl7.TRQ_SCALE = DRV8434S_REG_CTRL7_VAL_TRQSCALE_NOSCALE};
 
-    ret_val = drv8434s_clear_fault();
-    ASSERT_SOFT(ret_val);
+    size_t timeout = 3;
+    do {
+        ret_val = drv8434s_clear_fault();
+        ASSERT_SOFT(ret_val);
 
-    ret_val = drv8434s_write_config(&drv8434s_cfg);
-    ASSERT_SOFT(ret_val);
-    if (ret_val) {
-        return ret_val;
-    }
+        ret_val = drv8434s_write_config(&drv8434s_cfg);
+        ASSERT_SOFT(ret_val);
+        if (ret_val) {
+            continue;
+        }
 
-    ret_val = drv8434s_read_config();
-    ASSERT_SOFT(ret_val);
+        ret_val = drv8434s_read_config();
+        ASSERT_SOFT(ret_val);
 
-    ret_val = drv8434s_verify_config();
-    ASSERT_SOFT(ret_val);
+        ret_val = drv8434s_verify_config();
+        ASSERT_SOFT(ret_val);
+    } while (timeout-- && ret_val != 0);
 
     // Enable the DRV8434s motor driver if configuration is successful
     // Scale the current to 75% of the maximum current
@@ -565,8 +591,8 @@ polarizer_wheel_init(void)
     }
 
     // enable pwm interrupt
-    irq_connect_dynamic(TIMER2_IRQn, 0, polarizer_wheel_step_isr, NULL, 0);
-    irq_enable(TIMER2_IRQn);
+    irq_connect_dynamic(pwm_timer_irq_n, 0, polarizer_wheel_step_isr, NULL, 0);
+    irq_enable(pwm_timer_irq_n);
 
     // home polarizer wheel
     ret_val = polarizer_wheel_home_async();

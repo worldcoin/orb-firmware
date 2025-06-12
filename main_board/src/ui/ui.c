@@ -23,7 +23,7 @@ ui_cone_present_send(uint32_t remote)
 }
 
 int
-ui_init(void)
+ui_init(const orb_mcu_Hardware *hw_version)
 {
     int err_code;
 
@@ -34,8 +34,10 @@ ui_init(void)
     ASSERT_SOFT(err_code);
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    err_code = white_leds_init();
+    err_code = white_leds_init(hw_version);
     ASSERT_SOFT(err_code);
+#else
+    UNUSED_PARAMETER(hw_version);
 #endif
 
     return RET_SUCCESS;

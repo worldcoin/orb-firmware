@@ -2,6 +2,8 @@ description: PWM for white LEDs on Front Unit
 
 compatible: "pwm-white-leds"
 
+include: [base.yaml]
+
 properties:
   pwms:
     required: true

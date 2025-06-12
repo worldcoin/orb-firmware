@@ -117,7 +117,7 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
     ASSERT_SOFT(err_code);
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    err_code = polarizer_wheel_init();
+    err_code = polarizer_wheel_init(hw_version);
     ASSERT_SOFT(err_code);
 #endif
 
