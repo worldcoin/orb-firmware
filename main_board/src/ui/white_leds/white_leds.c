@@ -49,6 +49,10 @@ white_leds_set_brightness(uint32_t brightness_thousandth)
 {
     ret_code_t ret = RET_SUCCESS;
 
+    if (brightness_thousandth > 1000) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
     CRITICAL_SECTION_ENTER(k);
     global_brightness_thousandth = brightness_thousandth;
     CRITICAL_SECTION_EXIT(k);
