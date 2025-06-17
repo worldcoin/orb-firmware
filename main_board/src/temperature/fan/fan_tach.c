@@ -15,7 +15,7 @@
 #include "orb_logs.h"
 LOG_MODULE_REGISTER(fan_tach, CONFIG_FAN_TACH_LOG_LEVEL);
 
-static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_TEMPERATURE);
+static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_FAN_TACH);
 static struct k_thread thread_data;
 
 enum isr_state {
