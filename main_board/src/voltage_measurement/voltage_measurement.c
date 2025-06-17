@@ -849,34 +849,6 @@ publish_all_voltages(void)
     }
 }
 
-static bool
-assert_voltage(const char *name, const int32_t voltage_mv, const int32_t min,
-               const int32_t max, const int32_t range_min,
-               const int32_t range_max, const bool with_logs)
-{
-    if (range_min != 0 && range_max != 0) {
-        if (voltage_mv < range_min || voltage_mv > range_max) {
-            LOG_ERR("[ FAIL ] %s = %d mV; NOT in range: [%d, %d]", name,
-                    voltage_mv, range_min, range_max);
-            return false;
-        } else {
-            if (with_logs) {
-                LOG_INF("[  OK  ] %s = %d mV; min = %d mV; max = %d mV; in "
-                        "range [%d, %d]",
-                        name, voltage_mv, min, max, range_min, range_max);
-            }
-            return true;
-        }
-    } else {
-        if (with_logs) {
-            LOG_INF("[ SKIP ] %s = %d mV; min = %d mV; max = %d mV", name,
-                    voltage_mv, min, max);
-        }
-    }
-
-    return true;
-}
-
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
 
 static ret_code_t
@@ -969,10 +941,11 @@ check_caps_voltages(bool with_logs)
         char cap_buf_str[10] = {0};
         for (uint8_t i = 0; i < NUMBER_OF_SUPER_CAPS; i++) {
             sprintf(cap_buf_str, "cap #%d", i + 1);
-            bool passed = assert_voltage(
-                cap_buf_str, super_cap_differential_voltages[i],
-                super_cap_differential_voltages[i],
-                super_cap_differential_voltages[i], 1600, 2400, with_logs);
+            bool passed = app_assert_range(cap_buf_str,
+                                           super_cap_differential_voltages[i],
+                                           super_cap_differential_voltages[i],
+                                           super_cap_differential_voltages[i],
+                                           1600, 2400, with_logs, "mV");
             if (!passed) {
                 error_count++;
             }
@@ -1064,11 +1037,11 @@ voltage_measurement_self_test_thread()
                 continue;
             }
 
-            const bool passed = assert_voltage(
+            const bool passed = app_assert_range(
                 voltage_measurement_channel_names[i], voltage_mv,
                 min_voltage_mv, max_voltage_mv,
                 voltage_measurement_tests[i].min,
-                voltage_measurement_tests[i].max, passed_loop_count == 0);
+                voltage_measurement_tests[i].max, passed_loop_count == 0, "mV");
             if (!passed) {
                 fail_count++;
             }
