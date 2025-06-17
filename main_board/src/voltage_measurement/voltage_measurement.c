@@ -855,7 +855,7 @@ static ret_code_t
 voltage_measurement_sample_switched_channels(void)
 {
 
-    if (k_mutex_lock(voltages_analog_mux_mutex, K_MSEC(100)) == 0) {
+    if (k_mutex_lock(voltages_analog_mux_mutex, K_MSEC(200)) == 0) {
         // save gpio state and restore it later for not interfering with the i2c
         // mux driver
         int mux_store[2];
