@@ -100,7 +100,6 @@ list(APPEND SOURCES_FILES
 
     src/temperature/sensors/temperature.c
     src/temperature/fan/fan.c
-    src/temperature/fan/fan_tach.c
 
     src/voltage_measurement/voltage_measurement.c
 
@@ -126,6 +125,7 @@ if (CONFIG_BOARD_PEARL_MAIN)
     list(APPEND SOURCES_FILES src/gnss/gnss.c)
     list(APPEND SOURCES_FILES src/optics/mirror/homing_pearl.c)
     list(APPEND SOURCES_FILES src/power/battery/battery_ruby.c)
+    list(APPEND SOURCES_FILES src/temperature/fan/fan_tach.c)
 endif()
 
 if (CONFIG_BOARD_DIAMOND_MAIN)
@@ -138,6 +138,7 @@ if (CONFIG_BOARD_DIAMOND_MAIN)
         list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds.c)
     endif()
     list(APPEND SOURCES_FILES src/ui/white_leds/white_leds.c)
+    list(APPEND SOURCES_FILES src/temperature/fan/fan_tach_coarse.c)
 endif()
 
 if (CONFIG_ZTEST)

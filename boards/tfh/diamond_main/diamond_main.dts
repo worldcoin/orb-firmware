@@ -103,6 +103,9 @@
 
         // Voltage at VREF+ pin of STM32
         vref-mv = <2048>;
+
+        // for gpio based tachometer (coarse estimation)
+        fan-main-tach-gpios = <&gpiod 7 GPIO_ACTIVE_HIGH>;
     };
 
     buttons {
@@ -857,13 +860,6 @@
 
 &timers2 {
     status = "okay";
-
-    fan_main_tach: fan_main_tach {
-        compatible = "tfh,stm32-pwm";
-        pinctrl-0 = <&tim2_ch3_pd7>;
-        pinctrl-names = "default";
-        channels = <3>;
-    };
 
     polarizer_step_pwm_evt: pwm {
         status = "okay";
