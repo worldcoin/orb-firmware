@@ -96,9 +96,12 @@ assert_pointer_value_check(char *details);
 
 // NOTE: If you are using CMSIS, the registers can also be
 // accessed through CoreDebug->DHCSR & CoreDebug_DHCSR_C_DEBUGEN_Msk
+#define IS_DEBUGGER_ATTACHED()                                                 \
+    ((*(volatile uint32_t *)0xE000EDF0) & (1 << 0)) != 0
+
 #define HALT_IF_DEBUGGING()                                                    \
     do {                                                                       \
-        if ((*(volatile uint32_t *)0xE000EDF0) & (1 << 0)) {                   \
+        if (IS_DEBUGGER_ATTACHED()) {                                          \
             __BKPT(1);                                                         \
         }                                                                      \
     } while (0)

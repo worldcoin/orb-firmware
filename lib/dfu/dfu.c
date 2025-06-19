@@ -4,7 +4,10 @@
 #include "errno.h"
 #include "orb_logs.h"
 #include <errors.h>
+#include <stm32g4xx_ll_cortex.h>
 #include <zephyr/devicetree.h>
+#include <zephyr/drivers/flash.h>
+#include <zephyr/drivers/flash/stm32_flash_api_extensions.h>
 #include <zephyr/kernel.h>
 #include <zephyr/storage/flash_map.h>
 #include <zephyr/sys/crc.h>
@@ -550,6 +553,55 @@ exit:
 
     if (flash_area_p) {
         flash_area_close(flash_area_p);
+    }
+
+    return ret;
+}
+
+int
+dfu_readback_protection(void)
+{
+#ifdef DEBUG
+    LOG_INF("Skipping readback protection in debug mode");
+    return 0;
+#endif
+    const struct device *dev = FIXED_PARTITION_DEVICE(boot_partition);
+    const struct flash_stm32_ex_op_rdp request = {
+        .enable = true,
+        .permanent = false, /* be very cautious with this option, it will
+                             * permanently disable the ability to debug the
+                             * firmware
+                             */
+    };
+    struct flash_stm32_ex_op_rdp status = {0};
+
+    // read option bytes to check if RDP is enabled
+    int ret = flash_ex_op(dev, FLASH_STM32_EX_OP_RDP, (uintptr_t)NULL,
+                          (void *)&status);
+
+    if (ret == 0 && (request.enable != status.enable ||
+                     request.permanent != status.permanent)) {
+        /* Clear the low-power debug bits */
+        if (DBGMCU->CR & (DBGMCU_CR_DBG_SLEEP | DBGMCU_CR_DBG_STOP |
+                          DBGMCU_CR_DBG_STANDBY)) {
+            LOG_WRN("Clearing low-power debug bits before RDP change");
+            DBGMCU->CR &= ~(DBGMCU_CR_DBG_SLEEP | DBGMCU_CR_DBG_STOP |
+                            DBGMCU_CR_DBG_STANDBY);
+        }
+
+        LOG_WRN("rdp needs to be set, flash_ex_op ret: %d, current: en: %d, "
+                "perm: %d",
+                ret, status.enable, status.permanent);
+        k_msleep(100);
+
+        ret = flash_ex_op(dev, FLASH_STM32_EX_OP_RDP, (uintptr_t)&request,
+                          &status);
+        CODE_UNREACHABLE;
+
+        // we shouldn't get there, but if we do, log the error
+        LOG_ERR("mcu didn't reset after programming rdp, flash_ex_op ret: %d, "
+                "current: en: %d, perm: %d",
+                ret, status.enable, status.permanent);
     }
 
     return ret;
