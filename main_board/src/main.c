@@ -219,6 +219,9 @@ initialize(void)
     fatal_init();
     diag_init();
 
+    err_code = dfu_readback_protection();
+    ASSERT_SOFT(err_code);
+
     err_code = storage_init();
     ASSERT_SOFT(err_code);
 
