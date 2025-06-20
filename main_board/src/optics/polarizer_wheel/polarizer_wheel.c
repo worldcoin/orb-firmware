@@ -95,7 +95,7 @@ static const DRV8434S_DriverCfg_t drv8434_cfg = {
 // if less than 1000 µsteps between two notches: notch with small gap detected
 // we can then go to the 0/passthrough by applying a 120º+center degree movement
 #define POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS 1000
-
+#define POLARIZER_WHEEL_HOMING_SPIN_ATTEMPTS       3
 static K_SEM_DEFINE(home_sem, 0, 1);
 
 // Enable encoder interrupt
@@ -170,8 +170,9 @@ polarizer_move(const uint32_t frequency)
 static int
 polarizer_stop()
 {
+    const int ret = pwm_set_dt(polarizer_step_pwm_spec, 0, 0);
     disable_step_interrupt();
-    return pwm_set_dt(polarizer_step_pwm_spec, 0, 0);
+    return ret;
 }
 
 static int
@@ -294,6 +295,15 @@ polarizer_wheel_step_relative(uint32_t frequency, int32_t step_count)
 }
 
 static void
+homing_failed()
+{
+    g_polarizer_wheel_instance.status =
+        orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
+    polarizer_stop();
+    disable_encoder_interrupt();
+}
+
+static void
 polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
 {
     ARG_UNUSED(p1);
@@ -316,22 +326,40 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     g_polarizer_wheel_instance.homing.notch_count = 0;
     set_direction(POLARIZER_WHEEL_DIRECTION_FORWARD);
     while (!notch_0_detected) {
-        // on each loop, turn the wheel more than 120º to detect the next
-        // encoder notch
-        polarizer_wheel_step_relative(
-            POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
-            POLARIZER_WHEEL_MICROSTEPS_120_DEGREES * 2);
+        size_t spin_attempt = 0;
+        while (spin_attempt < POLARIZER_WHEEL_HOMING_SPIN_ATTEMPTS) {
+            // clear the step count before each spin attempt
+            atomic_clear(&g_polarizer_wheel_instance.step_count.current);
 
-        // wait for notch detection
-        const int ret = k_sem_take(&home_sem, K_SECONDS(10));
-        if (ret != 0) {
-            // no wheel?
-            g_polarizer_wheel_instance.status =
-                orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
-            polarizer_stop();
-            disable_encoder_interrupt();
-            LOG_ERR("polarizer wheel not detected");
-            return;
+            // spin the wheel 120º, to be done up to
+            // POLARIZER_WHEEL_HOMING_SPIN_ATTEMPTS times
+            int ret = polarizer_wheel_step_relative(
+                POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+                POLARIZER_WHEEL_MICROSTEPS_120_DEGREES);
+            if (ret != RET_SUCCESS) {
+                LOG_ERR("Unable to spin polarizer wheel: %d, attempt %u", ret,
+                        spin_attempt);
+                homing_failed();
+                return;
+            }
+            ret = k_sem_take(&home_sem, K_SECONDS(4));
+            if (ret == 0) {
+                break;
+            }
+            spin_attempt++;
+        }
+
+        if (spin_attempt != 0) {
+            LOG_WRN("Spin attempt %u, current step counter: %u", spin_attempt,
+                    (uint32_t)atomic_get(
+                        &g_polarizer_wheel_instance.step_count.current));
+            if (spin_attempt == POLARIZER_WHEEL_HOMING_SPIN_ATTEMPTS) {
+                // encoder not detected, no wheel?
+                homing_failed();
+                LOG_ERR(
+                    "Encoder not detected, is there a wheel? is it moving?");
+                return;
+            }
         }
 
         LOG_INF("homing: steps: %ld, notch count: %d",
@@ -362,7 +390,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
             POLARIZER_WHEEL_MICROSTEPS_120_DEGREES);
 
     // wait for completion and disconnect interrupt
-    k_sleep(K_SECONDS(2));
+    k_sleep(K_SECONDS(4));
     disable_step_interrupt();
     disable_encoder_interrupt();
 
