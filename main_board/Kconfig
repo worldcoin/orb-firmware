@@ -4,6 +4,17 @@ menu "Log levels"
 rsource "log_levels.Kconfig"
 endmenu
 
+config RDP_ENABLE
+    bool "Enable RDP (Readout Protection)"
+    default n
+    select USE_STM32_HAL_RTC
+    select USE_STM32_HAL_RTC_EX
+    select USE_STM32_HAL_PWR
+    help
+      Enable RDP on STM32G4. This will prevent reading the content of the STM32G4
+      memory with a debugger. This is useful for production
+      devices, but not for development.
+
 config PROXIMITY_DETECTION_FOR_IR_SAFETY
     bool "Ensure safe usage of IR LEDs."
     default y

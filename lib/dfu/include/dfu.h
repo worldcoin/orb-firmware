@@ -180,3 +180,6 @@ dfu_version_secondary_get(struct image_version *ih_ver);
  */
 int
 dfu_init(void);
+
+int
+dfu_readback_protection(void);
