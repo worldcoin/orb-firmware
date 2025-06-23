@@ -100,16 +100,28 @@ static K_SEM_DEFINE(home_sem, 0, 1);
 
 // Enable encoder interrupt
 static ret_code_t
-enable_encoder_interrupt(void)
+enable_encoder(void)
 {
+    const int ret = gpio_pin_configure_dt(&polarizer_encoder_enable_spec,
+                                          GPIO_OUTPUT_ACTIVE);
+    if (ret) {
+        return ret;
+    }
+
     return gpio_pin_interrupt_configure_dt(&polarizer_encoder_spec,
                                            GPIO_INT_EDGE_RISING);
 }
 
 // Disable the interrupt
 static ret_code_t
-disable_encoder_interrupt(void)
+disable_encoder(void)
 {
+    const int ret = gpio_pin_configure_dt(&polarizer_encoder_enable_spec,
+                                          GPIO_OUTPUT_INACTIVE);
+    if (ret) {
+        return ret;
+    }
+
     return gpio_pin_interrupt_configure_dt(&polarizer_encoder_spec,
                                            GPIO_INT_DISABLE);
 }
@@ -300,7 +312,7 @@ homing_failed()
     g_polarizer_wheel_instance.status =
         orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
     polarizer_stop();
-    disable_encoder_interrupt();
+    disable_encoder();
 }
 
 static void
@@ -313,7 +325,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     clear_step_interrupt();
 
     // enable encoder interrupt to detect notches
-    enable_encoder_interrupt();
+    enable_encoder();
 
     /*
      * Below is a representation of the notches on the wheel (encoder):
@@ -392,7 +404,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     // wait for completion and disconnect interrupt
     k_sleep(K_SECONDS(4));
     disable_step_interrupt();
-    disable_encoder_interrupt();
+    disable_encoder();
 
     LOG_INF("Polarizer wheel homed");
     g_polarizer_wheel_instance.status =
@@ -538,7 +550,7 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
 
     // Enable the polarizer motor encoder
     ret_val = gpio_pin_configure_dt(&polarizer_encoder_enable_spec,
-                                    GPIO_OUTPUT_ACTIVE);
+                                    GPIO_OUTPUT_INACTIVE);
     if (ret_val != 0) {
         ASSERT_SOFT(ret_val);
         return RET_ERROR_INTERNAL;
@@ -568,7 +580,7 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
         return RET_ERROR_INTERNAL;
     }
 
-    ret_val = disable_encoder_interrupt();
+    ret_val = disable_encoder();
     if (ret_val != 0) {
         ASSERT_SOFT(ret_val);
         return RET_ERROR_INTERNAL;
