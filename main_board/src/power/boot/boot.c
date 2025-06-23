@@ -640,6 +640,11 @@ app_init_state(void)
 
     LOG_INF_IMM("Hello from " CONFIG_BOARD " :)");
 
+    // enable read-back protection before trying to boot
+    // so that the POR/reboot stays silent
+    ret = dfu_readback_protection();
+    ASSERT_SOFT(ret);
+
     // read image status to know whether we are waiting for user to press
     // the button
     struct boot_swap_state primary_slot = {0};
