@@ -30,7 +30,7 @@ manifest:
       path: modules/orb-messages
       groups: [internal]
     - name: plug-and-trust
-      revision: beb0db6da441f8fd5becfab6c216c8d51aac8dbf
+      revision: c4cf5f29027f44fd5aad1d896df5840e10b08fd4
       path: modules/plug-and-trust
       groups: [internal]
   self:
