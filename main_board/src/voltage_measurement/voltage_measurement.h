@@ -67,6 +67,9 @@ voltage_measurement_get_vref_mv_from_raw(
 #endif
 }
 
+ret_code_t
+voltage_measurement_selftest(void);
+
 /**
  * @brief Initialize the voltage measurement module.
  *
