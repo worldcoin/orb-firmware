@@ -419,6 +419,11 @@ turn_on_power_supplies(void)
     power_vbat_5v_3v3_supplies_on();
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    ret = gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
+    LOG_INF("3.3V WIFI power supply enabled");
+    k_msleep(20);
+
     ret = gpio_pin_set_dt(&supply_12v_caps_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
     LOG_INF("12V_CAPS enabled");
@@ -448,10 +453,6 @@ turn_on_power_supplies(void)
     ASSERT_SOFT(ret);
     LOG_INF("3.3V SD card power supply enabled");
     k_msleep(20);
-
-    ret = gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 1);
-    ASSERT_SOFT(ret);
-    LOG_INF("3.3V WIFI power supply enabled");
 #elif defined(CONFIG_BOARD_PEARL_MAIN)
     orb_mcu_Hardware version = version_get();
 
