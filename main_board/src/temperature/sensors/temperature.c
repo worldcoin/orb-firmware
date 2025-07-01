@@ -26,9 +26,15 @@ LOG_MODULE_REGISTER(temperature, CONFIG_TEMPERATURE_LOG_LEVEL);
 
 /// Emergency temperatures (fan at max speed)
 #define MAIN_BOARD_OVERTEMP_C  80
-#define FRONT_UNIT_OVERTEMP_C  70
-#define MCU_DIE_OVERTEMP_C     65
 #define LIQUID_LENS_OVERTEMP_C 80
+
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+#define FRONT_UNIT_OVERTEMP_C 70
+#define MCU_DIE_OVERTEMP_C    65
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+#define FRONT_UNIT_OVERTEMP_C 80
+#define MCU_DIE_OVERTEMP_C    80
+#endif
 
 // drop in temperature needed to stop over-temp mode
 #define OVERTEMP_TO_NOMINAL_DROP_C 5
@@ -319,8 +325,12 @@ static struct sensor_and_channel sensors_and_channels[] = {
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_LEFT_TOP,
          .hardware_diagnostic_source =
              orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
-         .cb = NULL,
-         .cb_data = NULL,
+         .cb = overtemp_callback,
+         .cb_data = &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
+                                            .overtemp_drop_c =
+                                                OVERTEMP_TO_NOMINAL_DROP_C,
+                                            .in_overtemp = false,
+                                            .critical_timer = 0},
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
@@ -345,8 +355,12 @@ static struct sensor_and_channel sensors_and_channels[] = {
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_RIGHT_TOP,
          .hardware_diagnostic_source =
              orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
-         .cb = NULL,
-         .cb_data = NULL,
+         .cb = overtemp_callback,
+         .cb_data = &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
+                                            .overtemp_drop_c =
+                                                OVERTEMP_TO_NOMINAL_DROP_C,
+                                            .in_overtemp = false,
+                                            .critical_timer = 0},
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
@@ -358,8 +372,12 @@ static struct sensor_and_channel sensors_and_channels[] = {
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_940_LEFT_TOP,
          .hardware_diagnostic_source =
              orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
-         .cb = NULL,
-         .cb_data = NULL,
+         .cb = overtemp_callback,
+         .cb_data = &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
+                                            .overtemp_drop_c =
+                                                OVERTEMP_TO_NOMINAL_DROP_C,
+                                            .in_overtemp = false,
+                                            .critical_timer = 0},
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
@@ -384,8 +402,12 @@ static struct sensor_and_channel sensors_and_channels[] = {
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_940_RIGHT_TOP,
          .hardware_diagnostic_source =
              orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
-         .cb = NULL,
-         .cb_data = NULL,
+         .cb = overtemp_callback,
+         .cb_data = &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
+                                            .overtemp_drop_c =
+                                                OVERTEMP_TO_NOMINAL_DROP_C,
+                                            .in_overtemp = false,
+                                            .critical_timer = 0},
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
@@ -449,8 +471,12 @@ static struct sensor_and_channel sensors_and_channels[] = {
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_SHROUD_RGB_TOP,
          .hardware_diagnostic_source =
              orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
-         .cb = NULL,
-         .cb_data = NULL,
+         .cb = overtemp_callback,
+         .cb_data = &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
+                                            .overtemp_drop_c =
+                                                OVERTEMP_TO_NOMINAL_DROP_C,
+                                            .in_overtemp = false,
+                                            .critical_timer = 0},
          .history = {0},
          .wr_idx = 0,
          .average = TEMPERATURE_SENTINEL_VALUE},
