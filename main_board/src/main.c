@@ -302,9 +302,15 @@ initialize(void)
     // wait that jetson boots to enable super-caps as it's drawing a lot of
     // current that is needed for proper jetson boot
 #if !defined(CONFIG_NO_SUPER_CAPS) && !defined(CONFIG_CI_INTEGRATION_TESTS)
-    k_msleep(20000);
+    k_msleep(14000);
     err_code = boot_turn_on_super_cap_charger();
     if (err_code == RET_SUCCESS) {
+        // Delay is to wait for super-cap to charge enough so that turning on
+        // PVCC doesn't cause a brownout, which then disable PVCC (circuitry)
+        // back and forth until stabilized. VCaps voltage is thus kept stable.
+        // Ideally, we should measure the super-cap voltage but hardcoding a
+        // delay works for now.
+        k_msleep(6000);
         err_code = boot_turn_on_pvcc();
         if (err_code == RET_SUCCESS) {
             err_code = optics_init(&hw, &analog_and_i2c_mutex);
