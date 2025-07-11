@@ -2,11 +2,13 @@
 #include "system/diag.h"
 #include <app_assert.h>
 #include <errors.h>
+#include <orb_state.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/i2c.h>
 
 LOG_MODULE_REGISTER(sound, CONFIG_SOUND_LOG_LEVEL);
+ORB_STATE_REGISTER(sound);
 
 /**
  * Driver for TAS5805M audio amplifier
@@ -129,12 +131,10 @@ sound_init(void)
     }
 
     if (err_code || die_id != 0x00) {
-        diag_set_status(
-            orb_mcu_HardwareDiagnostic_Source_UI_SOUND,
-            orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR);
+        ORB_STATE_SET_CURRENT(RET_ERROR_NOT_INITIALIZED,
+                              "comm issue (%d), die id: %d", err_code, die_id);
     } else {
-        diag_set_status(orb_mcu_HardwareDiagnostic_Source_UI_SOUND,
-                        orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
+        ORB_STATE_SET_CURRENT(RET_SUCCESS);
     }
 
     return err_code;

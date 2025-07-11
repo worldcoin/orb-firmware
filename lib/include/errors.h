@@ -15,4 +15,9 @@ typedef enum {
     RET_ERROR_NOT_INITIALIZED = 0x0B,
     RET_ERROR_ASSERT_FAILS = 0x0C,
     RET_ERROR_ALREADY_INITIALIZED = 0x0D,
+    RET_ERROR_NOT_SUPPORTED = 0x0E,
+    RET_ERROR_UNSAFE = 0x0F,
 } ret_code_t;
+
+const char *
+ret_code_to_str(ret_code_t code);
