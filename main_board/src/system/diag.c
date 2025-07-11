@@ -126,33 +126,6 @@ diag_sync(uint32_t remote)
     return ret;
 }
 
-ret_code_t
-diag_set_status(orb_mcu_HardwareDiagnostic_Source source,
-                orb_mcu_HardwareDiagnostic_Status status)
-{
-    if (source >= orb_mcu_HardwareDiagnostic_Source_MAIN_BOARD_SENTINEL) {
-        return RET_ERROR_INVALID_PARAM;
-    }
-
-    if (hw_statuses[source] == status) {
-        return RET_SUCCESS;
-    }
-
-    hw_statuses[source] = status;
-    has_changed = true;
-
-    return RET_SUCCESS;
-}
-
-void
-diag_init(void)
-{
-    for (size_t i = 0; i < ARRAY_SIZE(hw_statuses); i++) {
-        hw_statuses[i] = orb_mcu_HardwareDiagnostic_Status_STATUS_UNKNOWN;
-    }
-    has_changed = false;
-}
-
 #ifdef CONFIG_ZTEST
 #include <zephyr/ztest.h>
 
@@ -163,28 +136,32 @@ ZTEST(hil, test_diag)
     diag_init();
     zassert_equal(diag_has_data(), false, "diag_has_data() should be false");
 
-    ret = diag_set_status(orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
-                          orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
+    ret =
+        orb_state_set_status(orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+                             orb_mcu_HardwareDiagnostic_Status_STATUS_OK, NULL);
     zassert_equal(ret, RET_ERROR_INVALID_PARAM,
-                  "diag_set_status() should fail");
+                  "orb_state_set_status() should fail");
 
-    ret = diag_set_status(orb_mcu_HardwareDiagnostic_Source_MAIN_BOARD_SENTINEL,
-                          orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
+    ret = orb_state_set_status(
+        orb_mcu_HardwareDiagnostic_Source_MAIN_BOARD_SENTINEL,
+        orb_mcu_HardwareDiagnostic_Status_STATUS_OK, NULL);
     zassert_equal(ret, RET_ERROR_INVALID_PARAM,
-                  "diag_set_status() should fail");
+                  "orb_state_set_status() should fail");
     zassert_equal(diag_has_data(), false, "diag_has_data() should be false");
 
-    ret = diag_set_status(orb_mcu_HardwareDiagnostic_Source_OPTICS_MIRRORS,
-                          orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
-    zassert_equal(ret, RET_SUCCESS, "diag_set_status() should succeed");
+    ret =
+        orb_state_set_status(orb_mcu_HardwareDiagnostic_Source_OPTICS_MIRRORS,
+                             orb_mcu_HardwareDiagnostic_Status_STATUS_OK, NULL);
+    zassert_equal(ret, RET_SUCCESS, "orb_state_set_status() should succeed");
     zassert_equal(diag_has_data(), true, "diag_has_data() should be true");
 
     diag_sync(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
     zassert_equal(diag_has_data(), false, "diag_has_data() should be false");
 
-    ret = diag_set_status(orb_mcu_HardwareDiagnostic_Source_OPTICS_MIRRORS,
-                          orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
-    zassert_equal(ret, RET_SUCCESS, "diag_set_status() should succeed");
+    ret =
+        orb_state_set_status(orb_mcu_HardwareDiagnostic_Source_OPTICS_MIRRORS,
+                             orb_mcu_HardwareDiagnostic_Status_STATUS_OK, NULL);
+    zassert_equal(ret, RET_SUCCESS, "orb_state_set_status() should succeed");
     // same status so data didn't change since sync
     zassert_equal(diag_has_data(), false, "diag_has_data() should be false");
 }

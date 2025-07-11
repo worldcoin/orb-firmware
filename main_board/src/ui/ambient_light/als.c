@@ -2,14 +2,15 @@
 #include "app_config.h"
 #include "mcu.pb.h"
 #include "orb_logs.h"
+#include "orb_state.h"
 #include "pubsub/pubsub.h"
-#include "system/diag.h"
 #include <errors.h>
 #include <ui/rgb_leds/front_leds/front_leds.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 
 LOG_MODULE_REGISTER(als, CONFIG_ALS_LOG_LEVEL);
+ORB_STATE_REGISTER(als);
 
 const struct device *als_device =
     DEVICE_DT_GET_OR_NULL(DT_NODELABEL(front_unit_als));
@@ -87,20 +88,18 @@ als_init(const orb_mcu_Hardware *hw_version, struct k_mutex *i2c_mux_mutex)
              orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3A &&
          hw_version->front_unit <=
              orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3C)) {
-        diag_set_status(orb_mcu_HardwareDiagnostic_Source_UI_ALS,
-                        orb_mcu_HardwareDiagnostic_Status_STATUS_NOT_SUPPORTED);
+        ORB_STATE_SET(RET_ERROR_NOT_SUPPORTED,
+                      "detected front unit board doesn't have an als sensor");
         return RET_SUCCESS;
     }
 
     if (!device_is_ready(als_device)) {
         LOG_ERR("ALS not ready");
-        diag_set_status(
-            orb_mcu_HardwareDiagnostic_Source_UI_ALS,
-            orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR);
+        ORB_STATE_SET(RET_ERROR_NOT_INITIALIZED,
+                      "als not ready (driver init failed?)");
         return RET_ERROR_INTERNAL;
     } else {
-        diag_set_status(orb_mcu_HardwareDiagnostic_Source_UI_ALS,
-                        orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
+        ORB_STATE_SET(RET_SUCCESS);
     }
 
     k_thread_create(&als_thread_data, stack_area_als,
