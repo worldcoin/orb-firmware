@@ -2,6 +2,7 @@
 #include "pubsub/pubsub.h"
 #include <app_assert.h>
 #include <errors.h>
+#include <orb_state.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/util.h>
 
@@ -24,63 +25,21 @@ BUILD_ASSERT(ARRAY_SIZE(mflt_evt.chunk.bytes) >
 #endif
 LOG_MODULE_REGISTER(diag, CONFIG_DIAG_LOG_LEVEL);
 
-static orb_mcu_HardwareDiagnostic_Status
-    hw_statuses[orb_mcu_HardwareDiagnostic_Source_MAIN_BOARD_SENTINEL];
-static bool has_changed;
-
-bool
-diag_has_data(void)
-{
-    bool sync_memfault = false;
-
-#if defined(CONFIG_MEMFAULT)
-    sync_memfault =
-        (memfault_packetizer_data_available() > 0) || !mflt_evt_synced;
-#endif
-
-    return has_changed || sync_memfault;
-}
+BUILD_ASSERT(ORB_STATE_MESSAGE_MAX_LENGTH ==
+                 sizeof(((orb_mcu_HardwareState *)0)->message),
+             "orb_state message length must match orb_mcu_HardwareState "
+             "message length");
+BUILD_ASSERT(ORB_STATE_NAME_MAX_LENGTH ==
+                 sizeof(((orb_mcu_HardwareState *)0)->source_name),
+             "orb_state name length must match orb_mcu_HardwareState "
+             "source_name length");
 
 ret_code_t
 diag_sync(uint32_t remote)
 {
     int ret = RET_SUCCESS;
-    size_t counter = 0;
-    size_t error_counter = 0;
-    orb_mcu_HardwareDiagnostic hw_diag = orb_mcu_HardwareDiagnostic_init_zero;
 
-    if (has_changed) {
-        LOG_INF("Sending statuses");
-
-        for (size_t i = 0; i < ARRAY_SIZE(hw_statuses); i++) {
-            if (hw_statuses[i] ==
-                orb_mcu_HardwareDiagnostic_Status_STATUS_UNKNOWN) {
-                continue;
-            }
-            hw_diag.source = i;
-            hw_diag.status = hw_statuses[i];
-
-            ret =
-                publish_new(&hw_diag, sizeof(hw_diag),
-                            orb_mcu_main_McuToJetson_hardware_diag_tag, remote);
-            if (ret) {
-#ifndef CONFIG_ZTEST
-                error_counter++;
-#endif
-                continue;
-            }
-            counter++;
-
-            // throttle the sending of statuses to avoid flooding the CAN bus
-            // and CAN controller
-            k_msleep(10);
-        }
-        LOG_INF("Sent: %u, errors: %u", counter, error_counter);
-
-        if (error_counter == 0) {
-            has_changed = false;
-        }
-    }
+    // memfault first, then general statuses, see below
 
 #if defined(CONFIG_MEMFAULT)
     static uint32_t memfault_counter = 0;
@@ -102,10 +61,6 @@ diag_sync(uint32_t remote)
             ret = publish_new(&mflt_evt, sizeof(mflt_evt),
                               orb_mcu_main_McuToJetson_memfault_event_tag,
                               remote);
-#ifdef CONFIG_ZTEST
-            // don't care about tx failures in tests
-            ret = RET_SUCCESS;
-#endif
             if (ret) {
                 // come back later to send the same chunk
                 return ret;
@@ -123,70 +78,32 @@ diag_sync(uint32_t remote)
     }
 #endif
 
+    size_t counter = 0;
+    size_t error_counter = 0;
+    orb_mcu_HardwareState hw_state = orb_mcu_HardwareState_init_zero;
+
+    LOG_INF("Sending statuses");
+
+    struct orb_state_const_data *data = NULL;
+    while (orb_state_iter(&data)) {
+        memccpy(hw_state.source_name, data->name, '\0',
+                sizeof(hw_state.source_name));
+        hw_state.status = data->dynamic_data->status;
+        memccpy(hw_state.message, data->dynamic_data->message, '\0',
+                sizeof(hw_state.message));
+        ret = publish_new(&hw_state, sizeof(hw_state),
+                          orb_mcu_main_McuToJetson_hw_state_tag, remote);
+        if (ret) {
+            error_counter++;
+            continue;
+        }
+        counter++;
+
+        // throttle the sending of statuses to avoid flooding the CAN bus
+        // and CAN controller
+        k_msleep(10);
+    }
+    LOG_INF("Sent: %u, errors: %u", counter, error_counter);
+
     return ret;
 }
-
-ret_code_t
-diag_set_status(orb_mcu_HardwareDiagnostic_Source source,
-                orb_mcu_HardwareDiagnostic_Status status)
-{
-    if (source >= orb_mcu_HardwareDiagnostic_Source_MAIN_BOARD_SENTINEL) {
-        return RET_ERROR_INVALID_PARAM;
-    }
-
-    if (hw_statuses[source] == status) {
-        return RET_SUCCESS;
-    }
-
-    hw_statuses[source] = status;
-    has_changed = true;
-
-    return RET_SUCCESS;
-}
-
-void
-diag_init(void)
-{
-    for (size_t i = 0; i < ARRAY_SIZE(hw_statuses); i++) {
-        hw_statuses[i] = orb_mcu_HardwareDiagnostic_Status_STATUS_UNKNOWN;
-    }
-    has_changed = false;
-}
-
-#ifdef CONFIG_ZTEST
-#include <zephyr/ztest.h>
-
-ZTEST(hil, test_diag)
-{
-    int ret;
-
-    diag_init();
-    zassert_equal(diag_has_data(), false, "diag_has_data() should be false");
-
-    ret = diag_set_status(orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
-                          orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
-    zassert_equal(ret, RET_ERROR_INVALID_PARAM,
-                  "diag_set_status() should fail");
-
-    ret = diag_set_status(orb_mcu_HardwareDiagnostic_Source_MAIN_BOARD_SENTINEL,
-                          orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
-    zassert_equal(ret, RET_ERROR_INVALID_PARAM,
-                  "diag_set_status() should fail");
-    zassert_equal(diag_has_data(), false, "diag_has_data() should be false");
-
-    ret = diag_set_status(orb_mcu_HardwareDiagnostic_Source_OPTICS_MIRRORS,
-                          orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
-    zassert_equal(ret, RET_SUCCESS, "diag_set_status() should succeed");
-    zassert_equal(diag_has_data(), true, "diag_has_data() should be true");
-
-    diag_sync(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-    zassert_equal(diag_has_data(), false, "diag_has_data() should be false");
-
-    ret = diag_set_status(orb_mcu_HardwareDiagnostic_Source_OPTICS_MIRRORS,
-                          orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
-    zassert_equal(ret, RET_SUCCESS, "diag_set_status() should succeed");
-    // same status so data didn't change since sync
-    zassert_equal(diag_has_data(), false, "diag_has_data() should be false");
-}
-
-#endif /* CONFIG_ZTEST */

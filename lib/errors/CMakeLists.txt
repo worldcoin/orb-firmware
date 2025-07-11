@@ -6,6 +6,7 @@ if (CONFIG_ORB_LIB_ERRORS)
     orb_library(
         app_assert.c
         orb_fatal.c
+        orb_errors.c
         errors_tests.c
     )
 endif ()

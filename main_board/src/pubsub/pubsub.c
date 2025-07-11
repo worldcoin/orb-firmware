@@ -106,6 +106,7 @@ const struct sub_message_s sub_prios[] = {
         {.priority = SUB_PRIO_DISCARD},
     [orb_mcu_main_McuToJetson_shutdown_tag] = {.priority =
                                                    SUB_PRIO_TRY_SENDING},
+    [orb_mcu_main_McuToJetson_hw_state_tag] = {.priority = SUB_PRIO_DISCARD},
 };
 
 /* ISO-TP addresses + one CAN-FD address */
@@ -210,9 +211,8 @@ publish_flush(void)
 {
     static bool started_once = false;
 
-    if ((started_once == false ||
-         (k_thread_join(&pub_stored_thread_data, K_NO_WAIT) == 0)) &&
-        (storage_has_data() || diag_has_data())) {
+    if (started_once == false ||
+        (k_thread_join(&pub_stored_thread_data, K_NO_WAIT) == 0)) {
         k_thread_create(&pub_stored_thread_data, pub_stored_stack_area,
                         K_THREAD_STACK_SIZEOF(pub_stored_stack_area),
                         (k_thread_entry_t)pub_stored_thread, NULL, NULL, NULL,
