@@ -327,12 +327,14 @@ liquid_lens_init(const orb_mcu_Hardware *hw_version)
                               LL_HRTIM_PRESCALERRATIO_MUL32);
     LL_HRTIM_TIM_SetCounterMode(HR_TIMER, LIQUID_LENS_TIM_POS_BRIDGE,
                                 LL_HRTIM_MODE_CONTINUOUS);
-    LL_HRTIM_TIM_SetPeriod(HR_TIMER, LIQUID_LENS_TIM_POS_BRIDGE, 0x3300);
+    LL_HRTIM_TIM_SetPeriod(HR_TIMER, LIQUID_LENS_TIM_POS_BRIDGE,
+                           LIQUID_LENS_TIM_PERIOD);
     LL_HRTIM_TIM_SetPrescaler(HR_TIMER, LIQUID_LENS_TIM_NEG_BRIDGE,
                               LL_HRTIM_PRESCALERRATIO_MUL32);
     LL_HRTIM_TIM_SetCounterMode(HR_TIMER, LIQUID_LENS_TIM_NEG_BRIDGE,
                                 LL_HRTIM_MODE_CONTINUOUS);
-    LL_HRTIM_TIM_SetPeriod(HR_TIMER, LIQUID_LENS_TIM_NEG_BRIDGE, 0x3300);
+    LL_HRTIM_TIM_SetPeriod(HR_TIMER, LIQUID_LENS_TIM_NEG_BRIDGE,
+                           LIQUID_LENS_TIM_PERIOD);
 
     LL_HRTIM_OUT_SetOutputSetSrc(HR_TIMER, LIQUID_LENS_TIM_LS2_OUTPUT,
                                  LL_HRTIM_OUTPUTSET_TIMCMP2);
