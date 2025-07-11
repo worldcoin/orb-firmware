@@ -23,6 +23,7 @@
 #include <dfu.h>
 #include <optics/polarizer_wheel/polarizer_wheel.h>
 #include <orb_fatal.h>
+#include <orb_state.h>
 #include <pb_encode.h>
 #include <storage.h>
 #include <zephyr/device.h>
@@ -217,7 +218,6 @@ initialize(void)
     int err_code;
 
     fatal_init();
-    diag_init();
 
     err_code = storage_init();
     ASSERT_SOFT(err_code);
@@ -349,6 +349,8 @@ initialize(void)
     ASSERT_SOFT(err_code);
 #endif
 
+    orb_state_dump();
+
     // done booting
     LOG_INF("🚀");
 }
@@ -367,6 +369,11 @@ main(void)
     initialize();
     run_tests();
     wait_jetson_up();
+
+    while (true) {
+        orb_state_dump();
+        k_sleep(K_SECONDS(30));
+    }
 
     return 0;
 }
