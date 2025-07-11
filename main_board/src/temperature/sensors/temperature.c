@@ -751,21 +751,16 @@ check_ready(void)
                 LOG_ERR("Could not initialize temperature sensor '%s: %d'",
                         sensors_and_channels[i].sensor->name,
                         sensors_and_channels[i].temperature_source);
-                diag_set_status(
-                    sensors_and_channels[i].hardware_diagnostic_source,
-                    orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR);
+                // TODO ORB_STATE_SET
                 ret = RET_ERROR_INVALID_STATE;
             } else {
                 LOG_INF("Initialized %s: %d",
                         sensors_and_channels[i].sensor->name,
                         sensors_and_channels[i].temperature_source);
-                diag_set_status(
-                    sensors_and_channels[i].hardware_diagnostic_source,
-                    orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
+                // TODO ORB_STATE_SET
             }
         } else {
-            diag_set_status(sensors_and_channels[i].hardware_diagnostic_source,
-                            orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
+            // TODO ORB_STATE_SET
             ret = RET_ERROR_INVALID_STATE;
         }
     }

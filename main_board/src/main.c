@@ -23,6 +23,7 @@
 #include <dfu.h>
 #include <optics/polarizer_wheel/polarizer_wheel.h>
 #include <orb_fatal.h>
+#include <orb_state.h>
 #include <pb_encode.h>
 #include <storage.h>
 #include <zephyr/device.h>
@@ -217,7 +218,6 @@ initialize(void)
     int err_code;
 
     fatal_init();
-    diag_init();
 
     err_code = storage_init();
     ASSERT_SOFT(err_code);
@@ -294,6 +294,7 @@ initialize(void)
     err_code = button_init();
     ASSERT_SOFT(err_code);
 
+    orb_state_dump();
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     err_code = gnss_init();
     ASSERT_SOFT(err_code);
