@@ -1,7 +1,7 @@
 #include "tof_1d.h"
 #include "app_config.h"
 #include "mcu.pb.h"
-#include "orb_logs.h"
+#include "orb_state.h"
 #include "pubsub/pubsub.h"
 #include <app_assert.h>
 #include <errors.h>
@@ -10,7 +10,10 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 
+#include "orb_logs.h"
+
 LOG_MODULE_REGISTER(1d_tof, CONFIG_TOF_1D_LOG_LEVEL);
+ORB_STATE_REGISTER_MULTIPLE(tof_1d, sensor_bar);
 
 const struct device *tof_1d_device = DEVICE_DT_GET(DT_NODELABEL(tof_sensor));
 #if CONFIG_BOARD_DIAMOND_MAIN
@@ -70,6 +73,7 @@ tof_1d_thread()
     struct sensor_value distance_value;
     orb_mcu_main_ToF_1D tof;
     uint32_t count = 0;
+    uint32_t err_count = 0;
 
     uint32_t tick = 0;
     while (1) {
@@ -79,6 +83,23 @@ tof_1d_thread()
             task_duration = tock - tick;
         }
         LOG_DBG("task duration: %d", task_duration);
+
+        if (count > 0 && count % 10 == 0 && err_count == 0) {
+            ORB_STATE_SET(sensor_bar, RET_SUCCESS);
+        }
+
+        // 5 errors in a row means the sensor (and sensor bar) is probably
+        // disconnected
+        if (err_count == 5) {
+            ORB_STATE_SET(sensor_bar, RET_ERROR_OFFLINE, "disconnected?");
+        } else if (err_count >= 3) {
+            // 3 errors in a row means something is wrong with the 1d-tof sensor
+            ORB_STATE_SET(tof_1d, RET_ERROR_INTERNAL, "error fetching");
+        } else {
+            // this is a normal run, and will be called a lot, so we
+            // don't set a message
+            ORB_STATE_SET(tof_1d, RET_SUCCESS);
+        }
 
         k_msleep(FETCH_PERIOD_MS - task_duration);
 
@@ -93,6 +114,7 @@ tof_1d_thread()
         }
         if (ret != 0) {
             LOG_WRN("Error fetching %d", ret);
+            err_count++;
             continue;
         }
 
@@ -108,6 +130,7 @@ tof_1d_thread()
             // print error with debug level because the range status
             // can quickly throw an error when nothing in front of the sensor
             LOG_DBG("Error getting distance data %d", ret);
+            err_count++;
             continue;
         }
 
@@ -134,6 +157,7 @@ tof_1d_thread()
         }
         if (ret != 0) {
             LOG_DBG("Error getting prox data %d", ret);
+            err_count++;
             continue;
         }
 
@@ -156,6 +180,9 @@ tof_1d_thread()
             unsafe_cb();
         }
 #endif
+
+        // if reached here, we successfully fetched the data
+        err_count = 0;
     }
 }
 
@@ -168,6 +195,8 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
     if (mutex) {
         i2c1_mutex = mutex;
     }
+
+    ORB_STATE_SET(sensor_bar, RET_ERROR_NOT_INITIALIZED, "unknown state");
 
 #if CONFIG_BOARD_DIAMOND_MAIN
     /* on diamond, select correct 1d-tof device from device tree as it differs
@@ -192,6 +221,7 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
 
     if (!device_is_ready(tof_1d_device)) {
         LOG_ERR("VL53L1 not ready!");
+        ORB_STATE_SET(tof_1d, RET_ERROR_INVALID_STATE, "device not ready");
         return RET_ERROR_INVALID_STATE;
     }
 
@@ -235,6 +265,8 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
         k_mutex_unlock(i2c1_mutex);
     }
     ASSERT_SOFT(ret);
+
+    ORB_STATE_SET(sensor_bar, RET_SUCCESS);
 
     return RET_SUCCESS;
 }
