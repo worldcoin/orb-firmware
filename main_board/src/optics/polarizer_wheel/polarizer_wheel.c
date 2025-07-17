@@ -8,6 +8,7 @@
  ******************************************************************************/
 #include "polarizer_wheel.h"
 #include "drv8434s/drv8434s.h"
+#include "orb_state.h"
 #include <app_assert.h>
 #include <app_config.h>
 #include <common.pb.h>
@@ -19,9 +20,11 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/drivers/pwm.h>
-#include <zephyr/logging/log.h>
+
+#include "orb_logs.h"
 
 LOG_MODULE_REGISTER(polarizer, CONFIG_POLARIZER_LOG_LEVEL);
+ORB_STATE_REGISTER(polarizer);
 
 K_THREAD_STACK_DEFINE(stack_area_polarizer_wheel_home,
                       THREAD_STACK_SIZE_POLARIZER_WHEEL_HOME);
@@ -33,9 +36,6 @@ enum polarizer_wheel_direction_e {
 };
 
 typedef struct {
-    // polarizer wheel status
-    orb_mcu_HardwareDiagnostic_Status status;
-
     struct {
         uint8_t notch_count;
         bool success;
@@ -309,8 +309,7 @@ polarizer_wheel_step_relative(uint32_t frequency, int32_t step_count)
 static void
 homing_failed()
 {
-    g_polarizer_wheel_instance.status =
-        orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
+    g_polarizer_wheel_instance.homing.success = false;
     polarizer_stop();
     disable_encoder();
 }
@@ -352,6 +351,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
                 LOG_ERR("Unable to spin polarizer wheel: %d, attempt %u", ret,
                         spin_attempt);
                 homing_failed();
+                ORB_STATE_SET_CURRENT(ret, "unable to spin");
                 return;
             }
             ret = k_sem_take(&home_sem, K_SECONDS(4));
@@ -367,6 +367,8 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
                         &g_polarizer_wheel_instance.step_count.current));
             if (spin_attempt == POLARIZER_WHEEL_HOMING_SPIN_ATTEMPTS) {
                 // encoder not detected, no wheel?
+                ORB_STATE_SET_CURRENT(RET_ERROR_NOT_INITIALIZED,
+                                      "no encoder: no wheel? staled?");
                 homing_failed();
                 LOG_ERR(
                     "Encoder not detected, is there a wheel? is it moving?");
@@ -407,8 +409,8 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     disable_encoder();
 
     LOG_INF("Polarizer wheel homed");
-    g_polarizer_wheel_instance.status =
-        orb_mcu_HardwareDiagnostic_Status_STATUS_OK;
+    ORB_STATE_SET_CURRENT(RET_SUCCESS, "homed");
+    g_polarizer_wheel_instance.homing.success = true;
 
     // reset step counter
     atomic_clear(&g_polarizer_wheel_instance.step_count.current);
@@ -499,8 +501,10 @@ devices_ready(void)
 ret_code_t
 polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
 {
-    ret_code_t ret_val = RET_SUCCESS;
+    int ret_val = RET_SUCCESS;
     if (hw_version == NULL) {
+        ORB_STATE_SET_CURRENT(RET_ERROR_INVALID_PARAM,
+                              "invalid/NULL hw_version");
         return RET_ERROR_INVALID_PARAM;
     }
 
@@ -525,27 +529,28 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
 
     if (!devices_ready()) {
         ASSERT_SOFT(RET_ERROR_INVALID_STATE);
-        return RET_ERROR_INVALID_STATE;
+        ret_val = RET_ERROR_INVALID_STATE;
+        goto exit;
     }
 
     // clear the polarizer wheel runtime context
     memset(&g_polarizer_wheel_instance, 0, sizeof(g_polarizer_wheel_instance));
-    g_polarizer_wheel_instance.status =
-        orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR;
 
     // Polarizer spi chip select is controlled manually, configure inactive
     ret_val =
         gpio_pin_configure_dt(&polarizer_spi_cs_gpio, GPIO_OUTPUT_INACTIVE);
     if (ret_val != 0) {
         ASSERT_SOFT(ret_val);
-        return RET_ERROR_INTERNAL;
+        ret_val = RET_ERROR_INTERNAL;
+        goto exit;
     }
 
     // Enable the DRV8434 motor driver
     ret_val = gpio_pin_configure_dt(&polarizer_enable_spec, GPIO_OUTPUT_ACTIVE);
     if (ret_val != 0) {
         ASSERT_SOFT(ret_val);
-        return RET_ERROR_INTERNAL;
+        ret_val = RET_ERROR_INTERNAL;
+        goto exit;
     }
 
     // Enable the polarizer motor encoder
@@ -553,14 +558,17 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
                                     GPIO_OUTPUT_INACTIVE);
     if (ret_val != 0) {
         ASSERT_SOFT(ret_val);
-        return RET_ERROR_INTERNAL;
+        ret_val = RET_ERROR_INTERNAL;
+        goto exit;
     }
 
     // Configure the polarizer motor direction pin
     ret_val =
         gpio_pin_configure_dt(&polarizer_step_dir_spec, GPIO_OUTPUT_INACTIVE);
     if (ret_val != 0) {
-        return RET_ERROR_INTERNAL;
+        ASSERT_SOFT(ret_val);
+        ret_val = RET_ERROR_INTERNAL;
+        goto exit;
     }
 
     // Configure the encoder pin as an input and set up callback, keep
@@ -568,7 +576,8 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
     ret_val = gpio_pin_configure_dt(&polarizer_encoder_spec, GPIO_INPUT);
     if (ret_val != 0) {
         ASSERT_SOFT(ret_val);
-        return RET_ERROR_INTERNAL;
+        ret_val = RET_ERROR_INTERNAL;
+        goto exit;
     }
 
     gpio_init_callback(&polarizer_encoder_cb_data, encoder_callback,
@@ -577,20 +586,23 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
                                 &polarizer_encoder_cb_data);
     if (ret_val != 0) {
         ASSERT_SOFT(ret_val);
-        return RET_ERROR_INTERNAL;
+        ret_val = RET_ERROR_INTERNAL;
+        goto exit;
     }
 
     ret_val = disable_encoder();
     if (ret_val != 0) {
         ASSERT_SOFT(ret_val);
-        return RET_ERROR_INTERNAL;
+        ret_val = RET_ERROR_INTERNAL;
+        goto exit;
     }
 
     // Initialize the DRV8434s driver
     ret_val = drv8434s_init(&drv8434_cfg);
     if (ret_val != 0) {
         ASSERT_SOFT(ret_val);
-        return RET_ERROR_INTERNAL;
+        ret_val = RET_ERROR_INTERNAL;
+        goto exit;
     }
 
     // Set up the DRV8434s device configuration
@@ -648,10 +660,10 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
         ret_val = drv8434s_enable();
         ASSERT_SOFT(ret_val);
         if (ret_val != RET_SUCCESS) {
-            return ret_val;
+            goto exit;
         }
     } else {
-        return ret_val;
+        goto exit;
     }
 
     // enable pwm interrupt
@@ -660,11 +672,18 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
 
     // home polarizer wheel
     ret_val = polarizer_wheel_home_async();
+
+exit:
+    if (ret_val != RET_SUCCESS) {
+        ORB_STATE_SET_CURRENT(RET_ERROR_NOT_INITIALIZED, "init failed");
+    } else {
+        ORB_STATE_SET_CURRENT(RET_SUCCESS, "init success");
+    }
     return ret_val;
 }
 
-orb_mcu_HardwareDiagnostic_Status
-polarizer_wheel_get_status(void)
+bool
+polarizer_wheel_homed(void)
 {
-    return g_polarizer_wheel_instance.status;
+    return g_polarizer_wheel_instance.homing.success;
 }
