@@ -94,8 +94,9 @@ static const DRV8434S_DriverCfg_t drv8434_cfg = {
 
 // if less than 1000 µsteps between two notches: notch with small gap detected
 // we can then go to the 0/passthrough by applying a 120º+center degree movement
-#define POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS 1000
-#define POLARIZER_WHEEL_HOMING_SPIN_ATTEMPTS       3
+#define POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MAX 500
+#define POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MIN 400
+#define POLARIZER_WHEEL_HOMING_SPIN_ATTEMPTS           3
 static K_SEM_DEFINE(home_sem, 0, 1);
 
 // Enable encoder interrupt
@@ -387,7 +388,9 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
         // thus, notch #0
         if (g_polarizer_wheel_instance.homing.notch_count != 0 &&
             g_polarizer_wheel_instance.step_count.current <
-                POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS) {
+                POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MAX &&
+            g_polarizer_wheel_instance.step_count.current >
+                POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MIN) {
             polarizer_stop();
             notch_0_detected = true;
         }
