@@ -2,14 +2,15 @@
 #include "app_config.h"
 #include "mcu.pb.h"
 #include "orb_logs.h"
+#include "orb_state.h"
 #include "pubsub/pubsub.h"
-#include "system/diag.h"
 #include <errors.h>
 #include <ui/rgb_leds/front_leds/front_leds.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 
 LOG_MODULE_REGISTER(als, CONFIG_ALS_LOG_LEVEL);
+ORB_STATE_REGISTER(als);
 
 const struct device *als_device =
     DEVICE_DT_GET_OR_NULL(DT_NODELABEL(front_unit_als));
@@ -19,12 +20,15 @@ static struct k_thread als_thread_data;
 
 static struct k_mutex *als_i2c_mux_mutex;
 
+#define ERROR_STATE_COUNT 3
+
 static void
 als_thread()
 {
     int ret;
     struct sensor_value als_value;
     orb_mcu_main_AmbientLight als;
+    size_t error_count = 0;
 
     while (1) {
         k_msleep(1000);
@@ -47,6 +51,10 @@ als_thread()
             k_mutex_unlock(als_i2c_mux_mutex);
             if (ret != 0) {
                 LOG_WRN("Error fetching %d", ret);
+                if (++error_count > ERROR_STATE_COUNT) {
+                    ORB_STATE_SET_CURRENT(RET_ERROR_INTERNAL,
+                                          "sensor fetch: ret: %d", ret);
+                }
                 continue;
             }
             ret = sensor_channel_get(als_device, SENSOR_CHAN_LIGHT, &als_value);
@@ -55,6 +63,11 @@ als_thread()
                 als.flag = orb_mcu_main_AmbientLight_Flags_ALS_ERR_RANGE;
             } else if (ret != 0) {
                 LOG_WRN("Error getting data %d", ret);
+                if (++error_count > ERROR_STATE_COUNT) {
+                    ORB_STATE_SET_CURRENT(RET_ERROR_INTERNAL,
+                                          "sensor get: ret: %d", ret);
+                }
+                error_count++;
                 continue;
             } else {
                 als.ambient_light_lux = als_value.val1;
@@ -69,6 +82,12 @@ als_thread()
             publish_new(&als, sizeof(als),
                         orb_mcu_main_McuToJetson_front_als_tag,
                         CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+
+            // reset error counter and state if we had errors
+            if (error_count > 0) {
+                ORB_STATE_SET_CURRENT(RET_SUCCESS);
+                error_count = 0;
+            }
         } else {
             LOG_ERR("Could not lock mutex.");
         }
@@ -87,20 +106,19 @@ als_init(const orb_mcu_Hardware *hw_version, struct k_mutex *i2c_mux_mutex)
              orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3A &&
          hw_version->front_unit <=
              orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3C)) {
-        diag_set_status(orb_mcu_HardwareDiagnostic_Source_UI_ALS,
-                        orb_mcu_HardwareDiagnostic_Status_STATUS_NOT_SUPPORTED);
+        ORB_STATE_SET_CURRENT(
+            RET_ERROR_NOT_SUPPORTED,
+            "detected front unit board doesn't have an als sensor");
         return RET_SUCCESS;
     }
 
     if (!device_is_ready(als_device)) {
         LOG_ERR("ALS not ready");
-        diag_set_status(
-            orb_mcu_HardwareDiagnostic_Source_UI_ALS,
-            orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR);
+        ORB_STATE_SET_CURRENT(RET_ERROR_NOT_INITIALIZED,
+                              "als not ready (driver init failed?)");
         return RET_ERROR_INTERNAL;
     } else {
-        diag_set_status(orb_mcu_HardwareDiagnostic_Source_UI_ALS,
-                        orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
+        ORB_STATE_SET_CURRENT(RET_SUCCESS);
     }
 
     k_thread_create(&als_thread_data, stack_area_als,
