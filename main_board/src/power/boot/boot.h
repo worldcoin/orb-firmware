@@ -74,3 +74,7 @@ power_vbat_5v_3v3_supplies_on(void);
  */
 void
 power_vbat_5v_3v3_supplies_off(void);
+
+int
+power_cycle_supply(const orb_mcu_main_PowerCycle_Line line,
+                   const uint32_t duration_off_ms);

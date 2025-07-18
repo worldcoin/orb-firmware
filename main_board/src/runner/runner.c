@@ -1047,6 +1047,34 @@ handle_liquid_lens(job_t *job)
     }
 }
 
+static void
+handle_power_cycle(job_t *job)
+{
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_power_cycle_tag);
+
+    const int ret = power_cycle_supply(msg->payload.power_cycle.line,
+                                       msg->payload.power_cycle.duration_ms);
+
+    switch (ret) {
+    case RET_SUCCESS:
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+        break;
+    case RET_ERROR_NOT_FOUND:
+        job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+        break;
+    case RET_ERROR_INVALID_PARAM:
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
+        break;
+    case RET_ERROR_FORBIDDEN:
+        job_ack(orb_mcu_Ack_ErrorCode_FORBIDDEN, job);
+        break;
+    default:
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+        LOG_ERR("Unhandled error code %d", ret);
+    }
+}
+
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
 static void
 handle_polarizer(job_t *job)
@@ -1574,6 +1602,7 @@ static const hm_callback handle_message_callbacks[] = {
         handle_perform_ir_eye_camera_mirror_sweep,
     [orb_mcu_main_JetsonToMcu_sync_diag_data_tag] = handle_sync_diag_data,
     [orb_mcu_main_JetsonToMcu_diag_test_tag] = handle_diag_test_data,
+    [orb_mcu_main_JetsonToMcu_power_cycle_tag] = handle_power_cycle,
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     [orb_mcu_main_JetsonToMcu_cone_leds_sequence_tag] =
         handle_cone_leds_sequence,
@@ -1590,7 +1619,7 @@ static const hm_callback handle_message_callbacks[] = {
 #endif
 };
 
-BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 49),
+BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 50),
              "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
