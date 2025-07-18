@@ -1047,6 +1047,22 @@ handle_liquid_lens(job_t *job)
     }
 }
 
+static void
+handle_power_switch(job_t *job)
+{
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_power_switch_tag);
+
+    const int ret = power_supply_toggle(msg->payload.power_switch.line,
+                                        msg->payload.power_switch.enable);
+
+    if (ret) {
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+    } else {
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+    }
+}
+
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
 static void
 handle_polarizer(job_t *job)
@@ -1574,6 +1590,7 @@ static const hm_callback handle_message_callbacks[] = {
         handle_perform_ir_eye_camera_mirror_sweep,
     [orb_mcu_main_JetsonToMcu_sync_diag_data_tag] = handle_sync_diag_data,
     [orb_mcu_main_JetsonToMcu_diag_test_tag] = handle_diag_test_data,
+    [orb_mcu_main_JetsonToMcu_power_switch_tag] = handle_power_switch,
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     [orb_mcu_main_JetsonToMcu_cone_leds_sequence_tag] =
         handle_cone_leds_sequence,
@@ -1590,7 +1607,7 @@ static const hm_callback handle_message_callbacks[] = {
 #endif
 };
 
-BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 49),
+BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 50),
              "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void

@@ -360,6 +360,30 @@ BUILD_ASSERT(SYS_INIT_POWER_SUPPLY_INIT_PRIORITY >
 SYS_INIT(power_configure_gpios, POST_KERNEL, SYS_INIT_GPIO_CONFIG_PRIORITY);
 
 void
+boot_2v8_off(void)
+{
+    int ret;
+
+    // turn off 2.8V regulator
+    ret = gpio_pin_set_dt(&supply_2v8_enable_gpio_spec, 0);
+    ASSERT_SOFT(ret);
+    LOG_INF("2.8V power supply disabled");
+    k_msleep(20);
+}
+
+void
+boot_2v8_on(void)
+{
+    int ret;
+
+    // turn on 2.8V regulator
+    ret = gpio_pin_set_dt(&supply_2v8_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
+    LOG_INF("2.8V power supply enabled");
+    k_msleep(20);
+}
+
+void
 power_vbat_5v_3v3_supplies_on(void)
 {
     int ret;
@@ -407,6 +431,56 @@ power_vbat_5v_3v3_supplies_off(void)
 
     gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 0);
     LOG_INF("3.3V power supply disabled");
+}
+
+int
+power_supply_toggle(orb_mcu_main_PowerSwitch_Line line, bool enable)
+{
+    int ret = RET_ERROR_INVALID_PARAM;
+
+    switch (line) {
+    case orb_mcu_main_PowerSwitch_Line_WIFI_3V3:
+#ifdef DEBUG
+        ret = gpio_pin_configure_dt(&supply_3v3_wifi_enable_gpio_spec,
+                                    enable ? GPIO_OUTPUT_ACTIVE
+                                           : GPIO_OUTPUT_INACTIVE);
+        ASSERT_SOFT(ret);
+#else
+        ret = RET_ERROR_FORBIDDEN;
+#endif
+        break;
+    case orb_mcu_main_PowerSwitch_Line_LTE_3V3:
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+        ret = gpio_pin_configure_dt(&lte_gps_usb_reset_gpio_spec,
+                                    enable ? GPIO_OUTPUT_ACTIVE
+                                           : GPIO_OUTPUT_INACTIVE);
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+        ret = gpio_pin_configure_dt(&supply_3v3_lte_enable_gpio_spec,
+                                    enable ? GPIO_OUTPUT_ACTIVE
+                                           : GPIO_OUTPUT_INACTIVE);
+#endif
+        ASSERT_SOFT(ret);
+        break;
+
+    case orb_mcu_main_PowerSwitch_Line_SD_SSD_3V3:
+#ifdef DEBUG
+        ret = gpio_pin_configure_dt(&supply_3v3_ssd_enable_gpio_spec,
+                                    enable ? GPIO_OUTPUT_ACTIVE
+                                           : GPIO_OUTPUT_INACTIVE);
+        ASSERT_SOFT(ret);
+#else
+        ret = RET_ERROR_FORBIDDEN;
+#endif
+        break;
+    case orb_mcu_main_PowerSwitch_Line_HEAT_CAMERA_2V8:
+        ret = gpio_pin_configure_dt(&supply_2v8_enable_gpio_spec,
+                                    enable ? GPIO_OUTPUT_ACTIVE
+                                           : GPIO_OUTPUT_INACTIVE);
+        ASSERT_SOFT(ret);
+        break;
+    }
+
+    return ret;
 }
 
 static int

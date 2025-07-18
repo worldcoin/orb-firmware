@@ -74,3 +74,6 @@ power_vbat_5v_3v3_supplies_on(void);
  */
 void
 power_vbat_5v_3v3_supplies_off(void);
+
+int
+power_supply_toggle(orb_mcu_main_PowerSwitch_Line line, bool enable);
