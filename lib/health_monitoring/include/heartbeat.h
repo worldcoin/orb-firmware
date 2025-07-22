@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 #ifndef THREAD_PRIORITY_HEARTBEAT
-#define THREAD_PRIORITY_HEARTBEAT 8
+#define THREAD_PRIORITY_HEARTBEAT 5
 #endif
 
 /**
