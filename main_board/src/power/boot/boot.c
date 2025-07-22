@@ -442,9 +442,8 @@ power_cycle_lte_3v3_line_work_handler(struct k_work *item)
     UNUSED_PARAMETER(item);
     int ret;
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-    ret = gpio_pin_configure_dt(&lte_gps_usb_reset_gpio_spec,
-                                enable ? GPIO_OUTPUT_ACTIVE
-                                       : GPIO_OUTPUT_INACTIVE);
+    ret =
+        gpio_pin_configure_dt(&lte_gps_usb_reset_gpio_spec, GPIO_OUTPUT_ACTIVE);
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
     ret = gpio_pin_configure_dt(&supply_3v3_lte_enable_gpio_spec,
                                 GPIO_OUTPUT_ACTIVE);
@@ -493,8 +492,7 @@ power_cycle_supply(const orb_mcu_main_PowerCycle_Line line,
     case orb_mcu_main_PowerCycle_Line_LTE_3V3:
 #if defined(CONFIG_BOARD_PEARL_MAIN)
         ret = gpio_pin_configure_dt(&lte_gps_usb_reset_gpio_spec,
-                                    enable ? GPIO_OUTPUT_ACTIVE
-                                           : GPIO_OUTPUT_INACTIVE);
+                                    GPIO_OUTPUT_INACTIVE);
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
         ret = gpio_pin_configure_dt(&supply_3v3_lte_enable_gpio_spec,
                                     GPIO_OUTPUT_INACTIVE);
