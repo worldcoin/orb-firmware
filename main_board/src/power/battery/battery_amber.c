@@ -26,7 +26,7 @@
 #include "orb_logs.h"
 LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
 
-static bool dev_mode = false;
+static bool wired_power_supply = false;
 
 K_THREAD_STACK_DEFINE(battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
 static struct k_thread rx_thread_data = {0};
@@ -382,7 +382,7 @@ battery_rx_thread()
                 check_battery_voltage(pack_voltage_mv);
 
                 publish_battery_voltages(&voltages);
-            } else if (dev_mode) {
+            } else if (wired_power_supply) {
                 // send fake values to keep orb-core happy
                 orb_mcu_main_BatteryVoltage voltages;
                 voltages.battery_cell1_mv = 4000;
@@ -405,7 +405,7 @@ battery_rx_thread()
 
                 battery_cap.percentage = relative_soc;
                 publish_battery_capacity(&battery_cap);
-            } else if (dev_mode) {
+            } else if (wired_power_supply) {
                 // send fake values to keep orb-core happy
                 orb_mcu_main_BatteryCapacity battery_cap;
                 battery_cap.percentage = 100;
@@ -610,7 +610,7 @@ battery_rx_thread()
             }
         }
 
-        if (!dev_mode) {
+        if (!wired_power_supply) {
             // check that we are still receiving messages from the battery
             // and consider the battery as removed if no message
             // has been received for BATTERY_MESSAGES_TIMEOUT_MS
@@ -704,8 +704,8 @@ battery_init(void)
                 full_voltage_mv);
 
         if (full_voltage_mv >= BATTERY_MINIMUM_VOLTAGE_STARTUP_MV) {
-            LOG_WRN("🧑‍💻 Power supply mode [dev mode]");
-            dev_mode = true;
+            LOG_INF("🔌 Wired power supply mode");
+            wired_power_supply = true;
 
             battery_cap_percentage = 100;
         }
