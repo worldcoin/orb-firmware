@@ -1,6 +1,7 @@
 #include "voltage_measurement.h"
 #include "app_config.h"
 #include "orb_logs.h"
+#include "orb_state.h"
 #include "pubsub/pubsub.h"
 #include "utils.h"
 #include <app_assert.h>
@@ -10,6 +11,7 @@
 #include <zephyr/drivers/gpio.h>
 
 LOG_MODULE_REGISTER(voltage_measurement, CONFIG_VOLTAGE_MEASUREMENT_LOG_LEVEL);
+ORB_STATE_REGISTER_MULTIPLE(supercaps, voltages);
 
 K_THREAD_STACK_DEFINE(voltage_measurement_adc1_thread_stack,
                       THREAD_STACK_SIZE_VOLTAGE_MEASUREMENT_ADC1);
@@ -191,6 +193,7 @@ static const struct self_test_range voltage_measurement_tests[] = {
     [CHANNEL_VREFINT] = {.min = 1182, .max = 1232},
     {0}};
 
+#define VOLTAGES_SELF_TEST_TIMEOUT_MS        10000
 #define VOLTAGES_SELF_TEST_PERIOD_MS         1000
 #define VOLTAGES_SELF_TEST_SUSTAIN_PERIOD_MS 3000
 #define VOLTAGES_SELF_TEST_LOOP_COUNT_PASS                                     \
@@ -623,6 +626,7 @@ publish_all_voltages(void)
     CRITICAL_SECTION_EXIT(k);
 
     bool is_super_cap_channel = false;
+    size_t self_test_fail_count = 0;
 
     for (orb_mcu_main_Voltage_VoltageSource i =
              orb_mcu_main_Voltage_VoltageSource_MAIN_MCU_INTERNAL;
@@ -816,6 +820,23 @@ publish_all_voltages(void)
                 &publish_adc_buffers, channel, &voltage_msg.voltage_current_mv,
                 &voltage_msg.voltage_min_mv, &voltage_msg.voltage_max_mv);
             ASSERT_SOFT(ret);
+
+            if (ret == RET_SUCCESS) {
+                // skip pvcc test when super caps aren't enabled
+                if (!IS_ENABLED(CONFIG_NO_SUPER_CAPS) ||
+                    channel != CHANNEL_PVCC) {
+
+                    const bool passed = app_assert_range(
+                        voltage_measurement_channel_names[channel],
+                        voltage_msg.voltage_current_mv,
+                        voltage_msg.voltage_min_mv, voltage_msg.voltage_max_mv,
+                        voltage_measurement_tests[channel].min,
+                        voltage_measurement_tests[channel].max, false, "mV");
+                    if (!passed) {
+                        self_test_fail_count++;
+                    }
+                }
+            }
         } else {
             ret = RET_SUCCESS;
         }
@@ -846,6 +867,13 @@ publish_all_voltages(void)
         update_min_max_from_adc_samples_buffer(
             (adc_samples_buffers_t *)&adc_samples_buffers,
             &publish_adc_buffers);
+    }
+
+    if (self_test_fail_count) {
+        ORB_STATE_SET(voltages, RET_ERROR_INVALID_STATE,
+                      "%u voltages not in range", self_test_fail_count);
+    } else {
+        ORB_STATE_SET(voltages, RET_SUCCESS, "OK");
     }
 }
 
@@ -955,6 +983,13 @@ check_caps_voltages(bool with_logs)
                sizeof(super_cap_differential_voltages));
     }
 
+    if (error_count > 0) {
+        ORB_STATE_SET(supercaps, RET_ERROR_INVALID_STATE,
+                      "%d voltages out of range", error_count);
+    } else {
+        ORB_STATE_SET(supercaps, RET_SUCCESS, "voltages in range");
+    }
+
     return error_count;
 }
 
@@ -1005,8 +1040,8 @@ voltage_measurement_self_test_thread()
     // the test must pass for a few seconds
     // to check if capacitors are not overcharging
     uint32_t passed_loop_count = 0;
-    // test to last 10 seconds maximum
-    uint32_t timeout = 10;
+    uint32_t timeout =
+        VOLTAGES_SELF_TEST_TIMEOUT_MS / VOLTAGES_SELF_TEST_PERIOD_MS;
 
     // reset all and gather first data
     reset_statistics();
@@ -1070,8 +1105,14 @@ voltage_measurement_self_test_thread()
 
     if (timeout == 0) {
         LOG_ERR("Voltage self-test timed out");
+        ORB_STATE_SET(
+            voltages, RET_ERROR_TIMEOUT, "self-test failed, %u iterations",
+            VOLTAGES_SELF_TEST_TIMEOUT_MS / VOLTAGES_SELF_TEST_PERIOD_MS);
     } else if (passed_loop_count == VOLTAGES_SELF_TEST_LOOP_COUNT_PASS) {
         LOG_INF("✅ Voltages self-test passed");
+        ORB_STATE_SET(voltages, RET_SUCCESS,
+                      "self-test passed after %u iterations",
+                      passed_loop_count);
     }
 }
 
