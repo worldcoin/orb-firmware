@@ -115,18 +115,18 @@ app_assert_range(const char *name, const int32_t value, const int32_t min,
 {
     if (range_min != 0 || range_max != 0) {
         if (value < range_min || value > range_max) {
-            LOG_ERR("[ FAIL ] %s = %d; NOT in range: [%d, %d] (unity: %s)",
-                    name, value, range_min, range_max, unity ? unity : "N/A");
+            LOG_ERR("%s = %d; NOT in range: [%d, %d] (unity: %s)", name, value,
+                    range_min, range_max, unity ? unity : "N/A");
             return false;
         } else {
             if (verbose) {
                 if (min == max) {
-                    LOG_INF("[  OK  ] %s = %d; min = %d; max = %d; in range "
+                    LOG_INF("%s = %d; min = %d; max = %d; in range "
                             "[%d, %d] (unity: %s)",
                             name, value, min, max, range_min, range_max,
                             unity ? unity : "N/A");
                 } else {
-                    LOG_INF("[  OK  ] %s = %d; min = %d; max = %d; in "
+                    LOG_INF("%s = %d; min = %d; max = %d; in "
                             "range [%d, %d] (unity: %s)",
                             name, value, min, max, range_min, range_max,
                             unity ? unity : "N/A");
@@ -136,7 +136,7 @@ app_assert_range(const char *name, const int32_t value, const int32_t min,
         }
     } else {
         if (verbose) {
-            LOG_INF("[ SKIP ] %s = %d; min = %d; max = %d (unity: %s)", name,
+            LOG_INF("skipped: %s = %d; min = %d; max = %d (unity: %s)", name,
                     value, min, max, unity ? unity : "N/A");
         }
     }
