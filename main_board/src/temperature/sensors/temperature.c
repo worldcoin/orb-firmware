@@ -1,5 +1,6 @@
 #include "temperature.h"
 #include "orb_logs.h"
+#include "orb_state.h"
 #include "pubsub/pubsub.h"
 #include "system/diag.h"
 #include "temperature/fan/fan.h"
@@ -20,6 +21,7 @@
 #endif
 
 LOG_MODULE_REGISTER(temperature, CONFIG_TEMPERATURE_LOG_LEVEL);
+ORB_STATE_REGISTER_MULTIPLE(tmp_front, tmp_main, tmp_lens);
 
 // These values are informed by
 // https://www.notion.so/PCBA-thermals-96849052d5c24a0bafaedb4363f460b5
@@ -82,7 +84,7 @@ struct sensor_and_channel {
     const struct device *sensor;
     const enum sensor_channel channel;
     const orb_mcu_Temperature_TemperatureSource temperature_source;
-    const orb_mcu_HardwareDiagnostic_Source hardware_diagnostic_source;
+    struct orb_state_dynamic_data *const state;
     temperature_callback cb;
     struct overtemp_info *cb_data;
     int32_t history[TEMPERATURE_AVERAGE_SAMPLE_COUNT];
@@ -133,8 +135,7 @@ static struct sensor_and_channel fu_avg_sensors = {
     .sensor = &fu_virtual,
     .channel = SENSOR_CHAN_AMBIENT_TEMP,
     .temperature_source = orb_mcu_Temperature_TemperatureSource_FRONT_UNIT,
-    .hardware_diagnostic_source =
-        orb_mcu_HardwareDiagnostic_Source_TEMPERATURE_SENSORS_FRONT_UNIT,
+    .state = &ORB_STATE_ITEM_DYNAMIC_DATA(tmp_front),
     .cb = overtemp_callback,
     .cb_data = &fu_overtemp_data,
     .history = {0},
@@ -153,8 +154,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
 #endif
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source = orb_mcu_Temperature_TemperatureSource_MAIN_BOARD,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_TEMPERATURE_SENSORS_MAIN_BOARD,
+         .state = &ORB_STATE_ITEM_DYNAMIC_DATA(tmp_main),
          .cb = overtemp_callback,
          .cb_data = &(struct overtemp_info){.overtemp_c = MAIN_BOARD_OVERTEMP_C,
                                             .overtemp_drop_c =
@@ -170,8 +170,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_LIQUID_LENS,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_TEMPERATURE_SENSORS_LIQUID_LENS,
+         .state = &ORB_STATE_ITEM_DYNAMIC_DATA(tmp_lens),
          .cb = overtemp_callback,
          .cb_data =
              &(struct overtemp_info){.overtemp_c = LIQUID_LENS_OVERTEMP_C,
@@ -186,8 +185,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
         {.sensor = &(struct device){.name = "die_temp"},
          .channel = SENSOR_CHAN_DIE_TEMP,
          .temperature_source = orb_mcu_Temperature_TemperatureSource_MAIN_MCU,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = overtemp_callback,
          .cb_data = &(struct overtemp_info){.overtemp_c = MCU_DIE_OVERTEMP_C,
                                             .overtemp_drop_c =
@@ -202,8 +200,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
         {.sensor = DEVICE_DT_GET(DT_NODELABEL(front_unit_tmp_sensor)),
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source = orb_mcu_Temperature_TemperatureSource_FRONT_UNIT,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_TEMPERATURE_SENSORS_FRONT_UNIT,
+         .state = &ORB_STATE_ITEM_DYNAMIC_DATA(tmp_front),
          .cb = overtemp_callback,
          .cb_data = &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
                                             .overtemp_drop_c =
@@ -220,8 +217,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_MAIN_BOARD_USB_HUB_BOT,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
@@ -233,8 +229,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_MAIN_BOARD_USB_HUB_TOP,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
@@ -246,8 +241,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_MAIN_BOARD_SECURITY_SUPPLY,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
@@ -258,8 +252,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_MAIN_BOARD_AUDIO_AMPLIFIER,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
@@ -271,8 +264,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_POWER_BOARD_SUPER_CAP_CHARGER,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
@@ -284,8 +276,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_POWER_BOARD_PVCC_SUPPLY,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
@@ -297,8 +288,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_POWER_BOARD_SUPER_CAPS_BOT,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
@@ -310,8 +300,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_POWER_BOARD_12V_CAPS_BOT,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
@@ -323,8 +312,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_LEFT_TOP,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = overtemp_callback,
          .cb_data = &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
                                             .overtemp_drop_c =
@@ -340,8 +328,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_LEFT_BOTTOM,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
@@ -353,8 +340,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_RIGHT_TOP,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = overtemp_callback,
          .cb_data = &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
                                             .overtemp_drop_c =
@@ -370,8 +356,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_940_LEFT_TOP,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = overtemp_callback,
          .cb_data = &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
                                             .overtemp_drop_c =
@@ -387,8 +372,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_940_LEFT_BOTTOM,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
@@ -400,8 +384,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_940_RIGHT_TOP,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = overtemp_callback,
          .cb_data = &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
                                             .overtemp_drop_c =
@@ -417,8 +400,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_940_RIGHT_BOTTOM,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
@@ -430,8 +412,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_WHITE_RGB_RIGHT_BOT,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
@@ -443,8 +424,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_850_CENTER_BOTTOM,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
@@ -456,8 +436,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_WHITE_RGB_LEFT_BOT,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = NULL,
          .cb_data = NULL,
          .history = {0},
@@ -469,8 +448,7 @@ static struct sensor_and_channel sensors_and_channels[] = {
          .channel = SENSOR_CHAN_AMBIENT_TEMP,
          .temperature_source =
              orb_mcu_Temperature_TemperatureSource_FRONT_UNIT_SHROUD_RGB_TOP,
-         .hardware_diagnostic_source =
-             orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+         .state = NULL,
          .cb = overtemp_callback,
          .cb_data = &(struct overtemp_info){.overtemp_c = FRONT_UNIT_OVERTEMP_C,
                                             .overtemp_drop_c =
@@ -677,6 +655,11 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
             sensor_and_channel->temperature_source,
             TEMPERATURE_SAMPLE_RETRY_COUNT, ret);
         init_sensor_and_channel(sensor_and_channel);
+        if (sensor_and_channel->state != NULL) {
+            orb_state_set(sensor_and_channel->state, RET_ERROR_TIMEOUT,
+                          "failed to sample, last ret %d", ret);
+        }
+        return;
     }
 
     sensor_and_channel->wr_idx =
@@ -751,22 +734,24 @@ check_ready(void)
                 LOG_ERR("Could not initialize temperature sensor '%s: %d'",
                         sensors_and_channels[i].sensor->name,
                         sensors_and_channels[i].temperature_source);
-                diag_set_status(
-                    sensors_and_channels[i].hardware_diagnostic_source,
-                    orb_mcu_HardwareDiagnostic_Status_STATUS_INITIALIZATION_ERROR);
+                if (sensors_and_channels[i].state != NULL) {
+                    orb_state_set(sensors_and_channels[i].state,
+                                  RET_ERROR_NOT_INITIALIZED, "not ready");
+                }
                 ret = RET_ERROR_INVALID_STATE;
             } else {
                 LOG_INF("Initialized %s: %d",
                         sensors_and_channels[i].sensor->name,
                         sensors_and_channels[i].temperature_source);
-                diag_set_status(
-                    sensors_and_channels[i].hardware_diagnostic_source,
-                    orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
+                if (sensors_and_channels[i].state != NULL) {
+                    orb_state_set(sensors_and_channels[i].state, RET_SUCCESS,
+                                  "initialized");
+                }
             }
         } else {
-            diag_set_status(sensors_and_channels[i].hardware_diagnostic_source,
-                            orb_mcu_HardwareDiagnostic_Status_STATUS_OK);
-            ret = RET_ERROR_INVALID_STATE;
+            if (sensors_and_channels[i].state != NULL) {
+                orb_state_set(sensors_and_channels[i].state, RET_SUCCESS, "");
+            }
         }
     }
     return ret;
@@ -921,6 +906,11 @@ overtemp_callback(struct sensor_and_channel *sensor_and_channel)
         return RET_ERROR_INVALID_PARAM;
     }
 
+    if (sensor_and_channel->state != NULL &&
+        sensor_and_channel->average <= overtemp_info->overtemp_c) {
+        orb_state_set(sensor_and_channel->state, RET_SUCCESS, "");
+    }
+
     if (sensor_and_channel->average >
         overtemp_info->overtemp_c + OVERTEMP_TO_CRITICAL_RISE_C) {
         if (overtemp_info->critical_timer == 0) {
@@ -928,6 +918,10 @@ overtemp_callback(struct sensor_and_channel *sensor_and_channel)
         } else {
             overtemp_info->critical_timer += k_uptime_delta(&last_system_time);
             last_system_time = k_uptime_get();
+        }
+        if (sensor_and_channel->state != NULL) {
+            orb_state_set(sensor_and_channel->state, RET_ERROR_UNSAFE,
+                          "over temperature");
         }
         overtemp_info->critical_timer +=
             (global_sample_period.ticks * TEMPERATURE_AVERAGE_SAMPLE_COUNT *
@@ -964,6 +958,12 @@ overtemp_callback(struct sensor_and_channel *sensor_and_channel)
         sensor_and_channel->average > overtemp_info->overtemp_c) {
         LOG_WRN("%s temperature exceeds %u°C", sensor_and_channel->sensor->name,
                 overtemp_info->overtemp_c);
+        if (sensor_and_channel->state != NULL) {
+            orb_state_set(sensor_and_channel->state, RET_ERROR_UNSAFE,
+                          "over threshold: %d>%dºC",
+                          sensor_and_channel->average,
+                          overtemp_info->overtemp_c);
+        }
         overtemp_info->in_overtemp = true;
         inc_overtemp_condition();
     } else if (overtemp_info->in_overtemp &&
@@ -973,6 +973,9 @@ overtemp_callback(struct sensor_and_channel *sensor_and_channel)
                 "safe value of %u°C",
                 sensor_and_channel->sensor->name, sensor_and_channel->average);
         overtemp_info->in_overtemp = false;
+        if (sensor_and_channel->state != NULL) {
+            orb_state_set(sensor_and_channel->state, RET_SUCCESS, "nominal");
+        }
         dec_overtemp_condition();
     }
 
@@ -991,7 +994,7 @@ ZTEST(hil, test_overtemp)
         .sensor = &(struct device){.name = "fake_sensor"},
         .channel = SENSOR_CHAN_DIE_TEMP,
         .temperature_source = orb_mcu_Temperature_TemperatureSource_MAIN_MCU,
-        .hardware_diagnostic_source = orb_mcu_HardwareDiagnostic_Source_UNKNOWN,
+        .state = NULL,
         .cb = overtemp_callback,
         .cb_data = NULL,
         .wr_idx = 0,

@@ -85,6 +85,7 @@ list(APPEND SOURCES_FILES
     src/optics/ir_camera_system/ir_camera_timer_settings.c
     src/optics/ir_camera_system/ir_camera_system_hw.c
     src/optics/ir_camera_system/ir_camera_system.c
+    src/optics/ir_camera_system/ir_leds_checks.c
     src/optics/liquid_lens/liquid_lens.c
     src/optics/mirror/mirror.c
     src/optics/mirror/mirror_private.c
@@ -173,7 +174,9 @@ target_sources(${TARGET} PRIVATE ${SOURCES_FILES})
 target_include_directories(${TARGET} PRIVATE ${INCLUDE_DIRS})
 zephyr_include_directories(config)
 
-zephyr_linker_sources(SECTIONS config/compact-logs.ld)
+zephyr_linker_sources(SECTIONS
+        config/compact-logs.ld
+        config/orb-states.ld)
 
 # link with Zephyr modules below
 # - bootloader/mcuboot/boot/bootutil: public functions to access/modify mcuboot data from the application
