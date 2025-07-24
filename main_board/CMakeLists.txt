@@ -101,6 +101,7 @@ list(APPEND SOURCES_FILES
 
     src/temperature/sensors/temperature.c
     src/temperature/fan/fan.c
+    src/temperature/fan/fan_tests.c
 
     src/voltage_measurement/voltage_measurement.c
 

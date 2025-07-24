@@ -18,6 +18,12 @@ fan_tach_init(void);
 uint32_t
 fan_tach_get_main_speed(void);
 
+/**
+ * Self-test to check if fan and tachometer are responding
+ */
+void
+fan_tach_self_test(void);
+
 #ifdef CONFIG_BOARD_PEARL_MAIN
 /**
  * Read the actual speed of the aux fan in RPM

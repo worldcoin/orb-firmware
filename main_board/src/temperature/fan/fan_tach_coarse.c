@@ -1,19 +1,20 @@
 #include "fan.h"
 #include "fan_tach.h"
+#include "orb_state.h"
 #include <app_assert.h>
 #include <app_config.h>
+#include <main.pb.h>
+#include <pubsub/pubsub.h>
+#include <utils.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/kernel.h>
 #include <zephyr/kernel/thread.h>
 
 #include "orb_logs.h"
-
-#include <main.pb.h>
-#include <pubsub/pubsub.h>
-#include <utils.h>
-
 LOG_MODULE_REGISTER(fan_tach, CONFIG_FAN_TACH_LOG_LEVEL);
+
+ORB_STATE_MODULE_DECLARE(fan_tach);
 
 static K_THREAD_STACK_DEFINE(stack_area, THREAD_STACK_SIZE_FAN_TACH);
 static struct k_thread thread_data;
@@ -99,13 +100,15 @@ fan_tach_init(void)
     // set up GPIO interrupt
     if (!gpio_is_ready_dt(&pwm_tach_gpio)) {
         LOG_ERR("Fan tach GPIO not ready");
-        return RET_ERROR_INVALID_STATE;
+        err_code = RET_ERROR_INVALID_STATE;
+        goto exit;
     }
 
     err_code = gpio_pin_configure_dt(&pwm_tach_gpio, GPIO_INPUT);
     if (err_code) {
         ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
+        err_code = RET_ERROR_INTERNAL;
+        goto exit;
     }
 
     // configure interrupt
@@ -113,7 +116,8 @@ fan_tach_init(void)
         gpio_pin_interrupt_configure_dt(&pwm_tach_gpio, GPIO_INT_EDGE_RISING);
     if (err_code) {
         ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
+        err_code = RET_ERROR_INTERNAL;
+        goto exit;
     }
 
     gpio_init_callback(&pwm_gpio_callback, fan_tach_event_handler,
@@ -122,7 +126,15 @@ fan_tach_init(void)
     err_code = gpio_add_callback(pwm_tach_gpio.port, &pwm_gpio_callback);
     if (err_code) {
         ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
+        err_code = RET_ERROR_INTERNAL;
+        goto exit;
+    }
+
+exit:
+    if (err_code != RET_SUCCESS) {
+        ORB_STATE_SET_CURRENT(err_code, "init failed");
+    } else {
+        ORB_STATE_SET_CURRENT(RET_SUCCESS);
     }
 
     return RET_SUCCESS;
