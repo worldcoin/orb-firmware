@@ -102,10 +102,7 @@ ret_code_t
 polarizer_wheel_init(const orb_mcu_Hardware *hw_version);
 
 /**
- * Get polarizer status
- *
- * @return polarizer status
- *  - orb_mcu_HardwareDiagnostic_Status_STATUS_OK if detected and homed
+ * return true if the polarizer wheel is homed, false otherwise
  */
-orb_mcu_HardwareDiagnostic_Status
-polarizer_wheel_get_status(void);
+bool
+polarizer_wheel_homed(void);

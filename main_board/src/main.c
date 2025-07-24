@@ -337,8 +337,7 @@ initialize(void)
         // wait 10 seconds for polarizer homing to finish, if unsuccessful (no
         // polarizer dectected?): use fan tach
         k_msleep(10000);
-        if (polarizer_wheel_get_status() !=
-            orb_mcu_HardwareDiagnostic_Status_STATUS_OK) {
+        if (!polarizer_wheel_homed()) {
             err_code = fan_tach_init();
             ASSERT_SOFT(err_code);
         }
