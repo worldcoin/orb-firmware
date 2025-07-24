@@ -18,7 +18,11 @@
 #endif
 
 LOG_MODULE_DECLARE(ir_camera_system, CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
-ORB_STATE_REGISTER_MULTIPLE(pvcc, ir_self);
+
+ORB_STATE_REGISTER_MULTIPLE(pvcc);
+#ifdef CONFIG_BOARD_PEARL_MAIN
+ORB_STATE_REGISTER_MULTIPLE(ir_self);
+#endif
 
 // pin allows us to check whether PVCC is enabled on the front unit
 // PVCC might be disabled by hardware due to an intense usage of the IR LEDs
@@ -115,9 +119,6 @@ optics_self_test(void)
     //     "ir_940nm_left",
     //     "ir_940nm_right",
     // };
-    ORB_STATE_SET(ir_self,
-                  orb_mcu_HardwareDiagnostic_Status_STATUS_NOT_SUPPORTED,
-                  "💎️safety self-test not impl");
     return RET_SUCCESS;
 #endif
 }
