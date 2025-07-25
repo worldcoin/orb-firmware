@@ -226,6 +226,7 @@ fan_init(void)
     uint32_t value;
     uint32_t pulse_width_ns;
 
+#ifdef CONFIG_BOARD_PEARL_MAIN
     if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV1 ||
         version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV2) {
         max_speed_pulse_width_ns = 32000;
@@ -243,21 +244,16 @@ fan_init(void)
         // min is 40% duty cycle = 0.4*40000
         // + 239 (1% of available range of 60%)
         min_speed_pulse_width_ns = 16239;
-
-    } else if (version.version ==
-                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
-               version.version ==
-                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT ||
-               version.version ==
-                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4 ||
-               version.version ==
-                   orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5) {
-        max_speed_pulse_width_ns = 40000;
-
-        // min is 30% duty cycle = 0.3*40000
-        // + 279 (1% of available range of 70%)
-        min_speed_pulse_width_ns = 12279;
     }
+#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+    max_speed_pulse_width_ns = 40000;
+
+    // min is 30% duty cycle = 0.3*40000
+    // + 279 (1% of available range of 70%)
+    min_speed_pulse_width_ns = 12279;
+#else
+#error board not supported
+#endif
 
     fan_set_speed_by_percentage(100);
     value = fan_get_speed_setting();
