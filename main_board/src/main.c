@@ -69,8 +69,6 @@ ZTEST_SUITE(ir_camera, NULL, NULL, ir_camera_test_reset, ir_camera_test_reset,
 static void
 run_tests()
 {
-    fan_tach_self_test();
-
 #if defined(CONFIG_ZTEST)
     // Per default publishing of voltages is disabled
     // -> enable it for testing if voltage messages are published
@@ -78,6 +76,8 @@ run_tests()
 
     ztest_run_all(NULL, false, 1, 1);
     ztest_verify_all_test_suites_ran();
+#else
+    fan_tach_self_test();
 #endif
 
 #if defined(CONFIG_ORB_LIB_ERRORS_TESTS)

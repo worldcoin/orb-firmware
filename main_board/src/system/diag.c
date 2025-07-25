@@ -99,11 +99,19 @@ diag_sync(uint32_t remote)
         }
         counter++;
 
+#ifndef CONFIG_ZTEST
         // throttle the sending of statuses to avoid flooding the CAN bus
         // and CAN controller
         k_msleep(10);
+#endif
     }
     LOG_INF("Sent: %u, errors: %u", counter, error_counter);
 
     return ret;
 }
+
+#if defined(CONFIG_ZTEST)
+#include <zephyr/ztest.h>
+
+ZTEST(hil, test_diag_sync) { diag_sync(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE); }
+#endif
