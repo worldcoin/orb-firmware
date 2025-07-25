@@ -152,7 +152,7 @@ ZTEST(hil, test_pubsub_sent_messages)
     }
 
     zassert_not_equal(mcu_to_jetson_payloads &
-                          (1 << orb_mcu_main_McuToJetson_hardware_diag_tag),
+                          (1 << orb_mcu_main_McuToJetson_hw_state_tag),
                       0);
 
     zassert_not_equal(
