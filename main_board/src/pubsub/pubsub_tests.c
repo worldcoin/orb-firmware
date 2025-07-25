@@ -45,7 +45,7 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
 {
     int err_code;
 
-    if (which_payload > 26) {
+    if (which_payload > 32) {
         err_code = RET_ERROR_INVALID_PARAM;
         return err_code;
     }
