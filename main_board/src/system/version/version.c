@@ -25,7 +25,8 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * - v4.2 p[13..10] = 2
  * - v4.3 p[13..10] = 3
  * - v4.4 p[13..10] = 4 // evt
- * - v4.5 p[13..10] = 5 // dvt
+ * - v4.5 p[13..10] = 5 // dvt1
+ * - v4.6 p[13..10] = 6 // dvt2
  *
  * ## Front unit
  * Hardware version can be fetched using IO expander on the front unit:
@@ -275,6 +276,10 @@ version_fetch_hardware_rev(orb_mcu_Hardware *hw_version)
             hw_version->version =
                 orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5;
             break;
+        case 6:
+            hw_version->version =
+                orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_6;
+            break;
         default:
             LOG_ERR("Unknown main board from IO expander: %d", hw_bits);
             break;
@@ -479,13 +484,13 @@ static const char hardware_versions_str[][14] = {
 static const char *software_type = "pearl-main-app";
 #elif CONFIG_BOARD_DIAMOND_MAIN
 static const char hardware_versions_str[][16] = {
-    "DIAMOND_UNKNOWN", "DIAMOND_POC1",    "DIAMOND_POC2",
-    "DIAMOND_B3",      "DIAMOND_EVT_4.3", "DIAMOND_EVT_4.4"};
+    "DIAMOND_UNKNOWN", "DIAMOND_POC1",    "DIAMOND_POC2",    "DIAMOND_B3",
+    "DIAMOND_EVT_4.3", "DIAMOND_EVT_4.4", "DIAMOND_EVT_4.5", "DIAMOND_EVT_4.6"};
 static const char *software_type = "diamond-main-app";
 
-BUILD_ASSERT(ARRAY_SIZE(hardware_versions_str) >=
-             orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5 -
-                 orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 + 1);
+BUILD_ASSERT(ARRAY_SIZE(hardware_versions_str) ==
+             orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_6 -
+                 orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 + 2);
 
 #endif
 

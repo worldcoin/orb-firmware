@@ -268,12 +268,7 @@ power_configure_gpios(void)
 
     // Additional control signals for 3V3_SSD and 3V3_WIFI on EV5 and Diamond
     if (version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
-        version.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT ||
-        version.version ==
-            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4 ||
-        version.version ==
-            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5) {
+        version.version >= orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
         if (!device_is_ready(supply_3v3_ssd_enable_gpio_spec.port) ||
             !device_is_ready(supply_3v3_wifi_enable_gpio_spec.port)) {
             return RET_ERROR_INTERNAL;
@@ -908,14 +903,8 @@ reboot_thread()
             // Diamond
             if (version.version ==
                     orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5 ||
-                version.version ==
-                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_B3 ||
-                version.version ==
-                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT ||
-                version.version ==
-                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4 ||
-                version.version ==
-                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5) {
+                version.version >=
+                    orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
                 gpio_pin_set_dt(&supply_3v3_ssd_enable_gpio_spec, 0);
                 gpio_pin_set_dt(&supply_3v3_wifi_enable_gpio_spec, 0);
             }
