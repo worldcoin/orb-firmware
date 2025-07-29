@@ -2,6 +2,7 @@
 
 #include <can_messaging.h>
 #include <errors.h>
+#include <main.pb.h>
 #include <stdint.h>
 
 /**
@@ -45,6 +46,9 @@ runner_handle_new_can(can_message_t *msg);
 ret_code_t
 runner_handle_new_uart(uart_message_t *msg);
 #endif
+
+ret_code_t
+runner_handle_new_cli(const orb_mcu_main_JetsonToMcu *const message);
 
 /**
  * @brief Initialize the runner

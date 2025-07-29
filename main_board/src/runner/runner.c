@@ -51,6 +51,7 @@ static uint32_t job_counter = 0;
 enum remote_type_e {
     CAN_MESSAGING,
     UART_MESSAGING,
+    CLI,
 };
 
 /// Keep context information in this module
@@ -1661,6 +1662,28 @@ runner_process_jobs_thread()
 static K_SEM_DEFINE(new_job_sem, 1, 1);
 static job_t new = {0};
 static orb_mcu_McuMessage mcu_message;
+
+ret_code_t
+runner_handle_new_cli(const orb_mcu_main_JetsonToMcu *const message)
+{
+    ret_code_t err_code = RET_SUCCESS;
+
+    int ret = k_sem_take(&new_job_sem, K_MSEC(5));
+    if (ret == 0) {
+        new.remote = CLI;
+        new.message = *message;
+        new.remote_addr = 0;
+        new.ack_number = 0;
+        ret = k_msgq_put(&process_queue, &new, K_MSEC(5));
+        if (ret) {
+            ASSERT_SOFT(ret);
+            err_code = RET_ERROR_BUSY;
+        }
+    }
+    k_sem_give(&new_job_sem);
+
+    return err_code;
+}
 
 ret_code_t
 runner_handle_new_can(can_message_t *msg)

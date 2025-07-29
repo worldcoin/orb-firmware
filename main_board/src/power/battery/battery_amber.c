@@ -24,6 +24,7 @@
 #endif
 
 #include "orb_logs.h"
+
 LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
 
 static bool wired_power_supply = false;
@@ -655,6 +656,68 @@ battery_rx_thread()
         k_msleep(BATTERY_INFO_SEND_PERIOD_MS);
     }
 }
+
+#ifdef CONFIG_SHELL
+
+/** Dump as many battery stats as possible over printk **/
+void
+battery_dump_stats(const struct shell *sh)
+{
+    uint16_t serial_number = 0;
+    ret_code_t ret = bq4050_read_serial_number(&serial_number);
+    if (ret == RET_SUCCESS) {
+        shell_print(sh, "Serial number: 0x%04X", serial_number);
+    } else {
+        shell_print(sh, "Failed to read serial number: %d", ret);
+    }
+
+    // current voltages
+    bq4050_da_status_1_block_t da_status_1 = {0};
+    ret = bq4050_read_block(BQ4050_BLK_CMD_DA_STATUS_1, (uint8_t *)&da_status_1,
+                            sizeof(da_status_1));
+    if (ret == RET_SUCCESS) {
+        shell_print(
+            sh, "Cell voltages: %d mV, %d mV, %d mV, %d mV",
+            da_status_1.cell_voltage_1_mv, da_status_1.cell_voltage_2_mv,
+            da_status_1.cell_voltage_3_mv, da_status_1.cell_voltage_4_mv);
+    } else {
+        shell_print(sh, "Failed to read cell voltages: %d", ret);
+    }
+
+    uint8_t relative_soc = 0;
+    ret = bq4050_read_relative_state_of_charge(&relative_soc);
+    if (ret == RET_SUCCESS) {
+        shell_print(sh, "Relative state of charge: %d%%", relative_soc);
+    } else {
+        shell_print(sh, "Failed to read relative state of charge: %d", ret);
+    }
+
+    int16_t current_ma = 0;
+    ret = bq4050_read_current(&current_ma);
+    if (ret == RET_SUCCESS) {
+        shell_print(sh, "Current: %d mA", current_ma);
+    } else {
+        shell_print(sh, "Failed to read current: %d", ret);
+    }
+    uint16_t full_charge_capacity_mah = 0;
+    ret = bq4050_read_full_charge_capacity(&full_charge_capacity_mah);
+    if (ret == RET_SUCCESS) {
+        shell_print(sh, "Full charge capacity: %d mAh",
+                    full_charge_capacity_mah);
+    } else {
+        shell_print(sh, "Failed to read full charge capacity: %d", ret);
+    }
+
+    uint16_t cycle_count = 0;
+    ret = bq4050_read_cycle_count(&cycle_count);
+    if (ret == RET_SUCCESS) {
+        shell_print(sh, "Cycle count: %d", cycle_count);
+    } else {
+        shell_print(sh, "Failed to read cycle count: %d", ret);
+    }
+}
+
+#endif
 
 ret_code_t
 battery_init(void)

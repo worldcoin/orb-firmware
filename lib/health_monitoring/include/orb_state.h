@@ -118,11 +118,16 @@ orb_state_set(struct orb_state_dynamic_data *data, const int state,
 bool
 orb_state_iter(struct orb_state_const_data **data_ptr);
 
+#ifdef CONFIG_SHELL
+#include <zephyr/shell/shell.h>
+
 /**
  * Dump the current state of the system to the log (printk)
  * This is useful for debugging and diagnostics.
  */
 void
-orb_state_dump(void);
+orb_state_dump(const struct shell *sh);
+
+#endif
 
 #endif

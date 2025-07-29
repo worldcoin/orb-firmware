@@ -7,34 +7,57 @@
 #include <sys/errno.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/iterable_sections.h>
-#include <zephyr/sys/printk.h>
 
-LOG_MODULE_REGISTER(orb_state);
+LOG_MODULE_REGISTER(orb_state, LOG_LEVEL_INF);
 
 TYPE_SECTION_START_EXTERN(struct orb_state_const_data, orb_state_const);
 TYPE_SECTION_END_EXTERN(struct orb_state_const_data, orb_state_const);
 
+#ifdef CONFIG_SHELL
+#include <zephyr/shell/shell.h>
+
 void
-orb_state_dump(void)
+orb_state_dump(const struct shell *sh)
 {
     struct orb_state_const_data *data = NULL;
 
-    while (orb_state_iter(&data)) {
-        if (data->dynamic_data != NULL) {
-            printk("[%s]\t%s[%s]\t%s\n", data->name,
-                   (strlen(data->name) > 2
-                        ? (strlen(data->name) > 5 ? "" : "\t") // Align output,
-                        : "\t\t"),
-                   data->dynamic_data->status < 0
-                       ? strerror(data->dynamic_data->status)
-                       : ret_code_to_str(data->dynamic_data->status),
-                   (char *)data->dynamic_data->message);
-        } else {
-            printk("Err: %s: no data available\n", data->name);
+    if (sh) {
+        while (orb_state_iter(&data)) {
+            if (data->dynamic_data != NULL) {
+                shell_print(
+                    sh, "[%s]\t%s[%s]\t%s", data->name,
+                    (strlen(data->name) > 2
+                         ? (strlen(data->name) > 5 ? "" : "\t") // Align output,
+                         : "\t\t"),
+                    data->dynamic_data->status < 0
+                        ? strerror(data->dynamic_data->status)
+                        : ret_code_to_str(data->dynamic_data->status),
+                    (char *)data->dynamic_data->message);
+            } else {
+                shell_print(sh, "Err: %s: no data available\n", data->name);
+            }
+            k_msleep(1);
         }
-        k_msleep(1);
+    } else {
+        while (orb_state_iter(&data)) {
+            if (data->dynamic_data != NULL) {
+                LOG_INF(
+                    "[%s]\t%s[%s]\t%s", data->name,
+                    (strlen(data->name) > 2
+                         ? (strlen(data->name) > 5 ? "" : "\t") // Align output,
+                         : "\t\t"),
+                    data->dynamic_data->status < 0
+                        ? strerror(data->dynamic_data->status)
+                        : ret_code_to_str(data->dynamic_data->status),
+                    (char *)data->dynamic_data->message);
+            } else {
+                LOG_ERR("Err: %s: no data available", data->name);
+            }
+            k_msleep(1);
+        }
     }
 }
+#endif // CONFIG_SHELL
 
 bool
 orb_state_iter(struct orb_state_const_data **data_ptr)
