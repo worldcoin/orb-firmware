@@ -106,9 +106,9 @@ als_init(const orb_mcu_Hardware *hw_version, struct k_mutex *i2c_mux_mutex)
              orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3A &&
          hw_version->front_unit <=
              orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3C)) {
-        ORB_STATE_SET_CURRENT(
-            RET_ERROR_NOT_SUPPORTED,
-            "detected front unit board doesn't have an als sensor");
+        ORB_STATE_SET_CURRENT(RET_ERROR_NOT_SUPPORTED,
+                              "no als on that front pcb v: %u",
+                              hw_version->front_unit);
         return RET_SUCCESS;
     }
 
