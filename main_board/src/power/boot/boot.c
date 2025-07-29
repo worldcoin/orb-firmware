@@ -1,6 +1,7 @@
 #include "boot.h"
 #include "optics/optics.h"
 #include "orb_logs.h"
+#include "orb_state.h"
 #include "sysflash/sysflash.h"
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
@@ -25,9 +26,12 @@
 #include <memfault/core/reboot_tracking.h>
 #endif
 
+#include <orb_state.h>
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/logging/log_ctrl.h>
 LOG_MODULE_REGISTER(power_sequence, CONFIG_POWER_SEQUENCE_LOG_LEVEL);
+
+ORB_STATE_REGISTER_MULTIPLE(jetson);
 
 // Power supplies turned on in two phases:
 // - Phase 1 initializes just enough power supplies to use the button and
@@ -685,6 +689,7 @@ power_until_button_press(void)
         return RET_ERROR_INVALID_STATE;
     }
 
+    ORB_STATE_SET(jetson, RET_ERROR_NOT_INITIALIZED, "orb turned off");
     const orb_mcu_main_RgbColor white = RGB_WHITE_BUTTON_PRESS;
     uint32_t operator_led_mask = 0;
     operator_leds_set_blocking(&white, operator_led_mask);
@@ -983,23 +988,48 @@ shutdown_req_uninit(void)
 int
 boot_turn_on_jetson(void)
 {
+    int ret;
+    ORB_STATE_SET(jetson, RET_ERROR_NOT_INITIALIZED, "booting...");
+
     LOG_INF("Enabling Jetson power");
-    gpio_pin_set_dt(&jetson_power_enable_gpio_spec, 1);
+    ret = gpio_pin_set_dt(&jetson_power_enable_gpio_spec, 1);
+    ASSERT_SOFT(ret);
 
     LOG_INF("Waiting for reset done signal from Jetson");
-    while (gpio_pin_get_dt(&jetson_system_reset_gpio_spec) != 0)
-        ;
+    int32_t timeout_ms = 1000;
+    int reset;
+    do {
+        reset = gpio_pin_get_dt(&jetson_system_reset_gpio_spec);
+        if (reset < 0) {
+            ASSERT_SOFT(reset);
+            ORB_STATE_SET(jetson, RET_ERROR_INTERNAL,
+                          "error reading reset pin %d", reset);
+            return RET_ERROR_INTERNAL;
+        }
+        k_msleep(1);
+    } while (reset != 0 && --timeout_ms > 0);
+
+    if (timeout_ms == 0) {
+        ORB_STATE_SET(jetson, RET_ERROR_TIMEOUT, "timeout waiting for reset");
+        LOG_ERR("Jetson reset done signal not received in time");
+        return RET_ERROR_TIMEOUT;
+    }
     LOG_INF("Reset done");
 
+    ORB_STATE_SET(jetson, RET_SUCCESS, "booted");
+
     LOG_INF("Setting Jetson to WAKE mode");
-    gpio_pin_set_dt(&jetson_sleep_wake_gpio_spec, 1);
+    ret = gpio_pin_set_dt(&jetson_sleep_wake_gpio_spec, 1);
+    ASSERT_SOFT(ret);
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     LOG_INF("Enabling LTE, GPS, and USB");
-    gpio_pin_set_dt(&lte_gps_usb_reset_gpio_spec, 0);
+    ret = gpio_pin_set_dt(&lte_gps_usb_reset_gpio_spec, 0);
+    ASSERT_SOFT(ret);
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
     LOG_INF("Enabling USB");
-    gpio_pin_set_dt(&usb_hub_reset_gpio_spec, 0);
+    ret = gpio_pin_set_dt(&usb_hub_reset_gpio_spec, 0);
+    ASSERT_SOFT(ret);
 #endif
 
     shutdown_req_init();
