@@ -79,7 +79,10 @@ ZTEST(hil, test_fan_tachometer)
     // "fast" speed, then revert to initial speed
     fan_set_speed_by_percentage(FAN_INITIAL_SPEED_PERCENT + 5);
     k_msleep(5000);
-    uint32_t fan_aux_speed = fan_tach_get_aux_speed();
+    uint32_t fan_aux_speed = 0;
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    fan_aux_speed = fan_tach_get_aux_speed();
+#endif
     uint32_t fan_main_speed = fan_tach_get_main_speed();
 
     LOG_INF("fan aux speed: %d, fan main speed: %d", fan_aux_speed,
@@ -91,7 +94,10 @@ ZTEST(hil, test_fan_tachometer)
 
     fan_set_speed_by_percentage(FAN_INITIAL_SPEED_PERCENT);
     k_msleep(5000);
-    uint32_t fan_aux_speed_after = fan_tach_get_aux_speed();
+    uint32_t fan_aux_speed_after = 0;
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    fan_tach_get_aux_speed();
+#endif
     uint32_t fan_main_speed_after = fan_tach_get_main_speed();
 
     LOG_INF("new measured fan aux speed: %d, fan main speed: %d",

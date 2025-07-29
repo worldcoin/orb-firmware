@@ -45,7 +45,7 @@ publish_new(void *payload, size_t size, uint32_t which_payload,
 {
     int err_code;
 
-    if (which_payload > 26) {
+    if (which_payload > 32) {
         err_code = RET_ERROR_INVALID_PARAM;
         return err_code;
     }
@@ -152,7 +152,7 @@ ZTEST(hil, test_pubsub_sent_messages)
     }
 
     zassert_not_equal(mcu_to_jetson_payloads &
-                          (1 << orb_mcu_main_McuToJetson_hardware_diag_tag),
+                          (1 << orb_mcu_main_McuToJetson_hw_state_tag),
                       0);
 
     zassert_not_equal(
