@@ -410,9 +410,11 @@ mirror_init(void)
                           mirror_angle_phi_work_wrapper);
 
     k_work_queue_init(&mirror_work_queue);
+    const struct k_work_queue_config config = {
+        .name = "mirror_work_queue", .no_yield = false, .essential = false};
     k_work_queue_start(&mirror_work_queue, stack_area_mirror_work_queue,
                        K_THREAD_STACK_SIZEOF(stack_area_mirror_work_queue),
-                       THREAD_PRIORITY_MIRROR_INIT, NULL);
+                       THREAD_PRIORITY_MIRROR_INIT, &config);
 
     return RET_SUCCESS;
 }
