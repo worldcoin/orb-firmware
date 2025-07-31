@@ -4,6 +4,8 @@ manifest:
       url-base: git@github.com:worldcoin
     - name: memfault
       url-base: https://github.com/memfault
+    - name: zenoh
+      url-base: https://github.com/eclipse-zenoh/
   defaults:
     remote: worldcoin
   projects:
@@ -22,6 +24,10 @@ manifest:
       path: modules/lib/memfault-firmware-sdk
       remote: memfault
       revision: 1.19.0
+    - name: zenoh
+      revision: 1.5.0
+      remote: zenoh
+      path: modules/lib/zenoh
     - name: orb-messages
       revision: 5ee5eb211e2947be3ef145bb4ee0d8ee76669f20
       path: modules/orb-messages/public
