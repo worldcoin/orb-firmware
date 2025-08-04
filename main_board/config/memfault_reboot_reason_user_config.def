@@ -1,4 +1,6 @@
 // Defines "unexpected" reboots
-MEMFAULT_UNEXPECTED_REBOOT_REASON_DEFINE(BatteryRemoved)
 MEMFAULT_UNEXPECTED_REBOOT_REASON_DEFINE(HeartbeatFromJetsonTimeout)
+// "battery removed" is an "expected" reboot reason since too many people are removing the battery
+// with the orb running...
+MEMFAULT_EXPECTED_REBOOT_REASON_DEFINE(BatteryRemoved)
 MEMFAULT_EXPECTED_REBOOT_REASON_DEFINE(JetsonRequestedReboot)
