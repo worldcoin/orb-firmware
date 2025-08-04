@@ -94,7 +94,7 @@ static const DRV8434S_DriverCfg_t drv8434_cfg = {
 
 // if less than 1000 µsteps between two notches: notch with small gap detected
 // we can then go to the 0/passthrough by applying a 120º+center degree movement
-#define POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MAX 500
+#define POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MAX 550
 #define POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MIN 400
 #define POLARIZER_WHEEL_HOMING_SPIN_ATTEMPTS           3
 static K_SEM_DEFINE(home_sem, 0, 1);
