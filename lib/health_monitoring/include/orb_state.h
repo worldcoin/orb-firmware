@@ -118,7 +118,7 @@ orb_state_set(struct orb_state_dynamic_data *data, const int state,
 bool
 orb_state_iter(struct orb_state_const_data **data_ptr);
 
-#ifdef CONFIG_SHELL
+#if defined(DEBUG) || defined(CONFIG_SHELL)
 #include <zephyr/shell/shell.h>
 
 /**
