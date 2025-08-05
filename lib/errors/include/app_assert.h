@@ -1,6 +1,7 @@
 #pragma once
 
 #include "compilers.h"
+#include "stdbool.h"
 #include "stdint.h"
 
 #if CONFIG_MEMFAULT
@@ -43,6 +44,29 @@ app_assert_hard_handler(int32_t error_code, uint32_t line_num,
 void
 app_assert_soft_handler(int32_t error_code, uint32_t line_num,
                         const uint8_t *p_file_name, const uint8_t *opt_message);
+
+/**
+ * @brief Assert that value is in range, prints error message if not.
+ *
+ * @param name string with name of the unit to test
+ * @param value value or average value to test
+ * @param min min value of measurement, if same as max, then not printed (used
+ * for debugging)
+ * @param max max value of measurement, if same as min, then not printed (used
+ * for debugging)
+ * @param range_min range minimum value, if range_min & range_max are 0, then
+ * test is skipped
+ * @param range_max range maximum value, if range_min & range_max are 0, then
+ * test is skipped
+ * @param verbose log verbose output
+ * @param unity string with unity of measurement, e.g. "mV", "°C", etc.
+ * @return true when value is in range, false otherwise
+ */
+bool
+app_assert_range(const char *name, const int32_t value, const int32_t min,
+                 const int32_t max, const int32_t range_min,
+                 const int32_t range_max, const bool verbose,
+                 const char *unity);
 
 /**@brief Macro for calling error handler function if supplied error code any
  * other than 0.

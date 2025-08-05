@@ -29,7 +29,7 @@
 #include <orb_state.h>
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/logging/log_ctrl.h>
-LOG_MODULE_REGISTER(power_sequence, CONFIG_POWER_SEQUENCE_LOG_LEVEL);
+LOG_MODULE_REGISTER(boot, CONFIG_BOOT_LOG_LEVEL);
 
 ORB_STATE_REGISTER_MULTIPLE(jetson);
 
@@ -991,11 +991,13 @@ boot_turn_on_jetson(void)
     int ret;
     ORB_STATE_SET(jetson, RET_ERROR_NOT_INITIALIZED, "booting...");
 
-    LOG_INF("Enabling Jetson power");
     ret = gpio_pin_set_dt(&jetson_power_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
+    if (ret == 0) {
+        LOG_INF("Jetson power enabled");
+    }
 
-    LOG_INF("Waiting for reset done signal from Jetson");
+    LOG_INF("Awaiting signal from Jetson (reset)");
     int32_t timeout_ms = 1000;
     int reset;
     do {
@@ -1011,25 +1013,35 @@ boot_turn_on_jetson(void)
 
     if (timeout_ms == 0) {
         ORB_STATE_SET(jetson, RET_ERROR_TIMEOUT, "timeout waiting for reset");
-        LOG_ERR("Jetson reset done signal not received in time");
-        return RET_ERROR_TIMEOUT;
+        LOG_ERR(
+            "Jetson cannot boot, ensure it's correctly connected & functional");
+        k_msleep(1000);
+        ASSERT_HARD(RET_ERROR_INVALID_STATE);
+        // 💀
+    } else {
+        LOG_INF("Jetson is booting");
     }
-    LOG_INF("Reset done");
 
     ORB_STATE_SET(jetson, RET_SUCCESS, "booted");
 
-    LOG_INF("Setting Jetson to WAKE mode");
     ret = gpio_pin_set_dt(&jetson_sleep_wake_gpio_spec, 1);
     ASSERT_SOFT(ret);
+    if (ret == 0) {
+        LOG_INF("Jetson wake mode enabled");
+    }
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
-    LOG_INF("Enabling LTE, GPS, and USB");
     ret = gpio_pin_set_dt(&lte_gps_usb_reset_gpio_spec, 0);
     ASSERT_SOFT(ret);
+    if (ret == 0) {
+        LOG_INF("LTE, GPS & USB enabled");
+    }
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-    LOG_INF("Enabling USB");
     ret = gpio_pin_set_dt(&usb_hub_reset_gpio_spec, 0);
     ASSERT_SOFT(ret);
+    if (ret == 0) {
+        LOG_INF("USB enabled");
+    }
 #endif
 
     shutdown_req_init();
