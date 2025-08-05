@@ -115,6 +115,10 @@ list(APPEND SOURCES_FILES
     src/ui/sound/sound.c
     )
 
+if (CONFIG_SHELL)
+    list(APPEND SOURCES_FILES src/cli/cli.c)
+endif ()
+
 if (CONFIG_TRACING_USER)
     list(APPEND SOURCES_FILES src/system/tracing_user.c)
 endif()

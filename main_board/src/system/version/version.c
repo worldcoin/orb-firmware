@@ -450,6 +450,19 @@ version_get_reset_board_rev(void)
 
 #endif
 
+#ifdef CONFIG_SHELL
+struct image_version
+version_fw_get(void)
+{
+    struct image_version version = {0};
+
+    int ret = dfu_version_primary_get(&version);
+    ASSERT_SOFT(ret);
+
+    return version;
+}
+#endif
+
 orb_mcu_Hardware
 version_get(void)
 {

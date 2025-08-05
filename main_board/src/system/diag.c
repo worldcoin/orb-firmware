@@ -57,7 +57,7 @@ diag_sync(uint32_t remote)
                 mflt_evt.chunk.size = buf_size;
                 mflt_evt.counter = memfault_counter;
             }
-
+#ifndef DEBUG
             ret = publish_new(&mflt_evt, sizeof(mflt_evt),
                               orb_mcu_main_McuToJetson_memfault_event_tag,
                               remote);
@@ -65,7 +65,7 @@ diag_sync(uint32_t remote)
                 // come back later to send the same chunk
                 return ret;
             }
-
+#endif
             memfault_counter++;
             mflt_evt_synced = true;
 

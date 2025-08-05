@@ -25,3 +25,10 @@
  */
 ret_code_t
 battery_init(void);
+
+#ifdef CONFIG_SHELL
+#include <zephyr/shell/shell.h>
+
+void
+battery_dump_stats(const struct shell *sh);
+#endif

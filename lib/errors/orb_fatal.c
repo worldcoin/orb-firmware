@@ -8,7 +8,7 @@
 #include <zephyr/arch/cpu.h>
 #include <zephyr/logging/log_ctrl.h>
 
-LOG_MODULE_REGISTER(fatal);
+LOG_MODULE_REGISTER(fatal, LOG_LEVEL_INF);
 
 static bool recursive_call_flag = false;
 static uint32_t reset_reason_reg = 0;

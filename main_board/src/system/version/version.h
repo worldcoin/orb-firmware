@@ -7,6 +7,9 @@
 int
 version_fw_send(uint32_t remote);
 
+struct image_version
+version_fw_get(void);
+
 int
 version_hw_send(uint32_t remote);
 

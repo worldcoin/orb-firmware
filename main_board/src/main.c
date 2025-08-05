@@ -81,8 +81,6 @@ run_tests()
 
     const int err_code = voltage_measurement_selftest();
     ASSERT_SOFT(err_code);
-
-    orb_state_dump();
 #endif
 
 #if defined(CONFIG_ORB_LIB_ERRORS_TESTS)
@@ -253,9 +251,9 @@ initialize(void)
     ASSERT_SOFT(err_code);
 
     orb_mcu_Hardware hw = version_get();
-    LOG_INF("Hardware version: main board: %u, power board: %u, front-unit: "
-            "%u, reset board: %u",
-            hw.version, hw.power_board, hw.front_unit, hw.reset_board);
+    // LOG_INF("Hardware version: main board: %u, power board: %u, front-unit: "
+    //         "%u, reset board: %u",
+    //         hw.version, hw.power_board, hw.front_unit, hw.reset_board);
 
     // voltage_measurement module is used by battery and boot -> must be
     // initialized before
@@ -355,8 +353,6 @@ initialize(void)
     ASSERT_SOFT(err_code);
 #endif
 
-    orb_state_dump();
-
     // done booting
     LOG_INF("🚀");
 }
@@ -374,12 +370,17 @@ main(void)
 {
     initialize();
     run_tests();
+#ifdef DEBUG
+    orb_state_dump(NULL);
+#endif
     wait_jetson_up();
 
+#if defined(DEBUG) && !defined(CONFIG_SHELL)
     while (true) {
-        orb_state_dump();
+        orb_state_dump(NULL);
         k_sleep(K_SECONDS(30));
     }
+#endif
 
     return 0;
 }
