@@ -779,6 +779,17 @@ can_state_change_callback(const struct device *dev, enum can_state state,
     current_can_controller_state = state;
 }
 
+#ifdef CONFIG_SHELL
+
+/** Dump as many battery stats as possible over printk **/
+void
+battery_dump_stats(const struct shell *sh)
+{
+    shell_error(sh, "not implemented on pearl");
+}
+
+#endif
+
 ret_code_t
 battery_init(void)
 {
