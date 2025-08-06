@@ -13,7 +13,7 @@ LOG_MODULE_REGISTER(orb_state, LOG_LEVEL_INF);
 TYPE_SECTION_START_EXTERN(struct orb_state_const_data, orb_state_const);
 TYPE_SECTION_END_EXTERN(struct orb_state_const_data, orb_state_const);
 
-#ifdef CONFIG_SHELL
+#if defined(CONFIG_SHELL) || defined(DEBUG)
 #include <zephyr/shell/shell.h>
 
 void
@@ -21,7 +21,7 @@ orb_state_dump(const struct shell *sh)
 {
     struct orb_state_const_data *data = NULL;
 
-    if (sh) {
+    if (IS_ENABLED(CONFIG_SHELL) && sh != NULL) {
         while (orb_state_iter(&data)) {
             if (data->dynamic_data != NULL) {
                 shell_print(
