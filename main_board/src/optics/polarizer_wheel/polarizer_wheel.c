@@ -342,6 +342,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
         while (spin_attempt < POLARIZER_WHEEL_HOMING_SPIN_ATTEMPTS) {
             // clear the step count before each spin attempt
             atomic_clear(&g_polarizer_wheel_instance.step_count.current);
+            k_sem_reset(&home_sem);
 
             // spin the wheel 120º, to be done up to
             // POLARIZER_WHEEL_HOMING_SPIN_ATTEMPTS times
