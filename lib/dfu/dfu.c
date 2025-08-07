@@ -3,6 +3,7 @@
 #include "compilers.h"
 #include "errno.h"
 #include "orb_logs.h"
+#include <app_assert.h>
 #include <errors.h>
 #include <stm32g4xx_ll_cortex.h>
 #include <zephyr/devicetree.h>
@@ -588,6 +589,34 @@ dfu_readback_protection(void)
             DBGMCU->CR &= ~(DBGMCU_CR_DBG_SLEEP | DBGMCU_CR_DBG_STOP |
                             DBGMCU_CR_DBG_STANDBY);
         }
+
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+        // ⚠️ we need spi flash to be initialized before invalidating secondary
+        // slot ensure that CONFIG_SPI_NOR_INIT_PRIORITY is low enough
+        BUILD_ASSERT(CONFIG_SPI_NOR_INIT_PRIORITY > CONFIG_SPI_INIT_PRIORITY);
+#endif
+
+        // RDP should happen once, in the factory, with a previous image that is
+        // a service image, and we don't want to revert to the service image,
+        // so erase the first 2 pages of the secondary slot
+        // to prevent reverting images and make secondary slot unusable
+        const struct flash_area *flash_area_p = NULL;
+        ret = flash_area_open(DT_FIXED_PARTITION_ID(DT_ALIAS(secondary_slot)),
+                              &flash_area_p);
+        ASSERT_SOFT(ret);
+        if (ret == 0) {
+            ret = flash_area_erase(flash_area_p, (off_t)0,
+                                   DFU_FLASH_SECTOR_SIZE * 2);
+            ASSERT_SOFT(ret);
+        }
+        if (flash_area_p) {
+            flash_area_close(flash_area_p);
+        }
+
+#if defined(CONFIG_MEMFAULT)
+        MEMFAULT_REBOOT_MARK_RESET_IMMINENT(
+            kMfltRebootReason_EnableReadBackProtection);
+#endif
 
         LOG_WRN("rdp needs to be set, flash_ex_op ret: %d, current: en: %d, "
                 "perm: %d",
