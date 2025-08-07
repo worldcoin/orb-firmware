@@ -104,6 +104,7 @@ dfu_load(uint32_t current_block_number, uint32_t block_count,
     // copy new block for processing while making sure we don't overflow the
     // buffer
     if (dfu_state.wr_idx + size > sizeof(dfu_state.bytes)) {
+        k_sem_give(&sem_dfu_free_space);
         return RET_ERROR_NO_MEM;
     }
     memcpy(&dfu_state.bytes[dfu_state.wr_idx], data, size);
