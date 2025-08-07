@@ -31,11 +31,12 @@ ORB_STATE_REGISTER(sound);
 #define MCU    1
 #define JETSON 0
 
-#define SOUND_AMP_I2C        DT_NODELABEL(i2c1)
-#define SOUND_AMP_ADDR       0x2c
-#define SOUND_AMP_REG_CTRL2  0x3
-#define SOUND_AMP_REG_AGAIN  0x54
-#define SOUND_AMP_REG_DIE_ID 0x67
+#define SOUND_AMP_I2C             DT_NODELABEL(i2c1)
+#define SOUND_AMP_ADDR            0x2c
+#define SOUND_AMP_REG_CTRL2       0x3
+#define SOUND_AMP_REG_DIG_VOL_CTL 0x4C
+#define SOUND_AMP_REG_AGAIN       0x54
+#define SOUND_AMP_REG_DIE_ID      0x67
 
 // Attenuation value in dB in increments of 0.5 from 0 to 15.5
 #define ANALOG_GAIN_ATTENUATION_DB 3
@@ -43,6 +44,14 @@ ORB_STATE_REGISTER(sound);
 BUILD_ASSERT(ANALOG_GAIN_ATTENUATION_DB >= 0 &&
                  ANALOG_GAIN_ATTENUATION_DB <= 15.5,
              "ANALOG_GAIN_ATTENUATION_DB out of range!");
+
+// Digital Volume
+// These bits control both left and right channel digital volume. The
+// digital volume is 24 dB to -103 dB (127 dB diff) in -0.5 dB step.
+#define DIGITAL_VOL_DB           (-10) // -10 dB
+#define DIGITAL_VOL_DB_REG_VALUE MIN(((unsigned)(24 - DIGITAL_VOL_DB) * 2), 255)
+BUILD_ASSERT(DIGITAL_VOL_DB >= -103 && DIGITAL_VOL_DB <= 24,
+             "DIGITAL_VOL_DB out of range!");
 
 // The AGAIN register value may range from 0-31, where
 //  1 =  -0.5dB
@@ -54,7 +63,7 @@ BUILD_ASSERT(ANALOG_GAIN_ATTENUATION_DB >= 0 &&
     MIN(((unsigned)(ANALOG_GAIN_ATTENUATION_DB * 2)), 31)
 
 int
-sound_init(void)
+sound_init(const orb_mcu_Hardware *const hw)
 {
     int err_code = 0;
     uint8_t die_id = 0xFF;
@@ -103,6 +112,30 @@ sound_init(void)
                                          SOUND_AMP_REG_DIE_ID, &die_id);
             ASSERT_SOFT(err_code);
 
+            if (hw->version ==
+                orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_6) {
+                if (err_code == 0) {
+                    LOG_INF("Setting digital vol to %.1fdB",
+                            (double)DIGITAL_VOL_DB);
+                    err_code = i2c_reg_write_byte(sound_i2c, SOUND_AMP_ADDR,
+                                                  SOUND_AMP_REG_DIG_VOL_CTL,
+                                                  DIGITAL_VOL_DB_REG_VALUE);
+                    ASSERT_SOFT(err_code);
+
+                    value = 0;
+                    err_code =
+                        i2c_reg_read_byte(sound_i2c, SOUND_AMP_ADDR,
+                                          SOUND_AMP_REG_DIG_VOL_CTL, &value);
+                    ASSERT_SOFT(err_code);
+                    if (value != DIGITAL_VOL_DB_REG_VALUE) {
+                        LOG_ERR("Read back digital volume (%u) is different "
+                                "from the one "
+                                "set (%u)",
+                                value, DIGITAL_VOL_DB_REG_VALUE);
+                    }
+                }
+            }
+
             if (err_code == 0) {
                 LOG_INF("Setting audio amp attenuation to %.1fdB",
                         (double)ANALOG_GAIN_ATTENUATION_DB);
@@ -111,6 +144,7 @@ sound_init(void)
                     ANALOG_GAIN_ATTENUATION_DB_REG_VALUE);
                 ASSERT_SOFT(err_code);
 
+                value = 0;
                 err_code = i2c_reg_read_byte(sound_i2c, SOUND_AMP_ADDR,
                                              SOUND_AMP_REG_AGAIN, &value);
                 ASSERT_SOFT(err_code);
