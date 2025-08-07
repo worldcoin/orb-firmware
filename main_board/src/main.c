@@ -251,9 +251,6 @@ initialize(void)
     ASSERT_SOFT(err_code);
 
     orb_mcu_Hardware hw = version_get();
-    LOG_INF("Hardware version: main board: %u, power board: %u, front-unit: "
-            "%u, reset board: %u",
-            hw.version, hw.power_board, hw.front_unit, hw.reset_board);
 
     // voltage_measurement module is used by battery and boot -> must be
     // initialized before
@@ -370,9 +367,16 @@ main(void)
 {
     initialize();
     run_tests();
+
+    // print states and test results
 #ifdef DEBUG
+    orb_mcu_Hardware hw = version_get();
+    LOG_INF("Hardware version: main board: %u, power board: %u, front-unit: "
+            "%u, reset board: %u",
+            hw.version, hw.power_board, hw.front_unit, hw.reset_board);
     orb_state_dump(NULL);
 #endif
+
     wait_jetson_up();
 
 #if defined(DEBUG) && !defined(CONFIG_SHELL)
