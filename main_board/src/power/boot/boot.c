@@ -763,11 +763,6 @@ app_init_state(void)
 
     LOG_INF_IMM("Hello from " CONFIG_BOARD " :)");
 
-    // enable read-back protection before trying to boot
-    // so that the POR/reboot stays silent
-    ret = dfu_readback_protection();
-    ASSERT_SOFT(ret);
-
     // read image status to know whether we are waiting for user to press
     // the button
     struct boot_swap_state primary_slot = {0};
@@ -784,6 +779,15 @@ app_init_state(void)
     // otherwise, application have been updated and not confirmed, boot Jetson
     if (primary_slot.image_ok != BOOT_FLAG_UNSET ||
         primary_slot.magic == BOOT_MAGIC_UNSET) {
+        // enable read-back protection before trying to boot
+        // so that the POR/reboot stays silent
+        // do NOT try to enable on boot after OTA update, otherwise the image
+        // is going to revert on reboot, needed to activate RDP, as it's not
+        // confirmed yet, and we want to keep the confirmation status to have
+        // automatic reboot after OTA.
+        ret = dfu_readback_protection();
+        ASSERT_SOFT(ret);
+
         ret = power_until_button_press();
     } else {
         LOG_INF_IMM("Firmware image not confirmed, confirming");
