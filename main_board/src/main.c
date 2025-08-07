@@ -281,7 +281,7 @@ initialize(void)
 
     temperature_init(&hw, &analog_and_i2c_mutex);
 
-    err_code = sound_init();
+    err_code = sound_init(&hw);
     ASSERT_SOFT(err_code);
 
     err_code = ui_init(&hw);
