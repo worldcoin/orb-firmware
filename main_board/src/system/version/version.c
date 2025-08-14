@@ -276,7 +276,7 @@ version_fetch_hardware_rev(orb_mcu_Hardware *hw_version)
             hw_version->version =
                 orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5;
             break;
-        case 6:
+        case 7:
             hw_version->version =
                 orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_6;
             break;
