@@ -250,8 +250,21 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
     ARG_UNUSED(cb);
     ARG_UNUSED(pins);
 
-    // Emit a master UPDATE event to start one frame.
-    //LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
+    // Safety gate: do nothing if unsafe distance.
+    if (!distance_is_safe()) {
+        return;
+    }
+
+    // If LEDs are enabled and on_time is configured, ensure PVCC can supply the pulse.
+    if (ir_camera_system_get_enabled_leds() !=
+            orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE &&
+        global_timer_settings.on_time_in_us > 0) {
+        set_pvcc_converter_into_high_demand_mode();
+    }
+
+    // Emit a master UPDATE event to start one synchronized frame.
+    // This means all slaves (TIM15, TIM3, TIM20) fire one-pulse with their preloads
+    LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
 }
 #endif
 // Focus sweep stuff
