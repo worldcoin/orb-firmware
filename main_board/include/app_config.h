@@ -131,3 +131,5 @@
 #define CAMERA_SWEEP_INTERRUPT_PRIO     10
 #define LED_940NM_GLOBAL_INTERRUPT_PRIO 11
 #define LED_850NM_GLOBAL_INTERRUPT_PRIO 11
+// External RGB-IR camera STROBE (FLASH) EXTI interrupt priority (lower is higher)
+#define RGB_IR_STROBE_INTERRUPT_PRIO     1
