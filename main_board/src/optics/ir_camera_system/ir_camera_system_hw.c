@@ -210,6 +210,50 @@ static struct ir_camera_timer_settings global_timer_settings = {0};
 static const struct gpio_dt_spec front_unit_pvcc_pwm_mode =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_pvcc_pwm_mode_gpios);
 
+// External STROBE (FLASH) input from the RGB-IR camera.
+// Rising edge triggers a master timer UPDATE to drive the existing
+// LED and camera trigger one-pulse timers. Configure as input and
+// set EXTI NVIC to a high priority.
+#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
+static const struct gpio_dt_spec rgb_ir_strobe =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), rgb_ir_strobe_gpios);
+static struct gpio_callback rgb_ir_strobe_cb;
+
+static inline IRQn_Type
+exti_irqn_for_pin(uint32_t pin)
+{
+    switch (pin) {
+    case 0:
+        return EXTI0_IRQn;
+    case 1:
+        return EXTI1_IRQn;
+    case 2:
+        return EXTI2_IRQn;
+    case 3:
+        return EXTI3_IRQn;
+    case 4:
+        return EXTI4_IRQn;
+    default:
+        if (pin <= 9) {
+            return EXTI9_5_IRQn;
+        } else {
+            return EXTI15_10_IRQn;
+        }
+    }
+}
+
+static void
+rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
+                  uint32_t pins)
+{
+    ARG_UNUSED(port);
+    ARG_UNUSED(cb);
+    ARG_UNUSED(pins);
+
+    // Emit a master UPDATE event to start one frame.
+    //LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
+}
+#endif
 // Focus sweep stuff
 static int16_t global_focus_values[MAX_NUMBER_OF_FOCUS_VALUES];
 static size_t global_num_focus_values;
@@ -1274,6 +1318,38 @@ ir_camera_system_hw_init(void)
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
+
+#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
+    if (!device_is_ready(rgb_ir_strobe.port)) {
+        ASSERT_SOFT(RET_ERROR_INTERNAL);
+        return RET_ERROR_INTERNAL;
+    }
+
+    err_code = gpio_pin_configure_dt(&rgb_ir_strobe, GPIO_INPUT);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+
+    err_code = gpio_pin_interrupt_configure_dt(&rgb_ir_strobe,
+                                               GPIO_INT_EDGE_RISING);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+
+    gpio_init_callback(&rgb_ir_strobe_cb, rgb_ir_strobe_isr,
+                       BIT(rgb_ir_strobe.pin));
+    err_code = gpio_add_callback(rgb_ir_strobe.port, &rgb_ir_strobe_cb);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+
+    // Set EXTI IRQ priority high (lower number == higher priority).
+    NVIC_SetPriority(exti_irqn_for_pin(rgb_ir_strobe.pin),
+                     RGB_IR_STROBE_INTERRUPT_PRIO);
+#endif
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     IRQ_CONNECT(LED_940NM_GLOBAL_IRQn, LED_940NM_GLOBAL_INTERRUPT_PRIO,
