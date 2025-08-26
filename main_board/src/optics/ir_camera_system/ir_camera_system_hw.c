@@ -210,6 +210,9 @@ static struct ir_camera_timer_settings global_timer_settings = {0};
 static const struct gpio_dt_spec front_unit_pvcc_pwm_mode =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_pvcc_pwm_mode_gpios);
 
+// Forward declarations for PVCC helpers used from ISR
+static void set_pvcc_converter_into_high_demand_mode(void);
+
 // External STROBE (FLASH) input from the RGB-IR camera.
 // Rising edge triggers a master timer UPDATE to drive the existing
 // LED and camera trigger one-pulse timers. Configure as input and
