@@ -211,7 +211,8 @@ static const struct gpio_dt_spec front_unit_pvcc_pwm_mode =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_pvcc_pwm_mode_gpios);
 
 // Forward declarations for PVCC helpers used from ISR
-static void set_pvcc_converter_into_high_demand_mode(void);
+static void
+set_pvcc_converter_into_high_demand_mode(void);
 
 // External STROBE (FLASH) input from the RGB-IR camera.
 // Rising edge triggers a master timer UPDATE to drive the existing
@@ -243,31 +244,6 @@ exti_irqn_for_pin(uint32_t pin)
             return EXTI15_10_IRQn;
         }
     }
-}
-
-static void
-rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
-                  uint32_t pins)
-{
-    ARG_UNUSED(port);
-    ARG_UNUSED(cb);
-    ARG_UNUSED(pins);
-
-    // Safety gate: do nothing if unsafe distance.
-    if (!distance_is_safe()) {
-        return;
-    }
-
-    // If LEDs are enabled and on_time is configured, ensure PVCC can supply the pulse.
-    if (ir_camera_system_get_enabled_leds() !=
-            orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE &&
-        global_timer_settings.on_time_in_us > 0) {
-        set_pvcc_converter_into_high_demand_mode();
-    }
-
-    // Emit a master UPDATE event to start one synchronized frame.
-    // This means all slaves (TIM15, TIM3, TIM20) fire one-pulse with their preloads
-    LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
 }
 #endif
 // Focus sweep stuff
@@ -417,6 +393,10 @@ evaluate_mirror_sweep_polynomials(uint32_t frame_no)
 K_SEM_DEFINE(camera_sweep_test_sem, 0, 1);
 #endif
 
+// When the camera trigger update event ISR is enabled, any time the one shot
+// pulse is completed, this will fire. This update event was enabled in the
+// rgb_ir_strobe_isr to trigger IR eye camera and IR LEDs The ISR will then
+// enable the right channels for the next master timer update event
 static void
 camera_sweep_isr(void *arg)
 {
@@ -464,7 +444,24 @@ camera_sweep_isr(void *arg)
                     0);
             }
         } else {
-            LOG_ERR("Nothing is in progress, this should not be possible!");
+            // enable the IR eye camera trigger and disable ir face and 2d TOF
+            // camera triggers
+            LL_TIM_CC_DisableChannel(
+                CAMERA_TRIGGER_TIMER,
+                ch2ll[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+            LL_TIM_CC_EnableChannel(
+                CAMERA_TRIGGER_TIMER,
+                ch2ll[IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+            LL_TIM_CC_EnableChannel(
+                CAMERA_TRIGGER_TIMER,
+                ch2ll[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+
+            // disable the IR LEDs for the next master timer event
+            disable_all_led_cc_channels();
+
+            // disable the camera trigger timer update interrupt to set up the
+            // next master update event
+            LL_TIM_DisableIT_UPDATE(CAMERA_TRIGGER_TIMER);
         }
 
         sweep_index++;
@@ -946,7 +943,8 @@ set_arr_ir_leds(void)
         set_pvcc_converter_into_low_power_mode();
     }
 
-    ir_camera_system_enable_cc_channels();
+    // only enable later on strobe ISR pulse
+    // ir_camera_system_enable_cc_channels();
 }
 
 static inline void
@@ -988,8 +986,8 @@ apply_new_timer_settings()
     LL_TIM_SetPrescaler(MASTER_TIMER, global_timer_settings.master_psc);
     LL_TIM_SetAutoReload(MASTER_TIMER, global_timer_settings.master_arr);
 
-    set_trigger_arr(ir_camera_system_ir_eye_camera_is_enabled(),
-                    IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    // explicity disable the ir eye camera trigger when appplying new settings
+    set_trigger_arr(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     set_trigger_arr(ir_camera_system_ir_face_camera_is_enabled(),
                     IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
     set_trigger_arr(ir_camera_system_2d_tof_camera_is_enabled(),
@@ -1285,6 +1283,50 @@ ir_camera_system_get_fps_hw(void)
     return global_timer_settings.fps;
 }
 
+// This ISR should trigger every time the RGB-IR camera strobe is triggered and
+// the MCU receives the rising edge This ISR will then enable the IR eye camera
+// trigger and disable ir face and 2d TOF camera triggers It will also enable
+// the IR LEDs It will then emit an on demand master UPDATE event to start one
+// synchronized frame. This means all slaves (TIM15, TIM3, TIM20) fire one-pulse
+// with their preloads This ISR should be triggered with a high priority
+static void
+rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
+                  uint32_t pins)
+{
+    ARG_UNUSED(port);
+    ARG_UNUSED(cb);
+    ARG_UNUSED(pins);
+
+    // Safety gate: do nothing if unsafe distance.
+    if (!distance_is_safe()) {
+        return;
+    }
+    // enable the IR eye camera trigger and disable ir face and 2d TOF camera
+    // triggers
+    LL_TIM_CC_EnableChannel(CAMERA_TRIGGER_TIMER,
+                            ch2ll[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+    LL_TIM_CC_DisableChannel(CAMERA_TRIGGER_TIMER,
+                             ch2ll[IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+    LL_TIM_CC_DisableChannel(CAMERA_TRIGGER_TIMER,
+                             ch2ll[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+
+    // enable the IR LEDs
+    ir_camera_system_enable_cc_channels();
+
+    // enable the camera trigger timer update interrupt to set up the next
+    // master update event The ISR camera_sweep_isr will be triggered when the
+    // one shot pulse is completed This will allow us to disable the IR eye
+    // camera trigger and enable the IR face and 2d TOF camera triggers and
+    // disable the IR LEDs
+    LL_TIM_EnableIT_UPDATE(CAMERA_TRIGGER_TIMER);
+
+    // Emit an on demand master UPDATE event to start one synchronized frame.
+    // This means all slaves (TIM15, TIM3, TIM20) fire one-pulse with their
+    // preloads this should only be for IR eye camera trigger and IR LEDs based
+    // on the above settings
+    LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
+}
+
 ret_code_t
 ir_camera_system_hw_init(void)
 {
@@ -1347,8 +1389,8 @@ ir_camera_system_hw_init(void)
         return RET_ERROR_INTERNAL;
     }
 
-    err_code = gpio_pin_interrupt_configure_dt(&rgb_ir_strobe,
-                                               GPIO_INT_EDGE_RISING);
+    err_code =
+        gpio_pin_interrupt_configure_dt(&rgb_ir_strobe, GPIO_INT_EDGE_RISING);
     if (err_code) {
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
