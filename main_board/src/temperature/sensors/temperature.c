@@ -649,7 +649,7 @@ sample_and_report_temperature(struct sensor_and_channel *sensor_and_channel)
 
     if (i == TEMPERATURE_SAMPLE_RETRY_COUNT) {
         // We failed after many attempts. Reset the history and try again later
-        LOG_ERR(
+        LOG_WRN(
             "Failed to sample '%s' [source %u], after %d retries. Last ret: %d",
             sensor_and_channel->sensor->name,
             sensor_and_channel->temperature_source,

@@ -21,16 +21,21 @@
 #include <memfault/core/trace_event.h>
 
 /// Log warnings
+/// use MEMFAULT_SDK_LOG_SAVE instead of MEMFAULT_LOG_WARN to bypass
+/// platform logs in memfault call (prefer to call it here, with proper module
+/// name)
 #undef LOG_WRN
 #define LOG_WRN(...)                                                           \
     do {                                                                       \
-        MEMFAULT_LOG_WARN(__VA_ARGS__);                                        \
+        Z_LOG(LOG_LEVEL_WRN, __VA_ARGS__);                                     \
+        MEMFAULT_SDK_LOG_SAVE(kMemfaultPlatformLogLevel_Warning, __VA_ARGS__); \
     } while (0)
 
 /// Each Trace Event will be associated with an Issue.
 #undef LOG_ERR
 #define LOG_ERR(...)                                                           \
     do {                                                                       \
+        Z_LOG(LOG_LEVEL_ERR, __VA_ARGS__);                                     \
         MEMFAULT_TRACE_EVENT_WITH_LOG(error, __VA_ARGS__);                     \
     } while (0)
 
