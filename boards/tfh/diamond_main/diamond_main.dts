@@ -908,6 +908,8 @@
 
 &timers8 {
     status = "okay";
+    st,prescaler = <1>;
+
     white_leds_pwm_evt: pwm {
         status = "okay";
         pinctrl-0 = <&tim8_ch2_pc7>;

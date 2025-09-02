@@ -92,11 +92,16 @@ static const DRV8434S_DriverCfg_t drv8434_cfg = {
         0),
     .spi_cs_gpio = &polarizer_spi_cs_gpio};
 
-// if less than 450 µsteps between two notches: notch with small gap detected
+// if less than 550 µsteps between two notches: notch with small gap detected
 // we can then go to the 0/passthrough by applying a 120º+center degree movement
-#define POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MAX 490
+#define POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MAX 550
 #define POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MIN 350
 #define POLARIZER_WHEEL_HOMING_SPIN_ATTEMPTS           3
+#define POLARIZER_WHEEL_NOTCH_DETECT_ATTEMPTS          9
+
+// there are 4 notches so we need a minimum of 4 notch detection attempts
+BUILD_ASSERT(POLARIZER_WHEEL_NOTCH_DETECT_ATTEMPTS > 4);
+
 static K_SEM_DEFINE(home_sem, 0, 1);
 
 // Enable encoder interrupt
@@ -166,6 +171,7 @@ disable_step_interrupt(void)
         TIM_TypeDef *) = {LL_TIM_DisableIT_CC1, LL_TIM_DisableIT_CC2,
                           LL_TIM_DisableIT_CC3, LL_TIM_DisableIT_CC4};
 
+    clear_step_interrupt();
     disable_capture_interrupt[polarizer_step_pwm_spec->channel - 1](
         polarizer_step_timer);
 
@@ -224,6 +230,8 @@ encoder_callback(const struct device *dev, struct gpio_callback *cb,
         if (gpio_pin_get_dt(&polarizer_encoder_spec) == 1) {
             LOG_DBG("notches detected: %u",
                     g_polarizer_wheel_instance.homing.notch_count);
+            /* stop early */
+            polarizer_stop();
             k_sem_give(&home_sem);
         }
     }
@@ -273,7 +281,8 @@ polarizer_wheel_step_isr(const void *arg)
 }
 
 static ret_code_t
-polarizer_wheel_step_relative(uint32_t frequency, int32_t step_count)
+polarizer_wheel_step_relative(const uint32_t frequency,
+                              const int32_t step_count)
 {
     int ret_val = RET_SUCCESS;
 
@@ -284,20 +293,26 @@ polarizer_wheel_step_relative(uint32_t frequency, int32_t step_count)
 
     if (step_count < 0) {
         set_direction(POLARIZER_WHEEL_DIRECTION_BACKWARD);
-        if (g_polarizer_wheel_instance.step_count.current + step_count < 0) {
-            int32_t target =
+        if (atomic_get(&g_polarizer_wheel_instance.step_count.current) +
+                step_count <
+            0) {
+            const int32_t target =
                 POLARIZER_WHEEL_MICROSTEPS_360_DEGREES +
-                (g_polarizer_wheel_instance.step_count.current + step_count);
+                (atomic_get(&g_polarizer_wheel_instance.step_count.current) +
+                 step_count);
             atomic_set(&g_polarizer_wheel_instance.step_count.target, target);
         } else {
-            int32_t target =
-                g_polarizer_wheel_instance.step_count.current + step_count;
+            const int32_t target =
+                atomic_get(&g_polarizer_wheel_instance.step_count.current) +
+                step_count;
             atomic_set(&g_polarizer_wheel_instance.step_count.target, target);
         }
     } else {
         set_direction(POLARIZER_WHEEL_DIRECTION_FORWARD);
-        int32_t target =
-            (g_polarizer_wheel_instance.step_count.current + step_count) %
+
+        const int32_t target =
+            (atomic_get(&g_polarizer_wheel_instance.step_count.current) +
+             step_count) %
             POLARIZER_WHEEL_MICROSTEPS_360_DEGREES;
         atomic_set(&g_polarizer_wheel_instance.step_count.target, target);
     }
@@ -311,8 +326,11 @@ static void
 homing_failed()
 {
     g_polarizer_wheel_instance.homing.success = false;
-    polarizer_stop();
-    disable_encoder();
+    int ret = polarizer_stop();
+    ASSERT_SOFT(ret);
+
+    ret = disable_encoder();
+    ASSERT_SOFT(ret);
 }
 
 static void
@@ -337,18 +355,19 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     bool notch_0_detected = false;
     g_polarizer_wheel_instance.homing.notch_count = 0;
     set_direction(POLARIZER_WHEEL_DIRECTION_FORWARD);
-    while (!notch_0_detected) {
+    while (!notch_0_detected && g_polarizer_wheel_instance.homing.notch_count <
+                                    POLARIZER_WHEEL_NOTCH_DETECT_ATTEMPTS) {
         size_t spin_attempt = 0;
         while (spin_attempt < POLARIZER_WHEEL_HOMING_SPIN_ATTEMPTS) {
             // clear the step count before each spin attempt
             atomic_clear(&g_polarizer_wheel_instance.step_count.current);
             k_sem_reset(&home_sem);
 
-            // spin the wheel 120º, to be done up to
+            // spin the wheel 240º, to be done up to
             // POLARIZER_WHEEL_HOMING_SPIN_ATTEMPTS times
             int ret = polarizer_wheel_step_relative(
                 POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
-                POLARIZER_WHEEL_MICROSTEPS_120_DEGREES);
+                POLARIZER_WHEEL_MICROSTEPS_120_DEGREES * 2);
             if (ret != RET_SUCCESS) {
                 LOG_ERR("Unable to spin polarizer wheel: %d, attempt %u", ret,
                         spin_attempt);
@@ -400,21 +419,33 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
         atomic_clear(&g_polarizer_wheel_instance.step_count.current);
     }
 
-    // wheel is on notch #0
-    // send wheel home / passthrough by applying constant number of microsteps
-    polarizer_wheel_step_relative(
-        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
-        POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER +
-            POLARIZER_WHEEL_MICROSTEPS_120_DEGREES);
+    if (notch_0_detected) {
+        // ✅ success
+        // wheel is on notch #0
+        // send wheel home / passthrough by applying constant number of
+        // microsteps
+        int ret = polarizer_wheel_step_relative(
+            POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+            POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER +
+                POLARIZER_WHEEL_MICROSTEPS_120_DEGREES);
+        ASSERT_SOFT(ret);
 
-    // wait for completion and disconnect interrupt
-    k_sleep(K_SECONDS(4));
-    disable_step_interrupt();
-    disable_encoder();
+        // wait for completion and disconnect interrupt
+        k_sleep(K_SECONDS(4));
 
-    LOG_INF("Polarizer wheel homed");
-    ORB_STATE_SET_CURRENT(RET_SUCCESS, "homed");
-    g_polarizer_wheel_instance.homing.success = true;
+        ASSERT_SOFT(polarizer_stop());
+        ASSERT_SOFT(disable_encoder());
+
+        LOG_INF("Polarizer wheel homed");
+        ORB_STATE_SET_CURRENT(RET_SUCCESS, "homed");
+        g_polarizer_wheel_instance.homing.success = true;
+    } else {
+        // ❌ failure homing
+        // encoder bumps not detected at expected positions
+        ORB_STATE_SET_CURRENT(RET_ERROR_NOT_INITIALIZED,
+                              "bumps not correctly detected");
+        homing_failed();
+    }
 
     // reset step counter
     atomic_clear(&g_polarizer_wheel_instance.step_count.current);
