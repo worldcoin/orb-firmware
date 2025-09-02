@@ -4,6 +4,8 @@ manifest:
       url-base: git@github.com:worldcoin
     - name: memfault
       url-base: https://github.com/memfault
+    - name: fouge
+      url-base: git@github.com:fouge
   defaults:
     remote: worldcoin
   projects:
@@ -33,6 +35,10 @@ manifest:
       revision: c4cf5f29027f44fd5aad1d896df5840e10b08fd4
       path: modules/plug-and-trust
       groups: [internal]
+    - name: zephyr-st25r
+      remote: fouge
+      revision: 94d61ed20d65f6229ebdb160bf44c9c76932a6b9
+      path: modules/nfc-st25r
   self:
     path: orb
 

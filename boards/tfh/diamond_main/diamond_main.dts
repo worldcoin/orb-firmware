@@ -294,6 +294,13 @@
                 reg = <0x29>;
                 zephyr,deferred-init;
             };
+
+            nfc: st25r3916@50
+            {
+                compatible = "st,st25r";
+                reg = <0x50>;
+                irq-gpios = <&gpiob 1 GPIO_ACTIVE_HIGH>;
+            };
         };
 
         mux_i2c@1 {

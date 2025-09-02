@@ -147,6 +147,12 @@ if (CONFIG_BOARD_DIAMOND_MAIN)
     list(APPEND SOURCES_FILES src/temperature/fan/fan_tach_coarse.c)
 endif()
 
+if (CONFIG_ST25R)
+    list(APPEND SOURCES_FILES src/ui/nfc/nfc.c)
+    list(APPEND SOURCES_FILES src/ui/nfc/nfc_ce.c)
+    list(APPEND SOURCES_FILES src/ui/nfc/analogConfigTbl_NFC08A1.c)
+endif ()
+
 if (CONFIG_ZTEST)
     add_compile_definitions(HIL_TEST=y)
     list(APPEND SOURCES_FILES

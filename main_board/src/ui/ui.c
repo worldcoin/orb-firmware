@@ -1,5 +1,6 @@
 #include "ui.h"
 #include "pubsub/pubsub.h"
+#include "ui/nfc/nfc.h"
 #include "ui/rgb_leds/front_leds/front_leds.h"
 #include "ui/rgb_leds/operator_leds/operator_leds.h"
 #include <app_assert.h>
@@ -38,6 +39,11 @@ ui_init(const orb_mcu_Hardware *hw_version)
     ASSERT_SOFT(err_code);
 #else
     UNUSED_PARAMETER(hw_version);
+#endif
+
+#if defined(CONFIG_ST25R)
+    err_code = nfc_init();
+    ASSERT_SOFT(err_code);
 #endif
 
     return RET_SUCCESS;
