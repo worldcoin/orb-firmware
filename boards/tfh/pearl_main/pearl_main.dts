@@ -36,6 +36,7 @@
         battery-can-bus = &fdcan2;
         watchdog0 = &iwdg;
         secondary-slot = &slot1_partition;
+        rtc = &rtc;
     };
 
     zephyr,user {
@@ -635,8 +636,15 @@
     dma-names = "rx", "tx";
 };
 
+&clk_lsi {
+    status = "okay";
+};
+
 &rtc {
     status = "okay";
+
+    clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00000400>,
+             <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 };
 
 &i2c1 {

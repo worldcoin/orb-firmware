@@ -17,6 +17,7 @@
 #include "ui/rgb_leds/rgb_leds.h"
 #include "ui/ui.h"
 #include "voltage_measurement/voltage_measurement.h"
+#include <date.h>
 #include <heartbeat.h>
 #include <optics/polarizer_wheel/polarizer_wheel.h>
 #include <pb_decode.h>
@@ -1533,6 +1534,50 @@ handle_diag_test_data(job_t *job)
 #endif
 }
 
+static void
+handle_set_time(job_t *job)
+{
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_set_time_tag);
+
+    int ret;
+    switch (msg->payload.set_time.which_format) {
+    case orb_mcu_Time_human_readable_tag: {
+        const orb_mcu_Time_Date *time =
+            &msg->payload.set_time.format.human_readable;
+        struct tm tm_time = {
+            .tm_year = (int)time->year - 1900,
+            .tm_mon = (int)time->month - 1,
+            .tm_mday = (int)time->day,
+            .tm_hour = (int)time->hour,
+            .tm_min = (int)time->min,
+            .tm_sec = (int)time->sec,
+        };
+        ret = date_set_time(&tm_time);
+    } break;
+    case orb_mcu_Time_epoch_time_tag: {
+        const time_t time_epoch = msg->payload.set_time.format.epoch_time;
+        ret = date_set_time_epoch(time_epoch);
+    } break;
+    default:
+        ret = RET_ERROR_INVALID_PARAM;
+        LOG_ERR("Unhandled set_time type: %u",
+                msg->payload.set_time.which_format);
+    }
+
+    switch (ret) {
+    case RET_SUCCESS:
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+        break;
+    case RET_ERROR_INVALID_PARAM:
+    case -EINVAL:
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
+        break;
+    default:
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+    }
+}
+
 __maybe_unused static void
 handle_not_supported(job_t *job)
 {
@@ -1604,6 +1649,7 @@ static const hm_callback handle_message_callbacks[] = {
     [orb_mcu_main_JetsonToMcu_sync_diag_data_tag] = handle_sync_diag_data,
     [orb_mcu_main_JetsonToMcu_diag_test_tag] = handle_diag_test_data,
     [orb_mcu_main_JetsonToMcu_power_cycle_tag] = handle_power_cycle,
+    [orb_mcu_main_JetsonToMcu_set_time_tag] = handle_set_time,
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     [orb_mcu_main_JetsonToMcu_cone_leds_sequence_tag] =
         handle_cone_leds_sequence,
@@ -1620,7 +1666,7 @@ static const hm_callback handle_message_callbacks[] = {
 #endif
 };
 
-BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 50),
+BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 51),
              "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void

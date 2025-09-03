@@ -1,0 +1,3 @@
+module = DATE
+module-str = DATE
+source "subsys/logging/Kconfig.template.log_config"

@@ -1,5 +1,7 @@
 
 #include "cli.h"
+
+#include "date.h"
 #include "orb_logs.h"
 
 #include <bootutil/image.h>
@@ -419,6 +421,44 @@ execute_power_cycle(const struct shell *sh, size_t argc, char **argv)
     return 0;
 }
 
+static int
+execute_date(const struct shell *sh, size_t argc, char **argv)
+{
+    if (argc == 1) {
+        date_print();
+        return 0;
+    }
+
+    if (argc != 6) {
+        shell_error(sh, "Usage: date [<year> <month> <day> <hour> <minute>]");
+        return -EINVAL;
+    }
+
+    const uint32_t year = strtoul(argv[1], NULL, 10);
+    const uint32_t month = strtoul(argv[2], NULL, 10);
+    const uint32_t day = strtoul(argv[3], NULL, 10);
+    const uint32_t hour = strtoul(argv[4], NULL, 10);
+    const uint32_t minute = strtoul(argv[5], NULL, 10);
+
+    orb_mcu_main_JetsonToMcu message = {
+        .which_payload = orb_mcu_main_JetsonToMcu_set_time_tag,
+        .payload.set_time.which_format = orb_mcu_Time_human_readable_tag,
+        .payload.set_time.format.human_readable = {.year = year,
+                                                   .month = month,
+                                                   .day = day,
+                                                   .hour = hour,
+                                                   .min = minute}};
+
+    ret_code_t ret = runner_handle_new_cli(&message);
+    if (ret != RET_SUCCESS) {
+        shell_error(sh, "Failed to send date command: %d", ret);
+        return -EIO;
+    }
+    shell_print(sh, "Set date command sent for date %u/%u/%u %u:%u", year,
+                month, day, hour, minute);
+    return 0;
+}
+
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
 static int
 execute_white_leds(const struct shell *sh, size_t argc, char **argv)
@@ -585,6 +625,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
     SHELL_CMD(voltage, NULL, "Request voltage measurements", execute_voltage),
     SHELL_CMD(power_cycle, NULL, "Power cycle supply lines",
               execute_power_cycle),
+    SHELL_CMD(date, NULL, "Set/Get date", execute_date),
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
     SHELL_CMD(white_leds, NULL, "Control white LEDs", execute_white_leds),
     SHELL_CMD(polarizer, NULL, "Control polarizer wheel", execute_polarizer),

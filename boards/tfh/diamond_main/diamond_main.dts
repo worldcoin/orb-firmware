@@ -45,6 +45,7 @@
         watchdog0 = &iwdg;
         secondary-slot = &slot1_partition;
         spi-flash0 = &w25q32jv;
+		rtc = &rtc;
     };
 
     zephyr,user {
@@ -1025,8 +1026,15 @@
     status = "disabled"; // enable with overlay
 };
 
+&clk_lsi {
+    status = "okay";
+};
+
 &rtc {
     status = "okay";
+
+    clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00000400>,
+             <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 };
 
 &i2c1 {
