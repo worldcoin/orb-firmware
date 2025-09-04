@@ -116,6 +116,13 @@ storage_has_data(void);
 int
 storage_init(void);
 
+#ifdef CONFIG_BBRAM
+int
+backup_regs_read_byte(const size_t offset, uint8_t *data);
+int
+backup_regs_write_byte(const size_t offset, const uint8_t data);
+#endif
+
 #if CONFIG_ORB_LIB_STORAGE_TESTS
 /// Tests
 void

@@ -3,6 +3,7 @@
 #include "orb_logs.h"
 #include "orb_state.h"
 #include "sysflash/sysflash.h"
+#include "system/backup_regs.h"
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "ui/button/button.h"
@@ -16,6 +17,7 @@
 #include <dfu.h>
 #include <errors.h>
 #include <stdio.h>
+#include <storage.h>
 #include <zephyr/arch/cpu.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
@@ -706,14 +708,6 @@ power_until_button_press(void)
             }
         }
 
-        if (IS_ENABLED(CONFIG_INSTA_BOOT)) {
-            power_vbat_5v_3v3_supplies_on();
-            operator_led_mask = BIT_MASK(OPERATOR_LEDS_COUNT);
-            operator_leds_set_blocking(&white, operator_led_mask);
-            i = OPERATOR_LEDS_COUNT;
-            break;
-        }
-
         if (gpio_pin_get_dt(&power_button_gpio_spec) == 0) {
             if (i > 1) {
                 LOG_INF("Press stopped.");
@@ -775,10 +769,34 @@ app_init_state(void)
     // without its power supply
     k_msleep(2000);
 
-    // if FW image is confirmed, gate turning on power supplies on button press
-    // otherwise, application have been updated and not confirmed, boot Jetson
-    if (primary_slot.image_ok != BOOT_FLAG_UNSET ||
-        primary_slot.magic == BOOT_MAGIC_UNSET) {
+    const bool post_update = (primary_slot.image_ok == BOOT_FLAG_UNSET &&
+                              primary_slot.magic != BOOT_MAGIC_UNSET);
+
+    /* read the boot flag and reset it once read */
+    uint8_t boot_flag = 0;
+    ret = backup_regs_read_byte(REBOOT_FLAG_OFFSET_BYTE, &boot_flag);
+    const bool boot_orb = (ret == 0 && boot_flag == REBOOT_INSTABOOT);
+
+    // if any of the following is true:
+    // - the application has been updated (image not confirmed),
+    // - the flag to automatically (re)boot is set
+    // - kconfig `INSTA_BOOT_AUTO_BOOT` is set
+    //  -> boot jetson
+    // otherwise:
+    // -> nominal behaviour: wait for button press to boot
+    if (post_update || boot_orb || IS_ENABLED(CONFIG_INSTA_BOOT_AUTO_BOOT)) {
+        LOG_INF_IMM("insta-boot: %d, post ota: %d, auto-boot: %d",
+                    IS_ENABLED(CONFIG_INSTA_BOOT), post_update, boot_orb);
+
+        power_vbat_5v_3v3_supplies_on();
+
+        // FIXME image to be confirmed once MCU fully booted
+        // Image is confirmed before we actually reboot the Orb
+        // in case the MCU is rebooted due to a removed battery or insufficient
+        // battery capacity. This is a temporary workaround until we
+        // have a fallback mechanism in place.
+        dfu_primary_confirm();
+    } else {
         // enable read-back protection before trying to boot
         // so that the POR/reboot stays silent
         // do NOT try to enable on boot after OTA update, otherwise the image
@@ -789,17 +807,6 @@ app_init_state(void)
         ASSERT_SOFT(ret);
 
         ret = power_until_button_press();
-    } else {
-        LOG_INF_IMM("Firmware image not confirmed, confirming");
-
-        power_vbat_5v_3v3_supplies_on();
-
-        // FIXME image to be confirmed once MCU fully booted
-        // Image is confirmed before we actually reboot the Orb
-        // in case the MCU is rebooted due to a removed battery or insufficient
-        // battery capacity. This is a temporary workaround until we
-        // have fallback mechanism in place.
-        dfu_primary_confirm();
     }
     LOG_INF_IMM("Booting system...");
 
@@ -1026,7 +1033,11 @@ boot_turn_on_jetson(void)
         LOG_INF("Jetson is booting");
     }
 
+    // jetson considered as booting
+    // reset REBOOT flag in backup regs
     ORB_STATE_SET(jetson, RET_SUCCESS, "booted");
+    ret = backup_regs_write_byte(REBOOT_FLAG_OFFSET_BYTE, 0);
+    ASSERT_SOFT(ret);
 
     ret = gpio_pin_set_dt(&jetson_sleep_wake_gpio_spec, 1);
     ASSERT_SOFT(ret);

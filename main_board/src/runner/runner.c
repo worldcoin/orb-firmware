@@ -10,6 +10,8 @@
 #include "orb_logs.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
+#include "storage.h"
+#include "system/backup_regs.h"
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "temperature/sensors/temperature.h"
@@ -350,6 +352,47 @@ handle_reboot_message(job_t *job)
             job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         }
     }
+}
+
+static void
+handle_reboot_orb(job_t *job)
+{
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_reboot_tag);
+
+    uint32_t delay = msg->payload.reboot_orb.force_reboot_timeout_s;
+
+    if (delay != 0 && (delay > 60 || delay < 10)) {
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
+        LOG_ERR("Reboot with delay > 60s or < 10s: %u", delay);
+    } else {
+        int ret =
+            backup_regs_write_byte(REBOOT_FLAG_OFFSET_BYTE, REBOOT_INSTABOOT);
+        if (ret == 0) {
+            if (delay != 0) {
+                // force reboot after `delay` seconds,
+                // but a shutdown request from the Jetson is preferred
+                // (SHUTDOWN_REQ gpio)
+                ret = reboot(delay);
+            } else {
+                LOG_INF("waiting for reboot request from Jetson");
+            }
+
+            if (ret == 0) {
+#ifdef CONFIG_MEMFAULT
+                MEMFAULT_REBOOT_MARK_RESET_IMMINENT(
+                    kMfltRebootReason_JetsonRequestedRebootOrb);
+#endif
+                job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+                return;
+            }
+        }
+    }
+
+    // failure setting flag or initiating reboot
+    // reset flag
+    backup_regs_write_byte(REBOOT_FLAG_OFFSET_BYTE, 0);
+    job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
 }
 
 static void
@@ -1650,6 +1693,7 @@ static const hm_callback handle_message_callbacks[] = {
     [orb_mcu_main_JetsonToMcu_diag_test_tag] = handle_diag_test_data,
     [orb_mcu_main_JetsonToMcu_power_cycle_tag] = handle_power_cycle,
     [orb_mcu_main_JetsonToMcu_set_time_tag] = handle_set_time,
+    [orb_mcu_main_JetsonToMcu_reboot_orb_tag] = handle_reboot_orb,
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     [orb_mcu_main_JetsonToMcu_cone_leds_sequence_tag] =
         handle_cone_leds_sequence,
@@ -1666,7 +1710,7 @@ static const hm_callback handle_message_callbacks[] = {
 #endif
 };
 
-BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 51),
+BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 52),
              "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
