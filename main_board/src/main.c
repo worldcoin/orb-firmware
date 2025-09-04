@@ -20,6 +20,7 @@
 #include "voltage_measurement/voltage_measurement.h"
 #include <app_assert.h>
 #include <can_messaging.h>
+#include <date.h>
 #include <dfu.h>
 #include <optics/polarizer_wheel/polarizer_wheel.h>
 #include <orb_fatal.h>
@@ -367,6 +368,8 @@ main(void)
 {
     initialize();
     run_tests();
+
+    date_print();
 
     // print states and test results
 #ifdef DEBUG

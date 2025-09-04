@@ -1,0 +1,7 @@
+config ORB_LIB_DATE
+    bool "Date/clock library"
+    depends on RTC
+
+if ORB_LIB_DATE
+
+endif
