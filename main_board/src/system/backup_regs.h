@@ -5,5 +5,5 @@ enum backup_regs_offsets {
 };
 
 enum reboot_flags {
-    REBOOT_INSTABOOT = 0x1B, /* 27 - immediately (re)boot the orb */
+    REBOOT_INSTABOOT = 0xB0, /* 176 - immediately (re)boot the orb */
 };
