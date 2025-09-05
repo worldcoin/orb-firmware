@@ -330,7 +330,7 @@ publish(void *payload, size_t size, uint32_t which_payload,
             }
         } else {
             LOG_ERR("PB encoding failed: %s", stream.errmsg);
-            return RET_ERROR_INTERNAL;
+            err_code = RET_ERROR_INTERNAL;
         }
 
         k_sem_give(&pub_buffers_sem);
