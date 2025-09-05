@@ -784,7 +784,7 @@ app_init_state(void)
     //  -> boot jetson
     // otherwise:
     // -> nominal behaviour: wait for button press to boot
-    if (post_update || boot_orb || IS_ENABLED(CONFIG_INSTA_BOOT_AUTO_BOOT)) {
+    if (post_update || boot_orb || IS_ENABLED(CONFIG_INSTA_BOOT)) {
         LOG_INF_IMM("insta-boot: %d, post ota: %d, auto-boot: %d",
                     IS_ENABLED(CONFIG_INSTA_BOOT), post_update, boot_orb);
 
