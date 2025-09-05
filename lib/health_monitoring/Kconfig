@@ -6,3 +6,7 @@ config ORB_LIB_THREAD_STACK_SIZE_HEARTBEAT
     default 512
     help
         "Tweak depending on the heartbeat timeout handler"
+
+config ORB_LIB_SYS_INIT_STATE_PRIORITY
+    int "post-kernel init priority for orb state module"
+    default 50

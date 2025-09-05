@@ -86,6 +86,7 @@ diag_sync(uint32_t remote)
 
     struct orb_state_const_data *data = NULL;
     while (orb_state_iter(&data)) {
+        memset(&hw_state, 0, sizeof(hw_state));
         memccpy(hw_state.source_name, data->name, '\0',
                 sizeof(hw_state.source_name));
         hw_state.status = data->dynamic_data->status;
