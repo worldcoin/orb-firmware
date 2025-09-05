@@ -335,8 +335,8 @@ storage_push(char *record, size_t size)
 
     uint16_t rb_crc = crc16_ccitt(0xffff, record, size);
     if (header.crc16 != rb_crc) {
-        LOG_ERR("Invalid CRC16 read after record has been written");
         reset_area(storage_area.fa);
+        LOG_ERR("Invalid CRC16 read after record has been written");
 
         ret = RET_ERROR_INVALID_STATE;
         goto exit;
