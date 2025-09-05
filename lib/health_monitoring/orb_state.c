@@ -112,3 +112,19 @@ orb_state_set(struct orb_state_dynamic_data *data, const int state,
 
     return 0;
 }
+
+int
+orb_state_init(void)
+{
+    struct orb_state_const_data *data = NULL;
+    while (orb_state_iter(&data)) {
+        ((struct orb_state_dynamic_data *)data->dynamic_data)->status =
+            RET_ERROR_NOT_INITIALIZED;
+        memset(((struct orb_state_dynamic_data *)data->dynamic_data)->message,
+               0, ORB_STATE_MESSAGE_MAX_LENGTH);
+    }
+
+    return 0;
+}
+
+SYS_INIT(orb_state_init, POST_KERNEL, CONFIG_ORB_LIB_SYS_INIT_STATE_PRIORITY);
