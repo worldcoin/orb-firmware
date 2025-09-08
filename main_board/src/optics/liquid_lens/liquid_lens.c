@@ -1,5 +1,6 @@
 #include "liquid_lens.h"
 #include "orb_logs.h"
+#include "orb_state.h"
 #include "system/version/version.h"
 #include "voltage_measurement/voltage_measurement.h"
 #include <app_assert.h>
@@ -16,6 +17,7 @@
 #include <zephyr/sys_clock.h>
 
 LOG_MODULE_REGISTER(liquid_lens, CONFIG_LIQUID_LENS_LOG_LEVEL);
+ORB_STATE_REGISTER(liquid_lens);
 
 #define HR_TIMER (HRTIM_TypeDef *)HRTIM1_BASE
 
@@ -92,11 +94,14 @@ static const struct device *const adc_dev = DEVICE_DT_GET(DT_NODELABEL(adc3));
 static uint16_t adc_samples_buffer[ADC_CH_COUNT];
 static bool liquid_lens_enabled = false;
 
+static int
+self_test(void);
+
 ret_code_t
 liquid_set_target_current_ma(int32_t new_target_current_ma)
 {
 
-    int32_t clamped_target_current_ma =
+    const int32_t clamped_target_current_ma =
         CLAMP(new_target_current_ma, LIQUID_LENS_MIN_CURRENT_MA,
               LIQUID_LENS_MAX_CURRENT_MA);
 
@@ -235,7 +240,10 @@ liquid_lens_enable(void)
     LL_HRTIM_TIM_CounterEnable(HR_TIMER, LIQUID_LENS_TIM_POS_BRIDGE |
                                              LIQUID_LENS_TIM_NEG_BRIDGE);
     int ret = gpio_pin_set_dt(&liquid_lens_en, 1);
-    ASSERT_SOFT(ret);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return;
+    }
 
     liquid_lens_enabled = true;
 }
@@ -247,17 +255,28 @@ liquid_lens_disable(void)
         return;
     }
 
-    liquid_lens_enabled = false;
+    /* liquid lens is enabled, we can perform self-test */
+    int ret = self_test();
+    if (ret == RET_SUCCESS) {
+        ORB_STATE_SET_CURRENT(RET_SUCCESS);
+    } else {
+        ORB_STATE_SET_CURRENT(ret, "self-test failed");
+    }
 
     LOG_INF("Disabling liquid lens current");
-    int ret = gpio_pin_set_dt(&liquid_lens_en, 0);
-    ASSERT_SOFT(ret);
+    ret = gpio_pin_set_dt(&liquid_lens_en, 0);
+    if (ret != 0) {
+        ASSERT_SOFT(ret);
+        return;
+    }
 
     LL_HRTIM_TIM_CounterDisable(HR_TIMER, LIQUID_LENS_TIM_POS_BRIDGE |
                                               LIQUID_LENS_TIM_NEG_BRIDGE);
     LL_HRTIM_DisableOutput(
         HR_TIMER, LIQUID_LENS_TIM_LS2_OUTPUT | LIQUID_LENS_TIM_HS2_OUTPUT |
                       LIQUID_LENS_TIM_LS1_OUTPUT | LIQUID_LENS_TIM_HS1_OUTPUT);
+
+    liquid_lens_enabled = false;
 }
 
 bool
@@ -272,6 +291,8 @@ liquid_lens_init(const orb_mcu_Hardware *hw_version)
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     UNUSED_PARAMETER(hw_version);
 #endif
+
+    ORB_STATE_SET_CURRENT(RET_ERROR_NOT_INITIALIZED);
 
     const struct device *clk;
     clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
@@ -402,14 +423,76 @@ liquid_lens_init(const orb_mcu_Hardware *hw_version)
                         THREAD_PRIORITY_LIQUID_LENS, 0, K_NO_WAIT);
     k_thread_name_set(thread_id, "liquid_lens");
 
+    // perform self-test
+    {
+        liquid_lens_enable();
+
+        int ret = self_test();
+        if (ret == RET_SUCCESS) {
+            ORB_STATE_SET_CURRENT(RET_SUCCESS);
+        } else {
+            ORB_STATE_SET_CURRENT(ret, "self-test failed");
+        }
+
+        liquid_lens_disable();
+    }
+
     return RET_SUCCESS;
+}
+
+static int
+self_test(void)
+{
+    int ret = RET_ERROR_ASSERT_FAILS;
+
+    // reset to 0
+    (void)liquid_set_target_current_ma(0);
+#ifdef CONFIG_ZTEST
+    int32_t target;
+    target = atomic_get(&target_current_ma);
+    zassert_equal(target, 0, "liquid_lens: target_current_ma not set");
+#endif
+
+    k_msleep(10);
+    int8_t prev_pwm = control_output_pwm;
+
+    // check that PWM value changes with new target current
+    (void)liquid_set_target_current_ma(50);
+#ifdef CONFIG_ZTEST
+    target = atomic_get(&target_current_ma);
+    zassert_equal(target, 50, "liquid_lens: target_current_ma not set");
+#endif
+
+    k_msleep(10);
+
+#ifdef CONFIG_ZTEST
+    zassert_not_equal(control_output_pwm, prev_pwm,
+                      "liquid_lens: pwm didn't change even though "
+                      "target_current_ma increased from 0 to 50");
+#endif
+
+    if (control_output_pwm != prev_pwm) {
+        // check that PWM value is stable
+        prev_pwm = control_output_pwm;
+
+        k_msleep(10);
+#ifdef CONFIG_ZTEST
+        zassert_equal(control_output_pwm, prev_pwm,
+                      "liquid_lens: pwm didn't stabilize");
+#endif
+        if (control_output_pwm == prev_pwm) {
+            // pwm stabilized
+            ret = RET_SUCCESS;
+        }
+    }
+
+    return ret;
 }
 
 #ifdef CONFIG_ZTEST
 
 #include <zephyr/ztest.h>
 
-// Test CRC speed over entire secondary slot (external flash on Diamond)
 ZTEST(hil, test_liquid_lens)
 {
     int32_t target;
@@ -425,31 +508,10 @@ ZTEST(hil, test_liquid_lens)
     zassert_equal(target, -400,
                   "liquid_lens: target_current_ma not clamped to -400");
 
-    // reset to 0
-    liquid_set_target_current_ma(0);
-    target = atomic_get(&target_current_ma);
-    zassert_equal(target, 0, "liquid_lens: target_current_ma not set");
-
     liquid_lens_enable();
-    k_msleep(10);
-    int8_t prev_pwm = control_output_pwm;
 
-    // check that PWM value changes with new target current
-    liquid_set_target_current_ma(50);
-    target = atomic_get(&target_current_ma);
-    zassert_equal(target, 50, "liquid_lens: target_current_ma not set");
-
-    k_msleep(10);
-    zassert_not_equal(control_output_pwm, prev_pwm,
-                      "liquid_lens: pwm didn't change even though "
-                      "target_current_ma increased from 0 to 50");
-
-    // check that PWM value is stable
-    prev_pwm = control_output_pwm;
-
-    k_msleep(10);
-    zassert_equal(control_output_pwm, prev_pwm,
-                  "liquid_lens: pwm didn't stabilize");
+    const int ret = self_test();
+    zassert_equal(ret, RET_SUCCESS, "liquid_lens: self test failed");
 
     liquid_lens_disable();
 }
