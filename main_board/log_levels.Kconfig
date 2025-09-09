@@ -101,3 +101,7 @@ source "subsys/logging/Kconfig.template.log_config"
 module = POLARIZER
 module-str = POLARIZER
 source "subsys/logging/Kconfig.template.log_config"
+
+module = NFC
+module-str = NFC
+source "subsys/logging/Kconfig.template.log_config"
