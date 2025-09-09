@@ -1,6 +1,7 @@
 #include "operator_leds.h"
 #include "app_config.h"
 #include "orb_logs.h"
+#include "orb_state.h"
 #include "ui/rgb_leds/rgb_leds.h"
 #include <app_assert.h>
 #include <errors.h>

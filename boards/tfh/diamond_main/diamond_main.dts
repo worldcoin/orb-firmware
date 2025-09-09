@@ -98,6 +98,20 @@
             <&gpioe 2 GPIO_ACTIVE_HIGH /* 940nm center */ >,
             <&gpioe 5 GPIO_ACTIVE_HIGH /* 940nm side */ >;
 
+        /* bit-banged SPI to test RGB LED */
+        test-op-led-spi-clk-gpios = <&gpioe 12 GPIO_ACTIVE_HIGH>;
+        test-op-led-spi-mosi-gpios = <&gpioe 6 GPIO_ACTIVE_HIGH>;
+        /* mux for front (0) or operator RGB LED (1) */
+        test-op-led-mux-set-gpios = <&gpio_exp_pwr_brd_op 3 GPIO_ACTIVE_HIGH>;
+        test-op-led-mux-en-gpios = <&gpio_exp_pwr_brd_op 4 GPIO_ACTIVE_HIGH>;
+        /* test signals */
+        test-op-led-data-gpios = <&gpio_exp_pwr_brd_op 0 GPIO_ACTIVE_HIGH>;
+        test-op-led-clk-gpios = <&gpio_exp_pwr_brd_op 1 GPIO_ACTIVE_HIGH>;
+        test-user-leds-dout-high-gpios = <&gpio_exp_front_unit 12 GPIO_ACTIVE_HIGH>;
+        test-user-leds-dout-low-gpios = <&gpio_exp_front_unit 13 GPIO_ACTIVE_HIGH>;
+        test-user-leds-cout-high-gpios = <&gpio_exp_front_unit 14 GPIO_ACTIVE_HIGH>;
+        test-user-leds-cout-low-gpios = <&gpio_exp_front_unit 15 GPIO_ACTIVE_HIGH>;
+
         debug-led-gpios = <&gpiob 4 GPIO_ACTIVE_LOW>;
 
         usb-hub-reset-gpios = <&gpio_exp2 2 GPIO_ACTIVE_LOW>;
