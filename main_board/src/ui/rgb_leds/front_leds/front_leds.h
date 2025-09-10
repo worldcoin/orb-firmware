@@ -107,6 +107,14 @@ front_leds_set_brightness(uint32_t brightness);
 void
 front_leds_turn_off_blocking(void);
 
+/** Perform front led self-test
+ * by actuating the LEDs and looking at data & clock test signals that circling
+ * back from the led strip. The test lines should go back to normal after
+ * inactivity.
+ */
+int
+front_leds_self_test(void);
+
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 /**
  * Notifies that the IR leds are now off within their duty cycle
