@@ -2,8 +2,10 @@
 #include "app_config.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
 #include "orb_logs.h"
+#include "orb_state.h"
 #include "system/version/version.h"
 #include "ui/rgb_leds/rgb_leds.h"
+#include "zephyr/drivers/gpio.h"
 #include <app_assert.h>
 #include <math.h>
 #include <stdlib.h>
@@ -36,6 +38,8 @@ static const struct device *led_strip = led_strip_w;
 // an LED strip update until the next IR LED pulse
 #define LED_STRIP_MAXIMUM_UPDATE_TIME_US 10000
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+
+ORB_STATE_REGISTER(front_leds);
 
 // NOLINTNEXTLINE(cppcoreguidelines-interfaces-global-init)
 static const struct device *const led_strip_apa =
@@ -374,6 +378,111 @@ front_leds_thread()
             k_sem_give(&leds_update_sem);
         }
     }
+}
+
+int
+front_leds_self_test(void)
+{
+#ifndef CONFIG_BOARD_DIAMOND_MAIN
+    return 0;
+#else
+    static const struct gpio_dt_spec test_user_leds_dout_gpios[2] = {
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), test_user_leds_dout_low_gpios),
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), test_user_leds_dout_high_gpios),
+    };
+
+    static const struct gpio_dt_spec test_user_leds_cout_gpios[2] = {
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), test_user_leds_cout_low_gpios),
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), test_user_leds_cout_high_gpios),
+    };
+
+    size_t test_user_leds_dout_test_passed_count = 0;
+    size_t test_user_leds_cout_test_passed_count = 0;
+    const size_t test_count_pass_threshold = 2;
+
+    /* setup signals for internal testing */
+    int ret = gpio_pin_configure_dt(&test_user_leds_dout_gpios[0], GPIO_INPUT);
+    ASSERT_SOFT(ret);
+    ret = gpio_pin_configure_dt(&test_user_leds_dout_gpios[1], GPIO_INPUT);
+    ASSERT_SOFT(ret);
+    ret = gpio_pin_configure_dt(&test_user_leds_cout_gpios[0], GPIO_INPUT);
+    ASSERT_SOFT(ret);
+    ret = gpio_pin_configure_dt(&test_user_leds_cout_gpios[1], GPIO_INPUT);
+    ASSERT_SOFT(ret);
+
+    memset(leds.all, 0, sizeof(user_leds_t));
+
+    for (int i = 0; i < 100; ++i) {
+        if (k_sem_take(&leds_update_sem, K_MSEC(1)) == 0) {
+            led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+
+            if (test_user_leds_dout_test_passed_count <
+                test_count_pass_threshold) {
+                const int test_data_low =
+                    gpio_pin_get_dt(&test_user_leds_dout_gpios[0]);
+                const int test_data_high =
+                    gpio_pin_get_dt(&test_user_leds_dout_gpios[1]);
+                if (test_data_low == 0 && test_data_high == 1) {
+                    ++test_user_leds_dout_test_passed_count;
+                }
+            }
+
+            if (test_user_leds_cout_test_passed_count <
+                test_count_pass_threshold) {
+                const int test_clock_low =
+                    gpio_pin_get_dt(&test_user_leds_cout_gpios[0]);
+                const int test_clock_high =
+                    gpio_pin_get_dt(&test_user_leds_cout_gpios[1]);
+                if (test_clock_low == 0 && test_clock_high == 1) {
+                    ++test_user_leds_cout_test_passed_count;
+                }
+            }
+
+            if (test_user_leds_cout_test_passed_count >=
+                    test_count_pass_threshold &&
+                test_user_leds_dout_test_passed_count >=
+                    test_count_pass_threshold) {
+                // the test lines are seeing an active signal
+                // now let's test that it goes back to normal when
+                // rgb leds are left unanimated
+                // /!\ don't release the semaphore just yet, we need to make
+                // sure the led strip isn't used.
+                k_msleep(100);
+
+                const int test_clock_low =
+                    gpio_pin_get_dt(&test_user_leds_cout_gpios[0]);
+                const int test_clock_high =
+                    gpio_pin_get_dt(&test_user_leds_cout_gpios[1]);
+                const int test_data_low =
+                    gpio_pin_get_dt(&test_user_leds_dout_gpios[0]);
+                const int test_data_high =
+                    gpio_pin_get_dt(&test_user_leds_dout_gpios[1]);
+
+                if (test_clock_low == test_clock_high &&
+                    test_data_low == test_data_high) {
+                    ORB_STATE_SET_CURRENT(RET_SUCCESS, "front leds ok");
+                    LOG_INF("rgb leds test passed");
+                } else {
+                    ORB_STATE_SET_CURRENT(
+                        RET_SUCCESS, "ok, but dout/cout test signal stuck?");
+                    LOG_INF("rgb leds test passed but stuck; dout low %d, dout "
+                            "high %d, cout low %d, cout high %d",
+                            test_data_low, test_data_high, test_clock_low,
+                            test_clock_high);
+                }
+                k_sem_give(&leds_update_sem);
+                return 0;
+            }
+        }
+        k_sem_give(&leds_update_sem);
+        k_msleep(10);
+    }
+
+    ORB_STATE_SET_CURRENT(RET_ERROR_INVALID_STATE, "led strip cut?",
+                          test_user_leds_dout_test_passed_count,
+                          test_user_leds_cout_test_passed_count);
+    return RET_ERROR_INVALID_STATE;
+#endif
 }
 
 #ifdef CONFIG_FRONT_UNIT_RGB_LEDS_LOG_LEVEL_DBG
