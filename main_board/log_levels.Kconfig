@@ -62,6 +62,10 @@ module = IR_CAMERA_SYSTEM
 module-str = IR_CAMERA_SYSTEM
 source "subsys/logging/Kconfig.template.log_config"
 
+module = IR_LEDS_CHECKS
+module-str = IR_LEDS_CHECKS
+source "subsys/logging/Kconfig.template.log_config"
+
 module = FAN
 module-str = FAN
 source "subsys/logging/Kconfig.template.log_config"
