@@ -85,7 +85,6 @@ list(APPEND SOURCES_FILES
     src/optics/ir_camera_system/ir_camera_timer_settings.c
     src/optics/ir_camera_system/ir_camera_system_hw.c
     src/optics/ir_camera_system/ir_camera_system.c
-    src/optics/ir_camera_system/ir_leds_checks.c
     src/optics/liquid_lens/liquid_lens.c
     src/optics/mirror/mirror.c
     src/optics/mirror/mirror_private.c
@@ -131,13 +130,16 @@ endif()
 if (CONFIG_BOARD_PEARL_MAIN)
     list(APPEND SOURCES_FILES src/gnss/gnss.c)
     list(APPEND SOURCES_FILES src/optics/mirror/homing_pearl.c)
+    list(APPEND SOURCES_FILES src/optics/ir_camera_system/ir_leds_checks_pearl.c)
     list(APPEND SOURCES_FILES src/power/battery/battery_ruby.c)
+    list(APPEND SOURCES_FILES src/temperature/fan/fan_tach.c)
     list(APPEND SOURCES_FILES src/temperature/fan/fan_tach.c)
 endif()
 
 if (CONFIG_BOARD_DIAMOND_MAIN)
     list(APPEND SOURCES_FILES src/optics/mirror/homing_diamond.c)
     list(APPEND SOURCES_FILES src/power/battery/battery_amber.c)
+    list(APPEND SOURCES_FILES src/optics/ir_camera_system/ir_leds_checks_diamond.c)
     list(APPEND SOURCES_FILES src/optics/polarizer_wheel/drv8434s/drv8434s_private.c)
     list(APPEND SOURCES_FILES src/optics/polarizer_wheel/drv8434s/drv8434s.c)
     list(APPEND SOURCES_FILES src/optics/polarizer_wheel/polarizer_wheel.c)

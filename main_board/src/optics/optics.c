@@ -11,13 +11,58 @@
 #include <zephyr/drivers/gpio.h>
 
 LOG_MODULE_REGISTER(optics, CONFIG_OPTICS_LOG_LEVEL);
+ORB_STATE_REGISTER(pvcc);
 
 static struct k_mutex *i2c1_mutex = NULL;
 
-int
+static int
 ir_leds_safety_circuit_triggerd_internal(struct k_mutex *i2c1_mutex,
                                          const uint32_t timeout_ms,
-                                         bool *triggered);
+                                         bool *triggered)
+{
+    // pin allows us to check whether PVCC is enabled on the front unit
+    // PVCC might be disabled by hardware due to an intense usage of the IR LEDs
+    // that doesn't respect the eye safety constraints
+    static struct gpio_dt_spec front_unit_pvcc_enabled =
+        GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user),
+                                front_unit_pvcc_enabled_gpios, 0);
+
+    int ret;
+
+    /* protect i2c1 usage to check on pvcc from gpio expander with mutex */
+    {
+        if (i2c1_mutex == NULL) {
+            return RET_ERROR_INVALID_STATE;
+        }
+
+        if (k_mutex_lock(i2c1_mutex, K_MSEC(timeout_ms)) != 0) {
+            return RET_ERROR_BUSY;
+        }
+
+        ret = gpio_pin_get_dt(&front_unit_pvcc_enabled);
+
+        // unlock asap
+        k_mutex_unlock(i2c1_mutex);
+    }
+
+    if (ret < 0) {
+        ASSERT_SOFT(ret);
+        return ret;
+    }
+
+    const bool pvcc_enabled = (ret != 0);
+    // update status on state change
+    if (pvcc_enabled) {
+        ret = ORB_STATE_SET(pvcc, RET_SUCCESS, "ir leds usable");
+        ASSERT_SOFT(ret);
+    } else {
+        ret = ORB_STATE_SET(pvcc, RET_ERROR_OFFLINE, "ir leds unusable");
+        ASSERT_SOFT(ret);
+    }
+    *triggered = !pvcc_enabled;
+
+    return RET_SUCCESS;
+}
 
 int
 optics_safety_circuit_triggered(const uint32_t timeout_ms, bool *triggered)

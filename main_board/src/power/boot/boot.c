@@ -381,17 +381,17 @@ power_vbat_5v_3v3_supplies_on(void)
 
     ret = gpio_pin_set_dt(&supply_vbat_sw_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
-    LOG_INF("VBAT SW enabled");
+    LOG_DBG("VBAT SW enabled");
     k_msleep(20);
 
     ret = gpio_pin_set_dt(&supply_5v_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
-    LOG_INF("5V power supply enabled");
+    LOG_DBG("5V power supply enabled");
     k_msleep(20);
 
     ret = gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
-    LOG_INF("3.3V power supply enabled");
+    LOG_DBG("3.3V power supply enabled");
     k_msleep(20);
 }
 
@@ -399,15 +399,15 @@ void
 power_vbat_5v_3v3_supplies_off(void)
 {
     gpio_pin_set_dt(&supply_vbat_sw_enable_gpio_spec, 0);
-    LOG_INF("VBAT SW disabled");
+    LOG_DBG("VBAT SW disabled");
     k_msleep(20);
 
     gpio_pin_set_dt(&supply_5v_enable_gpio_spec, 0);
-    LOG_INF("5V power supply disabled");
+    LOG_DBG("5V power supply disabled");
     k_msleep(20);
 
     gpio_pin_set_dt(&supply_3v3_enable_gpio_spec, 0);
-    LOG_INF("3.3V power supply disabled");
+    LOG_DBG("3.3V power supply disabled");
 }
 
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
@@ -541,6 +541,7 @@ turn_on_power_supplies(void)
     // might be a duplicate call, but it's preferable to be sure that
     // these supplies are on
     power_vbat_5v_3v3_supplies_on();
+    LOG_INF("VBAT_SW, 5V, 3.3V enabled");
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     ret = gpio_pin_set_dt(&supply_12v_caps_enable_gpio_spec, 1);
@@ -1089,7 +1090,7 @@ int
 boot_turn_off_pvcc(void)
 {
     gpio_pin_set_dt(&supply_pvcc_enable_gpio_spec, 0);
-    LOG_INF("PVCC disabled");
+    LOG_DBG("PVCC disabled");
 
     return RET_SUCCESS;
 }
