@@ -3,12 +3,10 @@
 #endif
 #include "mcu.pb.h"
 #include "optics/optics.h"
-#include "orb_logs.h"
 #include "power/battery/battery.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "runner/runner.h"
-#include "system/diag.h"
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "temperature/fan/fan_tach.h"
@@ -18,7 +16,6 @@
 #include "ui/rgb_leds/front_leds/front_leds.h"
 #include "ui/sound/sound.h"
 #include "ui/ui.h"
-
 #include "voltage_measurement/voltage_measurement.h"
 #include <app_assert.h>
 #include <can_messaging.h>
@@ -31,7 +28,13 @@
 #include <storage.h>
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
+
+#if defined(CONFIG_ORB_LIB_LOGS_CAN)
+#include "logs_can.h"
+#endif
+
 #ifdef CONFIG_MEMFAULT
+#include "memfault/core/arch.h"
 #include <memfault/core/reboot_tracking.h>
 #endif
 
@@ -44,6 +47,7 @@
 #include "system/logs.h"
 #endif
 
+#include "orb_logs.h"
 LOG_MODULE_REGISTER(main, CONFIG_MAIN_LOG_LEVEL);
 
 static bool jetson_up_and_running = false;
@@ -72,22 +76,22 @@ ZTEST_SUITE(ir_camera, NULL, NULL, ir_camera_test_reset, ir_camera_test_reset,
 static void
 run_tests()
 {
-#if defined(CONFIG_ZTEST)
+    int ret;
+#if CONFIG_HIL_TESTS || (CONFIG_ZTEST && !CONFIG_ZTEST_SHELL)
     // Per default publishing of voltages is disabled
     // -> enable it for testing if voltage messages are published
     voltage_measurement_set_publish_period(1000);
 
     ztest_run_all(NULL, false, 1, 1);
     ztest_verify_all_test_suites_ran();
-#else
+#endif
     fan_tach_self_test();
 
-    int err_code = voltage_measurement_selftest();
-    ASSERT_SOFT(err_code);
+    ret = voltage_measurement_selftest();
+    ASSERT_SOFT(ret);
 
-    err_code = front_leds_self_test();
-    ASSERT_SOFT(err_code);
-#endif
+    ret = front_leds_self_test();
+    ASSERT_SOFT(ret);
 
 #if defined(CONFIG_ORB_LIB_ERRORS_TESTS)
     fatal_errors_trigger(FATAL_RANDOM);
@@ -203,6 +207,7 @@ send_reset_reason(void)
 __maybe_unused static void
 wait_jetson_up(void)
 {
+    LOG_INF("Waiting for messages from the Jetson...");
     // wait for Jetson to show activity before sending our version
     while (!jetson_up_and_running) {
         k_msleep(5000);
@@ -264,7 +269,7 @@ initialize(void)
     ASSERT_SOFT(err_code);
 
     // logs over CAN must be initialized after CAN-messaging module
-#if defined(CONFIG_ORB_LIB_LOGS_CAN) && !defined(CONFIG_ZTEST)
+#if defined(CONFIG_ORB_LIB_LOGS_CAN)
     err_code = logs_init(logs_can);
     ASSERT_SOFT(err_code);
 #endif
@@ -360,16 +365,13 @@ initialize(void)
     LOG_INF("🚀");
 }
 
-#ifdef CONFIG_ZTEST
-void
-test_main(void)
-{
-    initialize();
-    run_tests();
-}
-#else
+/* this is main()
+ * but because ztest defines its own `main`, we need
+ * to call it from `test_main` in case ztest is used,
+ * or our own `main` - see below
+ */
 int
-main(void)
+main_internal(void)
 {
     initialize();
     run_tests();
@@ -385,9 +387,15 @@ main(void)
     orb_state_dump(NULL);
 #endif
 
+#if !defined(CONFIG_NO_JETSON_BOOT) || !CONFIG_NO_JETSON_BOOT
     wait_jetson_up();
+#endif
 
-#if defined(DEBUG) && !defined(CONFIG_SHELL)
+    /*
+     * return early in case we are called from ztest or shell is activated
+     * otherwise, infinite loop to print orb state at regular interval
+     */
+#if CONFIG_DEBUG && !CONFIG_ZTEST && !CONFIG_SHELL
     while (true) {
         orb_state_dump(NULL);
         k_sleep(K_SECONDS(30));
@@ -395,5 +403,24 @@ main(void)
 #endif
 
     return 0;
+}
+
+#if CONFIG_ZTEST
+void
+test_main(void)
+{
+    (void)main_internal();
+}
+
+void
+user_main(void)
+{
+    (void)main_internal();
+}
+#else
+int
+main(void)
+{
+    return main_internal();
 }
 #endif

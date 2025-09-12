@@ -18,7 +18,7 @@ config ORB_LIB_THREAD_PRIORITY_CANBUS_MONITOR
 
 config ORB_LIB_THREAD_STACK_SIZE_CANBUS_MONITOR
     int "Stack size for CAN monitoring thread"
-    default 1500
+    default 1024
 
 config ORB_LIB_THREAD_PRIORITY_CANBUS_RX
     int "CAN bus RX thread priority"
@@ -26,7 +26,7 @@ config ORB_LIB_THREAD_PRIORITY_CANBUS_RX
 
 config ORB_LIB_THREAD_STACK_SIZE_CANBUS_RX
     int "Stack size for CAN RX thread"
-    default 3000
+    default 2048
 
 config ORB_LIB_THREAD_PRIORITY_CANBUS_TX
     int "CAN bus TX thread priority"
@@ -34,7 +34,7 @@ config ORB_LIB_THREAD_PRIORITY_CANBUS_TX
 
 config ORB_LIB_THREAD_STACK_SIZE_CANBUS_TX
     int "Stack size for CAN TX thread"
-    default 1536
+    default 1024
 
 config ORB_LIB_CANBUS_TX_QUEUE_SIZE
     int "CAN TX queue size"
@@ -42,7 +42,7 @@ config ORB_LIB_CANBUS_TX_QUEUE_SIZE
 
 config ORB_LIB_THREAD_STACK_SIZE_CANBUS_ISOTP_RX
     int "Stack size for CAN ISO-TP RX thread"
-    default 2048
+    default 1700
 
 config CAN_ISOTP_REMOTE_ID
     hex "4-bit ID used to build ISO-TP communication channel"

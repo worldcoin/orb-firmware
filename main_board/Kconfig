@@ -29,11 +29,23 @@ config DT_HAS_DIAMOND_CONE_ENABLED
 
 comment "Developer options"
 
+config HIL_TESTS
+    bool "Enable hardware-in-the-loop tests"
+    default n
+    select INSTA_BOOT
+    select NO_JETSON_BOOT
+    select APP_TESTS_ALL
+    help
+      Enable hardware-in-the-loop tests. This will enable a set of
+      integration tests that can be run with the HIL test setup.
+
 config INSTA_BOOT
     bool "Boot right away without waiting for a button press"
+    default n
 
 config NO_JETSON_BOOT
     bool "Do not boot the Jetson"
+    default n
 
 config NO_SUPER_CAPS
     bool "Do not turn on super capacitor charging"
