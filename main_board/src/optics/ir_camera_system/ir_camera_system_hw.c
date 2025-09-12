@@ -24,7 +24,7 @@
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/kernel.h>
 
-#if defined(CONFIG_ZTEST)
+#if CONFIG_ZTEST && !CONFIG_ZTEST_SHELL
 #include <zephyr/logging/log.h>
 #else
 #include "orb_logs.h"
@@ -351,9 +351,10 @@ evaluate_mirror_sweep_polynomials(uint32_t frame_no)
     return md;
 }
 
-#ifdef HIL_TEST
+#if CONFIG_ZTEST
+// semaphore to signal end of sweep in tests
 // keep non-static for tests
-K_SEM_DEFINE(camera_sweep_sem, 0, 1);
+K_SEM_DEFINE(camera_sweep_test_sem, 0, 1);
 #endif
 
 static void
@@ -370,8 +371,8 @@ camera_sweep_isr(void *arg)
                 LOG_DBG("Focus sweep complete!");
                 ir_camera_system_disable_ir_eye_camera_force();
                 clear_focus_sweep_in_progress();
-#ifdef HIL_TEST
-                k_sem_give(&camera_sweep_sem);
+#ifdef CONFIG_ZTEST
+                k_sem_give(&camera_sweep_test_sem);
 #endif
             } else {
                 if (use_focus_sweep_polynomial) {
@@ -388,8 +389,8 @@ camera_sweep_isr(void *arg)
                 LOG_DBG("Mirror sweep complete!");
                 ir_camera_system_disable_ir_eye_camera_force();
                 clear_mirror_sweep_in_progress();
-#ifdef HIL_TEST
-                k_sem_give(&camera_sweep_sem);
+#ifdef CONFIG_ZTEST
+                k_sem_give(&camera_sweep_test_sem);
 #endif
             } else {
                 struct mirror_delta md =

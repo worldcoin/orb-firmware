@@ -23,7 +23,7 @@ static void
 process_dfu_blocks_thread();
 
 #ifndef CONFIG_ZTEST
-// needs to be available for ztest
+// needs to be available externally for ztest, keep it static otherwise
 static int
 dfu_secondary_check(uint32_t crc32);
 #endif
