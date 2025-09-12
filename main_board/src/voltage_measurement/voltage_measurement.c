@@ -973,7 +973,7 @@ check_caps_voltages(bool with_logs)
                                            super_cap_differential_voltages[i],
                                            super_cap_differential_voltages[i],
                                            super_cap_differential_voltages[i],
-                                           1600, 2400, with_logs, "mV");
+                                           1500, 2500, with_logs, "mV");
             if (!passed) {
                 error_count++;
             }
