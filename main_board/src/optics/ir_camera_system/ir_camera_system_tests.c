@@ -639,15 +639,17 @@ ZTEST(ir_camera, test_ir_camera_ir_eye_camera_focus_sweep)
     msg.message.j_message.which_payload =
         orb_mcu_main_JetsonToMcu_perform_ir_eye_camera_focus_sweep_tag;
 
-    extern struct k_sem camera_sweep_sem;
+    extern struct k_sem camera_sweep_test_sem;
 
-    k_sem_reset(&camera_sweep_sem);
+    k_sem_reset(&camera_sweep_test_sem);
 
     send_msg(&msg);
 
-    int ret = k_sem_take(&camera_sweep_sem, K_MSEC(FOCUS_SWEEP_WAIT_TIME_MS));
+    int ret =
+        k_sem_take(&camera_sweep_test_sem, K_MSEC(FOCUS_SWEEP_WAIT_TIME_MS));
     zassert_ok(ret, "Timed out! Waited for %ums. Semaphore count: %u",
-               FOCUS_SWEEP_WAIT_TIME_MS, k_sem_count_get(&camera_sweep_sem));
+               FOCUS_SWEEP_WAIT_TIME_MS,
+               k_sem_count_get(&camera_sweep_test_sem));
     zassert_equal(ir_camera_system_get_status(), RET_SUCCESS);
 }
 
@@ -745,13 +747,14 @@ ZTEST(ir_camera, test_ir_camera_ir_eye_camera_mirror_sweep)
     msg.message.j_message.which_payload =
         orb_mcu_main_JetsonToMcu_perform_ir_eye_camera_mirror_sweep_tag;
 
-    extern struct k_sem camera_sweep_sem;
+    extern struct k_sem camera_sweep_test_sem;
 
-    k_sem_reset(&camera_sweep_sem);
+    k_sem_reset(&camera_sweep_test_sem);
 
     send_msg(&msg);
 
-    int ret = k_sem_take(&camera_sweep_sem, K_MSEC(MIRROR_SWEEP_WAIT_TIME_MS));
+    int ret =
+        k_sem_take(&camera_sweep_test_sem, K_MSEC(MIRROR_SWEEP_WAIT_TIME_MS));
     zassert_ok(ret, "Timed out! Waited for %ums", MIRROR_SWEEP_WAIT_TIME_MS);
     zassert_equal(ir_camera_system_get_status(), RET_SUCCESS);
 }

@@ -11,7 +11,7 @@
 //    printk will then forward them to the CAN bus (see `logs_init`)
 //  or
 // 3. to Zephyr's logging system
-#if defined(CONFIG_ORB_LIB_LOGS_CAN) && !defined(CONFIG_ZTEST)
+#if CONFIG_ORB_LIB_LOGS_CAN && !CONFIG_NO_JETSON_BOOT
 
 #include "logs_can.h"
 

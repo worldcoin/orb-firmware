@@ -91,6 +91,7 @@ list(APPEND SOURCES_FILES
 
     src/power/boot/boot.c
 
+    src/pubsub/pubsub.c
     src/runner/runner.c
 
     src/system/diag.c
@@ -115,6 +116,50 @@ list(APPEND SOURCES_FILES
     src/ui/sound/sound.c
     )
 
+if (CONFIG_BOARD_PEARL_MAIN)
+    list(APPEND SOURCES_FILES
+            src/gnss/gnss.c
+            src/optics/mirror/homing_pearl.c
+            src/optics/ir_camera_system/ir_leds_checks_pearl.c
+            src/power/battery/battery_ruby.c
+            src/temperature/fan/fan_tach.c
+            src/temperature/fan/fan_tach.c)
+endif()
+
+if (CONFIG_BOARD_DIAMOND_MAIN)
+    list(APPEND SOURCES_FILES
+        src/optics/mirror/homing_diamond.c
+        src/power/battery/battery_amber.c
+        src/optics/ir_camera_system/ir_leds_checks_diamond.c
+        src/optics/polarizer_wheel/drv8434s/drv8434s_private.c
+        src/optics/polarizer_wheel/drv8434s/drv8434s.c
+        src/optics/polarizer_wheel/polarizer_wheel.c
+        src/ui/white_leds/white_leds.c
+        src/temperature/fan/fan_tach_coarse.c
+    )
+    if (CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
+        list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds.c)
+    endif()
+endif()
+
+if (CONFIG_ZTEST)
+    list(APPEND SOURCES_FILES
+        src/voltage_measurement/voltage_measurement_tests.c
+        src/optics/ir_camera_system/ir_camera_system_tests.c
+        src/optics/mirror/mirror_tests.c
+        src/system/dfu/dfu_tests.c
+        src/temperature/fan/fan_tests.c
+        src/ui/rgb_leds/front_leds/front_leds_tests.c
+        )
+    if (CONFIG_NO_JETSON_BOOT)
+        list(REMOVE_ITEM SOURCES_FILES src/pubsub/pubsub.c)
+        list(APPEND SOURCES_FILES src/pubsub/pubsub_tests.c)
+    endif()
+    if (CONFIG_BOARD_DIAMOND_MAIN)
+        list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds_tests.c)
+    endif()
+endif ()
+
 if (CONFIG_SHELL)
     list(APPEND SOURCES_FILES src/cli/cli.c)
 endif ()
@@ -126,48 +171,6 @@ endif()
 if (CONFIG_MEMFAULT_METRICS)
     list(APPEND SOURCES_FILES src/system/metrics.c)
 endif()
-
-if (CONFIG_BOARD_PEARL_MAIN)
-    list(APPEND SOURCES_FILES src/gnss/gnss.c)
-    list(APPEND SOURCES_FILES src/optics/mirror/homing_pearl.c)
-    list(APPEND SOURCES_FILES src/optics/ir_camera_system/ir_leds_checks_pearl.c)
-    list(APPEND SOURCES_FILES src/power/battery/battery_ruby.c)
-    list(APPEND SOURCES_FILES src/temperature/fan/fan_tach.c)
-    list(APPEND SOURCES_FILES src/temperature/fan/fan_tach.c)
-endif()
-
-if (CONFIG_BOARD_DIAMOND_MAIN)
-    list(APPEND SOURCES_FILES src/optics/mirror/homing_diamond.c)
-    list(APPEND SOURCES_FILES src/power/battery/battery_amber.c)
-    list(APPEND SOURCES_FILES src/optics/ir_camera_system/ir_leds_checks_diamond.c)
-    list(APPEND SOURCES_FILES src/optics/polarizer_wheel/drv8434s/drv8434s_private.c)
-    list(APPEND SOURCES_FILES src/optics/polarizer_wheel/drv8434s/drv8434s.c)
-    list(APPEND SOURCES_FILES src/optics/polarizer_wheel/polarizer_wheel.c)
-    if (CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
-        list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds.c)
-    endif()
-    list(APPEND SOURCES_FILES src/ui/white_leds/white_leds.c)
-    list(APPEND SOURCES_FILES src/temperature/fan/fan_tach_coarse.c)
-endif()
-
-if (CONFIG_ZTEST)
-    add_compile_definitions(HIL_TEST=y)
-    list(APPEND SOURCES_FILES
-        src/voltage_measurement/voltage_measurement_tests.c
-        src/optics/ir_camera_system/ir_camera_system_tests.c
-        src/optics/mirror/mirror_tests.c
-        src/system/dfu/dfu_tests.c
-        src/temperature/fan/fan_tests.c
-        src/ui/rgb_leds/front_leds/front_leds_tests.c
-        src/pubsub/pubsub_tests.c
-        )
-    if (CONFIG_BOARD_DIAMOND_MAIN)
-        list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds_tests.c)
-    endif()
-else ()
-    list(APPEND SOURCES_FILES
-        src/pubsub/pubsub.c)
-endif ()
 
 set(INCLUDE_DIRS
     include

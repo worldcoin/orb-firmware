@@ -50,9 +50,9 @@ Make sure you are in `"$WEST_TOPDIR"/orb/main_board` directory. Compile the app:
 ```shell
 # 'west build' defaults to pearl_main and Debug build
 # overlays might be applied to change any device or configuration
-# below the partition table with `one_slot.overlay` and the test configuration with `tests.conf`
+# below the partition table with `one_slot.overlay` and the test configuration with `release.conf`
 # can be combined
-west build [-b pearl_main | diamond_main] [-- -DCMAKE_BUILD_TYPE="Release" -DDTC_OVERLAY_FILE="one_slot.overlay" -DOVERLAY_CONFIG="tests.conf"]
+west build [-b pearl_main | diamond_main] [-- -DCMAKE_BUILD_TYPE="Release" -DDTC_OVERLAY_FILE="one_slot.overlay" -DOVERLAY_CONFIG="release.conf"]
 ```
 
 Flash the app:
@@ -91,7 +91,7 @@ Use `west build -DCONFIG_<option>=y` to use any of these convenience build optio
 
 #### Integration / HIL Tests
 
-Use `west build -p -- -DOVERLAY_CONFIG="tests.conf"` to build the test firmware. This configuration uses
+Use `west build -p -- -DOVERLAY_CONFIG="release.conf"` to build the test firmware. This configuration uses
 ZTest to perform tests from the running application. The configuration doesn't wait for someone to press the button
 and doesn't boot the Jetson (`INSTA_BOOT` & `NO_JETSON_BOOT`, see above).
 
