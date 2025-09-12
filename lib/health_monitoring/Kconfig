@@ -9,4 +9,4 @@ config ORB_LIB_THREAD_STACK_SIZE_HEARTBEAT
 
 config ORB_LIB_SYS_INIT_STATE_PRIORITY
     int "post-kernel init priority for orb state module"
-    default 50
+    default 40

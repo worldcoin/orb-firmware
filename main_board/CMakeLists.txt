@@ -112,6 +112,7 @@ list(APPEND SOURCES_FILES
     src/ui/rgb_leds/rgb_leds.c
     src/ui/rgb_leds/front_leds/front_leds.c
     src/ui/rgb_leds/operator_leds/operator_leds.c
+    src/ui/rgb_leds/operator_leds/operator_leds_tests.c
     src/ui/sound/sound.c
     )
 
@@ -156,7 +157,6 @@ if (CONFIG_ZTEST)
         src/system/dfu/dfu_tests.c
         src/temperature/fan/fan_tests.c
         src/ui/rgb_leds/front_leds/front_leds_tests.c
-        src/ui/rgb_leds/operator_leds/operator_leds_tests.c
         src/pubsub/pubsub_tests.c
         )
     if (CONFIG_BOARD_DIAMOND_MAIN)
