@@ -16,6 +16,7 @@
 LOG_MODULE_REGISTER(ir_leds_checks, CONFIG_IR_LEDS_CHECKS_LOG_LEVEL);
 ORB_STATE_REGISTER(ir_safety);
 
+#define SAFETY_TRIGGER_TIMEOUT_MS 100
 int
 optics_self_test(void)
 {
@@ -60,6 +61,8 @@ eye_safety_self_test(void)
         power_vbat_5v_3v3_supplies_on();
         boot_turn_off_pvcc();
 
+        k_msleep(20);
+
         const struct device *i2c1 = DEVICE_DT_GET(DT_NODELABEL(i2c1));
         ret = device_init(i2c1);
         if (ret) {
@@ -70,7 +73,10 @@ eye_safety_self_test(void)
         const struct device *pca95xx_dev =
             DEVICE_DT_GET(DT_NODELABEL(gpio_exp_front_unit));
         ret = device_init(pca95xx_dev);
-        ASSERT_SOFT(ret);
+        if (ret) {
+            LOG_ERR("Failed to initialize PCA95xx device: %d", ret);
+            return ret;
+        }
 
         // turn on IR LED subsets one by one, by driving GPIO pins, to check
         // that all lines are making the eye safety circuitry trip
@@ -85,22 +91,22 @@ eye_safety_self_test(void)
             pvcc_available = (ret != 0);
         }
         if (pvcc_available) {
-            gpio_pin_configure_dt(&ir_leds_gpios[i], GPIO_OUTPUT);
-            gpio_pin_set_dt(&ir_leds_gpios[i], 1);
-            k_msleep(250);
-            gpio_pin_set_dt(&ir_leds_gpios[i], 0);
-            k_msleep(250);
+            ret = gpio_pin_configure_dt(&ir_leds_gpios[i], GPIO_OUTPUT_ACTIVE);
+            ASSERT_SOFT(ret);
 
-            bool pvcc_available = true;
-            ret = gpio_pin_get_dt(&front_unit_pvcc_enabled);
-            if (ret < 0) {
-                ASSERT_SOFT(ret);
-            } else {
-                pvcc_available = (ret != 0);
+            uint32_t tick = k_uptime_get_32();
+
+            size_t timeout = SAFETY_TRIGGER_TIMEOUT_MS;
+            while (gpio_pin_get_dt(&front_unit_pvcc_enabled) != 0 &&
+                   timeout--) {
+                k_msleep(1);
             }
-            if (pvcc_available) {
-                // eye safety circuitry doesn't respond to self test
-                LOG_ERR("%s didn't disable PVCC via eye safety circuitry",
+
+            uint32_t tock_delta = k_uptime_get_32() - tick;
+            LOG_DBG("%s disabled pvcc through safety circuitry after %u ms",
+                    ir_leds_names[i], tock_delta);
+            if (tock_delta >= SAFETY_TRIGGER_TIMEOUT_MS) {
+                LOG_ERR("%s didn't trip safety circuitry in time",
                         ir_leds_names[i]);
                 self_test_status =
                     orb_mcu_HardwareDiagnostic_Status_STATUS_SAFETY_ISSUE;
@@ -109,6 +115,9 @@ eye_safety_self_test(void)
             } else {
                 LOG_DBG("%s tripped safety circuitry", ir_leds_names[i]);
             }
+
+            ret = gpio_pin_set_dt(&ir_leds_gpios[i], 0);
+            ASSERT_SOFT(ret);
         } else {
             self_test_status =
                 orb_mcu_HardwareDiagnostic_Status_STATUS_SAFETY_ISSUE;
@@ -117,7 +126,7 @@ eye_safety_self_test(void)
 
         // reset eye safety circuitry
         power_vbat_5v_3v3_supplies_off();
-        k_msleep(200);
+        k_msleep(400);
     }
 
     if (self_test_status == orb_mcu_HardwareDiagnostic_Status_STATUS_OK) {
