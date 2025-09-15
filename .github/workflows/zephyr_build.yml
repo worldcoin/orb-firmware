@@ -33,7 +33,18 @@ jobs:
           west update --narrow --fetch-opt=--depth=1
       - name: Generate temporary signing keys locally
         run: cd ${{ github.job }}/orb/utils/ota/ && ./generate_dev_keys
-      - name: Build app
+      - name: Build app (Debug)
+        run: |
+          cd ${{ github.job }}
+          PROJ_DIR=$(dirname $(west manifest --path))
+          OVERLAY_FILE=$([ "${BOARD}" = "pearl_main" ] && echo "one_slot.overlay" || echo "")
+          west build ${APP_PATH} -d ${APP_PATH}/build -b ${BOARD} -p -- \
+          -DCMAKE_BUILD_TYPE="Debug" \
+          -DEXTRA_COMPILE_FLAGS=-Werror \
+          -DCONFIG_MCUBOOT_BOOTLOADER_MODE_SINGLE_APP=y \
+          -DDTC_OVERLAY_FILE=${OVERLAY_FILE}
+          rm -rf ${APP_PATH}/build
+      - name: Build app (release)
         run: |
           cd ${{ github.job }}
           PROJ_DIR=$(dirname $(west manifest --path))
