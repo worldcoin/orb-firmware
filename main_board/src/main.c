@@ -82,10 +82,11 @@ run_tests()
 #else
     fan_tach_self_test();
 
-    const int err_code = voltage_measurement_selftest();
+    int err_code = voltage_measurement_selftest();
     ASSERT_SOFT(err_code);
 
-    front_leds_self_test();
+    err_code = front_leds_self_test();
+    ASSERT_SOFT(err_code);
 #endif
 
 #if defined(CONFIG_ORB_LIB_ERRORS_TESTS)

@@ -140,7 +140,7 @@ set_center(struct led_rgb color)
 static void
 set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
 {
-    ASSERT_HARD_BOOL(start_angle <= FULL_RING_DEGREES);
+    ASSERT_HARD_BOOL(start_angle < FULL_RING_DEGREES);
     ASSERT_HARD_BOOL(angle_length <= FULL_RING_DEGREES &&
                      angle_length >= -FULL_RING_DEGREES);
 
@@ -410,11 +410,17 @@ front_leds_self_test(void)
     ret = gpio_pin_configure_dt(&test_user_leds_cout_gpios[1], GPIO_INPUT);
     ASSERT_SOFT(ret);
 
-    memset(leds.all, 0, sizeof(user_leds_t));
-
     for (int i = 0; i < 100; ++i) {
         if (k_sem_take(&leds_update_sem, K_MSEC(1)) == 0) {
-            led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+            memset(leds.all, 0, sizeof leds.all);
+            ret =
+                led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+            if (ret != 0) {
+                ORB_STATE_SET_CURRENT(RET_ERROR_INVALID_STATE,
+                                      "led strip update err %d", ret);
+                k_sem_give(&leds_update_sem);
+                return RET_ERROR_INVALID_STATE;
+            }
 
             if (test_user_leds_dout_test_passed_count <
                 test_count_pass_threshold) {
@@ -471,10 +477,10 @@ front_leds_self_test(void)
                             test_clock_high);
                 }
                 k_sem_give(&leds_update_sem);
-                return 0;
+                return RET_SUCCESS;
             }
+            k_sem_give(&leds_update_sem);
         }
-        k_sem_give(&leds_update_sem);
         k_msleep(10);
     }
 
@@ -512,6 +518,10 @@ print_new_debug(orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern,
 static ret_code_t
 pulsing_rgb_check_range(orb_mcu_main_RgbColor *color, float pulsing_scale)
 {
+    if (color == NULL) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
     if ((lroundf((float)color->red * (pulsing_scale + 1)) > 255) ||
         (lroundf((float)color->green * (pulsing_scale + 1)) > 255) ||
         (lroundf((float)color->blue * (pulsing_scale + 1)) > 255)) {
@@ -606,6 +616,7 @@ front_leds_is_shroud_on(void)
             }
         }
     } else {
+        /* default to pessimistic value */
         return true;
     }
 
@@ -622,7 +633,7 @@ front_leds_set_pattern(orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern,
                        float pulsing_scale)
 {
     if (pattern == orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_PULSING_RGB) {
-        ret_code_t ret = pulsing_rgb_check_range(color, pulsing_scale);
+        const ret_code_t ret = pulsing_rgb_check_range(color, pulsing_scale);
         if (ret != RET_SUCCESS) {
             return RET_ERROR_INVALID_PARAM;
         }
