@@ -2,8 +2,10 @@
 #include "app_config.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
 #include "orb_logs.h"
+#include "orb_state.h"
 #include "system/version/version.h"
 #include "ui/rgb_leds/rgb_leds.h"
+#include "zephyr/drivers/gpio.h"
 #include <app_assert.h>
 #include <math.h>
 #include <stdlib.h>
@@ -36,6 +38,8 @@ static const struct device *led_strip = led_strip_w;
 // an LED strip update until the next IR LED pulse
 #define LED_STRIP_MAXIMUM_UPDATE_TIME_US 10000
 #elif defined(CONFIG_BOARD_DIAMOND_MAIN)
+
+ORB_STATE_REGISTER(front_leds);
 
 // NOLINTNEXTLINE(cppcoreguidelines-interfaces-global-init)
 static const struct device *const led_strip_apa =
@@ -136,7 +140,7 @@ set_center(struct led_rgb color)
 static void
 set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
 {
-    ASSERT_HARD_BOOL(start_angle <= FULL_RING_DEGREES);
+    ASSERT_HARD_BOOL(start_angle < FULL_RING_DEGREES);
     ASSERT_HARD_BOOL(angle_length <= FULL_RING_DEGREES &&
                      angle_length >= -FULL_RING_DEGREES);
 
@@ -376,6 +380,117 @@ front_leds_thread()
     }
 }
 
+int
+front_leds_self_test(void)
+{
+#ifndef CONFIG_BOARD_DIAMOND_MAIN
+    return 0;
+#else
+    static const struct gpio_dt_spec test_user_leds_dout_gpios[2] = {
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), test_user_leds_dout_low_gpios),
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), test_user_leds_dout_high_gpios),
+    };
+
+    static const struct gpio_dt_spec test_user_leds_cout_gpios[2] = {
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), test_user_leds_cout_low_gpios),
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), test_user_leds_cout_high_gpios),
+    };
+
+    size_t test_user_leds_dout_test_passed_count = 0;
+    size_t test_user_leds_cout_test_passed_count = 0;
+    const size_t test_count_pass_threshold = 2;
+
+    /* setup signals for internal testing */
+    int ret = gpio_pin_configure_dt(&test_user_leds_dout_gpios[0], GPIO_INPUT);
+    ASSERT_SOFT(ret);
+    ret = gpio_pin_configure_dt(&test_user_leds_dout_gpios[1], GPIO_INPUT);
+    ASSERT_SOFT(ret);
+    ret = gpio_pin_configure_dt(&test_user_leds_cout_gpios[0], GPIO_INPUT);
+    ASSERT_SOFT(ret);
+    ret = gpio_pin_configure_dt(&test_user_leds_cout_gpios[1], GPIO_INPUT);
+    ASSERT_SOFT(ret);
+
+    for (int i = 0; i < 100; ++i) {
+        if (k_sem_take(&leds_update_sem, K_MSEC(1)) == 0) {
+            memset(leds.all, 0, sizeof leds.all);
+            ret =
+                led_strip_update_rgb(led_strip, leds.all, ARRAY_SIZE(leds.all));
+            if (ret != 0) {
+                ORB_STATE_SET_CURRENT(RET_ERROR_INVALID_STATE,
+                                      "led strip update err %d", ret);
+                k_sem_give(&leds_update_sem);
+                return RET_ERROR_INVALID_STATE;
+            }
+
+            if (test_user_leds_dout_test_passed_count <
+                test_count_pass_threshold) {
+                const int test_data_low =
+                    gpio_pin_get_dt(&test_user_leds_dout_gpios[0]);
+                const int test_data_high =
+                    gpio_pin_get_dt(&test_user_leds_dout_gpios[1]);
+                if (test_data_low == 0 && test_data_high == 1) {
+                    ++test_user_leds_dout_test_passed_count;
+                }
+            }
+
+            if (test_user_leds_cout_test_passed_count <
+                test_count_pass_threshold) {
+                const int test_clock_low =
+                    gpio_pin_get_dt(&test_user_leds_cout_gpios[0]);
+                const int test_clock_high =
+                    gpio_pin_get_dt(&test_user_leds_cout_gpios[1]);
+                if (test_clock_low == 0 && test_clock_high == 1) {
+                    ++test_user_leds_cout_test_passed_count;
+                }
+            }
+
+            if (test_user_leds_cout_test_passed_count >=
+                    test_count_pass_threshold &&
+                test_user_leds_dout_test_passed_count >=
+                    test_count_pass_threshold) {
+                // the test lines are seeing an active signal
+                // now let's test that it goes back to normal when
+                // rgb leds are left unanimated
+                // /!\ don't release the semaphore just yet, we need to make
+                // sure the led strip isn't used.
+                k_msleep(100);
+
+                const int test_clock_low =
+                    gpio_pin_get_dt(&test_user_leds_cout_gpios[0]);
+                const int test_clock_high =
+                    gpio_pin_get_dt(&test_user_leds_cout_gpios[1]);
+                const int test_data_low =
+                    gpio_pin_get_dt(&test_user_leds_dout_gpios[0]);
+                const int test_data_high =
+                    gpio_pin_get_dt(&test_user_leds_dout_gpios[1]);
+
+                if (test_clock_low == test_clock_high &&
+                    test_data_low == test_data_high) {
+                    ORB_STATE_SET_CURRENT(RET_SUCCESS, "front leds ok");
+                    LOG_INF("rgb leds test passed");
+                } else {
+                    ORB_STATE_SET_CURRENT(
+                        RET_SUCCESS, "ok, but dout/cout test signal stuck?");
+                    LOG_INF("rgb leds test passed but stuck; dout low %d, dout "
+                            "high %d, cout low %d, cout high %d",
+                            test_data_low, test_data_high, test_clock_low,
+                            test_clock_high);
+                }
+                k_sem_give(&leds_update_sem);
+                return RET_SUCCESS;
+            }
+            k_sem_give(&leds_update_sem);
+        }
+        k_msleep(10);
+    }
+
+    ORB_STATE_SET_CURRENT(RET_ERROR_INVALID_STATE, "led strip cut?",
+                          test_user_leds_dout_test_passed_count,
+                          test_user_leds_cout_test_passed_count);
+    return RET_ERROR_INVALID_STATE;
+#endif
+}
+
 #ifdef CONFIG_FRONT_UNIT_RGB_LEDS_LOG_LEVEL_DBG
 static void
 print_new_debug(orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern,
@@ -403,6 +518,10 @@ print_new_debug(orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern,
 static ret_code_t
 pulsing_rgb_check_range(orb_mcu_main_RgbColor *color, float pulsing_scale)
 {
+    if (color == NULL) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
     if ((lroundf((float)color->red * (pulsing_scale + 1)) > 255) ||
         (lroundf((float)color->green * (pulsing_scale + 1)) > 255) ||
         (lroundf((float)color->blue * (pulsing_scale + 1)) > 255)) {
@@ -497,6 +616,7 @@ front_leds_is_shroud_on(void)
             }
         }
     } else {
+        /* default to pessimistic value */
         return true;
     }
 
@@ -513,7 +633,7 @@ front_leds_set_pattern(orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern,
                        float pulsing_scale)
 {
     if (pattern == orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_PULSING_RGB) {
-        ret_code_t ret = pulsing_rgb_check_range(color, pulsing_scale);
+        const ret_code_t ret = pulsing_rgb_check_range(color, pulsing_scale);
         if (ret != RET_SUCCESS) {
             return RET_ERROR_INVALID_PARAM;
         }

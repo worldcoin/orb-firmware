@@ -15,8 +15,10 @@
 #include "temperature/sensors/temperature.h"
 #include "ui/ambient_light/als.h"
 #include "ui/button/button.h"
+#include "ui/rgb_leds/front_leds/front_leds.h"
 #include "ui/sound/sound.h"
 #include "ui/ui.h"
+
 #include "voltage_measurement/voltage_measurement.h"
 #include <app_assert.h>
 #include <can_messaging.h>
@@ -80,7 +82,10 @@ run_tests()
 #else
     fan_tach_self_test();
 
-    const int err_code = voltage_measurement_selftest();
+    int err_code = voltage_measurement_selftest();
+    ASSERT_SOFT(err_code);
+
+    err_code = front_leds_self_test();
     ASSERT_SOFT(err_code);
 #endif
 
