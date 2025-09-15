@@ -93,10 +93,11 @@
         pvcc-voltage-gpios = <&gpioc 1 GPIO_ACTIVE_HIGH>;
 
         tests-ir-leds-850-940-gpios =
-            <&gpiof 9 GPIO_ACTIVE_HIGH /* 850nm left */ >,
-            <&gpiof 10 GPIO_ACTIVE_HIGH /* 850nm right */ >,
-            <&gpioe 2 GPIO_ACTIVE_HIGH /* 940nm center */ >,
-            <&gpioe 5 GPIO_ACTIVE_HIGH /* 940nm side */ >;
+            <&gpiof 9 GPIO_ACTIVE_HIGH /* 850nm center */ >,
+            <&gpiof 10 GPIO_ACTIVE_HIGH /* 850nm side */ >,
+            <&gpioe 2 GPIO_ACTIVE_HIGH /* 940nm left */ >,
+            <&gpioe 5 GPIO_ACTIVE_HIGH /* 940nm right */ >,
+            <&gpiob 0 GPIO_ACTIVE_HIGH /* 940nm single */ >;
 
         /* bit-banged SPI to test RGB LED */
         test-op-led-spi-clk-gpios = <&gpioe 12 GPIO_ACTIVE_HIGH>;

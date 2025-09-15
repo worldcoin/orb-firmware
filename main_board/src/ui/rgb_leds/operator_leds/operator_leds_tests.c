@@ -24,7 +24,7 @@ operator_leds_self_test(void)
     ret = gpio_pin_configure_dt(&supply_5v_rgb_enable_gpio_spec,
                                 GPIO_OUTPUT_HIGH);
     ASSERT_SOFT(ret);
-    k_msleep(100);
+    k_msleep(20);
 
     /* bitbang to LED */
     static const struct gpio_dt_spec op_led_spi_mux_set_spec =
@@ -131,6 +131,7 @@ operator_leds_self_test(void)
     ASSERT_SOFT(ret);
 
     power_vbat_5v_3v3_supplies_off();
+    k_msleep(400); // delay to ensure the next processes have supplies off
 
     if (test_toggled_count) {
         LOG_INF("op leds ok (%zu)", test_toggled_count);
