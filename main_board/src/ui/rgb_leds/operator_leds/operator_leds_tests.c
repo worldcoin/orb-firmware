@@ -9,6 +9,7 @@ LOG_MODULE_REGISTER(operator_leds_test);
 #include "orb_state.h"
 #include "power/boot/boot.h"
 #include "zephyr/drivers/gpio.h"
+#include <zephyr/kernel.h>
 
 ORB_STATE_REGISTER(button_led);
 
@@ -39,7 +40,7 @@ operator_leds_self_test(void)
     static const struct gpio_dt_spec test_op_led_data_spec =
         GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), test_op_led_data_gpios);
     static const struct gpio_dt_spec test_op_led_clk_spec =
-        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), test_op_led_data_gpios);
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), test_op_led_clk_gpios);
 
     ret = gpio_pin_configure_dt(&op_led_spi_mux_set_spec, GPIO_OUTPUT_HIGH);
     ASSERT_SOFT(ret);
@@ -71,6 +72,11 @@ operator_leds_self_test(void)
 
     // send 4 leds values so that signal is forwarded to test pins
     int test_data = gpio_pin_get_dt(&test_op_led_data_spec);
+    if (test_data < 0) {
+        ASSERT_SOFT(test_data);
+        ORB_STATE_SET_CURRENT(RET_ERROR_INVALID_STATE, "test failed");
+        return RET_ERROR_INVALID_STATE;
+    }
     size_t test_toggled_count = 0;
     uint8_t led_array[4] = {0xE1, 0xE1, 0xE1, 0xE1};
     for (int led_count = 0; led_count < 4; ++led_count) {
@@ -78,6 +84,7 @@ operator_leds_self_test(void)
             for (int j = 0; j < 8; ++j) {
                 ret = gpio_pin_set_dt(&op_led_spi_mosi_spec,
                                       (led_array[i] & (1 << (7 - j))) ? 1 : 0);
+                ASSERT_SOFT(ret);
                 k_usleep(5);
 
                 ret = gpio_pin_set_dt(&op_led_spi_clk_spec, 1);
@@ -126,8 +133,8 @@ operator_leds_self_test(void)
     power_vbat_5v_3v3_supplies_off();
 
     if (test_toggled_count) {
-        LOG_INF("op leds ok (%u)", test_toggled_count);
-        ORB_STATE_SET_CURRENT(RET_SUCCESS, "op leds ok (%lu)",
+        LOG_INF("op leds ok (%zu)", test_toggled_count);
+        ORB_STATE_SET_CURRENT(RET_SUCCESS, "op leds ok (%zu)",
                               test_toggled_count);
     } else {
         LOG_INF("op leds disconnected?");
@@ -146,7 +153,6 @@ BUILD_ASSERT(CONFIG_GPIO_PCA95XX_INIT_PRIORITY <=
 
 #if CONFIG_ZTEST
 
-#include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
 #define RGB_ORANGE_TEST                                                        \
