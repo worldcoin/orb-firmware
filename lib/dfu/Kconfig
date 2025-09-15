@@ -9,6 +9,6 @@ config ORB_LIB_THREAD_PRIORITY_DFU
 
 config ORB_LIB_THREAD_STACK_SIZE_DFU
     int "Stack size for block processing thread"
-    default 1024
+    default 1500
 
 endif
