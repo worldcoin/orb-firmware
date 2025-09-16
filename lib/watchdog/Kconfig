@@ -23,7 +23,7 @@ config ORB_LIB_THREAD_PRIORITY_WATCHDOG
 
 config ORB_LIB_THREAD_STACK_SIZE_WATCHDOG
     int "Stack size for the watchdog thread"
-    default 512
+    default 256
 
 config ORB_LIB_WATCHDOG_TIMEOUT_MS
 	int "Watchdog timeout"

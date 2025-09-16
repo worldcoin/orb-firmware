@@ -16,6 +16,10 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys_clock.h>
 
+#if CONFIG_ZTEST
+#include <zephyr/ztest.h>
+#endif
+
 LOG_MODULE_REGISTER(liquid_lens, CONFIG_LIQUID_LENS_LOG_LEVEL);
 ORB_STATE_REGISTER(liquid_lens);
 
@@ -478,7 +482,8 @@ self_test(void)
         k_msleep(10);
 #ifdef CONFIG_ZTEST
         zassert_equal(control_output_pwm, prev_pwm,
-                      "liquid_lens: pwm didn't stabilize");
+                      "liquid_lens: pwm didn't stabilize: %d -> %d", prev_pwm,
+                      control_output_pwm);
 #endif
         if (control_output_pwm == prev_pwm) {
             // pwm stabilized
@@ -490,8 +495,6 @@ self_test(void)
 }
 
 #ifdef CONFIG_ZTEST
-
-#include <zephyr/ztest.h>
 
 ZTEST(hil, test_liquid_lens)
 {

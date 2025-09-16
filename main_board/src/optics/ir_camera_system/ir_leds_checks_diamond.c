@@ -17,6 +17,7 @@ LOG_MODULE_REGISTER(ir_leds_checks, CONFIG_IR_LEDS_CHECKS_LOG_LEVEL);
 ORB_STATE_REGISTER(ir_safety);
 
 #define SAFETY_TRIGGER_TIMEOUT_MS 100
+
 int
 optics_self_test(void)
 {

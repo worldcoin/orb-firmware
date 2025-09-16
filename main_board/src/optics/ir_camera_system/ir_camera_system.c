@@ -29,7 +29,7 @@ optics_safety_circuit_triggered(const uint32_t timeout_ms, bool *triggered)
 }
 #endif
 
-#if defined(CONFIG_ZTEST)
+#if CONFIG_ZTEST && !CONFIG_ZTEST_SHELL
 #include <zephyr/logging/log.h>
 #else
 #include "orb_logs.h"

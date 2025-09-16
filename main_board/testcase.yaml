@@ -1,15 +1,21 @@
 tests:
   orb.hil_diamond:
-    extra_args:
-      - OVERLAY_CONFIG=tests.conf
+    extra_configs:
+      - CONFIG_HIL_TESTS=y
+      - CONFIG_ZTEST_SHELL=n
+      - CONFIG_ORB_LIB_STORAGE_TESTS=y
     platform_allow:
       - diamond_main
     timeout: 480
 
   orb.hil_pearl:
     extra_args:
-      - OVERLAY_CONFIG=tests.conf
       - DTC_OVERLAY_FILE=one_slot.overlay
+    extra_configs:
+      - CONFIG_HIL_TESTS=y
+      - CONFIG_ZTEST_SHELL=n
+      - CONFIG_ORB_LIB_STORAGE_TESTS=y
+      - CONFIG_MCUBOOT_BOOTLOADER_MODE_SINGLE_APP=y
     platform_allow:
       - pearl_main
     timeout: 480
