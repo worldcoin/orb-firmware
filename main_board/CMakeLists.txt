@@ -13,15 +13,27 @@ message(STATUS "Workspace directory: ${WORKSPACE_DIR}")
 
 set(APP_FILES_COMPILE_OPTIONS -Wextra)
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
-    message(STATUS "Building ${CMAKE_BUILD_TYPE}: optimized ⚡️")
+    message(STATUS "⚡️Release image: maximum optimization for speed")
 
     # Add configuration file to overwrite debug configuration
     list(APPEND OVERLAY_CONFIG "release.conf")
+elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "Service")
+    message(STATUS "🛠️ Service image: optimized for size, logging & CLI enabled")
+
+    set(OVERLAY_CONFIG
+            "${OVERLAY_CONFIG} debug.conf service.conf"
+            CACHE STRING "" FORCE)
+    set(DTC_OVERLAY_FILE
+            "${DTC_OVERLAY_FILE} debug.overlay"
+            CACHE STRING "" FORCE)
 else ()
-    message(STATUS "Building default: debug info included")
+    message(STATUS "⚙️ Debug image: minimal optimization, debug info included, logging & CLI enabled")
+    add_compile_options(-Og -g)
     add_compile_definitions(DEBUG)
 
-    list(APPEND OVERLAY_CONFIG "debug.conf")
+    set(OVERLAY_CONFIG
+            "${OVERLAY_CONFIG} debug.conf"
+            CACHE STRING "" FORCE)
     set(DTC_OVERLAY_FILE
             "${DTC_OVERLAY_FILE} debug.overlay"
             CACHE STRING "" FORCE)
