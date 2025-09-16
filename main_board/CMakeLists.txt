@@ -21,10 +21,10 @@ elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "Service")
     message(STATUS "🛠️ Service image: optimized for size, logging & CLI enabled")
 
     set(OVERLAY_CONFIG
-            "${OVERLAY_CONFIG} debug.conf service.conf"
+            "debug.conf service.conf ${OVERLAY_CONFIG}"
             CACHE STRING "" FORCE)
     set(DTC_OVERLAY_FILE
-            "${DTC_OVERLAY_FILE} debug.overlay"
+            "debug.overlay ${DTC_OVERLAY_FILE}"
             CACHE STRING "" FORCE)
 else ()
     message(STATUS "⚙️ Debug image: minimal optimization, debug info included, logging & CLI enabled")
@@ -32,10 +32,10 @@ else ()
     add_compile_definitions(DEBUG)
 
     set(OVERLAY_CONFIG
-            "${OVERLAY_CONFIG} debug.conf"
+            "debug.conf ${OVERLAY_CONFIG}"
             CACHE STRING "" FORCE)
     set(DTC_OVERLAY_FILE
-            "${DTC_OVERLAY_FILE} debug.overlay"
+            "debug.overlay ${DTC_OVERLAY_FILE}"
             CACHE STRING "" FORCE)
 endif ()
 
