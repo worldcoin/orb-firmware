@@ -269,7 +269,7 @@ initialize(void)
     ASSERT_SOFT(err_code);
 
     // logs over CAN must be initialized after CAN-messaging module
-#if defined(CONFIG_ORB_LIB_LOGS_CAN)
+#if defined(CONFIG_ORB_LIB_LOGS_CAN) && !CONFIG_NO_JETSON_BOOT
     err_code = logs_init(logs_can);
     ASSERT_SOFT(err_code);
 #endif

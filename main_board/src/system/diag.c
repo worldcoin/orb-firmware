@@ -71,7 +71,7 @@ diag_sync(uint32_t remote)
 
             // throttle the sending of statuses to avoid flooding the CAN bus
             // and CAN controller
-            if (!IS_ENABLED(CONFIG_ZTEST) && more_data) {
+            if (more_data) {
                 k_msleep(10);
             }
         } while (more_data);
@@ -100,11 +100,9 @@ diag_sync(uint32_t remote)
         }
         counter++;
 
-#ifndef CONFIG_ZTEST
         // throttle the sending of statuses to avoid flooding the CAN bus
         // and CAN controller
         k_msleep(10);
-#endif
     }
     LOG_INF("Sent: %u, errors: %u", counter, error_counter);
 
