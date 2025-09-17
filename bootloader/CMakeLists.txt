@@ -21,7 +21,6 @@ if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
     list(APPEND EXTRA_CONF_FILE "release.conf")
 else ()
     message(STATUS "🧐 Minimal optimization, logging enabled")
-    add_compile_definitions(DEBUG)
 endif ()
 
 # Add a common dts overlay necessary to ensure mcuboot is linked into,

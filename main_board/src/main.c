@@ -379,7 +379,7 @@ main_internal(void)
     date_print();
 
     // print states and test results
-#ifdef DEBUG
+#ifdef CONFIG_DEBUG
     orb_mcu_Hardware hw = version_get();
     LOG_INF("Hardware version: main board: %u, power board: %u, front-unit: "
             "%u, reset board: %u",

@@ -52,7 +52,7 @@ fatal_get_status_register(void)
     return reset_reason_reg;
 }
 
-#ifdef DEBUG
+#ifdef CONFIG_DEBUG
 static void
 print_reset_reason()
 {
@@ -81,7 +81,7 @@ fatal_init(void)
     reset_reason_reg = RCC->CSR;
     WRITE_BIT(RCC->CSR, RCC_CSR_RMVF_Pos, 1);
 
-#ifdef DEBUG
+#ifdef CONFIG_DEBUG
     print_reset_reason();
 #endif
 

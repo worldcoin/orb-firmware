@@ -83,7 +83,7 @@ watchdog_init(void)
     }
 
     uint8_t opt = 0;
-#ifdef DEBUG
+#ifdef CONFIG_DEBUG
     opt |= WDT_OPT_PAUSE_HALTED_BY_DBG;
 #endif
 
