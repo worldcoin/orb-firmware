@@ -29,7 +29,6 @@ elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "Service")
 else ()
     message(STATUS "⚙️ Debug image: minimal optimization, debug info included, logging & CLI enabled")
     add_compile_options(-Og -g)
-    add_compile_definitions(DEBUG)
 
     set(OVERLAY_CONFIG
             "debug.conf ${OVERLAY_CONFIG}"

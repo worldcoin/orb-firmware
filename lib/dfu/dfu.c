@@ -563,7 +563,7 @@ exit:
 int
 dfu_readback_protection(void)
 {
-#ifdef DEBUG
+#ifdef CONFIG_DEBUG
     LOG_INF("Skipping readback protection in debug mode");
     return 0;
 #endif

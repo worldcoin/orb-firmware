@@ -425,7 +425,7 @@ static K_WORK_DELAYABLE_DEFINE(power_cycle_heatcam_2v8_line_work,
                                power_cycle_heatcam_2v8_line_work_handler);
 #endif
 
-#ifdef DEBUG
+#ifdef CONFIG_DEBUG
 
 static void
 power_cycle_wifi_3v3_line_work_handler(struct k_work *item)
@@ -481,7 +481,7 @@ power_cycle_supply(const orb_mcu_main_PowerCycle_Line line,
     }
 
     switch (line) {
-#ifdef DEBUG
+#ifdef CONFIG_DEBUG
     case orb_mcu_main_PowerCycle_Line_WIFI_3V3:
         ret = gpio_pin_configure_dt(&supply_3v3_wifi_enable_gpio_spec,
                                     GPIO_OUTPUT_INACTIVE);

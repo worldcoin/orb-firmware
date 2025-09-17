@@ -339,7 +339,7 @@ do_boot(struct boot_rsp *rsp)
 }
 #endif
 
-#ifdef DEBUG
+#ifdef CONFIG_DEBUG
 /**
  * Using the original Zephyr app image can be useful to easily debug the
  * application This image doesn't contain a valid header so this function simply
@@ -595,7 +595,7 @@ main(void)
 
         mcuboot_status_change(MCUBOOT_STATUS_NO_BOOTABLE_IMAGE_FOUND);
 
-#ifdef DEBUG
+#ifdef CONFIG_DEBUG
         /* try booting image that doesn't contain a header */
         do_boot_debug();
 #endif
