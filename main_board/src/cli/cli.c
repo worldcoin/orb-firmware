@@ -45,16 +45,7 @@ execute_version(const struct shell *sh, size_t argc, char **argv)
     UNUSED_PARAMETER(argc);
     UNUSED_PARAMETER(argv);
 
-    orb_mcu_Hardware hw = version_get();
-    shell_print(sh,
-                "Hardware version: main board: %u, power board: %u, "
-                "front unit: %u, reset board: %u",
-                hw.version, hw.power_board, hw.front_unit, hw.reset_board);
-
-    struct image_version version = version_fw_get();
-    shell_print(sh, "Firmware version: %u.%u.%u, commit: 0x%x",
-                version.iv_major, version.iv_minor, version.iv_revision,
-                version.iv_build_num);
+    version_print((void *)sh);
 
     return 0;
 }
