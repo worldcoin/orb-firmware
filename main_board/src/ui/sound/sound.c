@@ -112,7 +112,7 @@ sound_init(const orb_mcu_Hardware *const hw)
                                          SOUND_AMP_REG_DIE_ID, &die_id);
             ASSERT_SOFT(err_code);
 
-            if (hw->version ==
+            if (hw->version >=
                 orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_6) {
                 if (err_code == 0) {
                     LOG_INF("Setting digital vol to %.1fdB",

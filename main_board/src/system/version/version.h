@@ -45,3 +45,6 @@ version_get_reset_board_rev(void);
  */
 int
 version_init(void);
+
+void
+version_print(void *sh);
