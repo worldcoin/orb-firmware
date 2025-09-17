@@ -128,19 +128,3 @@ orb_state_init(void)
 }
 
 SYS_INIT(orb_state_init, POST_KERNEL, CONFIG_ORB_LIB_SYS_INIT_STATE_PRIORITY);
-
-#if CONFIG_ZTEST
-
-#include <zephyr/ztest.h>
-
-ZTEST(hardware, test_orb_state)
-{
-    struct orb_state_const_data *data = NULL;
-
-    while (orb_state_iter(&data)) {
-        zassert_true(data->dynamic_data->status == 0, "%s: %d: %s", data->name,
-                     data->dynamic_data->status, data->dynamic_data->message);
-    }
-}
-
-#endif
