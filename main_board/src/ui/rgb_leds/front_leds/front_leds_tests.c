@@ -7,7 +7,18 @@
 
 LOG_MODULE_REGISTER(user_leds_test);
 
-ZTEST(hil, test_front_leds_patterns)
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+// include the test only on diamond so that it doesn't appear on Pearl
+ZTEST(hardware, test_front_leds)
+{
+    Z_TEST_SKIP_IFNDEF(CONFIG_TEST_USER_LEDS);
+
+    const int ret = front_leds_self_test();
+    zassert_equal(ret, 0, "front_leds_self_test failed: %d", ret);
+}
+#endif
+
+ZTEST(hardware, test_front_leds_patterns)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_USER_LEDS);
 

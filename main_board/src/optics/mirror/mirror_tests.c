@@ -60,7 +60,7 @@ ZTEST(hil, test_motors_ah_past_the_end)
 
 /* Disable auto-homing test with stall detection as we don't use it */
 #if AUTO_HOMING_ENABLED
-ZTEST(hil, test_motors_ah_stall_detection)
+ZTEST(hardware, test_motors_ah_stall_detection)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_MIRROR);
 

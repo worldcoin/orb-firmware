@@ -7,7 +7,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(voltage_measurement_test, LOG_LEVEL_DBG);
 
-ZTEST(hil, test_voltage_measurements)
+ZTEST(hardware, test_voltage_measurements)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_VOLTAGE_MEASUREMENT);
 

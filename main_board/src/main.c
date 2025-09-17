@@ -59,6 +59,8 @@ static K_MUTEX_DEFINE(analog_and_i2c_mutex);
 
 // generic tests
 ZTEST_SUITE(hil, NULL, NULL, NULL, NULL, NULL);
+// hardware-related tests
+ZTEST_SUITE(hardware, NULL, NULL, NULL, NULL, NULL);
 
 // dfu unit tests
 #include "system/dfu/dfu_tests.h"
