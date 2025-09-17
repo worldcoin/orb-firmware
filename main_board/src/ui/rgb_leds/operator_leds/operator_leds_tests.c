@@ -162,7 +162,7 @@ BUILD_ASSERT(CONFIG_GPIO_PCA95XX_INIT_PRIORITY <=
     }
 
 /// Test all patterns with 2 brightness levels
-ZTEST(hil, test_operator_leds_patterns)
+ZTEST(hardware, test_operator_leds_patterns)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_OPERATOR_LEDS);
 

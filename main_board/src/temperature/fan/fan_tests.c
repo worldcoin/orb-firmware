@@ -74,7 +74,7 @@ ZTEST(hil, test_fan_set_speed)
     fan_set_speed_by_percentage(FAN_INITIAL_SPEED_PERCENT);
 }
 
-ZTEST(hil, test_fan_tachometer)
+ZTEST(hardware, test_fan_tachometer)
 {
     // "fast" speed, then revert to initial speed
     fan_set_speed_by_percentage(FAN_INITIAL_SPEED_PERCENT + 5);

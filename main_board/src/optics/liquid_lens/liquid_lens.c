@@ -496,7 +496,7 @@ self_test(void)
 
 #ifdef CONFIG_ZTEST
 
-ZTEST(hil, test_liquid_lens)
+ZTEST(hardware, test_liquid_lens)
 {
     int32_t target;
 
