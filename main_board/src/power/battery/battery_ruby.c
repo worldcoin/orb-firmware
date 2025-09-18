@@ -3,6 +3,7 @@
 #include "battery_can.h"
 #include "errors.h"
 #include "mcu.pb.h"
+#include "orb_state.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "temperature/sensors/temperature.h"
@@ -27,6 +28,7 @@
 
 #include "orb_logs.h"
 LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
+ORB_STATE_REGISTER(pwr_supply);
 
 static const struct device *can_dev = DEVICE_DT_GET(DT_ALIAS(battery_can_bus));
 K_THREAD_STACK_DEFINE(battery_rx_thread_stack, THREAD_STACK_SIZE_BATTERY);
@@ -108,7 +110,9 @@ static const struct battery_can_msg messages[] = {
     BATTERY_CAN_MESSAGE(524), BATTERY_CAN_MESSAGE(525),
 };
 
-static bool dev_mode = false;
+// English term `corded` applies to power supplies while `wired` is
+// more for device connection (network)
+static bool corded_power_supply = false;
 
 static bool publish_battery_info_request = false;
 
@@ -138,9 +142,15 @@ publish_battery_reset_reason(void)
 static void
 publish_battery_voltages(orb_mcu_main_BatteryVoltage *voltages)
 {
-    LOG_DBG("Battery voltage: (%d, %d, %d, %d) mV", voltages->battery_cell1_mv,
-            voltages->battery_cell2_mv, voltages->battery_cell3_mv,
-            voltages->battery_cell4_mv);
+    if (voltages->corded_power_supply_mv != 0) {
+        LOG_DBG("Corded power supply voltage: %d",
+                voltages->corded_power_supply_mv);
+    } else {
+        LOG_DBG("Battery voltage: (%d, %d, %d, %d) mV",
+                voltages->battery_cell1_mv, voltages->battery_cell2_mv,
+                voltages->battery_cell3_mv, voltages->battery_cell4_mv);
+    }
+
     publish_new(voltages, sizeof(orb_mcu_main_BatteryVoltage),
                 orb_mcu_main_McuToJetson_battery_voltage_tag,
                 CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
@@ -589,8 +599,21 @@ battery_rx_thread()
             }
         }
 
-        if (can_message_414_received) {
-            orb_mcu_main_BatteryVoltage voltages;
+        orb_mcu_main_BatteryVoltage voltages;
+        if (corded_power_supply) {
+            ret_code_t err_code = voltage_measurement_get(
+                CHANNEL_VBAT_SW, &voltages.corded_power_supply_mv);
+            if (err_code == RET_SUCCESS) {
+                voltages = (orb_mcu_main_BatteryVoltage){
+                    .battery_cell1_mv = voltages.corded_power_supply_mv / 4,
+                    .battery_cell2_mv = voltages.corded_power_supply_mv / 4,
+                    .battery_cell3_mv = voltages.corded_power_supply_mv / 4,
+                    .battery_cell4_mv = voltages.corded_power_supply_mv / 4,
+                };
+
+                publish_battery_voltages(&voltages);
+            }
+        } else if (can_message_414_received) {
             CRITICAL_SECTION_ENTER(k);
             voltages = (orb_mcu_main_BatteryVoltage){
                 .battery_cell1_mv = state_414.voltage_group_1,
@@ -607,7 +630,14 @@ battery_rx_thread()
 
             publish_battery_voltages(&voltages);
         }
-        if (can_message_499_received) {
+
+        if (corded_power_supply) {
+            battery_cap.percentage = 100;
+            publish_battery_capacity(&battery_cap);
+
+            is_charging.battery_is_charging = true;
+            publish_battery_is_charging(&is_charging);
+        } else if (can_message_499_received) {
             if (battery_cap.percentage != state_499.state_of_charge) {
                 LOG_INF("Main battery: %u%%", state_499.state_of_charge);
                 request_battery_info_left_attempts =
@@ -704,7 +734,7 @@ battery_rx_thread()
             publish_battery_info_request = true;
         }
 
-        if (!dev_mode) {
+        if (!corded_power_supply) {
             // check that we are still receiving messages from the battery
             // and consider the battery as removed if no message
             // has been received for BATTERY_MESSAGES_TIMEOUT_MS
@@ -727,12 +757,19 @@ battery_rx_thread()
                     request_battery_info_left_attempts--;
                 }
 
+                if (battery_messages_timeout != 0) {
+                    ORB_STATE_SET_CURRENT(RET_SUCCESS, "battery comm ok");
+                }
                 battery_messages_timeout = 0;
                 shutdown_schuduled_sent = RET_ERROR_NOT_INITIALIZED;
             } else {
-                // no messages received from battery
-                LOG_INF("Battery removed?");
+                // no messages received from the battery
+                if (battery_messages_timeout == 0) {
+                    ORB_STATE_SET_CURRENT(RET_ERROR_INVALID_STATE,
+                                          "battery link lost, not inserted?");
+                }
                 battery_messages_timeout += BATTERY_INFO_SEND_PERIOD_MS;
+
                 request_battery_info_left_attempts =
                     BATTERY_ID_REQUEST_ATTEMPTS;
                 if (battery_messages_timeout >=
@@ -850,8 +887,9 @@ battery_init(void)
                 full_voltage_mv);
 
         if (full_voltage_mv >= BATTERY_MINIMUM_VOLTAGE_STARTUP_MV) {
-            LOG_WRN("🧑‍💻 Power supply mode [dev mode]");
-            dev_mode = true;
+            LOG_INF("🔌 Corded power supply mode");
+            corded_power_supply = true;
+            ORB_STATE_SET_CURRENT(RET_SUCCESS, "corded");
 
             // insert some fake values to keep orb-core happy
             state_414.voltage_group_1 = 4000;
@@ -864,6 +902,8 @@ battery_init(void)
 
             battery_cap_percentage = 100;
         }
+    } else {
+        ORB_STATE_SET_CURRENT(RET_SUCCESS, "battery comm ok");
     }
 
     // if voltage low:
@@ -879,9 +919,10 @@ battery_init(void)
         MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_LowPower);
 #endif
         NVIC_SystemReset();
-    } else {
-        LOG_INF("Battery voltage is ok");
+        CODE_UNREACHABLE;
     }
+
+    LOG_INF("Battery voltage is ok");
 
     k_tid_t tid =
         k_thread_create(&rx_thread_data, battery_rx_thread_stack,
