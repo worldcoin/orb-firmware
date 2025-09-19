@@ -570,7 +570,7 @@ battery_rx_thread()
 {
     bool got_battery_voltage_message_local = false;
     uint32_t battery_messages_timeout = 0;
-    int shutdown_schuduled_sent = RET_ERROR_NOT_INITIALIZED;
+    int shutdown_scheduled_sent = RET_ERROR_NOT_INITIALIZED;
 
     bool battery_mcu_id_request_pending = false;
 
@@ -600,20 +600,7 @@ battery_rx_thread()
         }
 
         orb_mcu_main_BatteryVoltage voltages;
-        if (corded_power_supply) {
-            ret_code_t err_code = voltage_measurement_get(
-                CHANNEL_VBAT_SW, &voltages.corded_power_supply_mv);
-            if (err_code == RET_SUCCESS) {
-                voltages = (orb_mcu_main_BatteryVoltage){
-                    .battery_cell1_mv = voltages.corded_power_supply_mv / 4,
-                    .battery_cell2_mv = voltages.corded_power_supply_mv / 4,
-                    .battery_cell3_mv = voltages.corded_power_supply_mv / 4,
-                    .battery_cell4_mv = voltages.corded_power_supply_mv / 4,
-                };
-
-                publish_battery_voltages(&voltages);
-            }
-        } else if (can_message_414_received) {
+        if (can_message_414_received) {
             CRITICAL_SECTION_ENTER(k);
             voltages = (orb_mcu_main_BatteryVoltage){
                 .battery_cell1_mv = state_414.voltage_group_1,
@@ -629,15 +616,23 @@ battery_rx_thread()
             check_battery_voltage(pack_voltage_mv);
 
             publish_battery_voltages(&voltages);
+        } else if (corded_power_supply) {
+            // /!\ `cellx` values must be sent to keep orb-core happy
+            ret_code_t err_code = voltage_measurement_get(
+                CHANNEL_VBAT_SW, &voltages.corded_power_supply_mv);
+            if (err_code == RET_SUCCESS) {
+                voltages = (orb_mcu_main_BatteryVoltage){
+                    .battery_cell1_mv = voltages.corded_power_supply_mv / 4,
+                    .battery_cell2_mv = voltages.corded_power_supply_mv / 4,
+                    .battery_cell3_mv = voltages.corded_power_supply_mv / 4,
+                    .battery_cell4_mv = voltages.corded_power_supply_mv / 4,
+                };
+
+                publish_battery_voltages(&voltages);
+            }
         }
 
-        if (corded_power_supply) {
-            battery_cap.percentage = 100;
-            publish_battery_capacity(&battery_cap);
-
-            is_charging.battery_is_charging = true;
-            publish_battery_is_charging(&is_charging);
-        } else if (can_message_499_received) {
+        if (can_message_499_received) {
             if (battery_cap.percentage != state_499.state_of_charge) {
                 LOG_INF("Main battery: %u%%", state_499.state_of_charge);
                 request_battery_info_left_attempts =
@@ -678,7 +673,14 @@ battery_rx_thread()
             pack_temperature_decidegrees = state_499.pack_temperature;
             CRITICAL_SECTION_EXIT(k);
             publish_battery_pack_temperature(pack_temperature_decidegrees);
+        } else if (corded_power_supply) {
+            battery_cap.percentage = 100;
+            publish_battery_capacity(&battery_cap);
+
+            is_charging.battery_is_charging = true;
+            publish_battery_is_charging(&is_charging);
         }
+
         if (can_message_415_received) {
             int16_t cell_temperature_decidegrees;
 
@@ -734,47 +736,58 @@ battery_rx_thread()
             publish_battery_info_request = true;
         }
 
-        if (!corded_power_supply) {
-            // check that we are still receiving messages from the battery
-            // and consider the battery as removed if no message
-            // has been received for BATTERY_MESSAGES_TIMEOUT_MS
-            CRITICAL_SECTION_ENTER(k);
-            got_battery_voltage_message_local = can_message_414_received;
-            can_message_414_received = false;
-            CRITICAL_SECTION_EXIT(k);
+        // check that we are still receiving messages from the battery
+        // and consider the battery as removed if no message
+        // has been received for BATTERY_MESSAGES_TIMEOUT_MS
+        CRITICAL_SECTION_ENTER(k);
+        got_battery_voltage_message_local = can_message_414_received;
+        can_message_414_received = false;
+        CRITICAL_SECTION_EXIT(k);
 
-            if (got_battery_voltage_message_local) {
-                // request battery info only if communication to the
-                // Jetson is active
-                if (request_battery_info_left_attempts &&
-                    publish_is_started(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE)) {
+        if (got_battery_voltage_message_local) {
+            // request battery info only if communication to the
+            // Jetson is active
+            if (request_battery_info_left_attempts &&
+                publish_is_started(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE)) {
 
-                    // clear all can message buffers because they might
-                    // contain data from the previously inserted battery
-                    clear_can_message_buffers();
-                    battery_mcu_id_request_pending = true;
-                    request_battery_info();
-                    request_battery_info_left_attempts--;
-                }
+                // clear all can message buffers because they might
+                // contain data from the previously inserted battery
+                clear_can_message_buffers();
+                battery_mcu_id_request_pending = true;
+                request_battery_info();
+                request_battery_info_left_attempts--;
+            }
 
-                if (battery_messages_timeout != 0) {
-                    ORB_STATE_SET_CURRENT(RET_SUCCESS, "battery comm ok");
-                }
-                battery_messages_timeout = 0;
-                shutdown_schuduled_sent = RET_ERROR_NOT_INITIALIZED;
-            } else {
-                // no messages received from the battery
-                if (battery_messages_timeout == 0) {
-                    ORB_STATE_SET_CURRENT(RET_ERROR_INVALID_STATE,
-                                          "battery link lost, not inserted?");
-                }
+            if (battery_messages_timeout != 0 || corded_power_supply) {
+                ORB_STATE_SET_CURRENT(RET_SUCCESS, "battery comm ok");
+            }
+            corded_power_supply = false;
+            battery_messages_timeout = 0;
+            shutdown_scheduled_sent = RET_ERROR_NOT_INITIALIZED;
+        } else {
+            // no messages received from the battery
+            if (battery_messages_timeout == 0) {
+                ORB_STATE_SET_CURRENT(RET_ERROR_INVALID_STATE,
+                                      "battery link lost, not inserted?");
+            }
+
+            // check voltage to detect any ac/dc adapter in place of the battery
+            //
+            // default to battery removed if unable to get a voltage from
+            // the voltage measurement module
+            int vbat_sw_voltage_mv = 0;
+            ret_code_t err_code =
+                voltage_measurement_get(CHANNEL_VBAT_SW, &vbat_sw_voltage_mv);
+            LOG_DBG("vbat_sw_voltage_mv: %d", vbat_sw_voltage_mv);
+            if (err_code != RET_SUCCESS ||
+                vbat_sw_voltage_mv < BATTERY_MINIMUM_VOLTAGE_RUNTIME_MV) {
                 battery_messages_timeout += BATTERY_INFO_SEND_PERIOD_MS;
 
                 request_battery_info_left_attempts =
                     BATTERY_ID_REQUEST_ATTEMPTS;
                 if (battery_messages_timeout >=
                         BATTERY_MESSAGES_REMOVED_TIMEOUT_MS &&
-                    shutdown_schuduled_sent != RET_SUCCESS) {
+                    shutdown_scheduled_sent != RET_SUCCESS) {
                     orb_mcu_main_ShutdownScheduled shutdown;
                     shutdown.shutdown_reason =
                         orb_mcu_main_ShutdownScheduled_ShutdownReason_BATTERY_REMOVED;
@@ -782,11 +795,11 @@ battery_rx_thread()
                     shutdown.ms_until_shutdown =
                         (BATTERY_MESSAGES_FORCE_REBOOT_TIMEOUT_MS -
                          battery_messages_timeout);
-                    shutdown_schuduled_sent =
+                    shutdown_scheduled_sent =
                         publish_new(&shutdown, sizeof(shutdown),
                                     orb_mcu_main_McuToJetson_shutdown_tag,
                                     CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
-                    LOG_WRN("Battery removed: %d", shutdown_schuduled_sent);
+                    LOG_WRN("Battery removed: %d", shutdown_scheduled_sent);
                 }
                 if (battery_messages_timeout >=
                     BATTERY_MESSAGES_FORCE_REBOOT_TIMEOUT_MS) {
@@ -797,6 +810,14 @@ battery_rx_thread()
 #endif
                     reboot(0);
                 }
+            } else if (err_code == RET_SUCCESS &&
+                       vbat_sw_voltage_mv >
+                           BATTERY_MINIMUM_VOLTAGE_STARTUP_MV &&
+                       corded_power_supply == false) {
+                // vbat > BATTERY_MINIMUM_VOLTAGE_RUNTIME_MV
+                corded_power_supply = true;
+                ORB_STATE_SET_CURRENT(RET_SUCCESS, "corded");
+                LOG_DBG("Corded power supply");
             }
         }
 
