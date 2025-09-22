@@ -7,6 +7,10 @@
 #include <zephyr/drivers/adc.h>
 #include <zephyr/drivers/gpio.h>
 
+#ifdef CONFIG_SHELL
+#include <zephyr/shell/shell.h>
+#endif
+
 LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
 
 /**
@@ -26,7 +30,8 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * - v4.3 p[13..10] = 3
  * - v4.4 p[13..10] = 4 // evt
  * - v4.5 p[13..10] = 5 // dvt1
- * - v4.6 p[13..10] = 6 // dvt2
+ * - v4.6 p[13..10] = 7 // dvt2
+ * - v4.7 p[13..10] = 8 // pvt
  *
  * ## Front unit
  * Hardware version can be fetched using IO expander on the front unit:
@@ -38,6 +43,7 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * - v6.3B p[13..10] = 5 // evt
  * - v6.3C p[13..10] = 7 // evt
  * - v6.3D p[13..10] = 8 // dvt
+ * - v6.4A p[13..10] = 9 // pvt
  *
  * ## Power board
  * Hardware version can be fetched using IO expander on the power board:
@@ -47,6 +53,7 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * - v1.3: p[13..10] = 3
  * - v1.4: p[13..10] = 4 // evt
  * - v1.5: p[13..10] = 5 // dvt
+ * - v1.6: p[13..10] = 6 // pvt
  **/
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
@@ -280,6 +287,10 @@ version_fetch_hardware_rev(orb_mcu_Hardware *hw_version)
             hw_version->version =
                 orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_6;
             break;
+        case 8:
+            hw_version->version =
+                orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_7;
+            break;
         default:
             LOG_ERR("Unknown main board from IO expander: %d", hw_bits);
             break;
@@ -356,6 +367,10 @@ version_get_front_unit_rev(void)
             front_unit_version =
                 orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_3D;
             break;
+        case 9:
+            front_unit_version =
+                orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_4A;
+            break;
         default:
             LOG_ERR("Unknown front unit from IO expander: %d", hw_bits);
             front_unit_version =
@@ -406,6 +421,10 @@ version_get_power_board_rev(void)
         case 5:
             power_board_version =
                 orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_5;
+            break;
+        case 6:
+            power_board_version =
+                orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_6;
             break;
         default:
             LOG_ERR("Unknown power board from IO expander: %d", hw_bits);
@@ -485,50 +504,122 @@ version_init(void)
     return version_fetch_hardware_rev(&board_versions);
 }
 
-#if CONFIG_MEMFAULT
-#include <memfault/core/platform/device_info.h>
-#include <stdio.h>
-
 #ifdef CONFIG_BOARD_PEARL_MAIN
 static const char hardware_versions_str[][14] = {
     "PEARL_UNKNOWN", "PEARL_EV1", "PEARL_EV2", "PEARL_EV3",
     "PEARL_EV4",     "PEARL_EV5", "PEARL_EV6",
 };
-static const char *software_type = "pearl-main-app";
+__maybe_unused static const char *software_type = "pearl-main-app";
 #elif CONFIG_BOARD_DIAMOND_MAIN
 static const char hardware_versions_str[][16] = {
-    "DIAMOND_UNKNOWN", "DIAMOND_POC1",    "DIAMOND_POC2",    "DIAMOND_B3",
-    "DIAMOND_EVT_4.3", "DIAMOND_EVT_4.4", "DIAMOND_EVT_4.5", "DIAMOND_EVT_4.6"};
-static const char *software_type = "diamond-main-app";
+    "DIAMOND_UNKNOWN", "DIAMOND_POC1",    "DIAMOND_POC2",
+    "DIAMOND_B3",      "DIAMOND_EVT_4.3", "DIAMOND_EVT_4.4",
+    "DIAMOND_EVT_4.5", "DIAMOND_EVT_4.6", "DIAMOND_EVT_4.7"};
+__maybe_unused static const char *software_type = "diamond-main-app";
 
 BUILD_ASSERT(ARRAY_SIZE(hardware_versions_str) ==
-             orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_6 -
+             orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_7 -
                  orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 + 2);
 
 #endif
+
+static size_t
+get_string_index(const orb_mcu_Hardware *hw_version)
+{
+    static bool hardware_version_error = false;
+
+    size_t hardware_version_idx = (size_t)hw_version->version;
+#if CONFIG_BOARD_DIAMOND_MAIN
+    if (hardware_version_idx <
+        orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1) {
+        hardware_version_idx = 0;
+    } else {
+        hardware_version_idx =
+            hardware_version_idx -
+            orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 + 1;
+    }
+#endif
+
+    if (hardware_version_idx == 0 /* unknown */ ||
+        hardware_version_idx >= ARRAY_SIZE(hardware_versions_str)) {
+        if (hardware_version_error == false) {
+            LOG_ERR("Unknown hardware version: %d (idx %u)",
+                    hw_version->version, hardware_version_idx);
+            hardware_version_error = true;
+        }
+        hardware_version_idx = 0;
+    }
+
+    return hardware_version_idx;
+}
+
+void
+version_print(void *sh)
+{
+    orb_mcu_Hardware hw = version_get();
+    struct image_version version = version_fw_get();
+
+#ifdef CONFIG_SHELL
+    if (sh != NULL) {
+        const struct shell *shell_ptr = (struct shell *)sh;
+        shell_print(shell_ptr,
+                    "Hardware version: main board: %s [%u], power board: %u, "
+                    "front-unit: "
+                    "%u, reset board: %u",
+                    hardware_versions_str[get_string_index(&hw)], hw.version,
+                    hw.power_board, hw.front_unit, hw.reset_board);
+
+        shell_print(sh, "Firmware version: %u.%u.%u, commit: 0x%x",
+                    version.iv_major, version.iv_minor, version.iv_revision,
+                    version.iv_build_num);
+
+    } else
+#else
+    UNUSED_PARAMETER(sh);
+#endif
+    {
+        LOG_INF("Hardware version: main board: %s [%u], power board: %u, "
+                "front-unit: "
+                "%u, reset board: %u",
+                hardware_versions_str[get_string_index(&hw)], hw.version,
+                hw.power_board, hw.front_unit, hw.reset_board);
+        LOG_INF("Firmware version: %u.%u.%u, commit: 0x%x", version.iv_major,
+                version.iv_minor, version.iv_revision, version.iv_build_num);
+    }
+}
+
+#if CONFIG_ZTEST
+#include <zephyr/ztest.h>
+
+ZTEST(hil, test_version_str)
+{
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+    for (int i = orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1;
+         i < orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_7; i++) {
+        orb_mcu_Hardware hw_version = {.version = i};
+        size_t hardware_version_idx = get_string_index(&hw_version);
+        zassert_equal_ptr(
+            hardware_versions_str[hardware_version_idx],
+            hardware_versions_str
+                [i - orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 + 1],
+            "version %d idx %u", i, hardware_version_idx);
+    }
+#endif
+}
+#endif
+
+#if CONFIG_MEMFAULT
+#include <memfault/core/platform/device_info.h>
+#include <stdio.h>
 
 void
 memfault_platform_get_device_info(sMemfaultDeviceInfo *info)
 {
     // report error only once
-    static bool hardware_version_error = false;
 
     const char *version_str = STRINGIFY(FW_VERSION_FULL);
     orb_mcu_Hardware hw_version = version_get();
-    size_t hardware_version_idx = (size_t)hw_version.version;
-#if CONFIG_BOARD_DIAMOND_MAIN
-    hardware_version_idx = hardware_version_idx -
-                           orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 +
-                           1;
-#endif
-
-    if (hardware_version_idx > ARRAY_SIZE(hardware_versions_str)) {
-        if (hardware_version_error == false) {
-            ASSERT_SOFT(RET_ERROR_NOT_FOUND);
-            hardware_version_error = true;
-        }
-        hardware_version_idx = 0;
-    }
+    size_t hardware_version_idx = get_string_index(&hw_version);
 
     // platform specific version information
     *info = (sMemfaultDeviceInfo){
