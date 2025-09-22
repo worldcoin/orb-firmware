@@ -615,8 +615,6 @@ ZTEST(hil, test_version_str)
 void
 memfault_platform_get_device_info(sMemfaultDeviceInfo *info)
 {
-    // report error only once
-
     const char *version_str = STRINGIFY(FW_VERSION_FULL);
     orb_mcu_Hardware hw_version = version_get();
     size_t hardware_version_idx = get_string_index(&hw_version);
