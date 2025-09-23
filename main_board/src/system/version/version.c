@@ -514,7 +514,7 @@ __maybe_unused static const char *software_type = "pearl-main-app";
 static const char hardware_versions_str[][16] = {
     "DIAMOND_UNKNOWN", "DIAMOND_POC1",    "DIAMOND_POC2",
     "DIAMOND_B3",      "DIAMOND_EVT_4.3", "DIAMOND_EVT_4.4",
-    "DIAMOND_EVT_4.5", "DIAMOND_EVT_4.6", "DIAMOND_EVT_4.7"};
+    "DIAMOND_4.5",     "DIAMOND_4.6",     "DIAMOND_4.7"};
 __maybe_unused static const char *software_type = "diamond-main-app";
 
 BUILD_ASSERT(ARRAY_SIZE(hardware_versions_str) ==
