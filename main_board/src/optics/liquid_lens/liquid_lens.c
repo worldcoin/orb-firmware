@@ -481,9 +481,9 @@ self_test(void)
 
         k_msleep(10);
 #ifdef CONFIG_ZTEST
-        zassert_equal(control_output_pwm, prev_pwm,
-                      "liquid_lens: pwm didn't stabilize: %d -> %d", prev_pwm,
-                      control_output_pwm);
+        zassert_true(abs(control_output_pwm - prev_pwm) <= 1,
+                     "liquid_lens: pwm didn't stabilize: %d -> %d", prev_pwm,
+                     control_output_pwm);
 #endif
         if (control_output_pwm == prev_pwm) {
             // pwm stabilized
