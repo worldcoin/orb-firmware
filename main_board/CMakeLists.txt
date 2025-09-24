@@ -140,13 +140,14 @@ endif()
 if (CONFIG_BOARD_DIAMOND_MAIN)
     list(APPEND SOURCES_FILES
         src/optics/mirror/homing_diamond.c
-        src/power/battery/battery_amber.c
         src/optics/ir_camera_system/ir_leds_checks_diamond.c
         src/optics/polarizer_wheel/drv8434s/drv8434s_private.c
         src/optics/polarizer_wheel/drv8434s/drv8434s.c
         src/optics/polarizer_wheel/polarizer_wheel.c
-        src/ui/white_leds/white_leds.c
+        src/power/battery/battery_amber.c
         src/temperature/fan/fan_tach_coarse.c
+        src/ui/nfc/nfc.c
+        src/ui/white_leds/white_leds.c
     )
     if (CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
         list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds.c)
