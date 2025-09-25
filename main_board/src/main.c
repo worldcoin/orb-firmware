@@ -1,3 +1,4 @@
+#include "ui/nfc/nfc.h"
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 #include "gnss/gnss.h"
 #endif
@@ -79,6 +80,19 @@ static void
 run_tests()
 {
     int ret;
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+    ret = nfc_self_test(&analog_and_i2c_mutex);
+    ASSERT_SOFT(ret);
+#endif
+
+    fan_tach_self_test();
+
+    ret = voltage_measurement_selftest();
+    ASSERT_SOFT(ret);
+
+    ret = front_leds_self_test();
+    ASSERT_SOFT(ret);
+
 #if CONFIG_HIL_TESTS || (CONFIG_ZTEST && !CONFIG_ZTEST_SHELL)
     // Per default publishing of voltages is disabled
     // -> enable it for testing if voltage messages are published
@@ -87,13 +101,6 @@ run_tests()
     ztest_run_all(NULL, false, 1, 1);
     ztest_verify_all_test_suites_ran();
 #endif
-    fan_tach_self_test();
-
-    ret = voltage_measurement_selftest();
-    ASSERT_SOFT(ret);
-
-    ret = front_leds_self_test();
-    ASSERT_SOFT(ret);
 
 #if defined(CONFIG_ORB_LIB_ERRORS_TESTS)
     fatal_errors_trigger(FATAL_RANDOM);

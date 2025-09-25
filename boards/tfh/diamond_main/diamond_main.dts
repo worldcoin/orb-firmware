@@ -310,6 +310,12 @@
                 reg = <0x29>;
                 zephyr,deferred-init;
             };
+
+            nfc: st25r3918@50
+            {
+                compatible = "vnd,i2c-device";
+                reg = <0x50>;
+            };
         };
 
         mux_i2c@1 {
