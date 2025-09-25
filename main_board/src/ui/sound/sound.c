@@ -14,25 +14,9 @@ ORB_STATE_REGISTER(sound);
  * Driver for TAS5805M audio amplifier
  */
 
-#define SOUND_AMP_MUX_NODE DT_PATH(zephyr_user)
-#define SOUND_AMP_MUX_CTLR DT_GPIO_CTLR(SOUND_AMP_MUX_NODE, sound_amp_mux_gpios)
-#define SOUND_AMP_MUX_PIN  DT_GPIO_PIN(SOUND_AMP_MUX_NODE, sound_amp_mux_gpios)
-#define SOUND_AMP_MUX_FLAGS                                                    \
-    DT_GPIO_FLAGS(SOUND_AMP_MUX_NODE, sound_amp_mux_gpios)
+#define GPIO_OUTPUT_MUX_MCU    1
+#define GPIO_OUTPUT_MUX_JETSON 0
 
-#define LEVEL_SHIFTER_EN_NODE DT_PATH(zephyr_user)
-#define LEVEL_SHIFTER_EN_CTLR                                                  \
-    DT_GPIO_CTLR(LEVEL_SHIFTER_EN_NODE, level_shifter_enable_gpios)
-#define LEVEL_SHIFTER_EN_PIN                                                   \
-    DT_GPIO_PIN(LEVEL_SHIFTER_EN_NODE, level_shifter_enable_gpios)
-#define LEVEL_SHIFTER_EN_FLAGS                                                 \
-    DT_GPIO_FLAGS(LEVEL_SHIFTER_EN_NODE, level_shifter_enable_gpios)
-
-#define MCU    1
-#define JETSON 0
-
-#define SOUND_AMP_I2C             DT_NODELABEL(i2c1)
-#define SOUND_AMP_ADDR            0x2c
 #define SOUND_AMP_REG_CTRL2       0x3
 #define SOUND_AMP_REG_DIG_VOL_CTL 0x4C
 #define SOUND_AMP_REG_AGAIN       0x54
@@ -53,6 +37,12 @@ BUILD_ASSERT(ANALOG_GAIN_ATTENUATION_DB >= 0 &&
 BUILD_ASSERT(DIGITAL_VOL_DB >= -103 && DIGITAL_VOL_DB <= 24,
              "DIGITAL_VOL_DB out of range!");
 
+const struct i2c_dt_spec sound_i2c = I2C_DT_SPEC_GET(DT_NODELABEL(audio_amp));
+const struct gpio_dt_spec sound_mux =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), sound_amp_mux_gpios);
+const struct gpio_dt_spec level_shifter_en =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), level_shifter_enable_gpios);
+
 // The AGAIN register value may range from 0-31, where
 //  1 =  -0.5dB
 //  2 =  -1.0dB
@@ -69,47 +59,36 @@ sound_init(const orb_mcu_Hardware *const hw)
     uint8_t die_id = 0xFF;
     uint8_t value;
 
-    const struct device *level_shifter_en =
-        DEVICE_DT_GET(LEVEL_SHIFTER_EN_CTLR);
-
-    if (!device_is_ready(level_shifter_en)) {
+    if (!device_is_ready(level_shifter_en.port)) {
         ASSERT_SOFT(RET_ERROR_INVALID_STATE);
         err_code = RET_ERROR_INVALID_STATE;
     } else {
-        err_code = gpio_pin_configure(level_shifter_en, LEVEL_SHIFTER_EN_PIN,
-                                      LEVEL_SHIFTER_EN_FLAGS | GPIO_OUTPUT);
+        err_code = gpio_pin_configure_dt(&level_shifter_en, GPIO_OUTPUT_ACTIVE);
         ASSERT_SOFT(err_code);
-        if (err_code == 0) {
-            err_code = gpio_pin_set(level_shifter_en, LEVEL_SHIFTER_EN_PIN, 1);
-            ASSERT_SOFT(err_code);
-        }
     }
 
-    const struct device *sound_mux = DEVICE_DT_GET(SOUND_AMP_MUX_CTLR);
-    const struct device *sound_i2c = DEVICE_DT_GET(SOUND_AMP_I2C);
-
+    /* redirect sound amplifier input to Jetson */
     if (err_code == 0) {
-        if (!device_is_ready(sound_mux)) {
+        if (!device_is_ready(sound_mux.port)) {
             ASSERT_SOFT(RET_ERROR_INVALID_STATE);
             err_code = RET_ERROR_INVALID_STATE;
         } else {
-            err_code = gpio_pin_configure(sound_mux, SOUND_AMP_MUX_PIN,
-                                          SOUND_AMP_MUX_FLAGS | GPIO_OUTPUT);
+            err_code = gpio_pin_configure_dt(&sound_mux, GPIO_OUTPUT);
             ASSERT_SOFT(err_code);
             if (err_code == 0) {
-                err_code = gpio_pin_set(sound_mux, SOUND_AMP_MUX_PIN, JETSON);
+                err_code = gpio_pin_set_dt(&sound_mux, GPIO_OUTPUT_MUX_JETSON);
                 ASSERT_SOFT(err_code);
             }
         }
     }
 
     if (err_code == 0) {
-        if (!device_is_ready(sound_i2c)) {
+        if (!device_is_ready(sound_i2c.bus)) {
             ASSERT_SOFT(RET_ERROR_INVALID_STATE);
             err_code = RET_ERROR_INVALID_STATE;
         } else {
-            err_code = i2c_reg_read_byte(sound_i2c, SOUND_AMP_ADDR,
-                                         SOUND_AMP_REG_DIE_ID, &die_id);
+            err_code =
+                i2c_reg_read_byte_dt(&sound_i2c, SOUND_AMP_REG_DIE_ID, &die_id);
             ASSERT_SOFT(err_code);
 
             if (hw->version >=
@@ -117,15 +96,14 @@ sound_init(const orb_mcu_Hardware *const hw)
                 if (err_code == 0) {
                     LOG_INF("Setting digital vol to %.1fdB",
                             (double)DIGITAL_VOL_DB);
-                    err_code = i2c_reg_write_byte(sound_i2c, SOUND_AMP_ADDR,
-                                                  SOUND_AMP_REG_DIG_VOL_CTL,
-                                                  DIGITAL_VOL_DB_REG_VALUE);
+                    err_code = i2c_reg_write_byte_dt(&sound_i2c,
+                                                     SOUND_AMP_REG_DIG_VOL_CTL,
+                                                     DIGITAL_VOL_DB_REG_VALUE);
                     ASSERT_SOFT(err_code);
 
                     value = 0;
-                    err_code =
-                        i2c_reg_read_byte(sound_i2c, SOUND_AMP_ADDR,
-                                          SOUND_AMP_REG_DIG_VOL_CTL, &value);
+                    err_code = i2c_reg_read_byte_dt(
+                        &sound_i2c, SOUND_AMP_REG_DIG_VOL_CTL, &value);
                     ASSERT_SOFT(err_code);
                     if (value != DIGITAL_VOL_DB_REG_VALUE) {
                         LOG_ERR("Read back digital volume (%u) is different "
@@ -139,14 +117,14 @@ sound_init(const orb_mcu_Hardware *const hw)
             if (err_code == 0) {
                 LOG_INF("Setting audio amp attenuation to %.1fdB",
                         (double)ANALOG_GAIN_ATTENUATION_DB);
-                err_code = i2c_reg_write_byte(
-                    sound_i2c, SOUND_AMP_ADDR, SOUND_AMP_REG_AGAIN,
-                    ANALOG_GAIN_ATTENUATION_DB_REG_VALUE);
+                err_code =
+                    i2c_reg_write_byte_dt(&sound_i2c, SOUND_AMP_REG_AGAIN,
+                                          ANALOG_GAIN_ATTENUATION_DB_REG_VALUE);
                 ASSERT_SOFT(err_code);
 
                 value = 0;
-                err_code = i2c_reg_read_byte(sound_i2c, SOUND_AMP_ADDR,
-                                             SOUND_AMP_REG_AGAIN, &value);
+                err_code = i2c_reg_read_byte_dt(&sound_i2c, SOUND_AMP_REG_AGAIN,
+                                                &value);
                 ASSERT_SOFT(err_code);
                 if (value != ANALOG_GAIN_ATTENUATION_DB_REG_VALUE) {
                     LOG_ERR(
@@ -156,8 +134,8 @@ sound_init(const orb_mcu_Hardware *const hw)
                 }
 
                 if (err_code == 0) {
-                    err_code = i2c_reg_write_byte(sound_i2c, SOUND_AMP_ADDR,
-                                                  SOUND_AMP_REG_CTRL2, 0x03);
+                    err_code = i2c_reg_write_byte_dt(&sound_i2c,
+                                                     SOUND_AMP_REG_CTRL2, 0x03);
                     ASSERT_SOFT(err_code);
                 }
             }

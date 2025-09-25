@@ -701,6 +701,12 @@
         compatible = "rohm,bu27030";
         reg = <0x38>;
     };
+
+    audio_amp: tas5805m@2c {
+        compatible = "vnd,i2c-device";
+        reg = <0x2c>;
+        status = "okay";
+    };
 };
 
 &fdcan1 {
