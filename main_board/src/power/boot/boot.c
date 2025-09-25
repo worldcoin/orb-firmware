@@ -756,8 +756,6 @@ app_init_state(void)
 {
     int ret = 0;
 
-    LOG_INF_IMM("Hello from " CONFIG_BOARD " :)");
-
     // read image status to know whether we are waiting for user to press
     // the button
     struct boot_swap_state primary_slot = {0};
@@ -813,6 +811,18 @@ app_init_state(void)
 
     return ret;
 }
+
+#if CONFIG_DEBUG
+int
+early_hello_world(void)
+{
+    LOG_INF_IMM("👋 Hello from " CONFIG_BOARD
+                " " CONFIG_MCUBOOT_EXTRA_IMGTOOL_ARGS "");
+    return 0;
+}
+
+SYS_INIT(early_hello_world, POST_KERNEL, SYS_INIT_HELLO_WORLD);
+#endif
 
 #if CONFIG_ORB_LIB_WATCHDOG_SYS_INIT
 BUILD_ASSERT(CONFIG_ORB_LIB_WATCHDOG_INIT_PRIORITY <
