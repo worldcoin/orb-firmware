@@ -18,11 +18,11 @@ optics_safety_circuit_triggered(const uint32_t timeout_ms, bool *triggered);
 
 /**
  * @brief Initialize the optics components
+ * uses ASSERT_SOFT to report errors at runtime
  * @param *hw_version Mainboard hardware version
  * @param *mutex Mutex for I2C operations
- * @return error code
  */
-int
+void
 optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex);
 
 /**

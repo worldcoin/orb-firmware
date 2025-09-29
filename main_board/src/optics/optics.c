@@ -87,7 +87,7 @@ distance_is_unsafe_cb(void)
     ir_camera_system_set_on_time_us(0);
 }
 
-int
+void
 optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
 {
     int err_code;
@@ -95,22 +95,13 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
     i2c1_mutex = mutex;
 
     err_code = ir_camera_system_init();
-    if (err_code) {
-        ASSERT_SOFT(err_code);
-        return err_code;
-    }
+    ASSERT_SOFT(err_code);
 
     err_code = mirror_init();
-    if (err_code) {
-        ASSERT_SOFT(err_code);
-        return err_code;
-    }
+    ASSERT_SOFT(err_code);
 
     err_code = liquid_lens_init(hw_version);
-    if (err_code) {
-        ASSERT_SOFT(err_code);
-        return err_code;
-    }
+    ASSERT_SOFT(err_code);
 
     err_code = tof_1d_init(distance_is_unsafe_cb, mutex, hw_version);
     ASSERT_SOFT(err_code);
@@ -123,10 +114,7 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
     const struct gpio_dt_spec front_unit_pvcc_enabled = GPIO_DT_SPEC_GET_BY_IDX(
         DT_PATH(zephyr_user), front_unit_pvcc_enabled_gpios, 0);
     err_code = gpio_pin_configure_dt(&front_unit_pvcc_enabled, GPIO_INPUT);
-    if (err_code) {
-        ASSERT_SOFT(err_code);
-        return err_code;
-    }
+    ASSERT_SOFT(err_code);
 
     // check pvcc (& update diag)
     bool safety_triggered;
@@ -134,6 +122,4 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
     ASSERT_SOFT(err_code);
     LOG_INF("Safety circuitry triggered: %u", safety_triggered);
     UNUSED_VARIABLE(safety_triggered);
-
-    return err_code;
 }

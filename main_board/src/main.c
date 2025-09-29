@@ -335,8 +335,7 @@ initialize(void)
         k_msleep(6000);
         err_code = boot_turn_on_pvcc();
         if (err_code == RET_SUCCESS) {
-            err_code = optics_init(&hw, &analog_and_i2c_mutex);
-            ASSERT_SOFT(err_code);
+            optics_init(&hw, &analog_and_i2c_mutex);
         } else {
             ASSERT_SOFT(err_code);
         }
@@ -344,8 +343,7 @@ initialize(void)
         ASSERT_SOFT(err_code);
     }
 #else
-    err_code = optics_init(&hw, &analog_and_i2c_mutex);
-    ASSERT_SOFT(err_code);
+    optics_init(&hw, &analog_and_i2c_mutex);
 #endif // CONFIG_NO_SUPER_CAPS
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
