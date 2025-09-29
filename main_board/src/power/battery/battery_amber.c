@@ -87,7 +87,10 @@ typedef struct {
     int8_t max_temp_int_sensor_degrees;
     int8_t min_temp_int_sensor_degrees;
     int8_t max_temp_fet_degrees;
-} bq4050_lifetime_data_1_block_t;
+} __packed bq4050_lifetime_data_1_block_t;
+
+BUILD_ASSERT(sizeof(bq4050_lifetime_data_1_block_t) == 32,
+             "bq4050_lifetime_data_1_block_t size mismatch");
 
 typedef struct {
     uint16_t cell_voltage_1_mv;
@@ -101,7 +104,10 @@ typedef struct {
     //    int16_t cell_current_2_ma;
     //    int16_t cell_current_3_ma;
     //    int16_t cell_current_4_ma;
-} bq4050_da_status_1_block_t;
+} __packed bq4050_da_status_1_block_t;
+
+BUILD_ASSERT(sizeof(bq4050_da_status_1_block_t) == 8,
+             "bq4050_da_status_1_block_t size mismatch");
 
 typedef struct {
     int16_t temperature_int_decikelvin;
@@ -111,11 +117,15 @@ typedef struct {
     int16_t temperature_ts4_decikelvin;
     int16_t temperature_cell_decikelvin;
     int16_t temperature_fet_decikelvin;
-} bq4050_da_status_2_block_t;
+} __packed bq4050_da_status_2_block_t;
+
+BUILD_ASSERT(sizeof(bq4050_da_status_2_block_t) == 14,
+             "bq4050_da_status_2_block_t size mismatch");
 
 static int
-bq4050_read_block(uint16_t command, uint8_t *data, uint16_t size)
+bq4050_read_block(const uint16_t command, uint8_t *data, const uint16_t size)
 {
+    uint8_t rx_data[3]; // + 1 for length header, + 2 for sending back command
     uint8_t tx_data[4];
     tx_data[0] = BQ4050_CMD_MANUFACTURER_BLOCK_ACCESS;
     tx_data[1] = 2;                       // Length header
@@ -123,24 +133,28 @@ bq4050_read_block(uint16_t command, uint8_t *data, uint16_t size)
     tx_data[3] = (uint8_t)(command >> 8); // Little endian
 
     int ret = i2c_write_dt(&i2c_device_spec, tx_data, sizeof(tx_data));
-
     if (ret != 0) {
         return ret;
     }
 
     uint8_t man_block_access_command = BQ4050_CMD_MANUFACTURER_BLOCK_ACCESS;
-    uint8_t rx_data[size +
-                    3]; // + 1 for length header, + 2 for sending back command
+    struct i2c_msg msg[3];
+    msg[0].buf = (uint8_t *)&man_block_access_command;
+    msg[0].len = sizeof(man_block_access_command);
+    msg[0].flags = I2C_MSG_WRITE;
 
-    ret = i2c_write_read_dt(&i2c_device_spec, &man_block_access_command,
-                            sizeof(man_block_access_command), rx_data,
-                            sizeof(rx_data));
+    msg[1].buf = (uint8_t *)rx_data;
+    msg[1].len = sizeof(rx_data);
+    msg[1].flags = I2C_MSG_RESTART | I2C_MSG_READ;
 
+    msg[2].buf = (uint8_t *)data;
+    msg[2].len = size;
+    msg[2].flags = I2C_MSG_READ | I2C_MSG_STOP;
+
+    ret = i2c_transfer_dt(&i2c_device_spec, msg, 3);
     if (ret != 0) {
         return ret;
     }
-
-    memcpy(data, &rx_data[3], size);
 
     return 0;
 }
@@ -151,7 +165,6 @@ bq4050_read_word(uint8_t command, uint16_t *word)
     uint8_t rx_data[2];
     int ret = i2c_write_read_dt(&i2c_device_spec, &command, sizeof(command),
                                 rx_data, sizeof(rx_data));
-
     if (ret != 0) {
         return ret;
     }
@@ -169,15 +182,15 @@ bq4050_read_firmware_build_number(uint16_t *build_number)
     }
 
     uint8_t data[6];
-    int ret =
+    const int ret =
         bq4050_read_block(BQ4050_BLK_CMD_FIRMWARE_VERSION, data, sizeof(data));
-
-    if (ret == 0) {
-        *build_number = (((uint16_t)data[5]) << 8) | ((uint16_t)data[4]);
-        return RET_SUCCESS;
-    } else {
+    if (ret != 0) {
         return RET_ERROR_INTERNAL;
     }
+
+    *build_number = (((uint16_t)data[5]) << 8) | ((uint16_t)data[4]);
+
+    return RET_SUCCESS;
 }
 
 static ret_code_t
@@ -188,14 +201,13 @@ bq4050_read_cycle_count(uint16_t *cycle_count)
     }
 
     uint16_t word = 0;
-    int ret = bq4050_read_word(BQ4050_CMD_CYCLE_COUNT, &word);
-
-    if (ret == 0) {
-        *cycle_count = word;
-        return RET_SUCCESS;
-    } else {
+    const int ret = bq4050_read_word(BQ4050_CMD_CYCLE_COUNT, &word);
+    if (ret != 0) {
         return RET_ERROR_INTERNAL;
     }
+
+    *cycle_count = word;
+    return RET_SUCCESS;
 }
 
 static ret_code_t
@@ -207,13 +219,12 @@ bq4050_read_current(int16_t *current_ma)
 
     uint16_t word = 0;
     int ret = bq4050_read_word(BQ4050_CMD_CURRENT, &word);
-
-    if (ret == 0) {
-        *current_ma = (int16_t)word;
-        return RET_SUCCESS;
-    } else {
+    if (ret != 0) {
         return RET_ERROR_INTERNAL;
     }
+
+    *current_ma = (int16_t)word;
+    return RET_SUCCESS;
 }
 
 static ret_code_t
@@ -225,13 +236,12 @@ bq4050_read_relative_state_of_charge(uint8_t *percentage)
 
     uint16_t word = 0;
     int ret = bq4050_read_word(BQ4050_CMD_RELATIVE_STATE_OF_CHARGE, &word);
-
-    if (ret == 0) {
-        *percentage = (uint8_t)word;
-        return RET_SUCCESS;
-    } else {
+    if (ret != 0) {
         return RET_ERROR_INTERNAL;
     }
+
+    *percentage = (uint8_t)word;
+    return RET_SUCCESS;
 }
 
 static ret_code_t
@@ -243,13 +253,12 @@ bq4050_read_full_charge_capacity(uint16_t *full_charge_capacity_mah)
 
     uint16_t word = 0;
     int ret = bq4050_read_word(BQ4050_CMD_FULL_CHARGE_CAPACITY, &word);
-
-    if (ret == 0) {
-        *full_charge_capacity_mah = word;
-        return RET_SUCCESS;
-    } else {
+    if (ret != 0) {
         return RET_ERROR_INTERNAL;
     }
+
+    *full_charge_capacity_mah = word;
+    return RET_SUCCESS;
 }
 
 static ret_code_t
@@ -261,13 +270,12 @@ bq4050_read_serial_number(uint16_t *serial_number)
 
     uint16_t word = 0;
     int ret = bq4050_read_word(BQ4050_CMD_SERIAL_NUMBER, &word);
-
-    if (ret == 0) {
-        *serial_number = word;
-        return RET_SUCCESS;
-    } else {
+    if (ret != 0) {
         return RET_ERROR_INTERNAL;
     }
+
+    *serial_number = word;
+    return RET_SUCCESS;
 }
 
 static ret_code_t
@@ -279,13 +287,12 @@ bq4050_read_state_of_health(uint8_t *state_of_health_percentage)
 
     uint16_t word = 0;
     int ret = bq4050_read_word(BQ4050_CMD_STATE_OF_HEALTH, &word);
-
-    if (ret == 0) {
-        *state_of_health_percentage = (uint8_t)word;
-        return RET_SUCCESS;
-    } else {
+    if (ret != 0) {
         return RET_ERROR_INTERNAL;
     }
+
+    *state_of_health_percentage = (uint8_t)word;
+    return RET_SUCCESS;
 }
 
 static void
@@ -328,9 +335,9 @@ publish_battery_is_charging(orb_mcu_main_BatteryIsCharging *is_charging)
 static void
 publish_battery_cell_temperature(int16_t cell_temperature_decidegrees)
 {
-    LOG_DBG("Battery cell temperature: %u.%u°C",
+    LOG_DBG("Battery cell temperature: %d.%u°C",
             cell_temperature_decidegrees / 10,
-            cell_temperature_decidegrees % 10);
+            abs(cell_temperature_decidegrees) % 10);
     temperature_report(orb_mcu_Temperature_TemperatureSource_BATTERY_CELL,
                        cell_temperature_decidegrees / 10);
 }
@@ -348,8 +355,9 @@ publish_battery_diagnostics_common(
 static void
 publish_battery_pcb_temperature(int16_t pcb_temperature_decidegrees)
 {
-    LOG_DBG("Battery PCB temperature: %u.%u°C",
-            pcb_temperature_decidegrees / 10, pcb_temperature_decidegrees % 10);
+    LOG_DBG("Battery PCB temperature: %d.%u°C",
+            pcb_temperature_decidegrees / 10,
+            abs(pcb_temperature_decidegrees) % 10);
     temperature_report(orb_mcu_Temperature_TemperatureSource_BATTERY_PCB,
                        pcb_temperature_decidegrees / 10);
 }
@@ -397,10 +405,13 @@ battery_rx_thread()
                 publish_battery_voltages(&voltages);
             } else if (corded_power_supply) {
                 // /!\ `cellx` values must be sent to keep orb-core happy
+                int32_t voltages_corded_power_supply_mv = 0;
                 ret_code_t err_code = voltage_measurement_get(
-                    CHANNEL_VBAT_SW, &voltages.corded_power_supply_mv);
+                    CHANNEL_VBAT_SW, &voltages_corded_power_supply_mv);
                 ASSERT_SOFT(err_code);
                 if (err_code == RET_SUCCESS) {
+                    voltages.corded_power_supply_mv =
+                        voltages_corded_power_supply_mv;
                     voltages.battery_cell1_mv =
                         voltages.corded_power_supply_mv / 4;
                     voltages.battery_cell2_mv =
@@ -417,7 +428,7 @@ battery_rx_thread()
         {
             uint8_t relative_soc = 0;
             ret = bq4050_read_relative_state_of_charge(&relative_soc);
-            if (ret == 0) {
+            if (ret == RET_SUCCESS) {
                 got_battery_voltage_message_local_counter++;
                 if (battery_cap.percentage != relative_soc) {
                     LOG_INF("Main battery: %u%%", relative_soc);
@@ -428,7 +439,6 @@ battery_rx_thread()
             } else if (corded_power_supply) {
                 // send fake values to keep orb-core happy
                 battery_cap.percentage = 100;
-
                 publish_battery_capacity(&battery_cap);
             }
         }
@@ -453,7 +463,7 @@ battery_rx_thread()
         {
             int16_t current_ma;
             ret = bq4050_read_current(&current_ma);
-            if (ret == 0) {
+            if (ret == RET_SUCCESS) {
                 got_battery_voltage_message_local_counter++;
                 LOG_DBG("Battery current: %d mA", current_ma);
 
@@ -503,7 +513,7 @@ battery_rx_thread()
             ret = bq4050_read_block(BQ4050_BLK_CMD_MANUFACTURER_INFO,
                                     manufacturer_info,
                                     sizeof(manufacturer_info) - 1);
-            if (ret == RET_SUCCESS) {
+            if (ret == 0) {
                 got_battery_voltage_message_local_counter++;
                 LOG_DBG("Manufacturer info: %s", manufacturer_info);
 
@@ -576,7 +586,7 @@ battery_rx_thread()
             ret = bq4050_read_full_charge_capacity(&full_charge_capacity_mah);
             if (ret == RET_SUCCESS) {
                 got_battery_voltage_message_local_counter++;
-                LOG_DBG("Full charge capacity: %d mA",
+                LOG_DBG("Full charge capacity: %d mAh",
                         full_charge_capacity_mah);
 
                 info_max_values.maximum_capacity_mah = full_charge_capacity_mah;
@@ -597,9 +607,10 @@ battery_rx_thread()
                     lifetime_data_1.max_temp_fet_degrees);
 
                 info_max_values.maximum_cell_temp_decidegrees =
-                    (uint16_t)lifetime_data_1.max_temp_cell_degrees * 10;
+                    (uint32_t)MAX(lifetime_data_1.max_temp_cell_degrees, 0) *
+                    10;
                 info_max_values.maximum_pcb_temp_decidegrees =
-                    (uint16_t)lifetime_data_1.max_temp_fet_degrees * 10;
+                    (uint32_t)MAX(lifetime_data_1.max_temp_fet_degrees, 0) * 10;
                 info_max_values.maximum_charge_current_ma =
                     lifetime_data_1.max_charge_current_ma;
 
@@ -622,7 +633,7 @@ battery_rx_thread()
         {
             uint8_t state_of_health_percentage;
             ret = bq4050_read_state_of_health(&state_of_health_percentage);
-            if (ret == 0) {
+            if (ret == RET_SUCCESS) {
                 got_battery_voltage_message_local_counter++;
                 LOG_DBG("Battery SoH: %d %%", state_of_health_percentage);
 
@@ -657,7 +668,7 @@ battery_rx_thread()
 
             // default to battery removed if unable to get a voltage from
             // the voltage measurement module
-            int vbat_sw_voltage_mv = 0;
+            int32_t vbat_sw_voltage_mv = 0;
             ret_code_t err_code =
                 voltage_measurement_get(CHANNEL_VBAT_SW, &vbat_sw_voltage_mv);
             LOG_DBG("vbat_sw_voltage_mv: %d", vbat_sw_voltage_mv);
@@ -726,7 +737,7 @@ battery_dump_stats(const struct shell *sh)
     bq4050_da_status_1_block_t da_status_1 = {0};
     ret = bq4050_read_block(BQ4050_BLK_CMD_DA_STATUS_1, (uint8_t *)&da_status_1,
                             sizeof(da_status_1));
-    if (ret == RET_SUCCESS) {
+    if (ret == 0) {
         shell_print(
             sh, "Cell voltages: %d mV, %d mV, %d mV, %d mV",
             da_status_1.cell_voltage_1_mv, da_status_1.cell_voltage_2_mv,
