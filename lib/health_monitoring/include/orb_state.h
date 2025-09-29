@@ -97,6 +97,8 @@ struct orb_state_dynamic_data {
     orb_state_set(&ORB_STATE_ITEM_DYNAMIC_DATA(name), state,                   \
                   COND_CODE_1(IS_EMPTY(__VA_ARGS__), (NULL), (__VA_ARGS__)))
 
+#define ORB_STATE_GET(name) (ORB_STATE_ITEM_DYNAMIC_DATA(name).status)
+
 /**
  * @param data Pointer to the dynamic data structure for the state.
  * @param state int value representing the state.

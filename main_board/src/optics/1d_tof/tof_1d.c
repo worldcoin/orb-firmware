@@ -5,6 +5,7 @@
 #include "pubsub/pubsub.h"
 #include <app_assert.h>
 #include <errors.h>
+#include <string.h>
 #include <utils.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
@@ -12,11 +13,17 @@
 
 #include "orb_logs.h"
 
-LOG_MODULE_REGISTER(1d_tof, CONFIG_TOF_1D_LOG_LEVEL);
-ORB_STATE_REGISTER_MULTIPLE(tof_1d, sensor_bar);
+LOG_MODULE_REGISTER(tof_1d, CONFIG_TOF_1D_LOG_LEVEL);
+
+ORB_STATE_REGISTER_MULTIPLE(tof_1d);
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+ORB_STATE_REGISTER_MULTIPLE(sensor_bar);
+#endif
+#define ORB_STATE_1D_TOF_THRESHOLD_ERROR_COUNT        3
+#define ORB_STATE_SENSOR_BAR_DISCONNECTED_ERROR_COUNT 5
 
 const struct device *tof_1d_device = DEVICE_DT_GET(DT_NODELABEL(tof_sensor));
-#if CONFIG_BOARD_DIAMOND_MAIN
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
 const struct device *tof_1d_device_dvt =
     DEVICE_DT_GET(DT_NODELABEL(tof_sensor_dvt));
 #endif
@@ -31,8 +38,9 @@ static atomic_t too_close_counter = ATOMIC_INIT(0);
 
 #define INTER_MEASUREMENT_FREQ_HZ   ((int32_t)3)
 #define INTER_MEASUREMENT_PERIOD_MS ((int32_t)1000 / INTER_MEASUREMENT_FREQ_HZ)
-#define FETCH_PERIOD_MS             ((int32_t)(INTER_MEASUREMENT_PERIOD_MS * 1.5))
-#define DISTANCE_PUBLISH_PERIOD_MS  (FETCH_PERIOD_MS * 2)
+#define FETCH_PERIOD_MS                                                        \
+    ((int32_t)(INTER_MEASUREMENT_PERIOD_MS + INTER_MEASUREMENT_PERIOD_MS / 2))
+#define DISTANCE_PUBLISH_PERIOD_MS (FETCH_PERIOD_MS * 2)
 
 BUILD_ASSERT(
     DISTANCE_PUBLISH_PERIOD_MS % FETCH_PERIOD_MS == 0,
@@ -66,42 +74,115 @@ distance_is_safe(void)
 #endif
 }
 
-_Noreturn void
-tof_1d_thread()
+static ret_code_t
+tof_init_config(void)
 {
+    int ret;
+    // set short distance mode
+    struct sensor_value distance_config = {.val1 = 1 /* short */, .val2 = 0};
+    if (i2c1_mutex) {
+        k_mutex_lock(i2c1_mutex, K_FOREVER);
+    }
+    ret = sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
+                          SENSOR_ATTR_CONFIGURATION, &distance_config);
+    if (i2c1_mutex) {
+        k_mutex_unlock(i2c1_mutex);
+    }
+    if (ret != 0) {
+        return RET_ERROR_INTERNAL;
+    }
+
+    // set to autonomous mode by setting sampling frequency / inter measurement
+    // period
+    // the driver doesn't allow for sampling frequency below 1Hz
+    distance_config.val1 = INTER_MEASUREMENT_FREQ_HZ;
+    distance_config.val2 = 0; // fractional part, not used
+    if (i2c1_mutex) {
+        k_mutex_lock(i2c1_mutex, K_FOREVER);
+    }
+    ret = sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
+                          SENSOR_ATTR_SAMPLING_FREQUENCY, &distance_config);
+    if (i2c1_mutex) {
+        k_mutex_unlock(i2c1_mutex);
+    }
+    if (ret != 0) {
+        return RET_ERROR_INTERNAL;
+    }
+
+    return RET_SUCCESS;
+}
+
+void
+set_states(bool tof_1d_is_error, bool sensor_bar_is_disconnected)
+{
+    /* tof 1d sensor state */
+    if (ORB_STATE_GET(tof_1d) == RET_SUCCESS && tof_1d_is_error) {
+        ORB_STATE_SET(tof_1d, RET_ERROR_INTERNAL, "error reading");
+    } else if (ORB_STATE_GET(tof_1d) != RET_SUCCESS && !tof_1d_is_error) {
+        ORB_STATE_SET(tof_1d, RET_SUCCESS);
+    }
+
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+    /* sensor bar state */
+    if (ORB_STATE_GET(sensor_bar) == RET_SUCCESS &&
+        sensor_bar_is_disconnected) {
+        ORB_STATE_SET(sensor_bar, RET_ERROR_OFFLINE, "disconnected?");
+    } else if (ORB_STATE_GET(sensor_bar) != RET_SUCCESS &&
+               !sensor_bar_is_disconnected) {
+        ORB_STATE_SET(sensor_bar, RET_SUCCESS);
+    }
+#else
+    UNUSED_PARAMETER(sensor_bar_is_disconnected);
+#endif
+}
+
+_Noreturn void
+tof_1d_thread(void *a, void *b, void *c)
+{
+    UNUSED_PARAMETER(a);
+    UNUSED_PARAMETER(b);
+    UNUSED_PARAMETER(c);
+
     int ret;
     struct sensor_value distance_value;
     orb_mcu_main_ToF_1D tof;
     uint32_t count = 0;
+    uint32_t tick = 0;
     uint32_t err_count = 0;
 
-    uint32_t tick = 0;
+    /* initialize sensor config (short mode, sampling frequency) */
+    ret = tof_init_config();
+    /* initialize internal states */
+    set_states(ret != RET_SUCCESS, ret != RET_SUCCESS);
+
     while (1) {
         uint32_t tock = k_uptime_get_32();
         uint32_t task_duration = 0;
         if (tick != 0) {
             task_duration = tock - tick;
         }
-        LOG_DBG("task duration: %d", task_duration);
+        LOG_DBG("task duration: %u ms", task_duration);
 
-        if (count > 0 && count % 10 == 0 && err_count == 0) {
-            ORB_STATE_SET(sensor_bar, RET_SUCCESS);
+        // - 3 errors in a row for 1d-tof sensor means something is wrong
+        // - 5 errors in a row for 1d-tof means the sensor (and sensor bar) is
+        // probably disconnected
+        set_states(err_count >= ORB_STATE_1D_TOF_THRESHOLD_ERROR_COUNT,
+                   err_count >= ORB_STATE_SENSOR_BAR_DISCONNECTED_ERROR_COUNT);
+
+        /* wait until the sensor is back online */
+        if (err_count >= ORB_STATE_SENSOR_BAR_DISCONNECTED_ERROR_COUNT) {
+            while (tof_init_config() != RET_SUCCESS) {
+                k_msleep(5000);
+            }
+            err_count = 0;
         }
 
-        // 5 errors in a row means the sensor (and sensor bar) is probably
-        // disconnected
-        if (err_count == 5) {
-            ORB_STATE_SET(sensor_bar, RET_ERROR_OFFLINE, "disconnected?");
-        } else if (err_count >= 3) {
-            // 3 errors in a row means something is wrong with the 1d-tof sensor
-            ORB_STATE_SET(tof_1d, RET_ERROR_INTERNAL, "error fetching");
+        if (task_duration > FETCH_PERIOD_MS) {
+            LOG_WRN("Task took longer (%u ms) than fetch period (%u ms)",
+                    task_duration, FETCH_PERIOD_MS);
         } else {
-            // this is a normal run, and will be called a lot, so we
-            // don't set a message
-            ORB_STATE_SET(tof_1d, RET_SUCCESS);
+            k_msleep(FETCH_PERIOD_MS - task_duration);
         }
-
-        k_msleep(FETCH_PERIOD_MS - task_duration);
 
         tick = k_uptime_get_32();
 
@@ -182,6 +263,7 @@ tof_1d_thread()
 #endif
 
         // if reached here, we successfully fetched the data
+        set_states(false, false);
         err_count = 0;
     }
 }
@@ -190,15 +272,11 @@ int
 tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
             const orb_mcu_Hardware *hw_version)
 {
-    int ret;
-
     if (mutex) {
         i2c1_mutex = mutex;
     }
 
-    ORB_STATE_SET(sensor_bar, RET_ERROR_NOT_INITIALIZED, "unknown state");
-
-#if CONFIG_BOARD_DIAMOND_MAIN
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
     /* on diamond, select correct 1d-tof device from device tree as it differs
      * from evt to dvt and initialize it (deferred, to prevent init failures)
      */
@@ -210,7 +288,7 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
     if (i2c1_mutex) {
         k_mutex_lock(i2c1_mutex, K_FOREVER);
     }
-    ret = device_init(tof_1d_device);
+    int ret = device_init(tof_1d_device);
     ASSERT_SOFT(ret);
     if (i2c1_mutex) {
         k_mutex_unlock(i2c1_mutex);
@@ -231,18 +309,6 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
                     THREAD_PRIORITY_1DTOF, 0, K_NO_WAIT);
     k_thread_name_set(&tof_1d_thread_data, "tof_1d");
 
-    // set short distance mode
-    struct sensor_value distance_config = {.val1 = 1 /* short */, .val2 = 0};
-    if (i2c1_mutex) {
-        k_mutex_lock(i2c1_mutex, K_FOREVER);
-    }
-    ret = sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
-                          SENSOR_ATTR_CONFIGURATION, &distance_config);
-    if (i2c1_mutex) {
-        k_mutex_unlock(i2c1_mutex);
-    }
-    ASSERT_SOFT(ret);
-
 #if CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY
     if (distance_unsafe_cb) {
         unsafe_cb = distance_unsafe_cb;
@@ -250,23 +316,6 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
 #else
     UNUSED(distance_unsafe_cb);
 #endif
-
-    // set to autonomous mode by setting sampling frequency / inter measurement
-    // period
-    // the driver doesn't allow for sampling frequency below 1Hz
-    distance_config.val1 = INTER_MEASUREMENT_FREQ_HZ;
-    distance_config.val2 = 0; // fractional part, not used
-    if (i2c1_mutex) {
-        k_mutex_lock(i2c1_mutex, K_FOREVER);
-    }
-    ret = sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
-                          SENSOR_ATTR_SAMPLING_FREQUENCY, &distance_config);
-    if (i2c1_mutex) {
-        k_mutex_unlock(i2c1_mutex);
-    }
-    ASSERT_SOFT(ret);
-
-    ORB_STATE_SET(sensor_bar, RET_SUCCESS);
 
     return RET_SUCCESS;
 }
