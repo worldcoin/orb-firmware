@@ -117,8 +117,8 @@
 #define SYS_INIT_WAIT_FOR_BUTTON_PRESS_PRIORITY 53
 #define SYS_INIT_IR_SAFETY_SELF_TEST_PRIORITY   52
 #define SYS_INIT_GPIO_CONFIG_PRIORITY           51
-#define SYS_INIT_OP_LED_SELF_TEST_PRIORITY      51
 #define SYS_INIT_HELLO_WORLD                    50
+#define SYS_INIT_OP_LED_SELF_TEST_PRIORITY      48
 
 ///////////////////////////////////////
 /// CAN bus config                  ///
