@@ -140,9 +140,12 @@ set_center(struct led_rgb color)
 static void
 set_ring(struct led_rgb color, uint32_t start_angle, int32_t angle_length)
 {
-    ASSERT_HARD_BOOL(start_angle < FULL_RING_DEGREES);
-    ASSERT_HARD_BOOL(angle_length <= FULL_RING_DEGREES &&
-                     angle_length >= -FULL_RING_DEGREES);
+    if (start_angle >= FULL_RING_DEGREES || angle_length > FULL_RING_DEGREES ||
+        angle_length < -FULL_RING_DEGREES) {
+        LOG_ERR("invalid: start angle: %u, angle length: %u", start_angle,
+                angle_length);
+        return;
+    }
 
     // get first LED index, based on LED at 0º on trigonometric circle
     size_t led_index =

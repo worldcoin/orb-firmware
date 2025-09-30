@@ -144,7 +144,7 @@ motor_controller_spi_write(uint8_t reg, int32_t value)
     tx.len = sizeof tx_buffer;
 
     int ret = spi_transceive_dt(&spi_bus_dt, &tx_bufs, &rx_bufs);
-    ASSERT_HARD(ret);
+    ASSERT_SOFT(ret);
 
     return RET_SUCCESS;
 }

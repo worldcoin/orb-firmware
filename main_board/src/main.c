@@ -115,16 +115,24 @@ run_tests()
 static void
 app_assert_cb(fatal_error_info_t *err_info)
 {
-    if (jetson_up_and_running) {
-        // fatal error, try to warn Jetson
-        static orb_mcu_McuMessage fatal_error = {
-            .which_message = orb_mcu_McuMessage_m_message_tag,
-            .message.m_message.which_payload =
-                orb_mcu_main_McuToJetson_fatal_error_tag,
-            .message.m_message.payload.fatal_error.reason =
-                orb_mcu_FatalError_FatalReason_FATAL_ASSERT_HARD,
-        };
+    UNUSED_PARAMETER(err_info);
 
+    /* it's safer to keep reboot reason first before trying to do anything
+     * else that might fail (think stack overflow...) */
+#ifdef CONFIG_MEMFAULT
+    MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_HardAssert);
+#endif
+
+    // fatal error, try to warn Jetson
+    static orb_mcu_McuMessage fatal_error = {
+        .which_message = orb_mcu_McuMessage_m_message_tag,
+        .message.m_message.which_payload =
+            orb_mcu_main_McuToJetson_fatal_error_tag,
+        .message.m_message.payload.fatal_error.reason =
+            orb_mcu_FatalError_FatalReason_FATAL_ASSERT_HARD,
+    };
+
+    if (jetson_up_and_running) {
         static uint8_t buffer[CAN_FRAME_MAX_SIZE];
         pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
         bool encoded = pb_encode_ex(&stream, orb_mcu_McuMessage_fields,
@@ -139,8 +147,11 @@ app_assert_cb(fatal_error_info_t *err_info)
             // important: send in blocking mode
             (void)can_messaging_blocking_tx(&to_send);
         }
-    } else if (err_info != NULL) {
-        // TODO store error
+    } else {
+        /* last chance, but might fail */
+        publish_store(&fatal_error, sizeof(fatal_error),
+                      orb_mcu_sec_SecToJetson_fatal_error_tag,
+                      CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
     }
 }
 
