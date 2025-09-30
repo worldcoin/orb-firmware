@@ -358,7 +358,7 @@ static void
 handle_reboot_orb(job_t *job)
 {
     orb_mcu_main_JetsonToMcu *msg = &job->message;
-    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_reboot_tag);
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_reboot_orb_tag);
 
     uint32_t delay = msg->payload.reboot_orb.force_reboot_timeout_s;
 
