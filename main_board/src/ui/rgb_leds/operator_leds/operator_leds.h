@@ -2,9 +2,16 @@
 
 #include "mcu.pb.h"
 #include <errors.h>
+#include <zephyr/devicetree.h>
 
-#define OPERATOR_LEDS_COUNT    DT_PROP(DT_NODELABEL(operator_rgb_leds), num_leds)
+#define OPERATOR_LEDS_COUNT    (DT_PROP(DT_NODELABEL(operator_rgb_leds), num_leds))
 #define OPERATOR_LEDS_ALL_MASK BIT_MASK(OPERATOR_LEDS_COUNT)
+
+#if OPERATOR_LEDS_COUNT > 1
+#define OPERATOR_LEDS_ITERATIONS_COUNT OPERATOR_LEDS_COUNT
+#else
+#define OPERATOR_LEDS_ITERATIONS_COUNT 12
+#endif
 
 /**
  * Set brightness

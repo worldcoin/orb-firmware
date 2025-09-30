@@ -661,7 +661,11 @@ BUILD_ASSERT(
 SYS_INIT(turn_on_power_supplies, POST_KERNEL,
          SYS_INIT_POWER_SUPPLY_INIT_PRIORITY);
 
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+#define BUTTON_PRESS_TIME_MS 800
+#else
 #define BUTTON_PRESS_TIME_MS 600
+#endif
 
 /**
  * @brief Wait for a button press before continuing boot.
@@ -697,7 +701,7 @@ power_until_button_press(void)
     uint32_t operator_led_mask = 0;
     operator_leds_set_blocking(&white, operator_led_mask);
     LOG_INF("Waiting for button press of %u ms", BUTTON_PRESS_TIME_MS);
-    for (size_t i = 0; i <= OPERATOR_LEDS_COUNT; ++i) {
+    for (size_t i = 0; i <= OPERATOR_LEDS_ITERATIONS_COUNT; ++i) {
         // check if pvcc is discharged to perform optics self test
         // the button must not be pressed to initiate the self test
         if (self_test_pending && operator_led_mask == 0 &&
@@ -712,6 +716,7 @@ power_until_button_press(void)
         if (gpio_pin_get_dt(&power_button_gpio_spec) == 0) {
             if (i > 1) {
                 LOG_INF("Press stopped.");
+                operator_leds_set_blocking(&white, 0);
                 power_vbat_5v_3v3_supplies_off();
                 // give some time for the wifi module to reset correctly
                 k_msleep(1000);
@@ -720,7 +725,12 @@ power_until_button_press(void)
             operator_led_mask = 0;
             i = 0;
         } else {
+            /* turn operators leds one by one if several leds available */
+#if OPERATOR_LEDS_COUNT > 1
             operator_led_mask = (operator_led_mask << 1) | 1;
+#else
+            operator_led_mask = 1;
+#endif
         }
 
         if (i == 1) {
@@ -729,9 +739,19 @@ power_until_button_press(void)
         }
 
         // update LEDs
-        operator_leds_set_blocking(&white, operator_led_mask);
+#if OPERATOR_LEDS_COUNT > 1
+        const orb_mcu_main_RgbColor *color = &white;
+#else
+        const orb_mcu_main_RgbColor fade_in = {
+            .red = white.red * i / OPERATOR_LEDS_ITERATIONS_COUNT,
+            .green = white.green * i / OPERATOR_LEDS_ITERATIONS_COUNT,
+            .blue = white.blue * i / OPERATOR_LEDS_ITERATIONS_COUNT,
+            .dimming = white.dimming};
+        const orb_mcu_main_RgbColor *color = &fade_in;
+#endif
+        operator_leds_set_blocking(color, operator_led_mask);
 
-        k_msleep(BUTTON_PRESS_TIME_MS / OPERATOR_LEDS_COUNT);
+        k_msleep(BUTTON_PRESS_TIME_MS / OPERATOR_LEDS_ITERATIONS_COUNT);
     }
 
     // Disconnect PVCC pin from GPIO so that it can be used by the ADC in other

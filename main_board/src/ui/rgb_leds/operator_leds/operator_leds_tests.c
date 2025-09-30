@@ -149,6 +149,9 @@ SYS_INIT(operator_leds_self_test, POST_KERNEL,
          SYS_INIT_OP_LED_SELF_TEST_PRIORITY);
 BUILD_ASSERT(CONFIG_GPIO_PCA95XX_INIT_PRIORITY <=
              SYS_INIT_OP_LED_SELF_TEST_PRIORITY);
+// ensure spi-like comm to led is initialized after self-test
+// which reconfigures the data/clock lines
+BUILD_ASSERT(CONFIG_SPI_INIT_PRIORITY > SYS_INIT_OP_LED_SELF_TEST_PRIORITY);
 
 #endif /* CONFIG_BOARD_DIAMOND_MAIN */
 
