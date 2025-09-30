@@ -37,12 +37,10 @@ fatal(struct k_work *item)
     LOG_ERR("FATAL %s:%d, error %d", fatal_error.error_info.filename,
             fatal_error.error_info.line_num, fatal_error.error_info.err_code);
 
+    /* user callback at the end, in case of stack overflow... */
     if (assert_hard_user_cb) {
         assert_hard_user_cb(&fatal_error.error_info);
     }
-
-    // busy wait for 2 seconds...
-    k_busy_wait(2000000);
 
     HALT_IF_DEBUGGING();
 

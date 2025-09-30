@@ -28,8 +28,8 @@ timeout_default_handler(void)
         kMfltRebootReason_HeartbeatFromJetsonTimeout);
 #endif
 
-    ASSERT_HARD(RET_ERROR_TIMEOUT);
-    return RET_ERROR_ASSERT_FAILS;
+    NVIC_SystemReset();
+    CODE_UNREACHABLE;
 }
 
 static void

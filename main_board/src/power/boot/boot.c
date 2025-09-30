@@ -1038,7 +1038,8 @@ boot_turn_on_jetson(void)
         LOG_ERR(
             "Jetson cannot boot, ensure it's correctly connected & functional");
         k_msleep(1000);
-        ASSERT_HARD(RET_ERROR_INVALID_STATE);
+        NVIC_SystemReset();
+        CODE_UNREACHABLE;
         // 💀
     } else {
         LOG_INF("Jetson is booting");
