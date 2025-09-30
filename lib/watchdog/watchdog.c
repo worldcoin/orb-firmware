@@ -19,8 +19,7 @@ static const struct device *const watchdog_dev =
 #define WATCHDOG_RELOAD_MS CONFIG_ORB_LIB_WATCHDOG_RELOAD_MS
 #endif
 
-BUILD_ASSERT(CONFIG_ORB_LIB_WATCHDOG_RELOAD_MS <
-                 CONFIG_ORB_LIB_WATCHDOG_TIMEOUT_MS,
+BUILD_ASSERT(WATCHDOG_RELOAD_MS < CONFIG_ORB_LIB_WATCHDOG_TIMEOUT_MS,
              "Watchdog reload time must be less than watchdog timeout");
 
 static bool feed = true;
