@@ -416,10 +416,6 @@ storage_init(void)
             (uint32_t)storage_area.rd_idx, (uint32_t)storage_area.wr_idx);
 
 exit:
-    if (storage_area.fa != NULL) {
-        flash_area_close(storage_area.fa);
-    }
-
     k_sem_give(&sem_storage);
 
     return ret;
