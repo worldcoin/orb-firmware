@@ -72,7 +72,11 @@ const struct sub_message_s sub_prios[] = {
     [orb_mcu_main_McuToJetson_fan_status_tag] = {.priority = SUB_PRIO_DISCARD},
     [orb_mcu_main_McuToJetson_imu_data_tag] = {.priority = SUB_PRIO_DISCARD},
     [orb_mcu_main_McuToJetson_voltage_tag] = {.priority = SUB_PRIO_DISCARD},
+#ifdef CONFIG_DEBUG
+    [orb_mcu_main_McuToJetson_log_tag] = {.priority = SUB_PRIO_TRY_SENDING},
+#else
     [orb_mcu_main_McuToJetson_log_tag] = {.priority = SUB_PRIO_STORE},
+#endif
     [orb_mcu_main_McuToJetson_motor_range_tag] = {.priority = SUB_PRIO_DISCARD},
     [orb_mcu_main_McuToJetson_fatal_error_tag] = {.priority = SUB_PRIO_STORE},
     [orb_mcu_main_McuToJetson_battery_is_charging_tag] = {.priority =
@@ -92,12 +96,12 @@ const struct sub_message_s sub_prios[] = {
                                                               SUB_PRIO_DISCARD},
     [orb_mcu_main_McuToJetson_battery_diag_permanent_fail_tag] =
         {.priority = SUB_PRIO_DISCARD},
-    [orb_mcu_main_McuToJetson_battery_info_hw_fw_tag] = {.priority =
-                                                             SUB_PRIO_STORE},
+    [orb_mcu_main_McuToJetson_battery_info_hw_fw_tag] =
+        {.priority = SUB_PRIO_TRY_SENDING},
     [orb_mcu_main_McuToJetson_battery_info_max_values_tag] =
-        {.priority = SUB_PRIO_STORE},
+        {.priority = SUB_PRIO_TRY_SENDING},
     [orb_mcu_main_McuToJetson_battery_info_soc_and_statistics_tag] =
-        {.priority = SUB_PRIO_STORE},
+        {.priority = SUB_PRIO_TRY_SENDING},
     [orb_mcu_main_McuToJetson_cone_present_tag] = {.priority =
                                                        SUB_PRIO_DISCARD},
     [orb_mcu_main_McuToJetson_memfault_event_tag] = {.priority =
