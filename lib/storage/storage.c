@@ -282,7 +282,8 @@ storage_push(char *record, size_t size)
         goto exit;
     }
 
-    if (((uint32_t)storage_area.wr_idx + size_in_flash) >
+    if ((uint32_t)storage_area.wr_idx + sizeof(storage_header_t) +
+            size_in_flash >
         storage_area.fa->fa_size) {
         ret = RET_ERROR_NO_MEM;
         goto exit;
