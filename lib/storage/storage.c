@@ -18,6 +18,8 @@ static struct storage_area_s storage_area = {0};
 #define UNUSED_UINT16       0xFFFF
 #define MINIMUM_EMPTY_SPACE 512 //!< empty space to keep before erasing flash
 
+#define INIT_AREA_READ_BUFFER_SIZE 64
+
 static K_SEM_DEFINE(sem_storage, 1, 1);
 
 static int
@@ -52,12 +54,24 @@ init_area(const struct flash_area *fa)
         // rd_idx set to the first valid record that we find
         if (storage_area.rd_idx == INVALID_INDEX &&
             header.magic_state == RECORD_VALID) {
-            // read record to check crc16
-            uint8_t record[header.record_size];
-            ret = flash_area_read(fa, (off_t)(index + sizeof(storage_header_t)),
-                                  (void *)record, header.record_size);
-            if (ret == 0 && header.crc16 == crc16_ccitt(0xffff, record,
-                                                        header.record_size)) {
+            // read record with chunks and compute crc to check if
+            // the record is valid
+            uint8_t read_buffer[INIT_AREA_READ_BUFFER_SIZE];
+            uint16_t crc16 = 0xffff;
+            for (size_t i = 0; i < header.record_size;
+                 i += INIT_AREA_READ_BUFFER_SIZE) {
+                size_t size_to_read =
+                    i + INIT_AREA_READ_BUFFER_SIZE < header.record_size
+                        ? INIT_AREA_READ_BUFFER_SIZE
+                        : header.record_size - i;
+                ret = flash_area_read(
+                    fa, (off_t)(index + sizeof(storage_header_t) + i),
+                    (void *)read_buffer, size_to_read);
+                if (ret == 0) {
+                    crc16 = crc16_ccitt(crc16, read_buffer, size_to_read);
+                }
+            }
+            if (header.crc16 == crc16) {
                 storage_area.rd_idx = index;
             }
         }
