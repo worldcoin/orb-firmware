@@ -22,6 +22,9 @@ static struct storage_area_s storage_area = {0};
 
 static K_SEM_DEFINE(sem_storage, 1, 1);
 
+BUILD_ASSERT(FIXED_PARTITION_SIZE(storage_partition) < UINT16_MAX,
+             "fix storage_header_t's record_size");
+
 static int
 init_area(const struct flash_area *fa)
 {
@@ -264,7 +267,25 @@ exit:
 int
 storage_push(char *record, size_t size)
 {
-    int ret = RET_SUCCESS;
+    int ret;
+
+    if (record == NULL || size == 0) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    ret = k_sem_take(&sem_storage, K_FOREVER);
+    if (ret == 0) {
+        if (storage_area.fa == NULL) {
+            ret = RET_ERROR_NOT_INITIALIZED;
+            goto exit;
+        }
+        if (size > storage_area.fa->fa_size) {
+            ret = RET_ERROR_INVALID_PARAM;
+            goto exit;
+        }
+        k_sem_give(&sem_storage);
+    }
+
     uint8_t padding[FLASH_WRITE_BLOCK_SIZE];
     size_t size_in_flash = size;
     size_t size_to_write_trunc = size;
@@ -290,11 +311,6 @@ storage_push(char *record, size_t size)
     }
 
     k_sem_take(&sem_storage, K_FOREVER);
-
-    if (storage_area.fa == NULL) {
-        ret = RET_ERROR_NOT_INITIALIZED;
-        goto exit;
-    }
 
     if ((uint32_t)storage_area.wr_idx + sizeof(storage_header_t) +
             size_in_flash >
