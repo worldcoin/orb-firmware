@@ -36,8 +36,7 @@ enum magic_state_e {
 typedef struct __PACKED __may_alias {
     uint16_t magic_state;
     uint16_t record_size;
-    uint16_t crc16;  //!< CRC over the data, including padding which can be used
-                     //!< to align the record on Flash write size
+    uint16_t crc16;  //!< CRC over the data (record_size)
     uint16_t unused; //!< 0xffff
 } storage_header_t;
 
