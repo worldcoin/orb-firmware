@@ -97,6 +97,7 @@ config APP_TESTS_ALL
     select TEST_USER_LEDS
     select TEST_FAN
     select TEST_GNSS
+    select ORB_LIB_STORAGE_TESTS
 
 config CI_INTEGRATION_TESTS
 	bool "Send specific string in logs when testing UART with mcu-util"
