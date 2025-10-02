@@ -69,7 +69,6 @@ send(const char *data, size_t len,
     if (ret) {
         // -ENETDOWN(-115) can happen if 3v3 lost during transmission
         // CAN will recover when 3v3 back on
-        LOG_ERR("err: %i", ret);
         if (ret == -ENETUNREACH) {
             can_messaging_resume();
         }
