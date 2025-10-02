@@ -15,12 +15,8 @@
 
 LOG_MODULE_REGISTER(tof_1d, CONFIG_TOF_1D_LOG_LEVEL);
 
-ORB_STATE_REGISTER_MULTIPLE(tof_1d);
-#ifdef CONFIG_BOARD_DIAMOND_MAIN
-ORB_STATE_REGISTER_MULTIPLE(sensor_bar);
-#endif
-#define ORB_STATE_1D_TOF_THRESHOLD_ERROR_COUNT        3
-#define ORB_STATE_SENSOR_BAR_DISCONNECTED_ERROR_COUNT 5
+ORB_STATE_REGISTER(tof_1d);
+#define ORB_STATE_1D_TOF_THRESHOLD_ERROR_COUNT 3
 
 const struct device *tof_1d_device = DEVICE_DT_GET(DT_NODELABEL(tof_sensor));
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
@@ -113,7 +109,7 @@ tof_init_config(void)
 }
 
 void
-set_states(bool tof_1d_is_error, bool sensor_bar_is_disconnected)
+set_states(bool tof_1d_is_error)
 {
     /* tof 1d sensor state */
     if (ORB_STATE_GET(tof_1d) == RET_SUCCESS && tof_1d_is_error) {
@@ -121,19 +117,6 @@ set_states(bool tof_1d_is_error, bool sensor_bar_is_disconnected)
     } else if (ORB_STATE_GET(tof_1d) != RET_SUCCESS && !tof_1d_is_error) {
         ORB_STATE_SET(tof_1d, RET_SUCCESS);
     }
-
-#ifdef CONFIG_BOARD_DIAMOND_MAIN
-    /* sensor bar state */
-    if (ORB_STATE_GET(sensor_bar) == RET_SUCCESS &&
-        sensor_bar_is_disconnected) {
-        ORB_STATE_SET(sensor_bar, RET_ERROR_OFFLINE, "disconnected?");
-    } else if (ORB_STATE_GET(sensor_bar) != RET_SUCCESS &&
-               !sensor_bar_is_disconnected) {
-        ORB_STATE_SET(sensor_bar, RET_SUCCESS);
-    }
-#else
-    UNUSED_PARAMETER(sensor_bar_is_disconnected);
-#endif
 }
 
 _Noreturn void
@@ -153,7 +136,7 @@ tof_1d_thread(void *a, void *b, void *c)
     /* initialize sensor config (short mode, sampling frequency) */
     ret = tof_init_config();
     /* initialize internal states */
-    set_states(ret != RET_SUCCESS, ret != RET_SUCCESS);
+    set_states(ret != RET_SUCCESS);
 
     while (1) {
         uint32_t tock = k_uptime_get_32();
@@ -163,14 +146,12 @@ tof_1d_thread(void *a, void *b, void *c)
         }
         LOG_DBG("task duration: %u ms", task_duration);
 
-        // - 3 errors in a row for 1d-tof sensor means something is wrong
-        // - 5 errors in a row for 1d-tof means the sensor (and sensor bar) is
-        // probably disconnected
-        set_states(err_count >= ORB_STATE_1D_TOF_THRESHOLD_ERROR_COUNT,
-                   err_count >= ORB_STATE_SENSOR_BAR_DISCONNECTED_ERROR_COUNT);
+        // `ORB_STATE_1D_TOF_THRESHOLD_ERROR_COUNT` errors in a row for 1d-tof
+        // sensor means something is wrong
+        set_states(err_count >= ORB_STATE_1D_TOF_THRESHOLD_ERROR_COUNT);
 
         /* wait until the sensor is back online */
-        if (err_count >= ORB_STATE_SENSOR_BAR_DISCONNECTED_ERROR_COUNT) {
+        if (err_count > ORB_STATE_1D_TOF_THRESHOLD_ERROR_COUNT) {
             while (tof_init_config() != RET_SUCCESS) {
                 k_msleep(5000);
             }
@@ -263,7 +244,7 @@ tof_1d_thread(void *a, void *b, void *c)
 #endif
 
         // if reached here, we successfully fetched the data
-        set_states(false, false);
+        set_states(false);
         err_count = 0;
     }
 }
