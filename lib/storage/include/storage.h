@@ -36,8 +36,7 @@ enum magic_state_e {
 typedef struct __PACKED __may_alias {
     uint16_t magic_state;
     uint16_t record_size;
-    uint16_t crc16;  //!< CRC over the data, including padding which can be used
-                     //!< to align the record on Flash write size
+    uint16_t crc16;  //!< CRC over the data (record_size)
     uint16_t unused; //!< 0xffff
 } storage_header_t;
 
@@ -54,9 +53,11 @@ struct storage_area_s {
  * @note Writing into Flash is done per-block meaning the returned record
  *       might be larger than the stored record.
  *
- * @param record Pointer to record to be stored in Flash
+ * @param record Pointer to record to be stored in Flash. /!\ Array is re-used
+ *  internally to verify flash content, so consider it as garbage after the call
  * @param size Size of the record
  * @retval RET_SUCCESS record stored
+ * @retval RET_ERROR_INVALID_PARAM record or size is null, size > storage area
  * @retval RET_ERROR_NO_MEM flash area doesn't have enough empty space to store
  *  the new record
  * @retval RET_ERROR_INTERNAL error writing flash

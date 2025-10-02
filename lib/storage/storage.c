@@ -18,7 +18,12 @@ static struct storage_area_s storage_area = {0};
 #define UNUSED_UINT16       0xFFFF
 #define MINIMUM_EMPTY_SPACE 512 //!< empty space to keep before erasing flash
 
+#define INIT_AREA_READ_BUFFER_SIZE 64
+
 static K_SEM_DEFINE(sem_storage, 1, 1);
+
+BUILD_ASSERT(FIXED_PARTITION_SIZE(storage_partition) < UINT16_MAX,
+             "fix storage_header_t's record_size");
 
 static int
 init_area(const struct flash_area *fa)
@@ -52,12 +57,24 @@ init_area(const struct flash_area *fa)
         // rd_idx set to the first valid record that we find
         if (storage_area.rd_idx == INVALID_INDEX &&
             header.magic_state == RECORD_VALID) {
-            // read record to check crc16
-            uint8_t record[header.record_size];
-            ret = flash_area_read(fa, (off_t)(index + sizeof(storage_header_t)),
-                                  (void *)record, header.record_size);
-            if (ret == 0 && header.crc16 == crc16_ccitt(0xffff, record,
-                                                        header.record_size)) {
+            // read record with chunks and compute crc to check if
+            // the record is valid
+            uint8_t read_buffer[INIT_AREA_READ_BUFFER_SIZE];
+            uint16_t crc16 = 0xffff;
+            for (size_t i = 0; i < header.record_size;
+                 i += INIT_AREA_READ_BUFFER_SIZE) {
+                size_t size_to_read =
+                    i + INIT_AREA_READ_BUFFER_SIZE < header.record_size
+                        ? INIT_AREA_READ_BUFFER_SIZE
+                        : header.record_size - i;
+                ret = flash_area_read(
+                    fa, (off_t)(index + sizeof(storage_header_t) + i),
+                    (void *)read_buffer, size_to_read);
+                if (ret == 0) {
+                    crc16 = crc16_ccitt(crc16, read_buffer, size_to_read);
+                }
+            }
+            if (header.crc16 == crc16) {
                 storage_area.rd_idx = index;
             }
         }
@@ -250,7 +267,25 @@ exit:
 int
 storage_push(char *record, size_t size)
 {
-    int ret = RET_SUCCESS;
+    int ret;
+
+    if (record == NULL || size == 0) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    ret = k_sem_take(&sem_storage, K_FOREVER);
+    if (ret == 0) {
+        if (storage_area.fa == NULL) {
+            ret = RET_ERROR_NOT_INITIALIZED;
+            goto exit;
+        }
+        if (size > storage_area.fa->fa_size) {
+            ret = RET_ERROR_INVALID_PARAM;
+            goto exit;
+        }
+        k_sem_give(&sem_storage);
+    }
+
     uint8_t padding[FLASH_WRITE_BLOCK_SIZE];
     size_t size_in_flash = size;
     size_t size_to_write_trunc = size;
@@ -277,12 +312,8 @@ storage_push(char *record, size_t size)
 
     k_sem_take(&sem_storage, K_FOREVER);
 
-    if (storage_area.fa == NULL) {
-        ret = RET_ERROR_NOT_INITIALIZED;
-        goto exit;
-    }
-
-    if (((uint32_t)storage_area.wr_idx + size_in_flash) >
+    if ((uint32_t)storage_area.wr_idx + sizeof(storage_header_t) +
+            size_in_flash >
         storage_area.fa->fa_size) {
         ret = RET_ERROR_NO_MEM;
         goto exit;
@@ -416,10 +447,6 @@ storage_init(void)
             (uint32_t)storage_area.rd_idx, (uint32_t)storage_area.wr_idx);
 
 exit:
-    if (storage_area.fa != NULL) {
-        flash_area_close(storage_area.fa);
-    }
-
     k_sem_give(&sem_storage);
 
     return ret;
