@@ -75,7 +75,7 @@ ZTEST(storage, test_dummy_records)
 #endif
     char dummy_record[record_size * 3];
     for (size_t i = 0; i < sizeof(dummy_record); ++i) {
-        dummy_record[i] = rand() % UINT8_MAX;
+        dummy_record[i] = rand() % (UINT8_MAX + 1);
     }
     ret = storage_push(dummy_record, sizeof(dummy_record));
     zassert_equal(ret, RET_SUCCESS, "storage_push failed %d (aligned record)",
@@ -92,7 +92,7 @@ ZTEST(storage, test_dummy_records)
         "Writing 1 dummy record (to be padded to block size) to storage area");
     char dummy_record_padded[record_size * 2 + 2];
     for (size_t i = 0; i < sizeof(dummy_record_padded); ++i) {
-        dummy_record_padded[i] = rand() % UINT8_MAX;
+        dummy_record_padded[i] = rand() % (UINT8_MAX + 1);
     }
     off_t wr_idx_copy = area.wr_idx;
     UNUSED(wr_idx_copy); // only used when FLASH_WRITE_BLOCK_SIZE != 1
@@ -211,7 +211,7 @@ ZTEST(storage, test_full_storage)
 #endif
     char dummy_record[record_size * 3];
     for (size_t i = 0; i < sizeof(dummy_record); ++i) {
-        dummy_record[i] = rand() % UINT8_MAX;
+        dummy_record[i] = rand() % (UINT8_MAX + 1);
     }
     uint32_t count = 0;
     do {
