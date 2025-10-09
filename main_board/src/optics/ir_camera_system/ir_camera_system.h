@@ -9,15 +9,17 @@
                               focus_values) /                                  \
      (sizeof(uint16_t)))
 
+#define IR_LED_AUTO_OFF_TIMEOUT_S (3)
+
 #ifdef CONFIG_ZTEST
 void
 ir_camera_test_reset(void *fixture);
 
-// in tests we don't want to wait for too long
-#define IR_LED_AUTO_OFF_TIMEOUT_S (5) // ztest - 5 seconds
-#else
-// automatically turn off IR LEDs after 60 seconds without any activity
-#define IR_LED_AUTO_OFF_TIMEOUT_S (60)
+// IR_LED_AUTO_OFF_TIMEOUT_S used by ztest
+// in tests we don't want to wait for too long so split declaration
+// in case we want this to be longer than 5 seconds in production
+BUILD_ASSERT(IR_LED_AUTO_OFF_TIMEOUT_S <= 5);
+
 #endif
 
 /**
