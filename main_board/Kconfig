@@ -17,7 +17,7 @@ config RDP_ENABLE
 
 config PROXIMITY_DETECTION_FOR_IR_SAFETY
     bool "Ensure safe usage of IR LEDs."
-    default y
+    default n
     help
         Use 1d-tof sensor to detect any object in close proximity and disable IR LED.
 
