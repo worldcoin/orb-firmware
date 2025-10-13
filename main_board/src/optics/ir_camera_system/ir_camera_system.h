@@ -13,9 +13,13 @@
 void
 ir_camera_test_reset(void *fixture);
 
-// in tests we don't want to wait for too long
+#ifndef CONFIG_SHELL
+// in twister tests we don't want to wait for too long
 #define IR_LED_AUTO_OFF_TIMEOUT_S (5) // ztest - 5 seconds
-#else
+#endif
+#endif
+
+#ifndef IR_LED_AUTO_OFF_TIMEOUT_S
 // automatically turn off IR LEDs after 60 seconds without any activity
 #define IR_LED_AUTO_OFF_TIMEOUT_S (60)
 #endif
