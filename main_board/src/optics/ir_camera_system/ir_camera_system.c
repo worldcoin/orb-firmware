@@ -15,12 +15,6 @@
 #else
 /** mocked function below for unit tests */
 static bool
-distance_is_safe()
-{
-    return true;
-}
-
-static bool
 optics_safety_circuit_triggered(const uint32_t timeout_ms, bool *triggered)
 {
     ARG_UNUSED(timeout_ms);
@@ -408,7 +402,7 @@ ir_camera_system_get_status(void)
      * on duration during a sweep (busy) but not if unsafe conditions are met */
     if (!ir_camera_system_initialized) {
         ret = RET_ERROR_NOT_INITIALIZED;
-    } else if (!distance_is_safe() || safety_triggered) {
+    } else if (safety_triggered) {
         ret = RET_ERROR_FORBIDDEN;
     } else if (get_focus_sweep_in_progress() ||
                get_mirror_sweep_in_progress()) {
