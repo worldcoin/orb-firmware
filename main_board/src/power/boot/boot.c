@@ -35,6 +35,8 @@ LOG_MODULE_REGISTER(boot, CONFIG_BOOT_LOG_LEVEL);
 
 ORB_STATE_REGISTER_MULTIPLE(jetson);
 
+static bool post_update = false;
+
 // Power supplies turned on in two phases:
 // - Phase 1 initializes just enough power supplies to use the button and
 //   operator LEDs
@@ -788,8 +790,8 @@ app_init_state(void)
     // without its power supply
     k_msleep(2000);
 
-    const bool post_update = (primary_slot.image_ok == BOOT_FLAG_UNSET &&
-                              primary_slot.magic != BOOT_MAGIC_UNSET);
+    post_update = (primary_slot.image_ok == BOOT_FLAG_UNSET &&
+                   primary_slot.magic != BOOT_MAGIC_UNSET);
 
     /* read the boot flag and reset it once read */
     uint8_t boot_flag = 0;
@@ -1065,9 +1067,15 @@ boot_turn_on_jetson(void)
         LOG_INF("Jetson is booting");
     }
 
-    // jetson considered as booting
+    // jetson considered as booting, store boot reason
     // reset REBOOT flag in backup regs
-    ORB_STATE_SET(jetson, RET_SUCCESS, "booted");
+    uint8_t boot_flag = 0;
+    ret = backup_regs_read_byte(REBOOT_FLAG_OFFSET_BYTE, &boot_flag);
+    if (ret >= 0) {
+        ret = (boot_flag == REBOOT_INSTABOOT);
+    }
+    ORB_STATE_SET(jetson, RET_SUCCESS, "booted (autoboot: ota %d, ram %d)",
+                  post_update, ret);
     ret = backup_regs_write_byte(REBOOT_FLAG_OFFSET_BYTE, 0);
     ASSERT_SOFT(ret);
 
