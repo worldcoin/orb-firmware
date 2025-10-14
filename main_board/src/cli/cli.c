@@ -7,6 +7,7 @@
 #include <bootutil/image.h>
 #include <compilers.h>
 #include <main.pb.h>
+#include <optics/ir_camera_system/ir_camera_timer_settings.h>
 #include <orb_state.h>
 #include <power/battery/battery.h>
 #include <runner/runner.h>
@@ -588,6 +589,64 @@ execute_polarizer(const struct shell *sh, size_t argc, char **argv)
 #endif
 
 static int
+execute_ir_leds(const struct shell *sh, size_t argc, char **argv)
+{
+    if (argc < 3) {
+        shell_error(sh, "Usage: ir_leds <wavelength> <duration_us>");
+        shell_print(sh, "Wavelengths: see `InfraredLEDs` in "
+                        "https://github.com/worldcoin/orb-messages/blob/main/"
+                        "messages/main.proto [0-10]");
+        shell_print(sh, "Duration: 0-%uµs",
+                    IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US);
+        return -EINVAL;
+    }
+
+    uint32_t wavelength = strtoul(argv[1], NULL, 10);
+    uint32_t duration_us = strtoul(argv[2], NULL, 10);
+
+    // Validate wavelength
+    if (wavelength >
+        orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_940NM_SINGLE) {
+        shell_error(sh, "Invalid wavelength. Use 0-10");
+        return -EINVAL;
+    }
+
+    // Validate duration
+    if (duration_us > IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US) {
+        shell_error(sh, "Duration: %uµs, must be [0,%u] µs", duration_us,
+                    IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US);
+        return -EINVAL;
+    }
+
+    orb_mcu_main_JetsonToMcu message = {0};
+
+    // First set the LED on duration
+    message.which_payload = orb_mcu_main_JetsonToMcu_led_on_time_tag;
+    message.payload.led_on_time.on_duration_us = duration_us;
+
+    ret_code_t ret = runner_handle_new_cli(&message);
+    if (ret != RET_SUCCESS) {
+        shell_error(sh, "Failed to set LED duration: %d", ret);
+        return -EIO;
+    }
+
+    // Then enable the LEDs with the specified wavelength
+    message.which_payload = orb_mcu_main_JetsonToMcu_infrared_leds_tag;
+    message.payload.infrared_leds.wavelength =
+        (orb_mcu_main_InfraredLEDs_Wavelength)wavelength;
+
+    ret = runner_handle_new_cli(&message);
+    if (ret != RET_SUCCESS) {
+        shell_error(sh, "Failed to enable IR LEDs: %d", ret);
+        return -EIO;
+    }
+
+    shell_print(sh, "IR LEDs set: wavelength=%u, duration=%uus", wavelength,
+                duration_us);
+    return 0;
+}
+
+static int
 execute_runner_stats(const struct shell *sh, size_t argc, char **argv)
 {
     UNUSED_PARAMETER(argc);
@@ -617,6 +676,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
     SHELL_CMD(power_cycle, NULL, "Power cycle supply lines",
               execute_power_cycle),
     SHELL_CMD(date, NULL, "Set/Get date", execute_date),
+    SHELL_CMD(ir_leds, NULL, "Set IR LED duration and enable", execute_ir_leds),
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
     SHELL_CMD(white_leds, NULL, "Control white LEDs", execute_white_leds),
     SHELL_CMD(polarizer, NULL, "Control polarizer wheel", execute_polarizer),
