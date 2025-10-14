@@ -24,15 +24,11 @@ orb_state_dump(const struct shell *sh)
     if (IS_ENABLED(CONFIG_SHELL) && sh != NULL) {
         while (orb_state_iter(&data)) {
             if (data->dynamic_data != NULL) {
-                shell_print(
-                    sh, "[%s]\t%s[%s]\t%s", data->name,
-                    (strlen(data->name) > 2
-                         ? (strlen(data->name) > 5 ? "" : "\t") // Align output,
-                         : "\t\t"),
-                    data->dynamic_data->status < 0
-                        ? strerror(data->dynamic_data->status)
-                        : ret_code_to_str(data->dynamic_data->status),
-                    (char *)data->dynamic_data->message);
+                shell_print(sh, "[%-20s]\t[%-19s]\t%s", data->name,
+                            data->dynamic_data->status < 0
+                                ? strerror(data->dynamic_data->status)
+                                : ret_code_to_str(data->dynamic_data->status),
+                            (char *)data->dynamic_data->message);
             } else {
                 shell_print(sh, "Err: %s: no data available\n", data->name);
             }
@@ -41,15 +37,11 @@ orb_state_dump(const struct shell *sh)
     } else {
         while (orb_state_iter(&data)) {
             if (data->dynamic_data != NULL) {
-                LOG_INF(
-                    "[%s]\t%s[%s]\t%s", data->name,
-                    (strlen(data->name) > 2
-                         ? (strlen(data->name) > 5 ? "" : "\t") // Align output,
-                         : "\t\t"),
-                    data->dynamic_data->status < 0
-                        ? strerror(data->dynamic_data->status)
-                        : ret_code_to_str(data->dynamic_data->status),
-                    (char *)data->dynamic_data->message);
+                LOG_INF("[%-20s]\t[%-19s]\t%s", data->name,
+                        data->dynamic_data->status < 0
+                            ? strerror(data->dynamic_data->status)
+                            : ret_code_to_str(data->dynamic_data->status),
+                        (char *)data->dynamic_data->message);
             } else {
                 LOG_ERR("Err: %s: no data available", data->name);
             }
