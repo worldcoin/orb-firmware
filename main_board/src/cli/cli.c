@@ -2,6 +2,7 @@
 #include "cli.h"
 
 #include "date.h"
+#include "mcu_ping.h"
 #include "orb_logs.h"
 
 #include <bootutil/image.h>
@@ -11,6 +12,7 @@
 #include <orb_state.h>
 #include <power/battery/battery.h>
 #include <runner/runner.h>
+#include <sec.pb.h>
 #include <stdlib.h>
 #include <system/version/version.h>
 #include <ui/rgb_leds/operator_leds/operator_leds.h>
@@ -656,6 +658,35 @@ execute_runner_stats(const struct shell *sh, size_t argc, char **argv)
     return 0;
 }
 
+static int
+execute_ping_sec(const struct shell *sh, size_t argc, char **argv)
+{
+    UNUSED_PARAMETER(argc);
+    UNUSED_PARAMETER(argv);
+
+    ping_pong_reset();
+    const int ret = ping_pong_send_mcu(NULL);
+    if (ret) {
+        shell_error(sh, "Failed to send ping to security MCU: %d", ret);
+        return -EIO;
+    }
+    if (pong_received()) {
+        shell_warn(sh, "Pong already received, unexpected");
+    } else {
+        shell_print(sh, "Ping sent, waiting for pong");
+    }
+
+    k_msleep(500);
+
+    if (pong_received()) {
+        shell_print(sh, "Received pong from security MCU");
+    } else {
+        shell_error(sh, "No pong received from security MCU");
+    }
+
+    return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(
     sub_orb,
     SHELL_CMD(reboot, NULL, "Reboot system with optional delay",
@@ -682,6 +713,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
     SHELL_CMD(polarizer, NULL, "Control polarizer wheel", execute_polarizer),
 #endif
     SHELL_CMD(stats, NULL, "Show runner statistics", execute_runner_stats),
+    SHELL_CMD(ping_sec, NULL, "Send ping to security MCU", execute_ping_sec),
     SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(orb, &sub_orb, "Orb commands", NULL);
