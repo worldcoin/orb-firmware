@@ -81,7 +81,7 @@ als_thread()
 
             publish_new(&als, sizeof(als),
                         orb_mcu_main_McuToJetson_front_als_tag,
-                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                        CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 
             // reset error counter and state if we had errors
             if (error_count > 0) {

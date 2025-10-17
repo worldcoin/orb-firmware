@@ -124,8 +124,8 @@
 /// CAN bus config                  ///
 ///////////////////////////////////////
 
-#ifndef CONFIG_CAN_ADDRESS_MCU
-#define CONFIG_CAN_ADDRESS_MCU 0x01
+#ifndef CONFIG_CAN_ADDRESS_JETSON_TO_MCU_RX
+#define CONFIG_CAN_ADDRESS_JETSON_TO_MCU_RX 0x01
 #endif
 
 #define CAMERA_SWEEP_INTERRUPT_PRIO     10

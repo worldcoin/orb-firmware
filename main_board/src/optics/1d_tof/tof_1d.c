@@ -247,7 +247,7 @@ tof_1d_thread(void *a, void *b, void *c)
             LOG_INF("Distance in front: %umm", tof.distance_mm);
 
             publish_new(&tof, sizeof(tof), orb_mcu_main_McuToJetson_tof_1d_tag,
-                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                        CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
         }
 
         // check proximity from sensor itself

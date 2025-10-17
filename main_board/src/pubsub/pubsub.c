@@ -134,7 +134,7 @@ pub_stored_thread()
     int err_code;
     struct pub_entry_s record;
 
-    diag_sync(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+    diag_sync(CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 
     while (true) {
         size_t size = sizeof(record);
@@ -252,7 +252,7 @@ subscribe_add(uint32_t remote_addr)
 
 static int
 publish(void *payload, size_t size, uint32_t which_payload,
-        uint32_t remote_addr, bool store)
+        uint32_t remote_addr, bool force_store)
 {
     int err_code = RET_SUCCESS;
 
@@ -260,31 +260,51 @@ publish(void *payload, size_t size, uint32_t which_payload,
     // - payload is smaller than McuToJetson payload size
     // - which_payload is supported
     if (which_payload >= ARRAY_SIZE(sub_prios) ||
-        size > STRUCT_MEMBER_SIZE_BYTES(orb_mcu_main_McuToJetson, payload)) {
+        (remote_addr == CONFIG_CAN_ADDRESS_MCU_TO_MCU_TX &&
+         size > STRUCT_MEMBER_SIZE_BYTES(orb_mcu_main_MainToSec, payload)) ||
+        (remote_addr != CONFIG_CAN_ADDRESS_MCU_TO_MCU_TX &&
+         size > STRUCT_MEMBER_SIZE_BYTES(orb_mcu_main_McuToJetson, payload))) {
         return RET_ERROR_INVALID_PARAM;
     }
 
-    if (!store && !publish_is_started(remote_addr) &&
+    if (!force_store && !publish_is_started(remote_addr) &&
         sub_prios[which_payload].priority == SUB_PRIO_DISCARD) {
         return RET_ERROR_OFFLINE;
     }
 
     // static structs, don't take caller stack
     static struct pub_entry_s entry;
-    static orb_mcu_McuMessage message = {.version = orb_mcu_Version_VERSION_0,
-                                         .which_message =
-                                             orb_mcu_McuMessage_m_message_tag,
-                                         .message.m_message = {0}};
+    static orb_mcu_McuMessage message = {.version = orb_mcu_Version_VERSION_0};
 
     // no wait if ISR
     k_timeout_t timeout = k_is_in_isr() ? K_NO_WAIT : K_MSEC(5);
     int ret = k_sem_take(&pub_buffers_sem, timeout);
+
     if (ret == 0) {
-        // copy payload
-        message.message.m_message.which_payload = which_payload;
-        memset(&message.message.m_message.payload, 0,
-               sizeof(message.message.m_message.payload));
-        memcpy(&message.message.m_message.payload, payload, size);
+        // mcu-to-mcu messages are not stored, they are just sent directly
+        // messages to the jetson can be stored depending on the priority,o
+        // or if it was explicitly requested by the caller (force_store)
+        bool store = false;
+        if (remote_addr == CONFIG_CAN_ADDRESS_MCU_TO_MCU_TX) {
+            message.which_message = orb_mcu_McuMessage_main_to_sec_message_tag;
+
+            // copy payload
+            message.message.main_to_sec_message.which_payload = which_payload;
+            memset(&message.message.main_to_sec_message.payload, 0,
+                   sizeof(message.message.main_to_sec_message.payload));
+            memcpy(&message.message.main_to_sec_message.payload, payload, size);
+        } else {
+            store = force_store ||
+                    (!publish_is_started(remote_addr) &&
+                     sub_prios[which_payload].priority == SUB_PRIO_STORE);
+            message.which_message = orb_mcu_McuMessage_m_message_tag;
+
+            // copy payload
+            message.message.m_message.which_payload = which_payload;
+            memset(&message.message.m_message.payload, 0,
+                   sizeof(message.message.m_message.payload));
+            memcpy(&message.message.m_message.payload, payload, size);
+        }
 
         // encode full McuMessage
         pb_ostream_t stream =
@@ -293,9 +313,7 @@ publish(void *payload, size_t size, uint32_t which_payload,
                                     &message, PB_ENCODE_DELIMITED);
 
         if (encoded) {
-            if (store ||
-                (!publish_is_started(remote_addr) &&
-                 sub_prios[which_payload].priority == SUB_PRIO_STORE)) {
+            if (store) {
                 entry.destination = remote_addr;
 
                 // store message to be sent later
@@ -310,7 +328,7 @@ publish(void *payload, size_t size, uint32_t which_payload,
 
                 // error code to warn caller that the message
                 // hasn't been published in case it wasn't aimed to be stored
-                if (!store) {
+                if (!force_store) {
                     err_code = RET_ERROR_OFFLINE;
                 }
             } else {

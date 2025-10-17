@@ -1,5 +1,5 @@
 if (CONFIG_ORB_LIB_HEALTH_MONITORING)
-    set (SRC_FILES heartbeat.c orb_state.c)
+    set (SRC_FILES heartbeat.c orb_state.c mcu_ping.c)
     if (CONFIG_ZTEST)
         list (APPEND SRC_FILES heartbeat_test.c)
     endif ()

@@ -133,7 +133,7 @@ publish_battery_reset_reason(void)
     LOG_DBG("Battery reset reason: %d", reset_reason.reset_reason);
     int ret = publish_new(&reset_reason, sizeof reset_reason,
                           orb_mcu_main_McuToJetson_battery_reset_reason_tag,
-                          CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                          CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
     if (ret != RET_SUCCESS) {
         LOG_DBG("Battery reset reason publish error: %d", ret);
     }
@@ -153,7 +153,7 @@ publish_battery_voltages(orb_mcu_main_BatteryVoltage *voltages)
 
     publish_new(voltages, sizeof(orb_mcu_main_BatteryVoltage),
                 orb_mcu_main_McuToJetson_battery_voltage_tag,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 }
 
 static void
@@ -162,7 +162,7 @@ publish_battery_capacity(orb_mcu_main_BatteryCapacity *battery_cap)
     LOG_DBG("State of charge: %u%%", battery_cap->percentage);
     publish_new(battery_cap, sizeof(orb_mcu_main_BatteryCapacity),
                 orb_mcu_main_McuToJetson_battery_capacity_tag,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 }
 
 static void
@@ -171,7 +171,7 @@ publish_battery_is_charging(orb_mcu_main_BatteryIsCharging *is_charging)
     LOG_DBG("Is charging? %s", is_charging->battery_is_charging ? "yes" : "no");
     publish_new(is_charging, sizeof(orb_mcu_main_BatteryIsCharging),
                 orb_mcu_main_McuToJetson_battery_is_charging_tag,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 }
 
 static void
@@ -228,14 +228,14 @@ publish_battery_diagnostics(void)
         CRITICAL_SECTION_EXIT(k);
         int ret = publish_new(&diag_common, sizeof(diag_common),
                               orb_mcu_main_McuToJetson_battery_diag_common_tag,
-                              CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                              CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
         if (ret != RET_SUCCESS) {
             LOG_DBG("Battery diagnostics publish error diag_common: %d", ret);
         }
 
         ret = publish_new(&diag_safety, sizeof(diag_safety),
                           orb_mcu_main_McuToJetson_battery_diag_safety_tag,
-                          CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                          CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
         if (ret != RET_SUCCESS) {
             LOG_DBG("Battery diagnostics publish error diag_safety: %d", ret);
         }
@@ -243,7 +243,7 @@ publish_battery_diagnostics(void)
         ret = publish_new(
             &diag_permanent_fail, sizeof(diag_permanent_fail),
             orb_mcu_main_McuToJetson_battery_diag_permanent_fail_tag,
-            CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+            CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
         if (ret != RET_SUCCESS) {
             LOG_DBG("Battery diagnostics publish error diag_permanent_fail: %d",
                     ret);
@@ -330,7 +330,7 @@ publish_battery_info(void)
 
     int ret = publish_new(&info_hw_fw, sizeof(info_hw_fw),
                           orb_mcu_main_McuToJetson_battery_info_hw_fw_tag,
-                          CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                          CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
     if (ret != RET_SUCCESS) {
         LOG_DBG("Battery info_one publish error: %d", ret);
     }
@@ -338,14 +338,14 @@ publish_battery_info(void)
     ret = publish_new(
         &info_soc_and_statistics, sizeof(info_soc_and_statistics),
         orb_mcu_main_McuToJetson_battery_info_soc_and_statistics_tag,
-        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+        CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
     if (ret != RET_SUCCESS) {
         LOG_DBG("Battery info_two publish error: %d", ret);
     }
 
     ret = publish_new(&info_max_values, sizeof(info_max_values),
                       orb_mcu_main_McuToJetson_battery_info_max_values_tag,
-                      CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                      CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
     if (ret != RET_SUCCESS) {
         LOG_DBG("Battery info_three publish error: %d", ret);
     }
@@ -748,7 +748,7 @@ battery_rx_thread()
             // request battery info only if communication to the
             // Jetson is active
             if (request_battery_info_left_attempts &&
-                publish_is_started(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE)) {
+                publish_is_started(CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX)) {
 
                 // clear all can message buffers because they might
                 // contain data from the previously inserted battery
@@ -798,7 +798,7 @@ battery_rx_thread()
                     shutdown_scheduled_sent =
                         publish_new(&shutdown, sizeof(shutdown),
                                     orb_mcu_main_McuToJetson_shutdown_tag,
-                                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                                    CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
                     LOG_WRN("Battery removed: %d", shutdown_scheduled_sent);
                 }
                 if (battery_messages_timeout >=
