@@ -14,6 +14,7 @@
 #include <runner/runner.h>
 #include <sec.pb.h>
 #include <stdlib.h>
+#include <system/ping_sec.h>
 #include <system/version/version.h>
 #include <ui/rgb_leds/operator_leds/operator_leds.h>
 #include <zephyr/shell/shell.h>
@@ -664,24 +665,9 @@ execute_ping_sec(const struct shell *sh, size_t argc, char **argv)
     UNUSED_PARAMETER(argc);
     UNUSED_PARAMETER(argv);
 
-    ping_pong_reset();
-    const int ret = ping_pong_send_mcu(NULL);
+    const int ret = ping_sec(sh, K_SECONDS(2));
     if (ret) {
-        shell_error(sh, "Failed to send ping to security MCU: %d", ret);
-        return -EIO;
-    }
-    if (pong_received()) {
-        shell_warn(sh, "Pong already received, unexpected");
-    } else {
-        shell_print(sh, "Ping sent, waiting for pong");
-    }
-
-    k_msleep(500);
-
-    if (pong_received()) {
-        shell_print(sh, "Received pong from security MCU");
-    } else {
-        shell_error(sh, "No pong received from security MCU");
+        shell_error(sh, "Ping failed: %d", ret);
     }
 
     return 0;
