@@ -1,4 +1,5 @@
 #include "mcu_ping.h"
+#include "system/ping_sec.h"
 #include "ui/nfc/nfc.h"
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 #include "gnss/gnss.h"
@@ -343,6 +344,8 @@ initialize(void)
 
     err_code = button_init();
     ASSERT_SOFT(err_code);
+
+    ping_sec_init();
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     err_code = gnss_init();
