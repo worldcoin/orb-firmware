@@ -36,6 +36,7 @@ LOG_MODULE_REGISTER(boot, CONFIG_BOOT_LOG_LEVEL);
 ORB_STATE_REGISTER_MULTIPLE(jetson);
 
 static bool post_update = false;
+static bool latched_reboot_cmd = false;
 
 // Power supplies turned on in two phases:
 // - Phase 1 initializes just enough power supplies to use the button and
@@ -796,7 +797,7 @@ app_init_state(void)
     /* read the boot flag and reset it once read */
     uint8_t boot_flag = 0;
     ret = backup_regs_read_byte(REBOOT_FLAG_OFFSET_BYTE, &boot_flag);
-    const bool boot_orb = (ret == 0 && boot_flag == REBOOT_INSTABOOT);
+    latched_reboot_cmd = (ret == 0 && boot_flag == REBOOT_INSTABOOT);
 
     // if any of the following is true:
     // - the application has been updated (image not confirmed),
@@ -805,9 +806,10 @@ app_init_state(void)
     //  -> boot jetson
     // otherwise:
     // -> nominal behaviour: wait for button press to boot
-    if (post_update || boot_orb || IS_ENABLED(CONFIG_INSTA_BOOT)) {
+    if (post_update || latched_reboot_cmd || IS_ENABLED(CONFIG_INSTA_BOOT)) {
         LOG_INF_IMM("insta-boot: %d, post ota: %d, auto-boot: %d",
-                    IS_ENABLED(CONFIG_INSTA_BOOT), post_update, boot_orb);
+                    IS_ENABLED(CONFIG_INSTA_BOOT), post_update,
+                    latched_reboot_cmd);
 
         power_vbat_5v_3v3_supplies_on();
 
@@ -1051,8 +1053,9 @@ boot_turn_on_jetson(void)
             ORB_STATE_SET(jetson, RET_ERROR_INTERNAL,
                           "error reading reset pin %d", reset);
             return RET_ERROR_INTERNAL;
+        } else if (reset != 0) {
+            k_msleep(1);
         }
-        k_msleep(1);
     } while (reset != 0 && --timeout_ms > 0);
 
     if (timeout_ms == 0) {
@@ -1067,23 +1070,15 @@ boot_turn_on_jetson(void)
         LOG_INF("Jetson is booting");
     }
 
-    // jetson considered as booting, store boot reason
-    // reset REBOOT flag in backup regs
-    uint8_t boot_flag = 0;
-    ret = backup_regs_read_byte(REBOOT_FLAG_OFFSET_BYTE, &boot_flag);
-    if (ret >= 0) {
-        ret = (boot_flag == REBOOT_INSTABOOT);
-    }
-    ORB_STATE_SET(jetson, RET_SUCCESS, "booted (autoboot: ota %d, ram %d)",
-                  post_update, ret);
-    ret = backup_regs_write_byte(REBOOT_FLAG_OFFSET_BYTE, 0);
-    ASSERT_SOFT(ret);
-
     ret = gpio_pin_set_dt(&jetson_sleep_wake_gpio_spec, 1);
     ASSERT_SOFT(ret);
     if (ret == 0) {
         LOG_INF("Jetson wake mode enabled");
     }
+
+    // jetson considered as booting, store boot reason
+    ORB_STATE_SET(jetson, RET_SUCCESS, "booted (autoboot: ota %d, ram %d)",
+                  post_update, latched_reboot_cmd);
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     ret = gpio_pin_set_dt(&lte_gps_usb_reset_gpio_spec, 0);

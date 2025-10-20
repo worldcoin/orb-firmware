@@ -49,6 +49,7 @@
 #endif
 
 #include "orb_logs.h"
+#include "system/backup_regs.h"
 LOG_MODULE_REGISTER(main, CONFIG_MAIN_LOG_LEVEL);
 
 static bool jetson_up_and_running = false;
@@ -405,6 +406,7 @@ main_internal(void)
 #if !defined(CONFIG_NO_JETSON_BOOT) || !CONFIG_NO_JETSON_BOOT
     wait_jetson_up();
 #endif
+    backup_clear_reboot_flag();
 
     /*
      * return early in case we are called from ztest or shell is activated
