@@ -258,7 +258,7 @@ set_pvcc_converter_into_high_demand_mode(void)
 }
 
 static void
-disable_all_led_cc_channels(void)
+ir_leds_disable_all(void)
 {
     // disable all CC channels of the LED timers
     LL_TIM_CC_DisableChannel(LED_850NM_TIMER,
@@ -369,11 +369,9 @@ K_SEM_DEFINE(camera_sweep_test_sem, 0, 1);
 #endif
 
 // When the camera trigger update event ISR is enabled, any time the one shot
-// pulse is completed, this will fire. This update event was enabled in the
-// rgb_ir_strobe_isr to trigger IR eye camera and IR LEDs The ISR will then
-// enable the right channels for the next master timer update event
+// pulse is completed, this will fire.
 static void
-camera_sweep_isr(void *arg)
+camera_exposure_completes_isr(void *arg)
 {
     ARG_UNUSED(arg);
     LL_TIM_ClearFlag_UPDATE(CAMERA_TRIGGER_TIMER);
@@ -420,6 +418,9 @@ camera_sweep_isr(void *arg)
             }
         } else {
 #if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
+            // This update event was enabled in the rgb_ir_strobe_isr to trigger
+            // IR eye camera and IR LEDs.
+
             // enable the IR eye camera trigger and disable ir face and 2d TOF
             // camera triggers
             LL_TIM_CC_DisableChannel(
@@ -433,7 +434,7 @@ camera_sweep_isr(void *arg)
                 ch2ll[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
 
             // disable the IR LEDs for the next master timer event
-            disable_all_led_cc_channels();
+            ir_leds_disable_all();
 
             // disable the camera trigger timer update interrupt to set up the
             // next master update event
@@ -769,7 +770,7 @@ setup_camera_triggers(void)
 #endif
 
     IRQ_CONNECT(CAMERA_TRIGGER_TIMER_UPDATE_IRQn, CAMERA_SWEEP_INTERRUPT_PRIO,
-                camera_sweep_isr, NULL, 0);
+                camera_exposure_completes_isr, NULL, 0);
     irq_enable(CAMERA_TRIGGER_TIMER_UPDATE_IRQn);
 
     LL_TIM_EnableCounter(CAMERA_TRIGGER_TIMER);
@@ -778,7 +779,7 @@ setup_camera_triggers(void)
 }
 
 static void
-ir_camera_system_enable_cc_channels(void)
+ir_leds_enable_pulse(void)
 {
     // disable all UPDATE interrupts, later enable only active channel
     // the `UPDATE` event triggers the `ir_leds_pulse_finished_isr` (Pearl)
@@ -888,7 +889,7 @@ ir_camera_system_enable_cc_channels(void)
 }
 
 static void
-set_arr_ir_leds(void)
+ir_leds_set_pulse_length(void)
 {
     // allow usage of IR LEDs if safety conditions are met
     // /!\ this overrides the Jetson commands
@@ -899,7 +900,7 @@ set_arr_ir_leds(void)
     // reset states
     // so that we can selectively enable the active channels
     // from scratch
-    disable_all_led_cc_channels();
+    ir_leds_disable_all();
 
     if (global_timer_settings.on_time_in_us != 0) {
         // set the ARR value for all IR LED timers
@@ -919,14 +920,10 @@ set_arr_ir_leds(void)
     } else {
         set_pvcc_converter_into_low_power_mode();
     }
-
-#if !DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
-    ir_camera_system_enable_cc_channels();
-#endif
 }
 
 static inline void
-set_trigger_arr(bool enabled, int channel)
+camera_set_exposure_length(bool enabled, int channel)
 {
     // set the ARR value for the camera trigger timer
     LL_TIM_SetAutoReload(CAMERA_TRIGGER_TIMER,
@@ -965,18 +962,21 @@ apply_new_timer_settings()
     LL_TIM_SetAutoReload(MASTER_TIMER, global_timer_settings.master_arr);
 
 #if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
-    // explicity disable the ir eye camera trigger when applying new settings
-    set_trigger_arr(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    // explicitly disable the ir eye camera trigger when applying new settings
+    camera_set_exposure_length(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
 #else
-    set_trigger_arr(ir_camera_system_ir_eye_camera_is_enabled(),
-                    IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_set_exposure_length(ir_camera_system_ir_eye_camera_is_enabled(),
+                               IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
 #endif
-    set_trigger_arr(ir_camera_system_ir_face_camera_is_enabled(),
-                    IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
-    set_trigger_arr(ir_camera_system_2d_tof_camera_is_enabled(),
-                    TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_set_exposure_length(ir_camera_system_ir_face_camera_is_enabled(),
+                               IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_set_exposure_length(ir_camera_system_2d_tof_camera_is_enabled(),
+                               TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
 
-    set_arr_ir_leds();
+    ir_leds_set_pulse_length();
+#if !DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
+    ir_leds_enable_pulse();
+#endif
 
     CRITICAL_SECTION_EXIT(k);
 
@@ -1153,7 +1153,7 @@ setup_940nm_led_timer(void)
 void
 ir_camera_system_enable_ir_eye_camera_hw(void)
 {
-    set_trigger_arr(true, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_set_exposure_length(true, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
     configure_timeout();
 }
@@ -1161,7 +1161,7 @@ ir_camera_system_enable_ir_eye_camera_hw(void)
 void
 ir_camera_system_disable_ir_eye_camera_hw(void)
 {
-    set_trigger_arr(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_set_exposure_length(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
     configure_timeout();
 }
@@ -1169,7 +1169,7 @@ ir_camera_system_disable_ir_eye_camera_hw(void)
 void
 ir_camera_system_enable_ir_face_camera_hw(void)
 {
-    set_trigger_arr(true, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_set_exposure_length(true, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
     configure_timeout();
 }
@@ -1177,7 +1177,7 @@ ir_camera_system_enable_ir_face_camera_hw(void)
 void
 ir_camera_system_disable_ir_face_camera_hw(void)
 {
-    set_trigger_arr(false, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_set_exposure_length(false, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
     configure_timeout();
 }
@@ -1185,7 +1185,7 @@ ir_camera_system_disable_ir_face_camera_hw(void)
 void
 ir_camera_system_enable_2d_tof_camera_hw(void)
 {
-    set_trigger_arr(true, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_set_exposure_length(true, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
     configure_timeout();
 }
@@ -1193,7 +1193,7 @@ ir_camera_system_enable_2d_tof_camera_hw(void)
 void
 ir_camera_system_disable_2d_tof_camera_hw(void)
 {
-    set_trigger_arr(false, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_set_exposure_length(false, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
     configure_timeout();
 }
@@ -1252,8 +1252,10 @@ ir_camera_system_enable_leds_hw(void)
 {
     CRITICAL_SECTION_ENTER(k);
 
-    set_arr_ir_leds();
-
+    ir_leds_set_pulse_length();
+#if !DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
+    ir_leds_enable_pulse();
+#endif
     CRITICAL_SECTION_EXIT(k);
 
     debug_print();
@@ -1312,7 +1314,7 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
     }
 
     // enable the IR LEDs
-    ir_camera_system_enable_cc_channels();
+    ir_leds_enable_pulse();
 
     // enable the camera trigger timer update interrupt to set up the next
     // master update event The ISR camera_sweep_isr will be triggered when the
