@@ -210,10 +210,6 @@ static struct ir_camera_timer_settings global_timer_settings = {0};
 static const struct gpio_dt_spec front_unit_pvcc_pwm_mode =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_pvcc_pwm_mode_gpios);
 
-// Forward declarations for PVCC helpers used from ISR
-static void
-set_pvcc_converter_into_high_demand_mode(void);
-
 // External STROBE (FLASH) input from the RGB-IR camera.
 // Rising edge triggers a master timer UPDATE to drive the existing
 // LED and camera trigger one-pulse timers. Configure as input and
@@ -221,6 +217,7 @@ set_pvcc_converter_into_high_demand_mode(void);
 #if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
 static const struct gpio_dt_spec rgb_ir_strobe =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), rgb_ir_strobe_gpios);
+
 static struct gpio_callback rgb_ir_strobe_cb;
 
 static inline IRQn_Type
@@ -444,6 +441,7 @@ camera_sweep_isr(void *arg)
                     0);
             }
         } else {
+#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
             // enable the IR eye camera trigger and disable ir face and 2d TOF
             // camera triggers
             LL_TIM_CC_DisableChannel(
@@ -462,6 +460,7 @@ camera_sweep_isr(void *arg)
             // disable the camera trigger timer update interrupt to set up the
             // next master update event
             LL_TIM_DisableIT_UPDATE(CAMERA_TRIGGER_TIMER);
+#endif
         }
 
         sweep_index++;
@@ -943,8 +942,9 @@ set_arr_ir_leds(void)
         set_pvcc_converter_into_low_power_mode();
     }
 
-    // only enable later on strobe ISR pulse
-    // ir_camera_system_enable_cc_channels();
+#if !DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
+    ir_camera_system_enable_cc_channels();
+#endif
 }
 
 static inline void
@@ -986,8 +986,13 @@ apply_new_timer_settings()
     LL_TIM_SetPrescaler(MASTER_TIMER, global_timer_settings.master_psc);
     LL_TIM_SetAutoReload(MASTER_TIMER, global_timer_settings.master_arr);
 
-    // explicity disable the ir eye camera trigger when appplying new settings
+#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
+    // explicity disable the ir eye camera trigger when applying new settings
     set_trigger_arr(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+#else
+    set_trigger_arr(ir_camera_system_ir_eye_camera_is_enabled(),
+                    IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+#endif
     set_trigger_arr(ir_camera_system_ir_face_camera_is_enabled(),
                     IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
     set_trigger_arr(ir_camera_system_2d_tof_camera_is_enabled(),
@@ -1283,12 +1288,29 @@ ir_camera_system_get_fps_hw(void)
     return global_timer_settings.fps;
 }
 
+#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
+// On Diamond, the RGB-IR camera provides a strobe signal to the MCU
+// which is used as the master trigger for synchronizing the IR eye camera and
+// IR LEDs.
+// The connection is as follows:
+//    *--------*                      *--------*               *--------*
+//    * RGB-IR * ------- STROBE ----> *        * --- TRIG ---> * IR Eye *
+//    * Camera *                      *        *               * Camera *
+//    *--------*                      *  MCU   *               *--------*
+//                                    *        *
+//                                    *        * --- TRIG ---> IR LEDs
+//                                    *--------*
+//
 // This ISR should trigger every time the RGB-IR camera strobe is triggered and
-// the MCU receives the rising edge This ISR will then enable the IR eye camera
-// trigger and disable ir face and 2d TOF camera triggers It will also enable
-// the IR LEDs It will then emit an on demand master UPDATE event to start one
+// the MCU receives the rising edge.
+// On ISR:
+// - Enable the IR eye camera trigger
+// - Disable the IR face and 2D TOF camera triggers
+// - Enable the IR LEDs
+// It will then emit an on demand master UPDATE event to start one
 // synchronized frame. This means all slaves (TIM15, TIM3, TIM20) fire one-pulse
-// with their preloads This ISR should be triggered with a high priority
+// with their preloads.
+// This ISR should be triggered with a high priority
 static void
 rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
                   uint32_t pins)
@@ -1297,10 +1319,6 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
     ARG_UNUSED(cb);
     ARG_UNUSED(pins);
 
-    // Safety gate: do nothing if unsafe distance.
-    if (!distance_is_safe()) {
-        return;
-    }
     // enable the IR eye camera trigger and disable ir face and 2d TOF camera
     // triggers
     LL_TIM_CC_EnableChannel(CAMERA_TRIGGER_TIMER,
@@ -1309,6 +1327,11 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
                              ch2ll[IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
     LL_TIM_CC_DisableChannel(CAMERA_TRIGGER_TIMER,
                              ch2ll[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+
+    // Safety gate: do nothing if unsafe distance.
+    if (!distance_is_safe()) {
+        return;
+    }
 
     // enable the IR LEDs
     ir_camera_system_enable_cc_channels();
@@ -1326,6 +1349,7 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
     // on the above settings
     LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
 }
+#endif
 
 ret_code_t
 ir_camera_system_hw_init(void)
