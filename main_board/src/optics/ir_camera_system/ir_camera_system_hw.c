@@ -220,28 +220,6 @@ static const struct gpio_dt_spec rgb_ir_strobe =
 
 static struct gpio_callback rgb_ir_strobe_cb;
 
-static inline IRQn_Type
-exti_irqn_for_pin(uint32_t pin)
-{
-    switch (pin) {
-    case 0:
-        return EXTI0_IRQn;
-    case 1:
-        return EXTI1_IRQn;
-    case 2:
-        return EXTI2_IRQn;
-    case 3:
-        return EXTI3_IRQn;
-    case 4:
-        return EXTI4_IRQn;
-    default:
-        if (pin <= 9) {
-            return EXTI9_5_IRQn;
-        } else {
-            return EXTI15_10_IRQn;
-        }
-    }
-}
 #endif
 // Focus sweep stuff
 static int16_t global_focus_values[MAX_NUMBER_OF_FOCUS_VALUES];
@@ -1427,10 +1405,6 @@ ir_camera_system_hw_init(void)
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
-
-    // Set EXTI IRQ priority high (lower number == higher priority).
-    NVIC_SetPriority(exti_irqn_for_pin(rgb_ir_strobe.pin),
-                     RGB_IR_STROBE_INTERRUPT_PRIO);
 #endif
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
