@@ -219,6 +219,8 @@ static const struct gpio_dt_spec rgb_ir_strobe =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), rgb_ir_strobe_gpios);
 
 static struct gpio_callback rgb_ir_strobe_cb;
+static void
+camera_set_exposure_length(bool enabled, int channel);
 
 #endif
 // Focus sweep stuff
@@ -418,20 +420,14 @@ camera_exposure_completes_isr(void *arg)
             }
         } else {
 #if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
-            // This update event was enabled in the rgb_ir_strobe_isr to trigger
-            // IR eye camera and IR LEDs.
+            // This update event was enabled in the rgb_ir_strobe_isr
 
-            // enable the IR eye camera trigger and disable ir face and 2d TOF
-            // camera triggers
-            LL_TIM_CC_DisableChannel(
-                CAMERA_TRIGGER_TIMER,
-                ch2ll[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
-            LL_TIM_CC_EnableChannel(
-                CAMERA_TRIGGER_TIMER,
-                ch2ll[IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
-            LL_TIM_CC_EnableChannel(
-                CAMERA_TRIGGER_TIMER,
-                ch2ll[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+            // set camera exposure lengths based on current settings
+            camera_set_exposure_length(false,
+                                       IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+            camera_set_exposure_length(
+                ir_camera_system_2d_tof_camera_is_enabled(),
+                TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
 
             // disable the IR LEDs for the next master timer event
             ir_leds_disable_all();
@@ -922,7 +918,7 @@ ir_leds_set_pulse_length(void)
     }
 }
 
-static inline void
+static void
 camera_set_exposure_length(bool enabled, int channel)
 {
     // set the ARR value for the camera trigger timer
@@ -974,20 +970,25 @@ apply_new_timer_settings()
                                TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
 
     ir_leds_set_pulse_length();
+    // in case rgb/ir strobe, wait for interrupt to enable the IR LEDs
 #if !DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
     ir_leds_enable_pulse();
 #endif
 
     CRITICAL_SECTION_EXIT(k);
 
+#if !DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
     // Auto-reload preload is enabled. This means that the auto-reload preload
     // register is deposited into the auto-reload register only on a timer
     // update, which will never occur if the auto-reload value was previously
     // zero. So in that case, we manually issue an update event.
+    // If a signal is awaited from the RGB/IR cam, skip this step as the
+    // update event will be generated from the EXTI ISR.
     if ((old_timer_settings.master_arr == 0) &&
         (global_timer_settings.master_arr > 0)) {
         LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
     }
+#endif
 
     old_timer_settings = global_timer_settings;
 }
@@ -1281,16 +1282,17 @@ ir_camera_system_get_fps_hw(void)
 //                                    *        * --- TRIG ---> IR LEDs
 //                                    *--------*
 //
-// This ISR should trigger every time the RGB-IR camera strobe is triggered and
-// the MCU receives the rising edge.
+// This ISR should trigger every time the RGB-IR (face) camera strobe is
+// triggered and the MCU receives the rising edge.
 // On ISR:
 // - Enable the IR eye camera trigger
-// - Disable the IR face and 2D TOF camera triggers
 // - Enable the IR LEDs
-// It will then emit an on demand master UPDATE event to start one
-// synchronized frame. This means all slaves (TIM15, TIM3, TIM20) fire one-pulse
-// with their preloads.
-// This ISR should be triggered with a high priority
+// - Disable 2D TOF camera triggers
+// TODO: should we trigger 2D-ToF during IR or RGB exposure? does 2d-tof emitter
+// leak into RGB frames?) It will then emit an on demand master UPDATE event to
+// start one synchronized frame. This means all slaves (TIM15, TIM3, TIM20) fire
+// one-pulse with their preloads. This ISR should be triggered with a high
+// priority
 static void
 rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
                   uint32_t pins)
@@ -1300,13 +1302,18 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
     ARG_UNUSED(pins);
 
     // enable the IR eye camera trigger and disable ir face and 2d TOF camera
-    // triggers
-    LL_TIM_CC_EnableChannel(CAMERA_TRIGGER_TIMER,
-                            ch2ll[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
-    LL_TIM_CC_DisableChannel(CAMERA_TRIGGER_TIMER,
-                             ch2ll[IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
-    LL_TIM_CC_DisableChannel(CAMERA_TRIGGER_TIMER,
-                             ch2ll[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+    // triggers.
+    // The camera triggers even though the IR LEDs might be left off depending
+    // on safety distance.
+    camera_set_exposure_length(ir_camera_system_ir_eye_camera_is_enabled(),
+                               IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_set_exposure_length(false, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+
+    // Emit an on demand master UPDATE event to start one synchronized frame.
+    // This means all slaves (TIM15, TIM3, TIM20) fire one-pulse with their
+    // preloads this should only be for IR eye camera trigger and IR LEDs based
+    // on the above settings
+    LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
 
     // Safety gate: do nothing if unsafe distance.
     if (!distance_is_safe()) {
@@ -1317,17 +1324,11 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
     ir_leds_enable_pulse();
 
     // enable the camera trigger timer update interrupt to set up the next
-    // master update event The ISR camera_sweep_isr will be triggered when the
-    // one shot pulse is completed This will allow us to disable the IR eye
-    // camera trigger and enable the IR face and 2d TOF camera triggers and
-    // disable the IR LEDs
+    // master update event.
+    // The ISR `camera_exposure_completes_isr` will be triggered when the
+    // one shot pulse is completed.
+    // This will allow us to disable the IR eye camera trigger.
     LL_TIM_EnableIT_UPDATE(CAMERA_TRIGGER_TIMER);
-
-    // Emit an on demand master UPDATE event to start one synchronized frame.
-    // This means all slaves (TIM15, TIM3, TIM20) fire one-pulse with their
-    // preloads this should only be for IR eye camera trigger and IR LEDs based
-    // on the above settings
-    LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
 }
 #endif
 
