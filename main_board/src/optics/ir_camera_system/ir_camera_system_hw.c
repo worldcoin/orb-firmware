@@ -210,11 +210,11 @@ static struct ir_camera_timer_settings global_timer_settings = {0};
 static const struct gpio_dt_spec front_unit_pvcc_pwm_mode =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_pvcc_pwm_mode_gpios);
 
+#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
 // External STROBE (FLASH) input from the RGB-IR camera.
 // Rising edge triggers a master timer UPDATE to drive the existing
-// LED and camera trigger one-pulse timers. Configure as input and
-// set EXTI NVIC to a high priority.
-#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
+// LED and camera trigger one-pulse timers.
+
 static const struct gpio_dt_spec rgb_ir_strobe =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), rgb_ir_strobe_gpios);
 
@@ -379,7 +379,6 @@ camera_exposure_completes_isr(void *arg)
     LL_TIM_ClearFlag_UPDATE(CAMERA_TRIGGER_TIMER);
     // check if CAMERA_TRIGGER_TIMER is off to only catch the end of a pulse
     if (!LL_TIM_IsEnabledCounter(CAMERA_TRIGGER_TIMER)) {
-
         if (get_focus_sweep_in_progress() == true) {
             if (sweep_index == global_num_focus_values) {
                 LL_TIM_DisableIT_UPDATE(CAMERA_TRIGGER_TIMER);
@@ -942,9 +941,9 @@ apply_new_timer_settings()
 #else
     camera_set_exposure_length(ir_camera_system_ir_eye_camera_is_enabled(),
                                IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
-#endif
     camera_set_exposure_length(ir_camera_system_ir_face_camera_is_enabled(),
                                IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+#endif
     camera_set_exposure_length(ir_camera_system_2d_tof_camera_is_enabled(),
                                TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
 
@@ -1286,6 +1285,13 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
     // on the above settings
     LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
 
+    // enable the camera trigger timer update interrupt
+    // The ISR `camera_exposure_completes_isr` will be triggered when the
+    // one shot pulse is completed.
+    // This will allow us to disable the IR eye camera & enable any other
+    // cameras that were requested after the IR exposure is done.
+    LL_TIM_EnableIT_UPDATE(CAMERA_TRIGGER_TIMER);
+
     // Safety gate: do nothing if unsafe distance.
     if (!distance_is_safe()) {
         return;
@@ -1293,13 +1299,6 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
 
     // enable the IR LEDs
     ir_leds_enable_pulse();
-
-    // enable the camera trigger timer update interrupt to set up the next
-    // master update event.
-    // The ISR `camera_exposure_completes_isr` will be triggered when the
-    // one shot pulse is completed.
-    // This will allow us to disable the IR eye camera trigger.
-    LL_TIM_EnableIT_UPDATE(CAMERA_TRIGGER_TIMER);
 }
 #endif
 
