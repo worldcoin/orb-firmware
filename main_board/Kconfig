@@ -95,7 +95,6 @@ config APP_TESTS_ALL
     select TEST_DFU
     select TEST_OPERATOR_LEDS
     select TEST_USER_LEDS
-    select TEST_FAN
     select TEST_GNSS
     select ORB_LIB_STORAGE_TESTS
 
