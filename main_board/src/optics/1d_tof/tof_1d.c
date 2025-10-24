@@ -13,19 +13,30 @@
 
 #include "orb_logs.h"
 
+/**
+ * 1D ToF sensor module
+ *
+ * On Diamond main board, the 1D ToF is only checked if ready: driver is
+ * initialized, but completely disabled to prevent IR light leakage that
+ * interferes with the RGB/IR face camera (into RGB frames).
+ */
+
 LOG_MODULE_REGISTER(tof_1d, CONFIG_TOF_1D_LOG_LEVEL);
 
 ORB_STATE_REGISTER(tof_1d);
 #define ORB_STATE_1D_TOF_THRESHOLD_ERROR_COUNT 3
 
 const struct device *tof_1d_device = DEVICE_DT_GET(DT_NODELABEL(tof_sensor));
+
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
 const struct device *tof_1d_device_dvt =
     DEVICE_DT_GET(DT_NODELABEL(tof_sensor_dvt));
-#endif
+
+#else
 
 K_THREAD_STACK_DEFINE(stack_area_tof_1d, THREAD_STACK_SIZE_1DTOF);
 static struct k_thread tof_1d_thread_data;
+#endif
 
 #if CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY
 static atomic_t too_close_counter = ATOMIC_INIT(0);
@@ -70,6 +81,8 @@ distance_is_safe(void)
 #endif
 }
 
+#ifndef CONFIG_BOARD_DIAMOND_MAIN
+
 static ret_code_t
 tof_init_config(void)
 {
@@ -108,7 +121,7 @@ tof_init_config(void)
     return RET_SUCCESS;
 }
 
-void
+static void
 set_states(bool tof_1d_is_error)
 {
     /* tof 1d sensor state */
@@ -249,6 +262,8 @@ tof_1d_thread(void *a, void *b, void *c)
     }
 }
 
+#endif // !CONFIG_BOARD_DIAMOND_MAIN
+
 int
 tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
             const orb_mcu_Hardware *hw_version)
@@ -258,6 +273,8 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
     }
 
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
+    UNUSED_PARAMETER(distance_unsafe_cb);
+
     /* on diamond, select correct 1d-tof device from device tree as it differs
      * from evt to dvt and initialize it (deferred, to prevent init failures)
      */
@@ -284,6 +301,11 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
         return RET_ERROR_INVALID_STATE;
     }
 
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+    /* device is ready and since we don't spawn the thread, set state now */
+    ORB_STATE_SET(tof_1d, RET_SUCCESS, "initialized but disabled");
+#else
+
     k_thread_create(&tof_1d_thread_data, stack_area_tof_1d,
                     K_THREAD_STACK_SIZEOF(stack_area_tof_1d),
                     (k_thread_entry_t)tof_1d_thread, NULL, NULL, NULL,
@@ -298,5 +320,6 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
     UNUSED(distance_unsafe_cb);
 #endif
 
+#endif
     return RET_SUCCESS;
 }
