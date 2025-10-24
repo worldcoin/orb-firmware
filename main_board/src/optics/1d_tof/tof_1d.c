@@ -87,8 +87,26 @@ static ret_code_t
 tof_init_config(void)
 {
     int ret;
+    struct sensor_value distance_config;
+
+    // stop first in case already started
+    distance_config.val1 = 0; // stop
+    distance_config.val2 = 0;
+    if (i2c1_mutex) {
+        k_mutex_lock(i2c1_mutex, K_FOREVER);
+    }
+    ret = sensor_attr_set(tof_1d_device, SENSOR_CHAN_DISTANCE,
+                          SENSOR_ATTR_SAMPLING_FREQUENCY, &distance_config);
+    if (i2c1_mutex) {
+        k_mutex_unlock(i2c1_mutex);
+    }
+    if (ret != 0) {
+        return RET_ERROR_INTERNAL;
+    }
+
     // set short distance mode
-    struct sensor_value distance_config = {.val1 = 1 /* short */, .val2 = 0};
+    distance_config.val1 = 1;
+    distance_config.val2 = 0;
     if (i2c1_mutex) {
         k_mutex_lock(i2c1_mutex, K_FOREVER);
     }
@@ -184,13 +202,25 @@ tof_1d_thread(void *a, void *b, void *c)
         if (i2c1_mutex) {
             k_mutex_lock(i2c1_mutex, K_FOREVER);
         }
+        // used this as a ping to 1d-tof sensor to ensure
+        // connection
+        ret = sensor_attr_get(tof_1d_device, SENSOR_CHAN_DISTANCE,
+                              SENSOR_ATTR_CONFIGURATION, &distance_value);
+        if (ret != 0) {
+            if (i2c1_mutex) {
+                k_mutex_unlock(i2c1_mutex);
+            }
+            LOG_WRN("Error fetching mode to check comms: %d", ret);
+            err_count++;
+            continue;
+        }
+
         ret = sensor_sample_fetch_chan(tof_1d_device, SENSOR_CHAN_ALL);
         if (i2c1_mutex) {
             k_mutex_unlock(i2c1_mutex);
         }
         if (ret != 0) {
             LOG_WRN("Error fetching %d", ret);
-            err_count++;
             continue;
         }
 
@@ -206,7 +236,6 @@ tof_1d_thread(void *a, void *b, void *c)
             // print error with debug level because the range status
             // can quickly throw an error when nothing in front of the sensor
             LOG_DBG("Error getting distance data %d", ret);
-            err_count++;
             continue;
         }
 
@@ -232,8 +261,9 @@ tof_1d_thread(void *a, void *b, void *c)
             k_mutex_unlock(i2c1_mutex);
         }
         if (ret != 0) {
+            // print error with debug level because the range status
+            // can quickly throw an error when nothing in front of the sensor
             LOG_DBG("Error getting prox data %d", ret);
-            err_count++;
             continue;
         }
 
