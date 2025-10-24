@@ -56,7 +56,7 @@ BUILD_ASSERT(INTER_MEASUREMENT_FREQ_HZ > 0,
              "INTER_MEASUREMENT_FREQ_HZ must be greater than 0");
 
 #if CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY
-static void (*unsafe_cb)(void) = NULL;
+static void (*unsafe_event_cb)(void) = NULL;
 #endif
 /**
  * Mutex for I2C communication
@@ -165,6 +165,7 @@ tof_1d_thread(void *a, void *b, void *c)
 
         /* wait until the sensor is back online */
         if (err_count > ORB_STATE_1D_TOF_THRESHOLD_ERROR_COUNT) {
+            LOG_WRN("reconfiguring 1d-tof sensor after errors");
             while (tof_init_config() != RET_SUCCESS) {
                 k_msleep(5000);
             }
@@ -237,6 +238,7 @@ tof_1d_thread(void *a, void *b, void *c)
         }
 
 #if CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY
+        const long counter_prev = atomic_get(&too_close_counter);
         CRITICAL_SECTION_ENTER(k);
         long counter = atomic_get(&too_close_counter);
         // if val1 is 0, we are far away, so we can decrease the counter
@@ -251,8 +253,10 @@ tof_1d_thread(void *a, void *b, void *c)
         atomic_set(&too_close_counter, counter);
         CRITICAL_SECTION_EXIT(k);
 
-        if (unsafe_cb && !distance_is_safe()) {
-            unsafe_cb();
+        // only call unsafe_cb once on new event
+        if (unsafe_event_cb && counter_prev != atomic_get(&too_close_counter) &&
+            !distance_is_safe()) {
+            unsafe_event_cb();
         }
 #endif
 
@@ -314,7 +318,7 @@ tof_1d_init(void (*distance_unsafe_cb)(void), struct k_mutex *mutex,
 
 #if CONFIG_PROXIMITY_DETECTION_FOR_IR_SAFETY
     if (distance_unsafe_cb) {
-        unsafe_cb = distance_unsafe_cb;
+        unsafe_event_cb = distance_unsafe_cb;
     }
 #else
     UNUSED(distance_unsafe_cb);
