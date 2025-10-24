@@ -923,7 +923,11 @@ set_arr_ir_leds(void)
     }
 
     // only enable later on strobe ISR pulse
-    // ir_camera_system_enable_cc_channels();
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+    if (0) {
+     ir_camera_system_enable_cc_channels();
+    }
+#endif
 }
 
 static inline void
