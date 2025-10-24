@@ -4,10 +4,12 @@
 #include "can_messaging.h"
 #include "dfu.h"
 #include "mcu.pb.h"
+#include "mcu_ping.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
 #include "optics/liquid_lens/liquid_lens.h"
 #include "optics/mirror/mirror.h"
 #include "orb_logs.h"
+#include "pb_encode.h"
 #include "power/boot/boot.h"
 #include "pubsub/pubsub.h"
 #include "storage.h"
@@ -52,7 +54,8 @@ static k_tid_t runner_tid = NULL;
 static uint32_t job_counter = 0;
 
 enum remote_type_e {
-    CAN_MESSAGING,
+    CAN_JETSON_MESSAGING,
+    CAN_SEC_MCU_MESSAGING,
     UART_MESSAGING,
     CLI,
 };
@@ -72,15 +75,18 @@ typedef struct {
     /// destination ID to use to respond to the job initiator
     uint32_t remote_addr;
     uint32_t ack_number;
-    orb_mcu_main_JetsonToMcu message;
+    union {
+        orb_mcu_main_JetsonToMcu jetson_cmd;
+        orb_mcu_sec_SecToMain sec_cmd;
+    } message;
 } job_t;
 
 // Message queue
 #define QUEUE_ALIGN 8
 K_MSGQ_DEFINE(process_queue, sizeof(job_t), 8, QUEUE_ALIGN);
 
-#ifndef CONFIG_CAN_ADDRESS_DEFAULT_REMOTE
-#error "CONFIG_CAN_ADDRESS_DEFAULT_REMOTE not set"
+#ifndef CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX
+#error "CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX not set"
 #endif
 
 uint32_t
@@ -93,7 +99,7 @@ static void
 job_ack(orb_mcu_Ack_ErrorCode error, job_t *job)
 {
     // ack only messages sent using CAN
-    if (job->remote == CAN_MESSAGING) {
+    if (job->remote == CAN_JETSON_MESSAGING) {
         // get ack number from job
         uint32_t ack_number = job->ack_number;
 
@@ -115,7 +121,7 @@ handle_err_code(void *ctx, int err)
     struct handle_error_context_s *context =
         (struct handle_error_context_s *)ctx;
 
-    if (context->remote == CAN_MESSAGING) {
+    if (context->remote == CAN_JETSON_MESSAGING) {
         orb_mcu_Ack ack = {.ack_number = context->ack_number,
                            .error = orb_mcu_Ack_ErrorCode_FAIL};
 
@@ -157,7 +163,7 @@ handle_err_code(void *ctx, int err)
 static void
 handle_infrared_leds_message(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_infrared_leds_tag);
 
     orb_mcu_main_InfraredLEDs_Wavelength wavelength =
@@ -187,7 +193,7 @@ handle_infrared_leds_message(job_t *job)
 static void
 handle_led_on_time_message(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_led_on_time_tag);
 
     uint32_t on_time_us = msg->payload.led_on_time.on_duration_us;
@@ -213,7 +219,7 @@ handle_led_on_time_message(job_t *job)
 static void
 handle_start_triggering_ir_eye_camera_message(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_start_triggering_ir_eye_camera_tag);
 
     ret_code_t err = ir_camera_system_enable_ir_eye_camera();
@@ -233,7 +239,7 @@ handle_start_triggering_ir_eye_camera_message(job_t *job)
 static void
 handle_stop_triggering_ir_eye_camera_message(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_stop_triggering_ir_eye_camera_tag);
 
     ret_code_t err = ir_camera_system_disable_ir_eye_camera();
@@ -254,7 +260,7 @@ handle_stop_triggering_ir_eye_camera_message(job_t *job)
 static void
 handle_start_triggering_ir_face_camera_message(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_start_triggering_ir_face_camera_tag);
 
     LOG_DBG("");
@@ -265,7 +271,7 @@ handle_start_triggering_ir_face_camera_message(job_t *job)
 static void
 handle_stop_triggering_ir_face_camera_message(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_stop_triggering_ir_face_camera_tag);
 
     LOG_DBG("");
@@ -276,7 +282,7 @@ handle_stop_triggering_ir_face_camera_message(job_t *job)
 static void
 handle_start_triggering_2dtof_camera_message(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_start_triggering_2dtof_camera_tag);
 
     LOG_DBG("");
@@ -287,7 +293,7 @@ handle_start_triggering_2dtof_camera_message(job_t *job)
 static void
 handle_stop_triggering_2dtof_camera_message(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_stop_triggering_2dtof_camera_tag);
 
     LOG_DBG("");
@@ -298,7 +304,7 @@ handle_stop_triggering_2dtof_camera_message(job_t *job)
 static void
 handle_shutdown(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_shutdown_tag);
 
     uint32_t delay = msg->payload.shutdown.delay_s;
@@ -320,7 +326,7 @@ handle_shutdown(job_t *job)
 static void
 handle_reboot_message(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_reboot_tag);
 
     uint32_t delay = msg->payload.reboot.delay;
@@ -343,7 +349,7 @@ handle_reboot_message(job_t *job)
             shutdown.ms_until_shutdown = delay * 1000;
             publish_new(&shutdown, sizeof(shutdown),
                         orb_mcu_main_McuToJetson_shutdown_tag,
-                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                        CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 #ifdef CONFIG_MEMFAULT
             MEMFAULT_REBOOT_MARK_RESET_IMMINENT(
                 kMfltRebootReason_JetsonRequestedReboot);
@@ -357,7 +363,7 @@ handle_reboot_message(job_t *job)
 static void
 handle_reboot_orb(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_reboot_orb_tag);
 
     uint32_t delay = msg->payload.reboot_orb.force_reboot_timeout_s;
@@ -398,7 +404,7 @@ handle_reboot_orb(job_t *job)
 static void
 handle_mirror_angle_message(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_mirror_angle_tag);
 
     uint32_t mirror_target_angle_phi_millidegrees;
@@ -457,7 +463,7 @@ handle_mirror_angle_message(job_t *job)
 static void
 handle_temperature_sample_period_message(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_temperature_sample_period_tag);
 
     uint32_t sample_period_ms =
@@ -475,7 +481,7 @@ handle_temperature_sample_period_message(job_t *job)
 static void
 handle_fan_speed(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_fan_speed_tag);
 
     // value and percentage have the same representation,
@@ -524,7 +530,7 @@ handle_fan_speed(job_t *job)
 static void
 handle_user_leds_pattern(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_user_leds_pattern_tag);
 
     orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern =
@@ -559,7 +565,7 @@ handle_user_leds_pattern(job_t *job)
 static void
 handle_user_center_leds_sequence(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_center_leds_sequence_tag);
 
     ret_code_t ret;
@@ -599,7 +605,7 @@ handle_user_center_leds_sequence(job_t *job)
 static void
 handle_user_ring_leds_sequence(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_ring_leds_sequence_tag);
 
     ret_code_t ret;
@@ -638,7 +644,7 @@ handle_user_ring_leds_sequence(job_t *job)
 static void
 handle_distributor_leds_sequence(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_distributor_leds_sequence_tag);
 
     ret_code_t ret;
@@ -680,7 +686,7 @@ handle_distributor_leds_sequence(job_t *job)
 static void
 handle_cone_leds_sequence(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_cone_leds_sequence_tag);
 
     ret_code_t ret;
@@ -725,7 +731,7 @@ handle_cone_leds_sequence(job_t *job)
 static void
 handle_cone_leds_pattern(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_cone_leds_pattern_tag);
 
 #if !defined(CONFIG_DT_HAS_DIAMOND_CONE_ENABLED)
@@ -745,7 +751,7 @@ handle_cone_leds_pattern(job_t *job)
 static void
 handle_white_leds_brightness(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_white_leds_brightness_tag);
 
     uint32_t brightness = msg->payload.white_leds_brightness.brightness;
@@ -764,7 +770,7 @@ handle_white_leds_brightness(job_t *job)
 static void
 handle_user_leds_brightness(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_user_leds_brightness_tag);
 
     uint32_t brightness = msg->payload.user_leds_brightness.brightness;
@@ -783,7 +789,7 @@ handle_user_leds_brightness(job_t *job)
 static void
 handle_distributor_leds_pattern(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_distributor_leds_pattern_tag);
 
     orb_mcu_main_DistributorLEDsPattern_DistributorRgbLedPattern pattern =
@@ -812,7 +818,7 @@ handle_distributor_leds_pattern(job_t *job)
 static void
 handle_distributor_leds_brightness(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_distributor_leds_brightness_tag);
 
     uint32_t brightness = msg->payload.distributor_leds_brightness.brightness;
@@ -833,7 +839,7 @@ handle_distributor_leds_brightness(job_t *job)
 static void
 handle_fw_img_crc(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_fw_image_check_tag);
 
     LOG_DBG("Got CRC comparison");
@@ -860,7 +866,7 @@ handle_fw_img_crc(job_t *job)
 static void
 handle_fw_img_sec_activate(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_fw_image_secondary_activate_tag);
 
     LOG_DBG("Got secondary slot activation");
@@ -881,7 +887,7 @@ handle_fw_img_sec_activate(job_t *job)
 static void
 handle_fw_img_primary_confirm(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_fw_image_primary_confirm_tag);
 
     LOG_DBG("Got primary slot confirmation");
@@ -927,7 +933,7 @@ handle_fw_img_primary_confirm(job_t *job)
 static void
 handle_fps(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_fps_tag);
 
     uint16_t fps = (uint16_t)msg->payload.fps.fps;
@@ -957,7 +963,7 @@ handle_fps(job_t *job)
 static void
 handle_dfu_block_message(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_dfu_block_tag);
 
     // must be static to be used by callback
@@ -1000,7 +1006,7 @@ static void
 handle_do_mirror_homing(job_t *job)
 {
     ret_code_t ret = RET_SUCCESS;
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_do_homing_tag);
 
     orb_mcu_main_PerformMirrorHoming_Mode mode =
@@ -1058,7 +1064,7 @@ handle_do_mirror_homing(job_t *job)
 static void
 handle_liquid_lens(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_liquid_lens_tag);
 
     int32_t current = msg->payload.liquid_lens.current;
@@ -1095,7 +1101,7 @@ handle_liquid_lens(job_t *job)
 static void
 handle_power_cycle(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_power_cycle_tag);
 
     const int ret = power_cycle_supply(msg->payload.power_cycle.line,
@@ -1124,7 +1130,7 @@ handle_power_cycle(job_t *job)
 static void
 handle_polarizer(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_polarizer_tag);
 
     ret_code_t err_code;
@@ -1186,7 +1192,7 @@ handle_polarizer(job_t *job)
 static void
 handle_voltage_request(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_voltage_request_tag);
 
     uint32_t transmit_period_ms =
@@ -1200,7 +1206,7 @@ handle_voltage_request(job_t *job)
 static void
 handle_heartbeat(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_heartbeat_tag);
 
     LOG_DBG("Got heartbeat");
@@ -1216,7 +1222,7 @@ handle_heartbeat(job_t *job)
 static void
 handle_mirror_angle_relative_message(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_mirror_angle_relative_tag);
 
     int32_t mirror_relative_angle_phi_millidegrees;
@@ -1279,7 +1285,7 @@ handle_mirror_angle_relative_message(job_t *job)
 static void
 handle_value_get_message(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_value_get_tag);
 
     orb_mcu_ValueGet_Value value = msg->payload.value_get.value;
@@ -1308,7 +1314,7 @@ handle_value_get_message(job_t *job)
 static void
 handle_ir_eye_camera_focus_sweep_lens_values(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(
         orb_mcu_main_JetsonToMcu_ir_eye_camera_focus_sweep_lens_values_tag);
 
@@ -1343,7 +1349,7 @@ handle_ir_eye_camera_focus_sweep_lens_values(job_t *job)
 static void
 handle_ir_eye_camera_focus_sweep_values_polynomial(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(
         orb_mcu_main_JetsonToMcu_ir_eye_camera_focus_sweep_values_polynomial_tag);
 
@@ -1372,7 +1378,7 @@ handle_ir_eye_camera_focus_sweep_values_polynomial(job_t *job)
 static void
 handle_perform_ir_eye_camera_focus_sweep(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(
         orb_mcu_main_JetsonToMcu_perform_ir_eye_camera_focus_sweep_tag);
 
@@ -1395,7 +1401,7 @@ handle_perform_ir_eye_camera_focus_sweep(job_t *job)
 static void
 handle_ir_eye_camera_mirror_sweep_values_polynomial(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(
         orb_mcu_main_JetsonToMcu_ir_eye_camera_mirror_sweep_values_polynomial_tag);
 
@@ -1425,7 +1431,7 @@ handle_ir_eye_camera_mirror_sweep_values_polynomial(job_t *job)
 static void
 handle_perform_ir_eye_camera_mirror_sweep(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(
         orb_mcu_main_JetsonToMcu_perform_ir_eye_camera_mirror_sweep_tag);
 
@@ -1500,7 +1506,7 @@ diag_disconnected(struct k_timer *timer)
 static void
 handle_sync_diag_data(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_sync_diag_data_tag);
 
     LOG_DBG("Got sync diag data message");
@@ -1531,7 +1537,7 @@ handle_sync_diag_data(job_t *job)
 static void
 handle_diag_test_data(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_diag_test_tag);
 
     LOG_DBG("Got diag test data message");
@@ -1580,7 +1586,7 @@ handle_diag_test_data(job_t *job)
 static void
 handle_set_time(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_set_time_tag);
 
     int ret;
@@ -1624,13 +1630,26 @@ handle_set_time(job_t *job)
 __maybe_unused static void
 handle_not_supported(job_t *job)
 {
-    LOG_ERR("Message not supported: %u", job->message.which_payload);
+    LOG_ERR("Message not supported: %u", job->message.jetson_cmd.which_payload);
     job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);
+}
+
+static void
+handle_sec_to_main_ping(job_t *job)
+{
+    orb_mcu_sec_SecToMain *msg = &job->message.sec_cmd;
+    MAKE_ASSERTS(orb_mcu_sec_SecToMain_ping_pong_tag);
+
+    ping_received(&msg->payload.ping_pong);
 }
 
 typedef void (*hm_callback)(job_t *job);
 
 // These functions ARE NOT allowed to block!
+static const hm_callback handle_sec_message_callbacks[] = {
+    [orb_mcu_sec_SecToMain_ping_pong_tag] = handle_sec_to_main_ping,
+};
+
 static const hm_callback handle_message_callbacks[] = {
     [orb_mcu_main_JetsonToMcu_shutdown_tag] = handle_shutdown,
     [orb_mcu_main_JetsonToMcu_reboot_tag] = handle_reboot_message,
@@ -1731,20 +1750,42 @@ runner_process_jobs_thread()
         if (new.remote_addr != 0) {
             LOG_DBG("⬇️ Received message from remote 0x%03x with payload ID "
                     "%02d, ack #%u",
-                    new.remote_addr, new.message.which_payload, new.ack_number);
+                    new.remote_addr,
+                    new.remote == CAN_SEC_MCU_MESSAGING
+                        ? new.message.sec_cmd.which_payload
+                        : new.message.jetson_cmd.which_payload,
+                    new.ack_number);
 
             // allow response to this remote
             subscribe_add(new.remote_addr);
         }
 
-        if (new.message.which_payload < ARRAY_SIZE(handle_message_callbacks) &&
-            handle_message_callbacks[new.message.which_payload] != NULL) {
-            handle_message_callbacks[new.message.which_payload](&new);
+        if (new.remote == CAN_SEC_MCU_MESSAGING) {
+            if (new.message.sec_cmd.which_payload <
+                    ARRAY_SIZE(handle_sec_message_callbacks) &&
+                handle_sec_message_callbacks[new.message.sec_cmd
+                                                 .which_payload] != NULL) {
+                handle_sec_message_callbacks[new.message.sec_cmd.which_payload](
+                    &new);
+            } else {
+                LOG_ERR("A handler for security message with ID of %d is not "
+                        "implemented",
+                        new.message.sec_cmd.which_payload);
+                job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, &new);
+            }
         } else {
-            LOG_ERR("A handler for message with a payload ID of %d is not "
-                    "implemented",
-                    new.message.which_payload);
-            job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, &new);
+            if (new.message.jetson_cmd.which_payload <
+                    ARRAY_SIZE(handle_message_callbacks) &&
+                handle_message_callbacks[new.message.jetson_cmd
+                                             .which_payload] != NULL) {
+                handle_message_callbacks[new.message.jetson_cmd.which_payload](
+                    &new);
+            } else {
+                LOG_ERR("A handler for message with a payload ID of %d is not "
+                        "implemented",
+                        new.message.jetson_cmd.which_payload);
+                job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, &new);
+            }
         }
     }
 }
@@ -1761,7 +1802,7 @@ runner_handle_new_cli(const orb_mcu_main_JetsonToMcu *const message)
     int ret = k_sem_take(&new_job_sem, K_MSEC(5));
     if (ret == 0) {
         new.remote = CLI;
-        new.message = *message;
+        new.message.jetson_cmd = *message;
         new.remote_addr = 0;
         new.ack_number = 0;
         ret = k_msgq_put(&process_queue, &new, K_MSEC(5));
@@ -1793,12 +1834,10 @@ runner_handle_new_can(can_message_t *msg)
         bool decoded = pb_decode_ex(&stream, orb_mcu_McuMessage_fields,
                                     &mcu_message, PB_DECODE_DELIMITED);
         if (decoded) {
-            if (mcu_message.which_message != orb_mcu_McuMessage_j_message_tag) {
-                LOG_INF("Got message not intended for us. Dropping.");
-                err_code = RET_ERROR_INVALID_ADDR;
-            } else {
-                new.remote = CAN_MESSAGING;
-                new.message = mcu_message.message.j_message;
+            if (mcu_message.which_message == orb_mcu_McuMessage_j_message_tag) {
+                // Handle Jetson messages
+                new.remote = CAN_JETSON_MESSAGING;
+                new.message.jetson_cmd = mcu_message.message.j_message;
                 new.ack_number = mcu_message.message.j_message.ack_number;
 
                 if (can_msg->destination & CAN_ADDR_IS_ISOTP) {
@@ -1808,7 +1847,7 @@ runner_handle_new_can(can_message_t *msg)
                     new.remote_addr |= (can_msg->destination & 0xF) << 4;
                     new.remote_addr |= (can_msg->destination & 0xF0) >> 4;
                 } else {
-                    new.remote_addr = CONFIG_CAN_ADDRESS_DEFAULT_REMOTE;
+                    new.remote_addr = CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX;
                 }
 
                 ret = k_msgq_put(&process_queue, &new, K_MSEC(5));
@@ -1816,6 +1855,22 @@ runner_handle_new_can(can_message_t *msg)
                     ASSERT_SOFT(ret);
                     err_code = RET_ERROR_BUSY;
                 }
+            } else if (mcu_message.which_message ==
+                       orb_mcu_McuMessage_sec_to_main_message_tag) {
+                // Handle messages from security MCU
+                new.remote = CAN_SEC_MCU_MESSAGING;
+                new.message.sec_cmd = mcu_message.message.sec_to_main_message;
+                new.ack_number = 0; // no ack for mcu-to-mcu comms
+                new.remote_addr = CONFIG_CAN_ADDRESS_MCU_TO_MCU_TX;
+
+                ret = k_msgq_put(&process_queue, &new, K_MSEC(5));
+                if (ret) {
+                    ASSERT_SOFT(ret);
+                    err_code = RET_ERROR_BUSY;
+                }
+            } else {
+                LOG_INF("Got message not intended for us. Dropping.");
+                err_code = RET_ERROR_INVALID_ADDR;
             }
         } else {
             LOG_ERR("Unable to decode %s", PB_GET_ERROR(&stream));
@@ -1908,7 +1963,7 @@ runner_handle_new_uart(uart_message_t *msg)
                 err_code = RET_ERROR_INVALID_ADDR;
             } else {
                 new.remote = UART_MESSAGING;
-                new.message = mcu_message.message.j_message;
+                new.message.jetson_cmd = mcu_message.message.j_message;
                 new.remote_addr = 0;
                 new.ack_number = 0;
                 ret = k_msgq_put(&process_queue, &new, K_MSEC(5));
@@ -1941,6 +1996,9 @@ runner_init(void)
                         (k_thread_entry_t)runner_process_jobs_thread, NULL,
                         NULL, NULL, THREAD_PRIORITY_RUNNER, 0, K_NO_WAIT);
     k_thread_name_set(runner_tid, "runner");
+
+    subscribe_add(
+        CONFIG_CAN_ADDRESS_MCU_TO_MCU_TX); // Enable MCU-to-MCU sending
 
 #if defined(CONFIG_MEMFAULT_METRICS_CONNECTIVITY_CONNECTED_TIME)
     memfault_metrics_connectivity_connected_state_change(
