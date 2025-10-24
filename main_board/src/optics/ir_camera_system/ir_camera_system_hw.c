@@ -586,31 +586,44 @@ debug_print(void)
 }
 
 static void
-disable_ir_leds(struct k_timer *timer)
+ir_camera_system_timeout_disable(struct k_timer *timer)
 {
     UNUSED_PARAMETER(timer);
 
-    LOG_WRN("Turning off IR LEDs after %" PRIu32 "s of inactivity",
-            IR_LED_AUTO_OFF_TIMEOUT_S);
-    const int ret = ir_camera_system_enable_leds(
+    LOG_WRN("Turning off IR camera system after " STRINGIFY(
+        IR_LED_AUTO_OFF_TIMEOUT_S) " secs of inactivity");
+
+    int ret = ir_camera_system_enable_leds(
         orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE);
+    ASSERT_SOFT(ret);
+
+    ret = ir_camera_system_disable_ir_eye_camera();
+    ASSERT_SOFT(ret);
+
+    ret = ir_camera_system_disable_ir_face_camera();
+    ASSERT_SOFT(ret);
+
+    ret = ir_camera_system_disable_2d_tof_camera();
     ASSERT_SOFT(ret);
 }
 
 static void
 configure_timeout(void)
 {
-    static K_TIMER_DEFINE(ir_leds_auto_off_timer, disable_ir_leds, NULL);
+    static K_TIMER_DEFINE(auto_off_timer, ir_camera_system_timeout_disable,
+                          NULL);
 
-    if (ir_leds_are_on()) {
+    if (ir_leds_are_on() || ir_camera_system_ir_eye_camera_is_enabled() ||
+        ir_camera_system_ir_face_camera_is_enabled() ||
+        ir_camera_system_2d_tof_camera_is_enabled()) {
         // one-shot
         // starting an already started timer will simply reset it
-        k_timer_start(&ir_leds_auto_off_timer,
-                      K_SECONDS(IR_LED_AUTO_OFF_TIMEOUT_S), K_NO_WAIT);
+        k_timer_start(&auto_off_timer, K_SECONDS(IR_LED_AUTO_OFF_TIMEOUT_S),
+                      K_NO_WAIT);
         LOG_DBG("Resetting timeout (%" PRIu32 "s).", IR_LED_AUTO_OFF_TIMEOUT_S);
     } else {
         // stopping an already stopped timer is ok and has no effect.
-        k_timer_stop(&ir_leds_auto_off_timer);
+        k_timer_stop(&auto_off_timer);
     }
 }
 
