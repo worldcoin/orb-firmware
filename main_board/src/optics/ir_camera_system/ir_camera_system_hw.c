@@ -364,7 +364,6 @@ camera_sweep_isr(void *arg)
     LL_TIM_ClearFlag_UPDATE(CAMERA_TRIGGER_TIMER);
     // check if CAMERA_TRIGGER_TIMER is off to only catch the end of a pulse
     if (!LL_TIM_IsEnabledCounter(CAMERA_TRIGGER_TIMER)) {
-
         if (get_focus_sweep_in_progress() == true) {
             if (sweep_index == global_num_focus_values) {
                 LL_TIM_DisableIT_UPDATE(CAMERA_TRIGGER_TIMER);
@@ -735,8 +734,17 @@ static void
 ir_camera_system_enable_cc_channels(void)
 {
     // disable all UPDATE interrupts, later enable only active channel
+    // the `UPDATE` event triggers the `ir_leds_pulse_finished_isr` (Pearl)
     LL_TIM_DisableIT_UPDATE(LED_850NM_TIMER);
     LL_TIM_DisableIT_UPDATE(LED_940NM_TIMER);
+
+    // quit early in case LEDs must stay off
+    if (global_timer_settings.on_time_in_us == 0) {
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+        ir_leds_pulse_finished_isr(NULL);
+#endif
+        return;
+    }
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     switch (ir_camera_system_get_enabled_leds()) {
@@ -836,11 +844,9 @@ static void
 set_arr_ir_leds(void)
 {
     // allow usage of IR LEDs if safety conditions are met
-    // this overrides Jetson commands
+    // /!\ this overrides the Jetson commands
     if (!distance_is_safe()) {
-        disable_all_led_cc_channels();
-        set_pvcc_converter_into_low_power_mode();
-        return;
+        global_timer_settings.on_time_in_us = 0;
     }
 
     // reset states
@@ -848,15 +854,17 @@ set_arr_ir_leds(void)
     // from scratch
     disable_all_led_cc_channels();
 
-    // set the ARR value for all IR LED timers
-    LL_TIM_SetAutoReload(LED_850NM_TIMER,
-                         global_timer_settings.on_time_in_us +
-                             MAX(CAMERA_TRIGGER_TIMER_START_DELAY_US,
-                                 IR_LED_TIMER_START_DELAY_US));
-    LL_TIM_SetAutoReload(LED_940NM_TIMER,
-                         global_timer_settings.on_time_in_us +
-                             MAX(CAMERA_TRIGGER_TIMER_START_DELAY_US,
-                                 IR_LED_TIMER_START_DELAY_US));
+    if (global_timer_settings.on_time_in_us != 0) {
+        // set the ARR value for all IR LED timers
+        LL_TIM_SetAutoReload(LED_850NM_TIMER,
+                             global_timer_settings.on_time_in_us +
+                                 MAX(CAMERA_TRIGGER_TIMER_START_DELAY_US,
+                                     IR_LED_TIMER_START_DELAY_US));
+        LL_TIM_SetAutoReload(LED_940NM_TIMER,
+                             global_timer_settings.on_time_in_us +
+                                 MAX(CAMERA_TRIGGER_TIMER_START_DELAY_US,
+                                     IR_LED_TIMER_START_DELAY_US));
+    }
 
     if (global_timer_settings.on_time_in_us > 0 &&
         global_timer_settings.fps > 0) {
