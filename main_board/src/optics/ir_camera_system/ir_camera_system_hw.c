@@ -1254,6 +1254,7 @@ ir_camera_system_get_fps_hw(void)
     return global_timer_settings.fps;
 }
 
+#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
 // This ISR should trigger every time the RGB-IR camera strobe is triggered and
 // the MCU receives the rising edge This ISR will then enable the IR eye camera
 // trigger and disable ir face and 2d TOF camera triggers It will also enable
@@ -1297,6 +1298,7 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
     // on the above settings
     LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
 }
+#endif
 
 ret_code_t
 ir_camera_system_hw_init(void)
