@@ -79,7 +79,10 @@
         polarizer-stepper-encoder-enable-gpios = <&gpio_exp1 3 GPIO_ACTIVE_LOW>;
         polarizer-stepper-encoder-gpios = <&gpioc 11 GPIO_ACTIVE_HIGH>;
 
-        rgb-ir-strobe-gpios = <&gpioc 0 GPIO_ACTIVE_HIGH>; //
+        // rgb/ir face cam is used as master for synchronizing
+        // ir leds with the camera
+        rgb-ir-face-strobe-gpios = <&gpioc 0 GPIO_ACTIVE_HIGH>;
+        rgb-ir-face-trigger-gpios = <&gpioe 1 GPIO_ACTIVE_HIGH>;
 
         // On Front Unit 6.2 (B3) the signal EN_5V_SWITCHED is connected to the port expander pin P02 instead.
         front-unit-en-5v-switched-gpios = <&gpio_exp_front_unit 2 GPIO_ACTIVE_HIGH>;      // B3 only

@@ -89,6 +89,7 @@ static struct stm32_pclken ir_eye_camera_trigger_pclken =
     (DT_PROP_BY_IDX(IR_EYE_CAMERA_NODE, channels, 0))
 // END --- IR eye
 
+#if !DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_face_strobe_gpios)
 // START --- IR face camera trigger
 #define IR_FACE_CAMERA_NODE DT_NODELABEL(ir_face_camera_trigger)
 PINCTRL_DT_DEFINE(IR_FACE_CAMERA_NODE);
@@ -105,17 +106,24 @@ static struct stm32_pclken ir_face_camera_trigger_pclken =
 #define IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL                                   \
     (DT_PROP_BY_IDX(IR_FACE_CAMERA_NODE, channels, 0))
 // END --- IR face
+#endif
 
-// AKA: TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER ==
+// check TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER
+BUILD_ASSERT(TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER,
+             "We expect that all camera triggers are different channels on "
+             "the same timer");
+#ifdef IR_FACE_CAMERA_TRIGGER_TIMER
+// check TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER ==
 // IR_FACE_CAMERA_TRIGGER_TIMER
 BUILD_ASSERT(TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER &&
                  IR_EYE_CAMERA_TRIGGER_TIMER == IR_FACE_CAMERA_TRIGGER_TIMER,
              "We expect that all camera triggers are different channels on "
              "the same timer");
+#endif
 
-#define CAMERA_TRIGGER_TIMER IR_FACE_CAMERA_TRIGGER_TIMER
+#define CAMERA_TRIGGER_TIMER IR_EYE_CAMERA_TRIGGER_TIMER
 #define CAMERA_TRIGGER_TIMER_UPDATE_IRQn                                       \
-    DT_IRQ_BY_NAME(DT_PARENT(IR_FACE_CAMERA_NODE), up, irq)
+    DT_IRQ_BY_NAME(DT_PARENT(IR_EYE_CAMERA_NODE), up, irq)
 
 // START --- 850nm LEDs
 #define LED_850NM_NODE DT_NODELABEL(led_850nm)
@@ -176,7 +184,9 @@ static struct stm32_pclken *all_pclken[] = {&led_850nm_pclken,
                                             &led_940nm_pclken,
                                             &tof_2d_camera_trigger_pclken,
                                             &ir_eye_camera_trigger_pclken,
+#ifdef IR_FACE_CAMERA_TRIGGER_TIMER
                                             &ir_face_camera_trigger_pclken,
+#endif
                                             &master_timer_pclken};
 
 static const struct pinctrl_dev_config *pin_controls[] = {
@@ -184,7 +194,9 @@ static const struct pinctrl_dev_config *pin_controls[] = {
     PINCTRL_DT_DEV_CONFIG_GET(LED_940NM_NODE),
     PINCTRL_DT_DEV_CONFIG_GET(TOF_NODE),
     PINCTRL_DT_DEV_CONFIG_GET(IR_EYE_CAMERA_NODE),
+#ifdef IR_FACE_CAMERA_TRIGGER_TIMER
     PINCTRL_DT_DEV_CONFIG_GET(IR_FACE_CAMERA_NODE),
+#endif
     PINCTRL_DT_DEV_CONFIG_GET(MASTER_TIMER_NODE)};
 
 BUILD_ASSERT(ARRAY_SIZE(pin_controls) == ARRAY_SIZE(all_pclken),
@@ -210,19 +222,24 @@ static struct ir_camera_timer_settings global_timer_settings = {0};
 static const struct gpio_dt_spec front_unit_pvcc_pwm_mode =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_pvcc_pwm_mode_gpios);
 
-#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
+#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_face_strobe_gpios)
 // External STROBE (FLASH) input from the RGB-IR camera.
 // Rising edge triggers a master timer UPDATE to drive the existing
 // LED and camera trigger one-pulse timers.
-
-static const struct gpio_dt_spec rgb_ir_strobe =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), rgb_ir_strobe_gpios);
-
+static const struct gpio_dt_spec rgb_ir_face_strobe =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), rgb_ir_face_strobe_gpios);
 static struct gpio_callback rgb_ir_strobe_cb;
+
+// External FACE camera trigger output to the RGB-IR camera.
+// 1 pulse starts the camera, then the camera runs autonomously.
+static const struct gpio_dt_spec rgb_ir_face_trigger =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), rgb_ir_face_trigger_gpios);
+
 static void
 camera_set_exposure_length(bool enabled, int channel);
 
 #endif
+
 // Focus sweep stuff
 static int16_t global_focus_values[MAX_NUMBER_OF_FOCUS_VALUES];
 static size_t global_num_focus_values;
@@ -419,7 +436,7 @@ camera_exposure_completes_isr(void *arg)
                     0);
             }
         } else {
-#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
+#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_face_strobe_gpios)
             // This update event was enabled in the rgb_ir_strobe_isr
 
             // set camera exposure lengths based on current settings
@@ -713,14 +730,16 @@ setup_camera_triggers(void)
     oc_init.CompareValue = CAMERA_TRIGGER_TIMER_START_DELAY_US;
     oc_init.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
 
+#ifdef IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL
     if (LL_TIM_OC_Init(CAMERA_TRIGGER_TIMER,
-                       ch2ll[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1],
+                       ch2ll[IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL - 1],
                        &oc_init) != SUCCESS) {
         LOG_ERR("Could not initialize timer channel output");
         return -EIO;
     }
+#endif
     if (LL_TIM_OC_Init(CAMERA_TRIGGER_TIMER,
-                       ch2ll[IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL - 1],
+                       ch2ll[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1],
                        &oc_init) != SUCCESS) {
         LOG_ERR("Could not initialize timer channel output");
         return -EIO;
@@ -734,10 +753,12 @@ setup_camera_triggers(void)
 
     LL_TIM_EnableARRPreload(CAMERA_TRIGGER_TIMER);
 
-    LL_TIM_OC_EnablePreload(CAMERA_TRIGGER_TIMER,
-                            ch2ll[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+#ifdef IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL
     LL_TIM_OC_EnablePreload(CAMERA_TRIGGER_TIMER,
                             ch2ll[IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+#endif
+    LL_TIM_OC_EnablePreload(CAMERA_TRIGGER_TIMER,
+                            ch2ll[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
     LL_TIM_OC_EnablePreload(CAMERA_TRIGGER_TIMER,
                             ch2ll[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
 
@@ -939,6 +960,7 @@ static void
 apply_new_timer_settings()
 {
     static struct ir_camera_timer_settings old_timer_settings = {0};
+    bool ir_camera_triggered = false;
 
     CRITICAL_SECTION_ENTER(k);
 
@@ -957,9 +979,16 @@ apply_new_timer_settings()
     LL_TIM_SetPrescaler(MASTER_TIMER, global_timer_settings.master_psc);
     LL_TIM_SetAutoReload(MASTER_TIMER, global_timer_settings.master_arr);
 
-#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
+#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_face_strobe_gpios)
     // explicitly disable the ir eye camera trigger when applying new settings
-    camera_set_exposure_length(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    // in case face camera is enabled, since it's gonna synchronize with
+    // the strobe signal
+    if (ir_camera_system_ir_face_camera_is_enabled()) {
+        camera_set_exposure_length(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    } else {
+        camera_set_exposure_length(ir_camera_system_ir_eye_camera_is_enabled(),
+                                   IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    }
 #else
     camera_set_exposure_length(ir_camera_system_ir_eye_camera_is_enabled(),
                                IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
@@ -970,25 +999,29 @@ apply_new_timer_settings()
                                TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
 
     ir_leds_set_pulse_length();
-    // in case rgb/ir strobe, wait for interrupt to enable the IR LEDs
-#if !DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
+#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_face_strobe_gpios)
+    // in case face camera is enabled, wait for interrupt to enable the IR LEDs
+    if (!ir_camera_system_ir_face_camera_is_enabled()) {
+        ir_leds_enable_pulse();
+        ir_camera_triggered = true;
+    }
+#else
     ir_leds_enable_pulse();
+    ir_camera_triggered = true;
 #endif
 
     CRITICAL_SECTION_EXIT(k);
 
-#if !DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
     // Auto-reload preload is enabled. This means that the auto-reload preload
     // register is deposited into the auto-reload register only on a timer
     // update, which will never occur if the auto-reload value was previously
     // zero. So in that case, we manually issue an update event.
     // If a signal is awaited from the RGB/IR cam, skip this step as the
     // update event will be generated from the EXTI ISR.
-    if ((old_timer_settings.master_arr == 0) &&
+    if (ir_camera_triggered && (old_timer_settings.master_arr == 0) &&
         (global_timer_settings.master_arr > 0)) {
         LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
     }
-#endif
 
     old_timer_settings = global_timer_settings;
 }
@@ -1170,7 +1203,25 @@ ir_camera_system_disable_ir_eye_camera_hw(void)
 void
 ir_camera_system_enable_ir_face_camera_hw(void)
 {
+#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_face_strobe_gpios)
+    // send initial trigger to start the camera
+    int ret;
+
+    ret = gpio_pin_interrupt_configure_dt(&rgb_ir_face_strobe,
+                                          GPIO_INT_EDGE_RISING);
+    ASSERT_SOFT(ret);
+
+    ret = gpio_pin_configure_dt(&rgb_ir_face_trigger, GPIO_OUTPUT_ACTIVE);
+    ASSERT_SOFT(ret);
+
+    k_msleep(1);
+
+    ret = gpio_pin_configure_dt(&rgb_ir_face_trigger, GPIO_OUTPUT_INACTIVE);
+    ASSERT_SOFT(ret);
+#else
     camera_set_exposure_length(true, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+#endif
+
     debug_print();
     configure_timeout();
 }
@@ -1178,7 +1229,14 @@ ir_camera_system_enable_ir_face_camera_hw(void)
 void
 ir_camera_system_disable_ir_face_camera_hw(void)
 {
+#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_face_strobe_gpios)
+    int err_code =
+        gpio_pin_interrupt_configure_dt(&rgb_ir_face_strobe, GPIO_INT_DISABLE);
+    ASSERT_SOFT(err_code);
+#else
     camera_set_exposure_length(false, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+#endif
+
     debug_print();
     configure_timeout();
 }
@@ -1254,9 +1312,8 @@ ir_camera_system_enable_leds_hw(void)
     CRITICAL_SECTION_ENTER(k);
 
     ir_leds_set_pulse_length();
-#if !DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
     ir_leds_enable_pulse();
-#endif
+
     CRITICAL_SECTION_EXIT(k);
 
     debug_print();
@@ -1269,7 +1326,7 @@ ir_camera_system_get_fps_hw(void)
     return global_timer_settings.fps;
 }
 
-#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
+#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_face_strobe_gpios)
 // On Diamond, the RGB-IR camera provides a strobe signal to the MCU
 // which is used as the master trigger for synchronizing the IR eye camera and
 // IR LEDs.
@@ -1382,28 +1439,26 @@ ir_camera_system_hw_init(void)
         return RET_ERROR_INTERNAL;
     }
 
-#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_strobe_gpios)
-    if (!device_is_ready(rgb_ir_strobe.port)) {
+#if DT_NODE_HAS_PROP(DT_PATH(zephyr_user), rgb_ir_face_strobe_gpios)
+    if (!device_is_ready(rgb_ir_face_strobe.port)) {
         ASSERT_SOFT(RET_ERROR_INTERNAL);
         return RET_ERROR_INTERNAL;
     }
 
-    err_code = gpio_pin_configure_dt(&rgb_ir_strobe, GPIO_INPUT);
-    if (err_code) {
-        ASSERT_SOFT(err_code);
-        return RET_ERROR_INTERNAL;
-    }
-
     err_code =
-        gpio_pin_interrupt_configure_dt(&rgb_ir_strobe, GPIO_INT_EDGE_RISING);
+        gpio_pin_configure_dt(&rgb_ir_face_trigger, GPIO_OUTPUT_INACTIVE);
+    ASSERT_SOFT(err_code);
+
+    err_code = gpio_pin_configure_dt(&rgb_ir_face_strobe, GPIO_INPUT);
     if (err_code) {
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
 
+    // interrupt will be enabled when face camera is used
     gpio_init_callback(&rgb_ir_strobe_cb, rgb_ir_strobe_isr,
-                       BIT(rgb_ir_strobe.pin));
-    err_code = gpio_add_callback(rgb_ir_strobe.port, &rgb_ir_strobe_cb);
+                       BIT(rgb_ir_face_strobe.pin));
+    err_code = gpio_add_callback(rgb_ir_face_strobe.port, &rgb_ir_strobe_cb);
     if (err_code) {
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
