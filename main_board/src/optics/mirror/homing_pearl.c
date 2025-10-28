@@ -114,7 +114,7 @@ mirror_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                     .range_millidegrees = angle_range_millidegrees};
                 publish_new(&range, sizeof(range),
                             orb_mcu_main_McuToJetson_motor_range_tag,
-                            CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                            CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 
                 motor_handle->auto_homing_state = AH_SUCCESS;
             }

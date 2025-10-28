@@ -26,7 +26,7 @@ logs_can(const char *data, size_t size, bool blocking)
         // use the pubsub API
         publish_new(&log_msg.message.m_message.payload.log, size,
                     orb_mcu_main_McuToJetson_log_tag,
-                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                    CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
     } else {
         // send in blocking mode by directly using the CAN API
         uint8_t buffer[CAN_FRAME_MAX_SIZE];
@@ -35,7 +35,7 @@ logs_can(const char *data, size_t size, bool blocking)
                                     &log_msg, PB_ENCODE_DELIMITED);
 
         can_message_t to_send = {.destination =
-                                     CONFIG_CAN_ADDRESS_DEFAULT_REMOTE,
+                                     CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX,
                                  .bytes = buffer,
                                  .size = stream.bytes_written};
 
