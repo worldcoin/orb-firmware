@@ -89,6 +89,7 @@ static struct stm32_pclken ir_eye_camera_trigger_pclken =
     (DT_PROP_BY_IDX(IR_EYE_CAMERA_NODE, channels, 0))
 // END --- IR eye
 
+#ifdef CONFIG_BOARD_PEARL_MAIN
 // START --- IR face camera trigger
 #define IR_FACE_CAMERA_NODE DT_NODELABEL(ir_face_camera_trigger)
 PINCTRL_DT_DEFINE(IR_FACE_CAMERA_NODE);
@@ -105,17 +106,24 @@ static struct stm32_pclken ir_face_camera_trigger_pclken =
 #define IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL                                   \
     (DT_PROP_BY_IDX(IR_FACE_CAMERA_NODE, channels, 0))
 // END --- IR face
+#endif
 
-// AKA: TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER ==
+// check TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER
+BUILD_ASSERT(TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER,
+             "We expect that all camera triggers are different channels on "
+             "the same timer");
+#ifdef IR_FACE_CAMERA_TRIGGER_TIMER
+// check TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER ==
 // IR_FACE_CAMERA_TRIGGER_TIMER
 BUILD_ASSERT(TOF_2D_CAMERA_TRIGGER_TIMER == IR_EYE_CAMERA_TRIGGER_TIMER &&
                  IR_EYE_CAMERA_TRIGGER_TIMER == IR_FACE_CAMERA_TRIGGER_TIMER,
              "We expect that all camera triggers are different channels on "
              "the same timer");
+#endif
 
-#define CAMERA_TRIGGER_TIMER IR_FACE_CAMERA_TRIGGER_TIMER
+#define CAMERA_TRIGGER_TIMER IR_EYE_CAMERA_TRIGGER_TIMER
 #define CAMERA_TRIGGER_TIMER_UPDATE_IRQn                                       \
-    DT_IRQ_BY_NAME(DT_PARENT(IR_FACE_CAMERA_NODE), up, irq)
+    DT_IRQ_BY_NAME(DT_PARENT(IR_EYE_CAMERA_NODE), up, irq)
 
 // START --- 850nm LEDs
 #define LED_850NM_NODE DT_NODELABEL(led_850nm)
@@ -176,7 +184,9 @@ static struct stm32_pclken *all_pclken[] = {&led_850nm_pclken,
                                             &led_940nm_pclken,
                                             &tof_2d_camera_trigger_pclken,
                                             &ir_eye_camera_trigger_pclken,
+#ifdef IR_FACE_CAMERA_TRIGGER_TIMER
                                             &ir_face_camera_trigger_pclken,
+#endif
                                             &master_timer_pclken};
 
 static const struct pinctrl_dev_config *pin_controls[] = {
@@ -184,7 +194,9 @@ static const struct pinctrl_dev_config *pin_controls[] = {
     PINCTRL_DT_DEV_CONFIG_GET(LED_940NM_NODE),
     PINCTRL_DT_DEV_CONFIG_GET(TOF_NODE),
     PINCTRL_DT_DEV_CONFIG_GET(IR_EYE_CAMERA_NODE),
+#ifdef IR_FACE_CAMERA_TRIGGER_TIMER
     PINCTRL_DT_DEV_CONFIG_GET(IR_FACE_CAMERA_NODE),
+#endif
     PINCTRL_DT_DEV_CONFIG_GET(MASTER_TIMER_NODE)};
 
 BUILD_ASSERT(ARRAY_SIZE(pin_controls) == ARRAY_SIZE(all_pclken),
@@ -209,6 +221,24 @@ static struct ir_camera_timer_settings global_timer_settings = {0};
 ///     This mode is set during boot, see ir_camera_system_init`
 static const struct gpio_dt_spec front_unit_pvcc_pwm_mode =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_pvcc_pwm_mode_gpios);
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+// External STROBE (FLASH) input from the RGB-IR camera.
+// Rising edge triggers a master timer UPDATE to drive the existing
+// LED and camera trigger one-pulse timers.
+static const struct gpio_dt_spec rgb_ir_face_strobe =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), rgb_ir_face_strobe_gpios);
+static struct gpio_callback rgb_ir_strobe_cb;
+
+// External FACE camera trigger output to the RGB-IR camera.
+// 1 pulse starts the camera, then the camera runs autonomously.
+static const struct gpio_dt_spec rgb_ir_face_trigger =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), rgb_ir_face_trigger_gpios);
+
+static void
+camera_enable_trigger(bool enabled, int channel);
+
+#endif
 
 // Focus sweep stuff
 static int16_t global_focus_values[MAX_NUMBER_OF_FOCUS_VALUES];
@@ -247,7 +277,7 @@ set_pvcc_converter_into_high_demand_mode(void)
 }
 
 static void
-disable_all_led_cc_channels(void)
+ir_leds_disable_all(void)
 {
     // disable all CC channels of the LED timers
     LL_TIM_CC_DisableChannel(LED_850NM_TIMER,
@@ -357,8 +387,10 @@ evaluate_mirror_sweep_polynomials(uint32_t frame_no)
 K_SEM_DEFINE(camera_sweep_test_sem, 0, 1);
 #endif
 
+// When the camera trigger update event ISR is enabled, any time the one shot
+// pulse is completed, this will fire.
 static void
-camera_sweep_isr(void *arg)
+camera_exposure_completes_isr(void *arg)
 {
     ARG_UNUSED(arg);
     LL_TIM_ClearFlag_UPDATE(CAMERA_TRIGGER_TIMER);
@@ -382,6 +414,7 @@ camera_sweep_isr(void *arg)
                         global_focus_values[sweep_index]);
                 }
             }
+            sweep_index++;
         } else if (get_mirror_sweep_in_progress() == true) {
             if (sweep_index == mirror_sweep_polynomial.number_of_frames) {
                 LL_TIM_DisableIT_UPDATE(CAMERA_TRIGGER_TIMER);
@@ -403,11 +436,23 @@ camera_sweep_isr(void *arg)
                         (int32_t)initial_mirror_angle_theta_millidegrees,
                     0);
             }
-        } else {
-            LOG_ERR("Nothing is in progress, this should not be possible!");
+            sweep_index++;
         }
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+        // This update event was enabled in the rgb_ir_strobe_isr
 
-        sweep_index++;
+        // set camera exposure lengths based on current settings
+        camera_enable_trigger(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+        camera_enable_trigger(ir_camera_system_2d_tof_camera_is_enabled(),
+                              TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+
+        // disable the IR LEDs for the next master timer event
+        ir_leds_disable_all();
+
+        // disable the camera trigger timer update interrupt to set up the
+        // next master update event
+        LL_TIM_DisableIT_UPDATE(CAMERA_TRIGGER_TIMER);
+#endif
     }
 }
 
@@ -682,14 +727,16 @@ setup_camera_triggers(void)
     oc_init.CompareValue = CAMERA_TRIGGER_TIMER_START_DELAY_US;
     oc_init.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
 
+#ifdef IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL
     if (LL_TIM_OC_Init(CAMERA_TRIGGER_TIMER,
-                       ch2ll[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1],
+                       ch2ll[IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL - 1],
                        &oc_init) != SUCCESS) {
         LOG_ERR("Could not initialize timer channel output");
         return -EIO;
     }
+#endif
     if (LL_TIM_OC_Init(CAMERA_TRIGGER_TIMER,
-                       ch2ll[IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL - 1],
+                       ch2ll[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1],
                        &oc_init) != SUCCESS) {
         LOG_ERR("Could not initialize timer channel output");
         return -EIO;
@@ -703,10 +750,12 @@ setup_camera_triggers(void)
 
     LL_TIM_EnableARRPreload(CAMERA_TRIGGER_TIMER);
 
-    LL_TIM_OC_EnablePreload(CAMERA_TRIGGER_TIMER,
-                            ch2ll[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+#ifdef IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL
     LL_TIM_OC_EnablePreload(CAMERA_TRIGGER_TIMER,
                             ch2ll[IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
+#endif
+    LL_TIM_OC_EnablePreload(CAMERA_TRIGGER_TIMER,
+                            ch2ll[TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
     LL_TIM_OC_EnablePreload(CAMERA_TRIGGER_TIMER,
                             ch2ll[IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL - 1]);
 
@@ -734,8 +783,9 @@ setup_camera_triggers(void)
     LL_TIM_SetTriggerInput(CAMERA_TRIGGER_TIMER, LL_TIM_TS_ITR3); // timer 4
 #endif
 
-    IRQ_CONNECT(CAMERA_TRIGGER_TIMER_UPDATE_IRQn, CAMERA_SWEEP_INTERRUPT_PRIO,
-                camera_sweep_isr, NULL, 0);
+    IRQ_CONNECT(CAMERA_TRIGGER_TIMER_UPDATE_IRQn,
+                CAMERA_EXPOSURE_COMPLETE_INTERRUPT_PRIO,
+                camera_exposure_completes_isr, NULL, 0);
     irq_enable(CAMERA_TRIGGER_TIMER_UPDATE_IRQn);
 
     LL_TIM_EnableCounter(CAMERA_TRIGGER_TIMER);
@@ -744,7 +794,7 @@ setup_camera_triggers(void)
 }
 
 static void
-ir_camera_system_enable_cc_channels(void)
+ir_leds_enable_pulse(void)
 {
     // disable all UPDATE interrupts, later enable only active channel
     // the `UPDATE` event triggers the `ir_leds_pulse_finished_isr` (Pearl)
@@ -854,7 +904,7 @@ ir_camera_system_enable_cc_channels(void)
 }
 
 static void
-set_arr_ir_leds(void)
+ir_leds_set_pulse_length(void)
 {
     // allow usage of IR LEDs if safety conditions are met
     // /!\ this overrides the Jetson commands
@@ -865,7 +915,7 @@ set_arr_ir_leds(void)
     // reset states
     // so that we can selectively enable the active channels
     // from scratch
-    disable_all_led_cc_channels();
+    ir_leds_disable_all();
 
     if (global_timer_settings.on_time_in_us != 0) {
         // set the ARR value for all IR LED timers
@@ -885,12 +935,10 @@ set_arr_ir_leds(void)
     } else {
         set_pvcc_converter_into_low_power_mode();
     }
-
-    ir_camera_system_enable_cc_channels();
 }
 
-static inline void
-set_trigger_arr(bool enabled, int channel)
+static void
+camera_enable_trigger(bool enabled, int channel)
 {
     // set the ARR value for the camera trigger timer
     LL_TIM_SetAutoReload(CAMERA_TRIGGER_TIMER,
@@ -910,6 +958,7 @@ static void
 apply_new_timer_settings()
 {
     static struct ir_camera_timer_settings old_timer_settings = {0};
+    bool ir_camera_triggered = false;
 
     CRITICAL_SECTION_ENTER(k);
 
@@ -928,14 +977,36 @@ apply_new_timer_settings()
     LL_TIM_SetPrescaler(MASTER_TIMER, global_timer_settings.master_psc);
     LL_TIM_SetAutoReload(MASTER_TIMER, global_timer_settings.master_arr);
 
-    set_trigger_arr(ir_camera_system_ir_eye_camera_is_enabled(),
-                    IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
-    set_trigger_arr(ir_camera_system_ir_face_camera_is_enabled(),
-                    IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
-    set_trigger_arr(ir_camera_system_2d_tof_camera_is_enabled(),
-                    TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+    // explicitly disable the ir eye camera trigger when applying new settings
+    // in case face camera is enabled, since it's gonna synchronize with
+    // the strobe signal
+    if (ir_camera_system_ir_face_camera_is_enabled()) {
+        camera_enable_trigger(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    } else {
+        camera_enable_trigger(ir_camera_system_ir_eye_camera_is_enabled(),
+                              IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    }
+#else
+    camera_enable_trigger(ir_camera_system_ir_eye_camera_is_enabled(),
+                          IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(ir_camera_system_ir_face_camera_is_enabled(),
+                          IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+#endif
+    camera_enable_trigger(ir_camera_system_2d_tof_camera_is_enabled(),
+                          TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
 
-    set_arr_ir_leds();
+    ir_leds_set_pulse_length();
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+    // in case face camera is enabled, wait for interrupt to enable the IR LEDs
+    if (!ir_camera_system_ir_face_camera_is_enabled()) {
+        ir_leds_enable_pulse();
+        ir_camera_triggered = true;
+    }
+#else
+    ir_leds_enable_pulse();
+    ir_camera_triggered = true;
+#endif
 
     CRITICAL_SECTION_EXIT(k);
 
@@ -943,7 +1014,9 @@ apply_new_timer_settings()
     // register is deposited into the auto-reload register only on a timer
     // update, which will never occur if the auto-reload value was previously
     // zero. So in that case, we manually issue an update event.
-    if ((old_timer_settings.master_arr == 0) &&
+    // If a signal is awaited from the RGB/IR cam, skip this step as the
+    // update event will be generated from the EXTI ISR.
+    if (ir_camera_triggered && (old_timer_settings.master_arr == 0) &&
         (global_timer_settings.master_arr > 0)) {
         LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
     }
@@ -1066,7 +1139,7 @@ setup_940nm_led_timer(void)
         return -EIO;
     }
 
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#if defined(LED_940NM_TIMER_SINGLE_CHANNEL)
     // init OC for 940 single channel
     if (LL_TIM_OC_Init(LED_940NM_TIMER,
                        ch2ll[LED_940NM_TIMER_SINGLE_CHANNEL - 1],
@@ -1101,7 +1174,7 @@ setup_940nm_led_timer(void)
                             ch2ll[LED_940NM_TIMER_LEFT_CHANNEL - 1]);
     LL_TIM_OC_EnablePreload(LED_940NM_TIMER,
                             ch2ll[LED_940NM_TIMER_RIGHT_CHANNEL - 1]);
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#if defined(LED_940NM_TIMER_SINGLE_CHANNEL)
     LL_TIM_OC_EnablePreload(LED_940NM_TIMER,
                             ch2ll[LED_940NM_TIMER_SINGLE_CHANNEL - 1]);
 #endif
@@ -1112,7 +1185,7 @@ setup_940nm_led_timer(void)
 void
 ir_camera_system_enable_ir_eye_camera_hw(void)
 {
-    set_trigger_arr(true, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(true, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
     configure_timeout();
 }
@@ -1120,7 +1193,7 @@ ir_camera_system_enable_ir_eye_camera_hw(void)
 void
 ir_camera_system_disable_ir_eye_camera_hw(void)
 {
-    set_trigger_arr(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
     configure_timeout();
 }
@@ -1128,7 +1201,25 @@ ir_camera_system_disable_ir_eye_camera_hw(void)
 void
 ir_camera_system_enable_ir_face_camera_hw(void)
 {
-    set_trigger_arr(true, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+    // send initial trigger to start the camera
+    int ret;
+
+    ret = gpio_pin_interrupt_configure_dt(&rgb_ir_face_strobe,
+                                          GPIO_INT_EDGE_RISING);
+    ASSERT_SOFT(ret);
+
+    ret = gpio_pin_configure_dt(&rgb_ir_face_trigger, GPIO_OUTPUT_ACTIVE);
+    ASSERT_SOFT(ret);
+
+    k_msleep(1);
+
+    ret = gpio_pin_configure_dt(&rgb_ir_face_trigger, GPIO_OUTPUT_INACTIVE);
+    ASSERT_SOFT(ret);
+#else
+    camera_enable_trigger(true, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+#endif
+
     debug_print();
     configure_timeout();
 }
@@ -1136,7 +1227,14 @@ ir_camera_system_enable_ir_face_camera_hw(void)
 void
 ir_camera_system_disable_ir_face_camera_hw(void)
 {
-    set_trigger_arr(false, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+#if CONFIG_BOARD_DIAMOND_MAIN
+    const int err_code =
+        gpio_pin_interrupt_configure_dt(&rgb_ir_face_strobe, GPIO_INT_DISABLE);
+    ASSERT_SOFT(err_code);
+#else
+    camera_enable_trigger(false, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+#endif
+
     debug_print();
     configure_timeout();
 }
@@ -1144,7 +1242,7 @@ ir_camera_system_disable_ir_face_camera_hw(void)
 void
 ir_camera_system_enable_2d_tof_camera_hw(void)
 {
-    set_trigger_arr(true, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(true, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
     configure_timeout();
 }
@@ -1152,7 +1250,7 @@ ir_camera_system_enable_2d_tof_camera_hw(void)
 void
 ir_camera_system_disable_2d_tof_camera_hw(void)
 {
-    set_trigger_arr(false, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(false, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
     configure_timeout();
 }
@@ -1211,7 +1309,8 @@ ir_camera_system_enable_leds_hw(void)
 {
     CRITICAL_SECTION_ENTER(k);
 
-    set_arr_ir_leds();
+    ir_leds_set_pulse_length();
+    ir_leds_enable_pulse();
 
     CRITICAL_SECTION_EXIT(k);
 
@@ -1224,6 +1323,69 @@ ir_camera_system_get_fps_hw(void)
 {
     return global_timer_settings.fps;
 }
+
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+// On Diamond, the RGB-IR camera provides a strobe signal to the MCU
+// which is used as the master trigger for synchronizing the IR eye camera and
+// IR LEDs.
+// The connection is as follows:
+//    *--------*                      *--------*               *--------*
+//    * RGB-IR * ------- STROBE ----> *        * --- TRIG ---> * IR Eye *
+//    * Camera *                      *        *               * Camera *
+//    *--------*                      *  MCU   *               *--------*
+//                                    *        *
+//                                    *        * --- TRIG ---> IR LEDs
+//                                    *--------*
+//
+// This ISR should trigger every time the RGB-IR (face) camera strobe is
+// triggered and the MCU receives the rising edge.
+// On ISR:
+// - Enable the IR eye camera trigger
+// - Enable the IR LEDs
+// - Disable 2D TOF camera triggers
+// TODO: should we trigger 2D-ToF during IR or RGB exposure? does 2d-tof emitter
+// leak into RGB frames?) It will then emit an on demand master UPDATE event to
+// start one synchronized frame. This means all slaves (TIM15, TIM3, TIM20) fire
+// one-pulse with their preloads. This ISR should be triggered with a high
+// priority
+static void
+rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
+                  uint32_t pins)
+{
+    ARG_UNUSED(port);
+    ARG_UNUSED(cb);
+    ARG_UNUSED(pins);
+
+    // enable the IR eye camera trigger and disable ir face and 2d TOF camera
+    // triggers.
+    // The camera triggers even though the IR LEDs might be left off depending
+    // on safety distance.
+    camera_enable_trigger(ir_camera_system_ir_eye_camera_is_enabled(),
+                          IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(false, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+
+    // Emit an on demand master UPDATE event to start one synchronized frame.
+    // This means all slaves (TIM15, TIM3, TIM20) fire one-pulse with their
+    // preloads this should only be for IR eye camera trigger and IR LEDs based
+    // on the above settings
+    LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
+
+    // enable the camera trigger timer update interrupt
+    // The ISR `camera_exposure_completes_isr` will be triggered when the
+    // one shot pulse is completed.
+    // This will allow us to disable the IR eye camera & enable any other
+    // cameras that were requested after the IR exposure is done.
+    LL_TIM_EnableIT_UPDATE(CAMERA_TRIGGER_TIMER);
+
+    // Safety gate: do nothing if unsafe distance.
+    if (!distance_is_safe()) {
+        return;
+    }
+
+    // enable the IR LEDs
+    ir_leds_enable_pulse();
+}
+#endif
 
 ret_code_t
 ir_camera_system_hw_init(void)
@@ -1274,6 +1436,32 @@ ir_camera_system_hw_init(void)
         ASSERT_SOFT(err_code);
         return RET_ERROR_INTERNAL;
     }
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    if (!device_is_ready(rgb_ir_face_strobe.port)) {
+        ASSERT_SOFT(RET_ERROR_INTERNAL);
+        return RET_ERROR_INTERNAL;
+    }
+
+    err_code =
+        gpio_pin_configure_dt(&rgb_ir_face_trigger, GPIO_OUTPUT_INACTIVE);
+    ASSERT_SOFT(err_code);
+
+    err_code = gpio_pin_configure_dt(&rgb_ir_face_strobe, GPIO_INPUT);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+
+    // interrupt will be enabled when face camera is used
+    gpio_init_callback(&rgb_ir_strobe_cb, rgb_ir_strobe_isr,
+                       BIT(rgb_ir_face_strobe.pin));
+    err_code = gpio_add_callback(rgb_ir_face_strobe.port, &rgb_ir_strobe_cb);
+    if (err_code) {
+        ASSERT_SOFT(err_code);
+        return RET_ERROR_INTERNAL;
+    }
+#endif
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     IRQ_CONNECT(LED_940NM_GLOBAL_IRQn, LED_940NM_GLOBAL_INTERRUPT_PRIO,
