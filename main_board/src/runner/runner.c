@@ -930,6 +930,12 @@ handle_fps(job_t *job)
     orb_mcu_main_JetsonToMcu *msg = &job->message;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_fps_tag);
 
+    static bool boot_progressed = false;
+    if (boot_progressed == false) {
+        front_leds_boot_progress_next();
+        boot_progressed = true;
+    }
+
     uint16_t fps = (uint16_t)msg->payload.fps.fps;
 
     LOG_DBG("Got FPS message = %u", fps);
@@ -1282,6 +1288,12 @@ handle_value_get_message(job_t *job)
     orb_mcu_main_JetsonToMcu *msg = &job->message;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_value_get_tag);
 
+    static bool boot_progressed = false;
+    if (boot_progressed == false) {
+        front_leds_boot_progress_next();
+        boot_progressed = true;
+    }
+
     orb_mcu_ValueGet_Value value = msg->payload.value_get.value;
     LOG_DBG("Got ValueGet request: %u", value);
 
@@ -1582,6 +1594,12 @@ handle_set_time(job_t *job)
 {
     orb_mcu_main_JetsonToMcu *msg = &job->message;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_set_time_tag);
+
+    static bool boot_progressed = false;
+    if (!boot_progressed) {
+        front_leds_boot_progress_next();
+        boot_progressed = true;
+    }
 
     int ret;
     switch (msg->payload.set_time.which_format) {

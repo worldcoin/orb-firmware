@@ -7,7 +7,7 @@
 #include <zephyr/drivers/led_strip.h>
 #include <zephyr/kernel.h>
 
-#define INITIAL_PULSING_PERIOD_MS 5000
+#define INITIAL_PULSING_PERIOD_MS 4000
 #define PULSING_SCALE_DEFAULT     (1.0f)
 
 #define ARRAY_SIZE_ASSERT(arr)                                                 \
@@ -36,13 +36,12 @@
 
 #define RGB_WHITE                                                              \
     {                                                                          \
-        .scratch = RGB_BRIGHTNESS_MAX, .r = MINIMUM_WHITE_BRIGHTNESS,          \
-        .g = MINIMUM_WHITE_BRIGHTNESS, .b = MINIMUM_WHITE_BRIGHTNESS           \
+        .scratch = 10, .r = 60, .g = 80, .b = 60                               \
     }
 
 #define RGB_WHITE_OPERATOR_LEDS                                                \
     {                                                                          \
-        .scratch = RGB_BRIGHTNESS_MAX, .r = 20, .g = 20, .b = 20               \
+        .scratch = 10, .r = 30, .g = 27, .b = 25                               \
     }
 #else
 #define RGB_ORANGE                                                             \

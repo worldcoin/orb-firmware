@@ -91,9 +91,6 @@ run_tests()
     ret = voltage_measurement_selftest();
     ASSERT_SOFT(ret);
 
-    ret = front_leds_self_test();
-    ASSERT_SOFT(ret);
-
 #if CONFIG_HIL_TESTS || (CONFIG_ZTEST && !CONFIG_ZTEST_SHELL)
     // Per default publishing of voltages is disabled
     // -> enable it for testing if voltage messages are published
@@ -319,6 +316,9 @@ initialize(void)
     err_code = ui_init(&hw);
     ASSERT_SOFT(err_code);
 
+    // first call to indicate boot progress
+    front_leds_boot_progress_next();
+
     err_code = als_init(&hw, &analog_and_i2c_mutex);
     ASSERT_SOFT(err_code);
 
@@ -357,6 +357,8 @@ initialize(void)
 #else
     optics_init(&hw, &analog_and_i2c_mutex);
 #endif // CONFIG_NO_SUPER_CAPS
+
+    front_leds_boot_progress_next();
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     if (hw.version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_4 ||

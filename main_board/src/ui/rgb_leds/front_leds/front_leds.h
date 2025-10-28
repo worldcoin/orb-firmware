@@ -115,6 +115,9 @@ front_leds_turn_off_blocking(void);
 int
 front_leds_self_test(void);
 
+void
+front_leds_boot_progress_next(void);
+
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 /**
  * Notifies that the IR leds are now off within their duty cycle
