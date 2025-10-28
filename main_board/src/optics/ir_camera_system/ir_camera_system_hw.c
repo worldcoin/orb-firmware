@@ -236,7 +236,7 @@ static const struct gpio_dt_spec rgb_ir_face_trigger =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), rgb_ir_face_trigger_gpios);
 
 static void
-camera_set_exposure_length(bool enabled, int channel);
+camera_enable_trigger(bool enabled, int channel);
 
 #endif
 
@@ -414,6 +414,7 @@ camera_exposure_completes_isr(void *arg)
                         global_focus_values[sweep_index]);
                 }
             }
+            sweep_index++;
         } else if (get_mirror_sweep_in_progress() == true) {
             if (sweep_index == mirror_sweep_polynomial.number_of_frames) {
                 LL_TIM_DisableIT_UPDATE(CAMERA_TRIGGER_TIMER);
@@ -435,27 +436,23 @@ camera_exposure_completes_isr(void *arg)
                         (int32_t)initial_mirror_angle_theta_millidegrees,
                     0);
             }
-        } else {
-#ifdef CONFIG_BOARD_DIAMOND_MAIN
-            // This update event was enabled in the rgb_ir_strobe_isr
-
-            // set camera exposure lengths based on current settings
-            camera_set_exposure_length(false,
-                                       IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
-            camera_set_exposure_length(
-                ir_camera_system_2d_tof_camera_is_enabled(),
-                TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
-
-            // disable the IR LEDs for the next master timer event
-            ir_leds_disable_all();
-
-            // disable the camera trigger timer update interrupt to set up the
-            // next master update event
-            LL_TIM_DisableIT_UPDATE(CAMERA_TRIGGER_TIMER);
-#endif
+            sweep_index++;
         }
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+        // This update event was enabled in the rgb_ir_strobe_isr
 
-        sweep_index++;
+        // set camera exposure lengths based on current settings
+        camera_enable_trigger(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+        camera_enable_trigger(ir_camera_system_2d_tof_camera_is_enabled(),
+                              TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+
+        // disable the IR LEDs for the next master timer event
+        ir_leds_disable_all();
+
+        // disable the camera trigger timer update interrupt to set up the
+        // next master update event
+        LL_TIM_DisableIT_UPDATE(CAMERA_TRIGGER_TIMER);
+#endif
     }
 }
 
@@ -941,7 +938,7 @@ ir_leds_set_pulse_length(void)
 }
 
 static void
-camera_set_exposure_length(bool enabled, int channel)
+camera_enable_trigger(bool enabled, int channel)
 {
     // set the ARR value for the camera trigger timer
     LL_TIM_SetAutoReload(CAMERA_TRIGGER_TIMER,
@@ -985,19 +982,19 @@ apply_new_timer_settings()
     // in case face camera is enabled, since it's gonna synchronize with
     // the strobe signal
     if (ir_camera_system_ir_face_camera_is_enabled()) {
-        camera_set_exposure_length(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+        camera_enable_trigger(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     } else {
-        camera_set_exposure_length(ir_camera_system_ir_eye_camera_is_enabled(),
-                                   IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+        camera_enable_trigger(ir_camera_system_ir_eye_camera_is_enabled(),
+                              IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     }
 #else
-    camera_set_exposure_length(ir_camera_system_ir_eye_camera_is_enabled(),
-                               IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
-    camera_set_exposure_length(ir_camera_system_ir_face_camera_is_enabled(),
-                               IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(ir_camera_system_ir_eye_camera_is_enabled(),
+                          IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(ir_camera_system_ir_face_camera_is_enabled(),
+                          IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
 #endif
-    camera_set_exposure_length(ir_camera_system_2d_tof_camera_is_enabled(),
-                               TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(ir_camera_system_2d_tof_camera_is_enabled(),
+                          TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
 
     ir_leds_set_pulse_length();
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
@@ -1188,7 +1185,7 @@ setup_940nm_led_timer(void)
 void
 ir_camera_system_enable_ir_eye_camera_hw(void)
 {
-    camera_set_exposure_length(true, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(true, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
     configure_timeout();
 }
@@ -1196,7 +1193,7 @@ ir_camera_system_enable_ir_eye_camera_hw(void)
 void
 ir_camera_system_disable_ir_eye_camera_hw(void)
 {
-    camera_set_exposure_length(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(false, IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
     configure_timeout();
 }
@@ -1220,7 +1217,7 @@ ir_camera_system_enable_ir_face_camera_hw(void)
     ret = gpio_pin_configure_dt(&rgb_ir_face_trigger, GPIO_OUTPUT_INACTIVE);
     ASSERT_SOFT(ret);
 #else
-    camera_set_exposure_length(true, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(true, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
 #endif
 
     debug_print();
@@ -1235,7 +1232,7 @@ ir_camera_system_disable_ir_face_camera_hw(void)
         gpio_pin_interrupt_configure_dt(&rgb_ir_face_strobe, GPIO_INT_DISABLE);
     ASSERT_SOFT(err_code);
 #else
-    camera_set_exposure_length(false, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(false, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
 #endif
 
     debug_print();
@@ -1245,7 +1242,7 @@ ir_camera_system_disable_ir_face_camera_hw(void)
 void
 ir_camera_system_enable_2d_tof_camera_hw(void)
 {
-    camera_set_exposure_length(true, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(true, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
     configure_timeout();
 }
@@ -1253,7 +1250,7 @@ ir_camera_system_enable_2d_tof_camera_hw(void)
 void
 ir_camera_system_disable_2d_tof_camera_hw(void)
 {
-    camera_set_exposure_length(false, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(false, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
     debug_print();
     configure_timeout();
 }
@@ -1363,9 +1360,9 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
     // triggers.
     // The camera triggers even though the IR LEDs might be left off depending
     // on safety distance.
-    camera_set_exposure_length(ir_camera_system_ir_eye_camera_is_enabled(),
-                               IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
-    camera_set_exposure_length(false, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(ir_camera_system_ir_eye_camera_is_enabled(),
+                          IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
+    camera_enable_trigger(false, TOF_2D_CAMERA_TRIGGER_TIMER_CHANNEL);
 
     // Emit an on demand master UPDATE event to start one synchronized frame.
     // This means all slaves (TIM15, TIM3, TIM20) fire one-pulse with their
