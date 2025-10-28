@@ -567,7 +567,7 @@
                 // not actually used by the SPI driver
                 duplex = <SPI_HALF_DUPLEX>;
 
-                num-leds = <118>;
+                num-leds = <118>; // 54 (ring) + 64 (center)
             };
 
             front_unit_rgb_leds_apa: front_unit_rgb_leds_apa@1
@@ -579,7 +579,7 @@
                 // not actually used by the SPI driver
                 duplex = <SPI_HALF_DUPLEX>;
 
-                chain-length = <118>;
+                chain-length = <118>; // 54 (ring) + 64 (center)
                 color-mapping = <LED_COLOR_ID_BLUE
                                  LED_COLOR_ID_GREEN
                                  LED_COLOR_ID_RED>;

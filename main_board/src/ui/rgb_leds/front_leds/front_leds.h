@@ -115,6 +115,22 @@ front_leds_turn_off_blocking(void);
 int
 front_leds_self_test(void);
 
+enum boot_progress_step_e {
+    BOOT_PROGRESS_STEP_UNKNOWN = 0,
+
+    /* boot events come that order: */
+    BOOT_PROGRESS_STEP_JETSON_BOOT = 1,
+    BOOT_PROGRESS_STEP_OPTICS_INITIALIZED = 2,
+    BOOT_PROGRESS_STEP_JETSON_VALUEGET = 3,
+    BOOT_PROGRESS_STEP_DATE_SET = 4,
+    BOOT_PROGRESS_STEP_FPS_SET = 5,
+
+    BOOT_PROGRESS_STEP_FULL_COUNT,
+};
+
+int
+front_leds_boot_progress_set(enum boot_progress_step_e step);
+
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 /**
  * Notifies that the IR leds are now off within their duty cycle
