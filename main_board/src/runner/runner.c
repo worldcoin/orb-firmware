@@ -21,6 +21,7 @@
 #include "voltage_measurement/voltage_measurement.h"
 #include <date.h>
 #include <heartbeat.h>
+#include <math.h>
 #include <optics/polarizer_wheel/polarizer_wheel.h>
 #include <pb_decode.h>
 #include <stdlib.h>
@@ -393,6 +394,20 @@ handle_reboot_orb(job_t *job)
     // reset flag
     backup_regs_write_byte(REBOOT_FLAG_OFFSET_BYTE, 0);
     job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+}
+
+static void
+handle_boot_complete(job_t *job)
+{
+    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_boot_complete_tag);
+
+    int ret = front_leds_boot_progress_set(BOOT_PROGRESS_STEP_DONE);
+    if (ret == RET_SUCCESS) {
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+    } else {
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+    }
 }
 
 static void
@@ -1282,6 +1297,8 @@ handle_value_get_message(job_t *job)
     orb_mcu_main_JetsonToMcu *msg = &job->message;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_value_get_tag);
 
+    front_leds_boot_progress_set(BOOT_PROGRESS_STEP_JETSON_VALUEGET);
+
     orb_mcu_ValueGet_Value value = msg->payload.value_get.value;
     LOG_DBG("Got ValueGet request: %u", value);
 
@@ -1583,6 +1600,8 @@ handle_set_time(job_t *job)
     orb_mcu_main_JetsonToMcu *msg = &job->message;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_set_time_tag);
 
+    front_leds_boot_progress_set(BOOT_PROGRESS_STEP_DATE_SET);
+
     int ret;
     switch (msg->payload.set_time.which_format) {
     case orb_mcu_Time_human_readable_tag: {
@@ -1694,6 +1713,7 @@ static const hm_callback handle_message_callbacks[] = {
     [orb_mcu_main_JetsonToMcu_power_cycle_tag] = handle_power_cycle,
     [orb_mcu_main_JetsonToMcu_set_time_tag] = handle_set_time,
     [orb_mcu_main_JetsonToMcu_reboot_orb_tag] = handle_reboot_orb,
+    [orb_mcu_main_JetsonToMcu_boot_complete_tag] = handle_boot_complete,
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     [orb_mcu_main_JetsonToMcu_cone_leds_sequence_tag] =
         handle_cone_leds_sequence,
@@ -1710,7 +1730,7 @@ static const hm_callback handle_message_callbacks[] = {
 #endif
 };
 
-BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 52),
+BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 53),
              "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
