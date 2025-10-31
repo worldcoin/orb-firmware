@@ -87,7 +87,7 @@ static uint32_t
 compute_pulse_width_ns(uint16_t value)
 {
     uint32_t scaled_fan_speed =
-        (uint32_t)(value * main_fan_spec.period *
+        (uint32_t)((uint32_t)value * main_fan_spec.period *
                    ((float)(fan_specs.max_duty_cycle_percent -
                             fan_specs.min_duty_cycle_percent) /
                     100.f)) /
