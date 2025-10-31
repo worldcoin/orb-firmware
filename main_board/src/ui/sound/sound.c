@@ -32,7 +32,7 @@ BUILD_ASSERT(ANALOG_GAIN_ATTENUATION_DB >= 0 &&
 // Digital Volume
 // These bits control both left and right channel digital volume. The
 // digital volume is 24 dB to -103 dB (127 dB diff) in -0.5 dB step.
-#define DIGITAL_VOL_DB           (-10) // -10 dB
+#define DIGITAL_VOL_DB           (-5) // -5 dB
 #define DIGITAL_VOL_DB_REG_VALUE MIN(((unsigned)(24 - DIGITAL_VOL_DB) * 2), 255)
 BUILD_ASSERT(DIGITAL_VOL_DB >= -103 && DIGITAL_VOL_DB <= 24,
              "DIGITAL_VOL_DB out of range!");
