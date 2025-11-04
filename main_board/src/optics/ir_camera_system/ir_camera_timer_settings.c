@@ -10,6 +10,50 @@
 LOG_MODULE_REGISTER(ir_camera_timer_settings,
                     CONFIG_IR_CAMERA_SYSTEM_LOG_LEVEL);
 
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+/**
+ * Compute master timer counter to start from & minimum counter value, for
+ * longest IR LED pulse length (given safety constraint)
+ * @param settings Pointer to timer settings structure.
+ *             ⚠️ we assume settings are valid (duty cycle, max on time, etc)
+ *             fps period > on_time * 4 (max duty cycle 25%)
+ */
+static void
+compute_master_timer_durations(struct ir_camera_timer_settings *settings)
+{
+    // to give an idea of the timing:
+    // fps = 30 (current rgb/ir camera default)
+    // period = 33.33ms
+    // on_time (max) = 8ms
+    // delay_ms (min) = 25.33ms = 25330us
+    // delay_ms (max) = ~33ms
+    const uint32_t delay_us = (1000000UL / settings->fps) -
+                              settings->on_time_in_us -
+                              IR_CAMERA_SYSTEM_NEXT_STROBE_END_MARGIN_US;
+
+    // Convert delay to timer ticks
+    // Timer ticks = delay_us * TIMER_CLOCK_FREQ_HZ / (prescaler + 1) / 1000000
+    // several steps needed to avoid overflow
+    uint32_t delay_ticks = TIMER_CLOCK_FREQ_HZ / (settings->master_psc + 1);
+    delay_ticks *= (delay_us / 100);
+    delay_ticks /= 10000;
+
+    if (delay_ticks < settings->master_arr) {
+        settings->master_initial_counter = settings->master_arr - delay_ticks;
+    } else {
+        settings->master_initial_counter = settings->master_arr - 1;
+    }
+
+    // compute max IR LED pulse length in master timer ticks
+    uint32_t max_ir_led_duration_ticks =
+        TIMER_CLOCK_FREQ_HZ / (settings->master_psc + 1);
+    max_ir_led_duration_ticks *=
+        ((IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US) / 100);
+    max_ir_led_duration_ticks /= 10000;
+    settings->master_max_ir_leds_tick = max_ir_led_duration_ticks;
+}
+#endif
+
 ret_code_t
 timer_settings_from_on_time_us(
     uint16_t on_time_us,
@@ -33,6 +77,12 @@ timer_settings_from_on_time_us(
         ret = RET_SUCCESS;
         ts.on_time_in_us = on_time_us;
     }
+
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+    if (ret == RET_SUCCESS) {
+        compute_master_timer_durations(&ts);
+    }
+#endif
 
     if (ret == RET_SUCCESS) {
         // make copy operation atomic
@@ -91,6 +141,12 @@ timer_settings_from_fps(uint16_t fps,
                 ret = RET_ERROR_INVALID_PARAM;
             }
         }
+
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+        if (ret == RET_SUCCESS) {
+            compute_master_timer_durations(&ts);
+        }
+#endif
     }
 
     if (ret == RET_SUCCESS) {

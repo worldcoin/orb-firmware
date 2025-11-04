@@ -19,20 +19,24 @@ cycle and on-time limits.
 
 ### Configuration Limits:
 
-    Diamond Orb:
-        Max Duty Cycle: 25%
-        Max On-time: 8000us
+See `IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US`:
 
     Pearl Orb:
         Max Duty Cycle: 15%
         Max On-time: 5000us
+
+    Diamond Orb:
+        Max Duty Cycle: 25%
+        Max On-time: 8000us (theorically), set by software to 7500us
 
 ## Timer Structure and Settings
 
 The timer structure ensures synchronization of IR LEDs and camera triggers across all configurations:
 
     Master Timer (Timer 4):
-        Sets the frequency from 0 Hz to 60Hz (frame rate) to generate the primary trigger for all cameras.
+        Pearl: Sets the frequency from 0 Hz to 60Hz (frame rate) to generate the primary trigger for all cameras.
+        Diamond: Sets the delay until next IR LED & eye camera trigger; based on RGB-IR strobe signal falling edge,
+                 to synchronize IR LED activation and camera exposures.
 
     850NM Timer (Timer 15):
         Pearl: Channels 1 (850nm left), 2 (850nm right)
@@ -83,11 +87,14 @@ current sources need approximately 50us to ramp up the LED current (measured 36 
             |
             |          +-------------------+
             +--------->|   Timer 8 / 20    |----> Camera Triggers
-                       | (Pearl / Diamond) |      Channels          1     3        4
-                       +-------------------+       (Pearl/Diamond: TOF, IR_EYE, IR_FACE)
+                       | (Pearl / Diamond) |      Channels          1     3             4
+                       +-------------------+       (Pearl/Diamond: TOF, IR_EYE, IR_FACE (pearl only))
 
 ### Timer cycle procedure
 
+- Diamond only: when using the RGB/IR face camera, the master timer (Timer 4) is configured on strobe (input) falling
+  edge interrupt to calculate the delay until the next strobe falling edge, minus the IR LED pulse length and a margin
+  of 50us.
 - Master Timer (Timer 4):
   - Shows only one complete frequency cycle to denote the master trigger.
 - Other Timers (Timer 15, Timer 3, Timer 8/20):
@@ -95,10 +102,10 @@ current sources need approximately 50us to ramp up the LED current (measured 36 
   - Pulse: Immediately follows the CCR, output goes from low to high.
   - ARR: The total period from the start to the end of the pulse, output goes from high to low.
 
-**Timer cycle flow chart**
+**Pearl**
 
     +---------------------------------------------------------------------------------+
-    | Timing Diagram: MCU Firmware Timers Configuration                               |
+    | Timing Diagram: Pearl Timers Configuration                                      |
     +---------------------------------------------------------------------------------+
     | Time ->                                                                         |
     |                                                                                 |
@@ -127,5 +134,45 @@ current sources need approximately 50us to ramp up the LED current (measured 36 
     |    _________|                 Pulse          |______________________________    |
     |   |<--CCR-->|                                                                   |
     |   |<----------------------ARR--------------->|                                  |
+    |                                                                                 |
+    +---------------------------------------------------------------------------------+
+
+**Diamond**
+
+    +---------------------------------------------------------------------------------+
+    | Timing Diagram: Diamond Timers Configuration                                    |
+    +---------------------------------------------------------------------------------+
+    | Time ->                                                                         |
+    |   RGB/IR face camera strobe signal                                              |
+    |  ─────────┐                                        - - ───────────┐             |
+    |    STROBE |                                             STROBE    |             |
+    |           |                                                       |             |
+    |           | Timer 4 (Master Timer), ARR update = 1 / FPS          |             |
+    |           | The counter is updated so that the update event       |             |
+    |           | triggers ir led pulse & eye cam capture to happen     |             |
+    |           | before next strobe ends:                              |             |
+    |           | = end of next strobe - IR pulse length - margin M     |             |
+    |           *─────────────────────┐                                 |             |
+    |                                 | Trigger                         |             |
+    |                                 |                                 |             |
+    |                                \|/                                |             |
+    |                                 *                              <M>|             |
+    |                                 Timer 15 (850NM Timer)            |             |
+    |                                 |   ┌─────────────────────────┐   |             |
+    |                                 |___|           Pulse         |___|____________ |
+    |                                 |<CCR>|                           |             |
+    |                                 |<------------ARR------------>|   |             |
+    |                                 |                                 |             |
+    |                                 |imer 3 (940NM Timer)             |             |
+    |                                 |   ┌─────────────────────────┐   |             |
+    |                                 |___|           Pulse         |___|____________ |
+    |                                 |<CCR>|                           |             |
+    |                                 |<------------ARR------------>|   |             |
+    |                                 |                                 |             |
+    |                                 |imer 8 / 20 (Camera Trigger Timer|             |
+    |                                 |     ┌───────────────────────┐   |             |
+    |                                 |_____|           Pulse       |___|____________ |
+    |                                 |<CCR>|                           |             |
+    |                                 |<------------ARR------------>|   |             |
     |                                                                                 |
     +---------------------------------------------------------------------------------+
