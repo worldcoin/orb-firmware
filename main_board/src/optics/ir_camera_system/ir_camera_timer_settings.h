@@ -17,10 +17,15 @@ BUILD_ASSERT(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US == 5000 &&
              "to ensure hardware safty circuit is not triggered.");
 #endif // !defined(CONFIG_ZTEST)
 #else
-#define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US 8000
-#define IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE 0.25
+#define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US     7500
+#define IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE     0.25
+// when computing the next rgb/ir strobe falling edge, keep a 50us margin
+// to avoid pulsing too close to the next rgb frame start (with an ir pulse
+// that could eventually override the rgb capture)
+// from measurements: with 30us, the ir light might bleed into the rgb capture
+#define IR_CAMERA_SYSTEM_NEXT_STROBE_END_MARGIN_US (50UL)
 #if !defined(CONFIG_ZTEST)
-BUILD_ASSERT(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US == 8000 &&
+BUILD_ASSERT(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US <= 8000 &&
                  IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE == 0.25,
              "These limits are to ensure that the hardware safty circuit is "
              "not triggered. If you change them please test with multiple orbs "
@@ -69,6 +74,15 @@ struct ir_camera_timer_settings {
     uint16_t master_psc;
     uint16_t master_arr; // full period to trigger the camera (1/FPS), in timer
                          // unit (FREQ/(PSC+1))
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+    // counter value to start from on a strobe falling edge so that the next
+    // UPDATE event occurs on time to trigger a new ir led & eye camera pulse
+    // before the end of the next strobe
+    uint16_t master_initial_counter;
+    // maximum duration of the ir led pulse in timer ticks
+    // using current master_psc
+    uint32_t master_max_ir_leds_tick;
+#endif
     uint16_t on_time_in_us;
 };
 
