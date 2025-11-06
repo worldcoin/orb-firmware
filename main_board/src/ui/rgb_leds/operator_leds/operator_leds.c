@@ -132,13 +132,9 @@ operator_leds_thread(void *a, void *b, void *c)
                                 (pulsing_index - ARRAY_SIZE(SINE_LUT)));
                 scaler = SINE_LUT[index] * PULSING_SCALE_DEFAULT;
             }
-#if defined(CONFIG_SPI_RGB_LED_DIMMING)
-            color.scratch = roundf(scaler * color.scratch);
-#else
             color.r = roundf(scaler * color.r);
             color.g = roundf(scaler * color.g);
             color.b = roundf(scaler * color.b);
-#endif
             wait_until = K_MSEC(global_pulsing_delay_time_ms);
             pulsing_index = (pulsing_index + 1) % (ARRAY_SIZE(SINE_LUT) * 2);
             break;
@@ -158,13 +154,9 @@ operator_leds_thread(void *a, void *b, void *c)
                                     ARRAY_SIZE(SINE_LUT)))] *
                          PULSING_SCALE_DEFAULT;
             }
-#if defined(CONFIG_SPI_RGB_LED_DIMMING)
-            color.scratch = roundf(scaler * color.scratch);
-#else
             color.r = roundf(scaler * color.r);
             color.g = roundf(scaler * color.g);
             color.b = roundf(scaler * color.b);
-#endif
             wait_until = K_MSEC(global_pulsing_delay_time_ms);
 
             pulsing_index = (pulsing_index + 1) %

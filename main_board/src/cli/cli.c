@@ -294,15 +294,14 @@ execute_op_leds(const struct shell *sh, size_t argc, char **argv)
 {
     if (argc < 2) {
         shell_error(sh, "Usage: op_leds <pattern|brightness> [args...]");
-        shell_print(sh, "  pattern <pattern_id> [mask] [r g b]");
+        shell_print(sh, "  pattern <pattern_id> [r g b]");
         shell_print(sh, "  brightness <0-255>");
         return -EINVAL;
     }
 
     if (strcmp(argv[1], "pattern") == 0) {
         if (argc < 3) {
-            shell_error(sh,
-                        "Usage: op_leds pattern <pattern_id> [mask] [r g b]");
+            shell_error(sh, "Usage: op_leds pattern <pattern_id> [r g b [d]]");
             return -EINVAL;
         }
 
@@ -318,22 +317,26 @@ execute_op_leds(const struct shell *sh, size_t argc, char **argv)
             message.payload.distributor_leds_pattern.pattern = pattern_id;
         }
 
-        // Parse optional mask (default to all LEDs)
-        uint32_t mask = OPERATOR_LEDS_ALL_MASK;
-        if (argc >= 4) {
-            mask = strtoul(argv[3], NULL, 0);
-        }
-        message.payload.distributor_leds_pattern.leds_mask = mask;
+        message.payload.distributor_leds_pattern.leds_mask =
+            OPERATOR_LEDS_ALL_MASK;
 
         // Parse optional RGB color
-        if (argc >= 7) {
-            uint8_t r = strtoul(argv[4], NULL, 0);
-            uint8_t g = strtoul(argv[5], NULL, 0);
-            uint8_t b = strtoul(argv[6], NULL, 0);
+        if (argc >= 6) {
+            message.payload.distributor_leds_pattern.has_custom_color = true;
+
+            uint8_t r = strtoul(argv[3], NULL, 0);
+            uint8_t g = strtoul(argv[4], NULL, 0);
+            uint8_t b = strtoul(argv[5], NULL, 0);
 
             message.payload.distributor_leds_pattern.custom_color.red = r;
             message.payload.distributor_leds_pattern.custom_color.green = g;
             message.payload.distributor_leds_pattern.custom_color.blue = b;
+
+            if (argc >= 7) {
+                uint8_t d = strtoul(argv[6], NULL, 0);
+                message.payload.distributor_leds_pattern.custom_color.dimming =
+                    d;
+            }
         }
 
         ret_code_t ret = runner_handle_new_cli(&message);
@@ -342,10 +345,8 @@ execute_op_leds(const struct shell *sh, size_t argc, char **argv)
             return -EIO;
         }
 
-        shell_print(sh, "Operator LED pattern set: %d, mask: 0x%x", pattern_id,
-                    mask);
+        shell_print(sh, "Operator LED pattern set: %d", pattern_id);
         return 0;
-
     } else if (strcmp(argv[1], "brightness") == 0) {
         if (argc < 3) {
             shell_error(sh, "Usage: op_leds brightness <0-255>");

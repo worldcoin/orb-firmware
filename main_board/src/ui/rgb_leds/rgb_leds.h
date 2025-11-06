@@ -41,7 +41,7 @@
 
 #define RGB_WHITE_OPERATOR_LEDS                                                \
     {                                                                          \
-        .scratch = 10, .r = 30, .g = 27, .b = 25                               \
+        .scratch = 10, .r = 20, .g = 30, .b = 25                               \
     }
 #else
 #define RGB_ORANGE                                                             \

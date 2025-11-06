@@ -4,7 +4,12 @@
 #include <errors.h>
 #include <zephyr/devicetree.h>
 
-#define OPERATOR_LEDS_COUNT    (DT_PROP(DT_NODELABEL(operator_rgb_leds), num_leds))
+#if DT_NODE_HAS_PROP(DT_NODELABEL(operator_rgb_leds), num_leds)
+#define OPERATOR_LEDS_COUNT (DT_PROP(DT_NODELABEL(operator_rgb_leds), num_leds))
+#elif DT_NODE_HAS_PROP(DT_NODELABEL(operator_rgb_leds), chain_length)
+#define OPERATOR_LEDS_COUNT                                                    \
+    (DT_PROP(DT_NODELABEL(operator_rgb_leds), chain_length))
+#endif
 #define OPERATOR_LEDS_ALL_MASK BIT_MASK(OPERATOR_LEDS_COUNT)
 
 #if OPERATOR_LEDS_COUNT > 1
