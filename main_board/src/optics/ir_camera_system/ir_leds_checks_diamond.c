@@ -13,11 +13,6 @@
 #include "orb_logs.h"
 #endif
 
-LOG_MODULE_REGISTER(ir_leds_checks, CONFIG_IR_LEDS_CHECKS_LOG_LEVEL);
-ORB_STATE_REGISTER(ir_safety);
-
-#define SAFETY_TRIGGER_TIMEOUT_MS 100
-
 int
 optics_self_test(void)
 {
@@ -26,6 +21,18 @@ optics_self_test(void)
      */
     return RET_SUCCESS;
 }
+
+#if 0
+
+LOG_MODULE_REGISTER(ir_leds_checks, CONFIG_IR_LEDS_CHECKS_LOG_LEVEL);
+
+ORB_STATE_REGISTER(ir_safety);
+#define SAFETY_TRIGGER_TIMEOUT_MS 100
+
+/*
+ * FIXME: implement on PVT only
+ * Disabled, as it makes a red LED blink on the front face
+ */
 
 static int
 eye_safety_self_test(void)
@@ -141,6 +148,9 @@ eye_safety_self_test(void)
 
 SYS_INIT(eye_safety_self_test, POST_KERNEL,
          SYS_INIT_IR_SAFETY_SELF_TEST_PRIORITY);
+
 BUILD_ASSERT(CONFIG_GPIO_PCA95XX_INIT_PRIORITY <
                  SYS_INIT_IR_SAFETY_SELF_TEST_PRIORITY,
              "power board gpio expanders are needed to perform the test");
+
+#endif
