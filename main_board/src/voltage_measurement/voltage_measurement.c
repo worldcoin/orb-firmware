@@ -844,7 +844,7 @@ publish_all_voltages(void)
         if (ret == RET_SUCCESS) {
             ret = publish_new(&voltage_msg, sizeof(voltage_msg),
                               orb_mcu_main_McuToJetson_voltage_tag,
-                              CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                              CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
             if (ret == RET_SUCCESS) {
                 at_least_one_publish_successful = true;
             } else {

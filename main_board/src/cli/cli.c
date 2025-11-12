@@ -2,6 +2,7 @@
 #include "cli.h"
 
 #include "date.h"
+#include "mcu_ping.h"
 #include "orb_logs.h"
 
 #include <bootutil/image.h>
@@ -11,7 +12,9 @@
 #include <orb_state.h>
 #include <power/battery/battery.h>
 #include <runner/runner.h>
+#include <sec.pb.h>
 #include <stdlib.h>
+#include <system/ping_sec.h>
 #include <system/version/version.h>
 #include <ui/rgb_leds/operator_leds/operator_leds.h>
 #include <zephyr/shell/shell.h>
@@ -656,6 +659,20 @@ execute_runner_stats(const struct shell *sh, size_t argc, char **argv)
     return 0;
 }
 
+static int
+execute_ping_sec(const struct shell *sh, size_t argc, char **argv)
+{
+    UNUSED_PARAMETER(argc);
+    UNUSED_PARAMETER(argv);
+
+    const int ret = ping_sec(sh, K_SECONDS(2));
+    if (ret) {
+        shell_error(sh, "Ping failed: %d", ret);
+    }
+
+    return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(
     sub_orb,
     SHELL_CMD(reboot, NULL, "Reboot system with optional delay",
@@ -682,6 +699,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
     SHELL_CMD(polarizer, NULL, "Control polarizer wheel", execute_polarizer),
 #endif
     SHELL_CMD(stats, NULL, "Show runner statistics", execute_runner_stats),
+    SHELL_CMD(ping_sec, NULL, "Send ping to security MCU", execute_ping_sec),
     SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(orb, &sub_orb, "Orb commands", NULL);

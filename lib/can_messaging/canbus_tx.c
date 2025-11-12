@@ -189,7 +189,7 @@ can_messaging_blocking_tx(const can_message_t *message)
     }
 
     return send(message->bytes, message->size, NULL,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 }
 
 ret_code_t
