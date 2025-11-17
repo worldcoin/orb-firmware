@@ -115,6 +115,33 @@ front_leds_turn_off_blocking(void);
 int
 front_leds_self_test(void);
 
+enum boot_progress_step_e {
+    BOOT_PROGRESS_STEP_UNKNOWN = 0,
+
+    /* boot events come in that order: */
+    BOOT_PROGRESS_STEP_JETSON_BOOT = 1,
+    BOOT_PROGRESS_STEP_OPTICS_INITIALIZED = 2,
+    BOOT_PROGRESS_STEP_JETSON_VALUEGET = 3,
+    BOOT_PROGRESS_STEP_DATE_SET = 4,
+
+    BOOT_PROGRESS_SENTINEL, // = 5-step boot
+    BOOT_PROGRESS_STEP_DONE = BOOT_PROGRESS_SENTINEL,
+};
+
+/**
+ * @brief Set the boot progress step for the boot animation
+ *
+ * Updates the boot animation progress. Progress can only increase and
+ * each step can only be set once (discard with returning RET_SUCCESS)
+ *
+ * @param step Boot progress step (BOOT_PROGRESS_STEP_JETSON_BOOT to
+ *             BOOT_PROGRESS_STEP_DONE)
+ * @return RET_SUCCESS on success
+ * @return RET_ERROR_INVALID_PARAM if step is out of range
+ */
+int
+front_leds_boot_progress_set(enum boot_progress_step_e step);
+
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 /**
  * Notifies that the IR leds are now off within their duty cycle
