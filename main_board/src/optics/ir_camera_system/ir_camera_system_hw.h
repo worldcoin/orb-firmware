@@ -18,6 +18,10 @@ void
 ir_camera_system_enable_ir_face_camera_hw(void);
 void
 ir_camera_system_disable_ir_face_camera_hw(void);
+void
+ir_camera_system_enable_rgb_face_camera_hw(void);
+void
+ir_camera_system_disable_rgb_face_camera_hw(void);
 
 /* 2d tof camera */
 void
