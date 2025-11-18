@@ -97,13 +97,14 @@ static volatile bool final_done = false;
 static volatile orb_mcu_main_UserLEDsPattern_UserRgbLedPattern global_pattern =
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
     orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_BOOT_ANIMATION;
-#else
-    orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_OFF;
-#endif
 static volatile enum boot_progress_step_e boot_progress_current =
     BOOT_PROGRESS_STEP_UNKNOWN;
 static volatile enum boot_progress_step_e boot_progress_target =
     BOOT_PROGRESS_STEP_UNKNOWN;
+#else
+    orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_OFF;
+#endif
+
 static uint32_t pulsing_index = 0;
 
 // percentage doesn't go to 100% because of light leakage
@@ -219,6 +220,9 @@ set_ring(const struct led_rgb color, const struct led_rgb *bg_color,
 int
 front_leds_boot_progress_set(enum boot_progress_step_e step)
 {
+    UNUSED_PARAMETER(step);
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
     if (step > BOOT_PROGRESS_STEP_DONE) {
         // log issue
         ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
@@ -237,7 +241,7 @@ front_leds_boot_progress_set(enum boot_progress_step_e step)
     }
 
     boot_progress_target = step;
-
+#endif
     return RET_SUCCESS;
 }
 
@@ -407,6 +411,7 @@ front_leds_thread()
                     scaler - BOOT_ANIMATION_BRIGHTNESS_CUTOFF); // cut off lower
                                                                 // brightness
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
                 // smooth transition, push segment only when previous is close
                 // to solid color, and restart pulsating from 0 for next segment
                 if (scaler > (1.0f - BOOT_ANIMATION_BRIGHTNESS_CUTOFF -
@@ -416,6 +421,7 @@ front_leds_thread()
                     pulsing_index = 0;
                     scaler = 0.0;
                 }
+#endif
 
                 color.r = roundf(scaler * color.r);
                 color.g = roundf(scaler * color.g);
@@ -423,6 +429,8 @@ front_leds_thread()
 
                 wait_until = K_MSEC(global_pulsing_delay_time_ms);
                 set_center((struct led_rgb)RGB_OFF);
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
                 uint32_t angle_progress = boot_progress_current *
                                           BOOT_PROGRESS_PERCENTAGE_STEP *
                                           FULL_RING_DEGREES / 100;
@@ -436,6 +444,9 @@ front_leds_thread()
                     set_ring((struct led_rgb)color, NULL, boot_anim_start_angle,
                              -BOOT_ANIMATION_STEP_ANGLE);
                 }
+#else
+                set_ring((struct led_rgb)color, &rgb_off, 0, 360);
+#endif
                 break;
             default:
                 LOG_ERR("Unhandled front LED pattern: %u", global_pattern);
@@ -757,9 +768,11 @@ front_leds_set_pattern(orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern,
 ret_code_t
 front_leds_set_center_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 {
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
     if (boot_progress_current != BOOT_PROGRESS_STEP_DONE) {
         return RET_SUCCESS;
     }
+#endif
 
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_ARGB, leds.part.center_leds,
@@ -786,9 +799,11 @@ front_leds_set_center_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 ret_code_t
 front_leds_set_center_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
 {
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
     if (boot_progress_current != BOOT_PROGRESS_STEP_DONE) {
         return RET_SUCCESS;
     }
+#endif
 
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_RGB, leds.part.center_leds,
@@ -815,9 +830,12 @@ front_leds_set_center_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
 ret_code_t
 front_leds_set_ring_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 {
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
     if (boot_progress_current != BOOT_PROGRESS_STEP_DONE) {
         return RET_SUCCESS;
     }
+#endif
+
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_ARGB, leds.part.ring_leds,
         ARRAY_SIZE(leds.part.ring_leds), &leds_update_sem);
@@ -843,9 +861,11 @@ front_leds_set_ring_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 ret_code_t
 front_leds_set_ring_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
 {
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
     if (boot_progress_current != BOOT_PROGRESS_STEP_DONE) {
         return RET_SUCCESS;
     }
+#endif
 
     ret_code_t ret = rgb_leds_set_leds_sequence(
         bytes, size, LED_FORMAT_RGB, leds.part.ring_leds,
