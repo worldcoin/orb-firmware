@@ -100,17 +100,22 @@ static volatile orb_mcu_main_UserLEDsPattern_UserRgbLedPattern global_pattern =
 #else
     orb_mcu_main_UserLEDsPattern_UserRgbLedPattern_OFF;
 #endif
-static volatile enum boot_progress_step_e boot_progress =
+static volatile enum boot_progress_step_e boot_progress_current =
+    BOOT_PROGRESS_STEP_UNKNOWN;
+static volatile enum boot_progress_step_e boot_progress_target =
     BOOT_PROGRESS_STEP_UNKNOWN;
 static uint32_t pulsing_index = 0;
 
-#define BOOT_PROGRESS_PERCENT_FULL 100
+// percentage doesn't go to 100% because of light leakage
+// so that the last pulsating segment is still clearly visible
+#define BOOT_PROGRESS_PERCENT_FULL 95
 #define BOOT_PROGRESS_PERCENTAGE_STEP                                          \
     (BOOT_PROGRESS_PERCENT_FULL / (BOOT_PROGRESS_SENTINEL))
+#define BOOT_ANIMATION_STEP_ANGLE                                              \
+    (360.0f * ((float)BOOT_PROGRESS_PERCENTAGE_STEP / 100.0f))
 
-#define BOOT_ANIMATION_BRIGHTNESS_CUTOFF                                       \
-    0.3f // Remove lower 30% of brightness range
-#define BOOT_ANIMATION_HEAD_ANGLE_LENGTH 36
+#define BOOT_ANIMATION_BRIGHTNESS_CUTOFF    0.2f
+#define BOOT_ANIMATION_TRANSITION_THRESHOLD 0.06f // diff from max scaler value
 
 static volatile bool use_sequence;
 static volatile uint32_t global_start_angle_degrees = 0;
@@ -220,13 +225,18 @@ front_leds_boot_progress_set(enum boot_progress_step_e step)
         return RET_ERROR_INVALID_PARAM;
     }
 
-    if (boot_progress >= step) {
+    if (boot_progress_target >= step) {
         // it's a no-op, progress can only increase and be set once
         return RET_SUCCESS;
     }
 
-    pulsing_index = 0;
-    boot_progress = step;
+    // first progress, let's animation start from start
+    if (boot_progress_current == BOOT_PROGRESS_STEP_UNKNOWN &&
+        step > BOOT_PROGRESS_STEP_UNKNOWN) {
+        pulsing_index = 0;
+    }
+
+    boot_progress_target = step;
 
     return RET_SUCCESS;
 }
@@ -396,24 +406,35 @@ front_leds_thread()
                     0.0f,
                     scaler - BOOT_ANIMATION_BRIGHTNESS_CUTOFF); // cut off lower
                                                                 // brightness
+
+                // smooth transition, push segment only when previous is close
+                // to solid color, and restart pulsating from 0 for next segment
+                if (scaler > (1.0f - BOOT_ANIMATION_BRIGHTNESS_CUTOFF -
+                              BOOT_ANIMATION_TRANSITION_THRESHOLD) &&
+                    boot_progress_current != boot_progress_target) {
+                    boot_progress_current = boot_progress_target;
+                    pulsing_index = 0;
+                    scaler = 0.0;
+                }
+
                 color.r = roundf(scaler * color.r);
                 color.g = roundf(scaler * color.g);
                 color.b = roundf(scaler * color.b);
 
                 wait_until = K_MSEC(global_pulsing_delay_time_ms);
                 set_center((struct led_rgb)RGB_OFF);
-                uint32_t angle_progress = boot_progress *
+                uint32_t angle_progress = boot_progress_current *
                                           BOOT_PROGRESS_PERCENTAGE_STEP *
                                           FULL_RING_DEGREES / 100;
                 // fill with solid color up to progress angle
                 set_ring((struct led_rgb)global_color, &rgb_off, 90,
                          -angle_progress);
-                if (boot_progress < BOOT_PROGRESS_STEP_DONE) {
+                if (boot_progress_current < BOOT_PROGRESS_STEP_DONE) {
                     // moving head
                     uint32_t boot_anim_start_angle =
                         (90 - angle_progress + 360) % 360;
                     set_ring((struct led_rgb)color, NULL, boot_anim_start_angle,
-                             -BOOT_ANIMATION_HEAD_ANGLE_LENGTH);
+                             -BOOT_ANIMATION_STEP_ANGLE);
                 }
                 break;
             default:
@@ -422,7 +443,8 @@ front_leds_thread()
             }
         }
 
-        pulsing_index = (pulsing_index + 1) % (ARRAY_SIZE(SINE_LUT) * 2);
+        // make INITIAL_PULSING_PERIOD_MS twice as fast by incrementing by 2
+        pulsing_index = (pulsing_index + 2) % (ARRAY_SIZE(SINE_LUT) * 2);
 
         // update LEDs
         if (k_sem_take(&leds_update_sem, K_NO_WAIT) == 0 && !final_done) {
@@ -735,7 +757,7 @@ front_leds_set_pattern(orb_mcu_main_UserLEDsPattern_UserRgbLedPattern pattern,
 ret_code_t
 front_leds_set_center_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 {
-    if (boot_progress != BOOT_PROGRESS_STEP_DONE) {
+    if (boot_progress_current != BOOT_PROGRESS_STEP_DONE) {
         return RET_SUCCESS;
     }
 
@@ -764,7 +786,7 @@ front_leds_set_center_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 ret_code_t
 front_leds_set_center_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
 {
-    if (boot_progress != BOOT_PROGRESS_STEP_DONE) {
+    if (boot_progress_current != BOOT_PROGRESS_STEP_DONE) {
         return RET_SUCCESS;
     }
 
@@ -793,7 +815,7 @@ front_leds_set_center_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
 ret_code_t
 front_leds_set_ring_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 {
-    if (boot_progress != BOOT_PROGRESS_STEP_DONE) {
+    if (boot_progress_current != BOOT_PROGRESS_STEP_DONE) {
         return RET_SUCCESS;
     }
     ret_code_t ret = rgb_leds_set_leds_sequence(
@@ -821,7 +843,7 @@ front_leds_set_ring_leds_sequence_argb32(const uint8_t *bytes, uint32_t size)
 ret_code_t
 front_leds_set_ring_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
 {
-    if (boot_progress != BOOT_PROGRESS_STEP_DONE) {
+    if (boot_progress_current != BOOT_PROGRESS_STEP_DONE) {
         return RET_SUCCESS;
     }
 

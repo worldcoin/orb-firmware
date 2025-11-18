@@ -7,7 +7,8 @@
 #include <zephyr/drivers/led_strip.h>
 #include <zephyr/kernel.h>
 
-#define INITIAL_PULSING_PERIOD_MS 4000
+// tip: to make the pulsing faster, increment the index by 2 through SINE_LUT
+#define INITIAL_PULSING_PERIOD_MS 5000
 #define PULSING_SCALE_DEFAULT     (1.0f)
 
 #define ARRAY_SIZE_ASSERT(arr)                                                 \
