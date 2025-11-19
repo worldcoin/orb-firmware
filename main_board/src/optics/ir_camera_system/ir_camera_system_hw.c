@@ -1219,11 +1219,14 @@ ir_camera_system_enable_ir_face_camera_hw(void)
     debug_print();
     configure_timeout();
 }
-#ifdef CONFIG_BOARD_DIAMOND_MAIN
+
 void
 ir_camera_system_enable_rgb_face_camera_hw(void)
 {
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
     camera_trigger_rgb_ir_face_cam();
+#endif
+    /* nothing to do on pearl */
 }
 
 void
@@ -1231,7 +1234,6 @@ ir_camera_system_disable_rgb_face_camera_hw(void)
 {
     /* cannot disable from mcu */
 }
-#endif
 
 void
 ir_camera_system_disable_ir_face_camera_hw(void)
