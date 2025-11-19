@@ -14,6 +14,8 @@ FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_enable_ir_eye_camera_hw);
 FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_disable_ir_eye_camera_hw);
 FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_enable_ir_face_camera_hw);
 FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_disable_ir_face_camera_hw);
+FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_enable_rgb_face_camera_hw);
+FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_disable_rgb_face_camera_hw);
 FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_enable_2d_tof_camera_hw);
 FAKE_VALUE_FUNC(ret_code_t, ir_camera_system_disable_2d_tof_camera_hw);
 FAKE_VOID_FUNC(ir_camera_system_enable_leds_hw);
