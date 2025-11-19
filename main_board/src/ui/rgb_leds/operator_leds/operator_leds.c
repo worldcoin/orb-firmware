@@ -260,10 +260,26 @@ operator_leds_set_leds_sequence_rgb24(const uint8_t *bytes, uint32_t size)
 }
 
 int
-operator_leds_init(void)
+operator_leds_init(orb_mcu_Hardware_OrbVersion board_version)
 {
-    const struct device *led_strip =
-        DEVICE_DT_GET(DT_NODELABEL(operator_rgb_leds));
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+#define LED_STRIP_MAYBE_CONST
+#else
+#define LED_STRIP_MAYBE_CONST const
+    UNUSED_PARAMETER(board_version);
+#endif
+
+    // ReSharper disable once CppPointerConversionDropsQualifiers
+    LED_STRIP_MAYBE_CONST struct device *led_strip =
+        (struct device *)DEVICE_DT_GET(DT_NODELABEL(operator_rgb_leds));
+
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+    // on evt units, apa102 were mounted
+    if (board_version == orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_EVT) {
+        led_strip =
+            (struct device *)DEVICE_DT_GET(DT_NODELABEL(operator_rgb_leds_apa));
+    }
+#endif
 
     if (!device_is_ready(led_strip)) {
         LOG_ERR("Operator LED strip not ready!");
