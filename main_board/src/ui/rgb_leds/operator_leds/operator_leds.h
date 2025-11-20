@@ -38,11 +38,12 @@ operator_leds_set_pattern(
 /**
  * Init operator LED thread
  * The LED won't turn on until pattern or brightness is set
+ * @param board_version main board version
  * @retval RET_ERROR_INTERNAL unable to init operator LEDs
  * @retval RET_SUCCESS successfully initialized
  */
 int
-operator_leds_init(void);
+operator_leds_init(orb_mcu_Hardware_OrbVersion board_version);
 
 /**
  * Set operator LEDs to a specific color using a sequence of bytes.

@@ -604,6 +604,21 @@
 
                 num-leds = <1>;
             };
+
+            operator_rgb_leds_apa: operator_rgb_leds_apa@1
+            {
+                compatible = "apa,apa102";
+                reg = <1>;
+                spi-max-frequency = <2000000>;
+                // 'duplex' option exists but
+                // not actually used by the SPI driver
+                duplex = <SPI_HALF_DUPLEX>;
+
+                chain-length = <1>;
+                color-mapping = <LED_COLOR_ID_BLUE
+                                 LED_COLOR_ID_GREEN
+                                 LED_COLOR_ID_RED>;
+            };
         };
     };
 };

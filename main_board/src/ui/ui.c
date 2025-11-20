@@ -30,7 +30,7 @@ ui_init(const orb_mcu_Hardware *hw_version)
     err_code = front_leds_init();
     ASSERT_SOFT(err_code);
 
-    err_code = operator_leds_init();
+    err_code = operator_leds_init(hw_version->version);
     ASSERT_SOFT(err_code);
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
