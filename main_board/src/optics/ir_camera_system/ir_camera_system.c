@@ -180,6 +180,7 @@ ir_camera_system_init(void)
 MAKE_CAMERA_ENABLE_DISABLE_GET_FUNCTIONS(ir_eye)
 MAKE_CAMERA_ENABLE_DISABLE_GET_FUNCTIONS(ir_face)
 MAKE_CAMERA_ENABLE_DISABLE_GET_FUNCTIONS(2d_tof)
+MAKE_CAMERA_ENABLE_DISABLE_GET_FUNCTIONS(rgb_face)
 
 ret_code_t
 ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength wavelength)
@@ -215,8 +216,10 @@ ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength wavelength)
         ) {
             ret = RET_ERROR_INVALID_PARAM;
         } else {
-            enabled_led_wavelength = wavelength;
-            ir_camera_system_enable_leds_hw();
+            if (enabled_led_wavelength != wavelength) {
+                enabled_led_wavelength = wavelength;
+                ir_camera_system_enable_leds_hw();
+            }
             ret = RET_SUCCESS;
         }
     }
