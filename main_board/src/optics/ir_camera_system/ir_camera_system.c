@@ -6,6 +6,8 @@
 #include "ir_camera_timer_settings.h"
 #include "utils.h"
 
+#define SAFETY_CIRCUITRY_ACTIVE_CHECK_ENABLED 0
+
 #if !defined(IR_CAMERA_UNIT_TESTS)
 // include reference to function in case outside unit tests, otherwise
 // mock them.
@@ -390,6 +392,7 @@ ir_camera_system_get_status(void)
 {
     ret_code_t ret;
 
+#if SAFETY_CIRCUITRY_ACTIVE_CHECK_ENABLED
     /* it's fine to discard returned value when checking pvcc state
      * because even if IR LEDs are mistakenly enabled, the circuitry won't
      * power them.
@@ -397,15 +400,21 @@ ir_camera_system_get_status(void)
      */
     bool safety_triggered = false;
     optics_safety_circuit_triggered(0, &safety_triggered);
+#endif
 
     /* ⚠️ ordered by level of importance as it's fine to set a new ir-led
      * on duration during a sweep (busy) but not if unsafe conditions are met */
     if (!ir_camera_system_initialized) {
         ret = RET_ERROR_NOT_INITIALIZED;
-    } else if (safety_triggered) {
+    }
+#if SAFETY_CIRCUITRY_ACTIVE_CHECK_ENABLED
+    else if (safety_triggered) {
+        // fixme: seems like we might not be able to rely on this while using
+        // the ir leds, to be confirmed
         ret = RET_ERROR_FORBIDDEN;
-    } else if (get_focus_sweep_in_progress() ||
-               get_mirror_sweep_in_progress()) {
+    }
+#endif
+    else if (get_focus_sweep_in_progress() || get_mirror_sweep_in_progress()) {
         ret = RET_ERROR_BUSY;
     } else {
         ret = RET_SUCCESS;

@@ -64,7 +64,7 @@ ir_leds_safety_circuit_triggerd_internal(struct k_mutex *i2c1_mutex,
     return RET_SUCCESS;
 }
 
-int
+__maybe_unused int
 optics_safety_circuit_triggered(const uint32_t timeout_ms, bool *triggered)
 {
     return ir_leds_safety_circuit_triggerd_internal(i2c1_mutex, timeout_ms,
