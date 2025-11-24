@@ -46,7 +46,15 @@
 
         // 0 == Jetson
         sound-amp-mux-gpios = <&gpioe 10 GPIO_ACTIVE_HIGH>;
-        i2c_clock_gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
+
+        // hooked to 3v3 by pull-up resistors or ESD protection diodes within connected ICs
+        // turn low when booting to ensure 3v3 (uc) does not propagate to 3v3 power rail
+        // which would trigger the safety circuitry
+        pull-up-to-3v3-gpios =
+                <&gpioa 15 GPIO_ACTIVE_HIGH> /* i2c scl */,
+                <&gpiob 9 GPIO_ACTIVE_HIGH> /* i2c sda */,
+                <&gpiod 0 GPIO_ACTIVE_HIGH> /* can1 rx (single wire can) */;
+
         // GPIO used to get hardware version dynamically
         hw-version-gpios = <&gpiob 12 GPIO_ACTIVE_HIGH>;
         jetson_serial = <&usart1>;

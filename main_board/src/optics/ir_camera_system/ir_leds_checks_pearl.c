@@ -15,6 +15,12 @@
 LOG_MODULE_REGISTER(ir_leds_checks, CONFIG_IR_LEDS_CHECKS_LOG_LEVEL);
 ORB_STATE_REGISTER(ir_safety);
 
+void
+optics_self_test_skip()
+{
+    ORB_STATE_SET(ir_safety, RET_SUCCESS, "skipped");
+}
+
 int
 optics_self_test(void)
 {
@@ -61,9 +67,9 @@ optics_self_test(void)
 
         gpio_pin_configure_dt(&ir_leds_gpios[i], GPIO_OUTPUT);
         gpio_pin_set_dt(&ir_leds_gpios[i], 1);
-        k_msleep(250);
+        k_msleep(100);
         gpio_pin_set_dt(&ir_leds_gpios[i], 0);
-        k_msleep(250);
+        k_msleep(100);
 
         bool pvcc_available = true;
         int ret = gpio_pin_get_dt(&front_unit_pvcc_enabled);
