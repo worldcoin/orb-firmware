@@ -135,7 +135,9 @@ ZTEST(hil, test_pubsub_sent_messages)
         0);
 #ifndef CONFIG_BOARD_DIAMOND_MAIN
     zassert_not_equal(
-        mcu_to_jetson_payloads & (1 << orb_mcu_main_McuToJetson_tof_1d_tag), 0);
+        mcu_to_jetson_payloads & (1 << orb_mcu_main_McuToJetson_tof_1d_tag), 0,
+        "ensure 1D ToF data is successfully acquired, it must face a wall / "
+        "object");
 #endif
 
     // init to 0 so that the test is performed by default
