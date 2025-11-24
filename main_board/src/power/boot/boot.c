@@ -54,6 +54,11 @@ static const struct gpio_dt_spec lte_gps_usb_reset_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(lte_gps_usb_reset), gpios);
 static const struct gpio_dt_spec supply_12v_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_12v_enable_gpios);
+static const struct gpio_dt_spec pulling_3v3[] = {
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), pull_up_to_3v3_gpios, 0),
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), pull_up_to_3v3_gpios, 1),
+    GPIO_DT_SPEC_GET_BY_IDX(DT_PATH(zephyr_user), pull_up_to_3v3_gpios, 2),
+};
 #endif
 
 static const struct gpio_dt_spec supply_3v3_ssd_enable_gpio_spec =
@@ -206,6 +211,11 @@ power_configure_gpios(void)
     if (ret != 0) {
         ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
+    }
+
+    for (size_t i = 0; i < ARRAY_SIZE(pulling_3v3); ++i) {
+        ret = gpio_pin_configure_dt(&pulling_3v3[0], GPIO_OUTPUT_INACTIVE);
+        ASSERT_SOFT(ret);
     }
 #endif
 
@@ -367,20 +377,6 @@ void
 power_vbat_5v_3v3_supplies_on(void)
 {
     int ret;
-    const struct device *i2c_clock = DEVICE_DT_GET(I2C_CLOCK_CTLR);
-
-    // We configure this pin here before we enable 3.3v supply
-    // just so that we can disable the automatically-enabled pull-up.
-    // We must do this because providing a voltage to the 3.3v power supply
-    // output before it is online can trigger the safety circuit.
-    //
-    // After this is configured, the I2C initialization will run and
-    // re-configure this pin as SCL.
-    if (gpio_pin_configure(i2c_clock, I2C_CLOCK_PIN,
-                           GPIO_OUTPUT | I2C_CLOCK_FLAGS)) {
-        ASSERT_SOFT(RET_ERROR_INVALID_STATE);
-        return;
-    }
 
     ret = gpio_pin_set_dt(&supply_vbat_sw_enable_gpio_spec, 1);
     ASSERT_SOFT(ret);
@@ -401,6 +397,18 @@ power_vbat_5v_3v3_supplies_on(void)
 void
 power_vbat_5v_3v3_supplies_off(void)
 {
+#ifdef CONFIG_BOARD_PEARL_MAIN
+    // We configure these pins here before we disable 3.3v supply
+    // We must do this because providing a voltage to the 3.3v power supply
+    // output before it is online can trigger the safety circuit.
+    //
+    // After this is configured, the respective initializations will run and
+    // re-configure the pin to work as needed.
+    for (size_t i = 0; i < ARRAY_SIZE(pulling_3v3); ++i) {
+        gpio_pin_configure_dt(&pulling_3v3[0], GPIO_OUTPUT_INACTIVE);
+    }
+#endif
+
     gpio_pin_set_dt(&supply_vbat_sw_enable_gpio_spec, 0);
     LOG_DBG("VBAT SW disabled");
     k_msleep(20);
@@ -811,6 +819,7 @@ app_init_state(void)
                     IS_ENABLED(CONFIG_INSTA_BOOT), post_update,
                     latched_reboot_cmd);
 
+        optics_self_test_skip();
         power_vbat_5v_3v3_supplies_on();
 
         // FIXME image to be confirmed once MCU fully booted

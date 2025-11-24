@@ -37,3 +37,9 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex);
  */
 int
 optics_self_test(void);
+
+/**
+ * Intentionally skip the optics self test
+ */
+void
+optics_self_test_skip();

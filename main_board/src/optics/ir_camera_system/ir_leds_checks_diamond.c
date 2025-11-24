@@ -22,6 +22,12 @@ optics_self_test(void)
     return RET_SUCCESS;
 }
 
+void
+optics_self_test_skip()
+{
+    // nothing since the test has been removed on diamond
+}
+
 #if 0
 
 LOG_MODULE_REGISTER(ir_leds_checks, CONFIG_IR_LEDS_CHECKS_LOG_LEVEL);
