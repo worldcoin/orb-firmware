@@ -549,12 +549,12 @@ get_ambient_temperature(const struct device *dev, int32_t *temp,
         k_mutex_unlock(temperature_i2c_mux_mutex);
 
         if (ret) {
-            LOG_ERR("Error fetching %s: %d", dev->name, ret);
+            LOG_WRN("Error fetching %s: %d", dev->name, ret);
             return RET_ERROR_INTERNAL;
         }
         ret = sensor_channel_get(dev, channel, &temp_value);
         if (ret) {
-            LOG_ERR("Error getting %s: %d", dev->name, ret);
+            LOG_WRN("Error getting %s: %d", dev->name, ret);
             return RET_ERROR_INTERNAL;
         }
     }
