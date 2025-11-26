@@ -240,12 +240,12 @@ front_leds_boot_progress_set(enum boot_progress_step_e step)
         pulsing_index = 0;
     }
 
+    boot_progress_target = step;
+
     // smooth transition only if increasing progress
     // but give immediate access to jetson/orb-ui when boot is complete
     if (step == BOOT_PROGRESS_STEP_DONE) {
         boot_progress_current = step;
-    } else {
-        boot_progress_target = step;
     }
 #endif
     return RET_SUCCESS;
@@ -422,7 +422,7 @@ front_leds_thread()
                 // to solid color, and restart pulsating from 0 for next segment
                 if (scaler > (1.0f - BOOT_ANIMATION_BRIGHTNESS_CUTOFF -
                               BOOT_ANIMATION_TRANSITION_THRESHOLD) &&
-                    boot_progress_current != boot_progress_target) {
+                    boot_progress_current < boot_progress_target) {
                     boot_progress_current = boot_progress_target;
                     pulsing_index = 0;
                     scaler = 0.0;
