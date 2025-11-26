@@ -1762,8 +1762,8 @@ runner_process_jobs_thread()
             handle_message_callbacks[new.message.which_payload](&new);
         } else {
             LOG_ERR("A handler for message with a payload ID of %d is not "
-                    "implemented",
-                    new.message.which_payload);
+                    "implemented (remote 0x%03x, ack #%u)",
+                    new.message.which_payload, new.remote_addr, new.ack_number);
             job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, &new);
         }
     }
