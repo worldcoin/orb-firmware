@@ -72,6 +72,12 @@ ZTEST_SUITE(dfu, NULL, NULL, NULL, dfu_test_reset, NULL);
 #include "optics/ir_camera_system/ir_camera_system.h"
 ZTEST_SUITE(ir_camera, NULL, NULL, ir_camera_test_reset, ir_camera_test_reset,
             NULL);
+
+#if CONFIG_ORB_LIB_STORAGE_TESTS
+#include "storage_tests.h"
+ZTEST_SUITE(storage, NULL, NULL, clean_storage, NULL, clean_storage);
+#endif
+
 #endif
 
 /**
