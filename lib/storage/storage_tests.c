@@ -1,3 +1,5 @@
+#include "storage_tests.h"
+
 #include "orb_logs.h"
 #include "storage.h"
 #include <errors.h>
@@ -8,7 +10,7 @@
 
 LOG_MODULE_REGISTER(storage_tests, CONFIG_STORAGE_LOG_LEVEL);
 
-static void
+void
 clean_storage(void *fixture)
 {
     ARG_UNUSED(fixture);
@@ -29,8 +31,6 @@ clean_storage(void *fixture)
         LOG_ERR("Unable to erase storage for successful unit tests");
     }
 }
-
-ZTEST_SUITE(storage, NULL, NULL, clean_storage, NULL, clean_storage);
 
 ZTEST(storage, test_init_erased)
 {
