@@ -391,7 +391,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
                 ORB_STATE_SET_CURRENT(RET_ERROR_NOT_INITIALIZED,
                                       "no encoder: no wheel? staled?");
                 homing_failed();
-                LOG_ERR(
+                LOG_WRN(
                     "Encoder not detected, is there a wheel? is it moving?");
                 return;
             }
