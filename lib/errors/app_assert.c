@@ -114,7 +114,7 @@ app_assert_range(const char *name, const int32_t value, const int32_t min,
     if (range_min != 0 || range_max != 0) {
         if (value < range_min || value > range_max) {
             if (verbose) {
-                LOG_ERR("%s = %d; NOT in range: [%d, %d] (unity: %s)", name,
+                LOG_WRN("%s = %d; NOT in range: [%d, %d] (unity: %s)", name,
                         value, range_min, range_max, unity ? unity : "N/A");
             }
             return false;

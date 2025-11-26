@@ -1090,7 +1090,7 @@ voltage_measurement_self_test_thread()
             }
             passed_loop_count++;
         } else {
-            LOG_ERR("📈 Voltages not in range!");
+            LOG_WRN("📈 Voltages not in range during self-test");
             if (passed_loop_count >= 1) {
                 passed_loop_count--;
             } else {
