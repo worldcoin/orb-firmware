@@ -21,7 +21,7 @@ manifest:
     - name: memfault-firmware-sdk
       path: modules/lib/memfault-firmware-sdk
       remote: memfault
-      revision: 1.19.0
+      revision: 1.31.0
     - name: orb-messages
       revision: ffa80b748489879b03e7d942a3aba19397a57a51
       path: modules/orb-messages/public
