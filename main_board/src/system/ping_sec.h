@@ -12,7 +12,7 @@ int
 ping_sec(const void *arg, const k_timeout_t sem_timeout);
 
 /**
- * Start periodic pinging of the security MCU every 30 seconds
+ * Start periodic pinging of the security MCU every 60 seconds
  * @return 0 on success, negative error code otherwise
  */
 int

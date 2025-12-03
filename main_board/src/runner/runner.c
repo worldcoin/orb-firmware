@@ -405,7 +405,7 @@ handle_reboot_orb(job_t *job)
 static void
 handle_boot_complete(job_t *job)
 {
-    orb_mcu_main_JetsonToMcu *msg = &job->message;
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_boot_complete_tag);
 
     int ret = front_leds_boot_progress_set(BOOT_PROGRESS_STEP_DONE);

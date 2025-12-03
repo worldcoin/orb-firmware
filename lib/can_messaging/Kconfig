@@ -15,13 +15,13 @@ config CAN_ADDRESS_JETSON_TO_MCU_RX
 
 config CAN_ADDRESS_MCU_TO_MCU_TX
     hex "CAN address to send data to other MCU"
-    default 0x42 if CAN_ADDRESS_JETSON_TO_MCU_RX=0x01  # main MCU sends to 0x42
-    default 0x41 if CAN_ADDRESS_JETSON_TO_MCU_RX=0x02  # sec MCU sends to 0x41
+    default 0x42 if BOARD_PEARL_MAIN || BOARD_DIAMOND_MAIN
+    default 0x41 if BOARD_PEARL_SECURITY || BOARD_DIAMOND_SECURITY
 
 config CAN_ADDRESS_MCU_TO_MCU_RX
     hex "CAN address to receive MCU-to-MCU messages"
-    default 0x41 if CAN_ADDRESS_JETSON_TO_MCU_RX=0x01  # main MCU receives on 0x41
-    default 0x42 if CAN_ADDRESS_JETSON_TO_MCU_RX=0x02  # sec MCU receives on 0x42
+    default 0x41 if BOARD_PEARL_MAIN || BOARD_DIAMOND_MAIN  # main MCU receives on 0x41
+    default 0x42 if BOARD_PEARL_SECURITY || BOARD_DIAMOND_SECURITY  # sec MCU receives on 0x42
 
 config ORB_LIB_THREAD_PRIORITY_CANBUS_MONITOR
     int "CAN bus monitoring thread priority"

@@ -257,18 +257,21 @@ publish(void *payload, size_t size, uint32_t which_payload,
     int err_code = RET_SUCCESS;
 
     // ensure:
-    // - payload is smaller than McuToJetson payload size
-    // - which_payload is supported
-    if (which_payload >= ARRAY_SIZE(sub_prios) ||
-        (remote_addr == CONFIG_CAN_ADDRESS_MCU_TO_MCU_TX &&
+    // - if remote is mcu: payload (tag) must be smaller than McuToSec payload
+    //   size
+    // - if remote is jetson: payload (tag) must be smaller than McuToJetson
+    //   payload size & smaller or equal to than sub_prios size
+    if ((/* mcu to mcu */ remote_addr == CONFIG_CAN_ADDRESS_MCU_TO_MCU_TX &&
          size > STRUCT_MEMBER_SIZE_BYTES(orb_mcu_main_MainToSec, payload)) ||
-        (remote_addr != CONFIG_CAN_ADDRESS_MCU_TO_MCU_TX &&
+        (/* mcu to jetson */ remote_addr != CONFIG_CAN_ADDRESS_MCU_TO_MCU_TX &&
+         which_payload >= ARRAY_SIZE(sub_prios) &&
          size > STRUCT_MEMBER_SIZE_BYTES(orb_mcu_main_McuToJetson, payload))) {
         return RET_ERROR_INVALID_PARAM;
     }
 
     if (!force_store && !publish_is_started(remote_addr) &&
-        sub_prios[which_payload].priority == SUB_PRIO_DISCARD) {
+        (remote_addr != CONFIG_CAN_ADDRESS_MCU_TO_MCU_TX &&
+         sub_prios[which_payload].priority == SUB_PRIO_DISCARD)) {
         return RET_ERROR_OFFLINE;
     }
 
@@ -282,7 +285,7 @@ publish(void *payload, size_t size, uint32_t which_payload,
 
     if (ret == 0) {
         // mcu-to-mcu messages are not stored, they are just sent directly
-        // messages to the jetson can be stored depending on the priority,o
+        // messages to the jetson can be stored depending on the priority,
         // or if it was explicitly requested by the caller (force_store)
         bool store = false;
         if (remote_addr == CONFIG_CAN_ADDRESS_MCU_TO_MCU_TX) {
