@@ -9,6 +9,8 @@
 #include "ui/rgb_leds/operator_leds/operator_leds.h"
 #include "utils.h"
 #include "voltage_measurement/voltage_measurement.h"
+#include "zephyr/drivers/gpio.h"
+
 #include <app_assert.h>
 #include <stdlib.h>
 #include <zephyr/device.h>
@@ -38,6 +40,8 @@ static struct k_thread rx_thread_data = {0};
 
 static const struct i2c_dt_spec i2c_device_spec =
     I2C_DT_SPEC_GET(DT_NODELABEL(bq4050));
+static const struct gpio_dt_spec power_connected_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), power_supply_connected_gpios);
 
 static orb_mcu_main_BatteryCapacity battery_cap;
 static orb_mcu_main_BatteryIsCharging is_charging;
@@ -377,9 +381,36 @@ battery_rx_thread()
     uint32_t battery_messages_timeout = 0;
     int shutdown_scheduled_sent = RET_ERROR_NOT_INITIALIZED;
 
+    static const struct gpio_dt_spec supply_vbat_sw_enable_gpio_spec =
+        GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_vbat_sw_enable_gpios);
+    gpio_pin_configure_dt(&power_connected_gpio_spec, GPIO_INPUT);
+
     while (1) {
         uint32_t got_battery_voltage_message_local_counter = 0;
         int ret;
+
+        ret = gpio_pin_get_dt(&power_connected_gpio_spec);
+        if (ret < 0) {
+            ASSERT_SOFT(ret);
+        } else {
+            if (ret == 0) {
+                LOG_WRN("Battery disconnected");
+
+                // turn off vbat_sw
+                gpio_pin_set_dt(&supply_vbat_sw_enable_gpio_spec, 0);
+
+                while (gpio_pin_get_dt(&power_connected_gpio_spec) != 1) {
+                    k_usleep(500);
+                }
+
+                ret = gpio_pin_set_dt(&supply_vbat_sw_enable_gpio_spec, 1);
+                ASSERT_SOFT(ret);
+
+                LOG_WRN("Battery reconnected");
+            } else {
+                LOG_WRN("battery connected");
+            }
+        }
 
         // The following sections are placed in {}-scopes because then the
         // memory of the local variables can be reused by the subsequent code.
