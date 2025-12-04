@@ -180,13 +180,13 @@ send_nmea_message(const char *nmea_str)
 
     ret = publish_new(&msg, sizeof(msg),
                       orb_mcu_main_McuToJetson_gnss_partial_tag,
-                      CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                      CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
     if (ret == RET_SUCCESS) {
         strncpy(msg.nmea_part, nmea_str + min, sizeof msg.nmea_part - 1);
         msg.counter = counter + 1;
         ret = publish_new(&msg, sizeof(msg),
                           orb_mcu_main_McuToJetson_gnss_partial_tag,
-                          CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                          CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
     }
 
     counter += 2;

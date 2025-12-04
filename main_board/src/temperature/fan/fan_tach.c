@@ -296,14 +296,14 @@ fan_tach_thread()
             fs.measured_speed_rpm = main_speed;
             fs.fan_id = orb_mcu_main_FanStatus_FanID_MAIN;
             publish_new(&fs, sizeof fs, orb_mcu_main_McuToJetson_fan_status_tag,
-                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                        CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
             speed_sent = true;
         }
         if (aux_speed != 0 && aux_speed != UINT32_MAX) {
             fs.measured_speed_rpm = aux_speed;
             fs.fan_id = orb_mcu_main_FanStatus_FanID_AUX;
             publish_new(&fs, sizeof fs, orb_mcu_main_McuToJetson_fan_status_tag,
-                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                        CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
             speed_sent = true;
         }
 
@@ -311,10 +311,10 @@ fan_tach_thread()
             fs.measured_speed_rpm = 0;
             fs.fan_id = orb_mcu_main_FanStatus_FanID_MAIN;
             publish_new(&fs, sizeof fs, orb_mcu_main_McuToJetson_fan_status_tag,
-                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                        CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
             fs.fan_id = orb_mcu_main_FanStatus_FanID_AUX;
             publish_new(&fs, sizeof fs, orb_mcu_main_McuToJetson_fan_status_tag,
-                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                        CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
         }
     }
 }

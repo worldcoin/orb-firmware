@@ -79,7 +79,7 @@ button_released(struct k_work *item)
     orb_mcu_main_PowerButton button_state = {.pressed = false};
     publish_new(&button_state, sizeof(button_state),
                 orb_mcu_main_McuToJetson_power_button_tag,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 }
 
 static void
@@ -90,7 +90,7 @@ button_pressed(struct k_work *item)
     orb_mcu_main_PowerButton button_state = {.pressed = true};
     publish_new(&button_state, sizeof(button_state),
                 orb_mcu_main_McuToJetson_power_button_tag,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 }
 
 /// Interrupt context

@@ -4,13 +4,24 @@ menuconfig ORB_LIB_CAN_MESSAGING
 
 if ORB_LIB_CAN_MESSAGING
 
-config CAN_ADDRESS_MCU
-    hex "CAN address to receive data"
-    default 1
-
-config CAN_ADDRESS_DEFAULT_REMOTE
-    hex "Default CAN address to send data to"
+config CAN_ADDRESS_MCU_TO_JETSON_TX
+    hex "CAN address to send data to the Jetson"
     default 0x80
+
+config CAN_ADDRESS_JETSON_TO_MCU_RX
+    hex "CAN address to receive data from the Jetson"
+    default 0x01 if (BOARD_PEARL_MAIN || BOARD_DIAMOND_MAIN)
+    default 0x02 if (BOARD_PEARL_SECURITY || BOARD_DIAMOND_SECURITY)
+
+config CAN_ADDRESS_MCU_TO_MCU_TX
+    hex "CAN address to send data to other MCU"
+    default 0x42 if BOARD_PEARL_MAIN || BOARD_DIAMOND_MAIN
+    default 0x41 if BOARD_PEARL_SECURITY || BOARD_DIAMOND_SECURITY
+
+config CAN_ADDRESS_MCU_TO_MCU_RX
+    hex "CAN address to receive MCU-to-MCU messages"
+    default 0x41 if BOARD_PEARL_MAIN || BOARD_DIAMOND_MAIN  # main MCU receives on 0x41
+    default 0x42 if BOARD_PEARL_SECURITY || BOARD_DIAMOND_SECURITY  # sec MCU receives on 0x42
 
 config ORB_LIB_THREAD_PRIORITY_CANBUS_MONITOR
     int "CAN bus monitoring thread priority"

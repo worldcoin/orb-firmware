@@ -311,7 +311,7 @@ publish_battery_voltages(orb_mcu_main_BatteryVoltage *voltages)
 
     publish_new(voltages, sizeof(orb_mcu_main_BatteryVoltage),
                 orb_mcu_main_McuToJetson_battery_voltage_tag,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 }
 
 static void
@@ -320,7 +320,7 @@ publish_battery_capacity(orb_mcu_main_BatteryCapacity *battery_cap)
     LOG_DBG("State of charge: %u%%", battery_cap->percentage);
     publish_new(battery_cap, sizeof(orb_mcu_main_BatteryCapacity),
                 orb_mcu_main_McuToJetson_battery_capacity_tag,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 }
 
 static void
@@ -329,7 +329,7 @@ publish_battery_is_charging(orb_mcu_main_BatteryIsCharging *is_charging)
     LOG_DBG("Is charging? %s", is_charging->battery_is_charging ? "yes" : "no");
     publish_new(is_charging, sizeof(orb_mcu_main_BatteryIsCharging),
                 orb_mcu_main_McuToJetson_battery_is_charging_tag,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 }
 
 static void
@@ -349,7 +349,7 @@ publish_battery_diagnostics_common(
     LOG_DBG("Publishing battery diagnostics common");
     publish_new(diag_common, sizeof(orb_mcu_main_BatteryDiagnosticCommon),
                 orb_mcu_main_McuToJetson_battery_diag_common_tag,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 }
 
 static void
@@ -558,7 +558,7 @@ battery_rx_thread()
 
                 publish_new(&info_hw_fw, sizeof(info_hw_fw),
                             orb_mcu_main_McuToJetson_battery_info_hw_fw_tag,
-                            CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                            CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
             }
         }
 
@@ -576,7 +576,7 @@ battery_rx_thread()
                 publish_new(
                     &info_soc_and_statistics, sizeof(info_soc_and_statistics),
                     orb_mcu_main_McuToJetson_battery_info_soc_and_statistics_tag,
-                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                    CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
             }
         }
 
@@ -626,7 +626,7 @@ battery_rx_thread()
                 publish_new(
                     &info_max_values, sizeof(info_max_values),
                     orb_mcu_main_McuToJetson_battery_info_max_values_tag,
-                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                    CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
             }
         }
 
@@ -643,7 +643,7 @@ battery_rx_thread()
                 publish_new(
                     &state_of_health, sizeof(state_of_health),
                     orb_mcu_main_McuToJetson_battery_state_of_health_tag,
-                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                    CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
             }
         }
 
@@ -690,7 +690,7 @@ battery_rx_thread()
                     shutdown_scheduled_sent =
                         publish_new(&shutdown, sizeof(shutdown),
                                     orb_mcu_main_McuToJetson_shutdown_tag,
-                                    CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                                    CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
                     LOG_WRN("Battery removed: %d", shutdown_scheduled_sent);
 
                     if (battery_messages_timeout >=

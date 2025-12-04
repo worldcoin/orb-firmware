@@ -63,7 +63,7 @@ fan_tach_thread()
         fs.fan_id = orb_mcu_main_FanStatus_FanID_MAIN;
         (void)publish_new(&fs, sizeof fs,
                           orb_mcu_main_McuToJetson_fan_status_tag,
-                          CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                          CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
     }
 }
 

@@ -586,7 +586,7 @@ temperature_report(orb_mcu_Temperature_TemperatureSource source,
                                        .temperature_c = temperature_in_c};
     publish_new(&temperature, sizeof(temperature),
                 orb_mcu_main_McuToJetson_temperature_tag,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 }
 
 static int32_t
@@ -938,7 +938,7 @@ overtemp_callback(struct sensor_and_channel *sensor_and_channel)
             // store event
             (void)publish_store(&error, sizeof(error),
                                 orb_mcu_main_McuToJetson_fatal_error_tag,
-                                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                                CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 #ifdef CONFIG_MEMFAULT
             MEMFAULT_REBOOT_MARK_RESET_IMMINENT(kMfltRebootReason_Temperature);
 #endif

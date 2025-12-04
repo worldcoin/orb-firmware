@@ -1,3 +1,5 @@
+#include "mcu_ping.h"
+#include "system/ping_sec.h"
 #include "ui/nfc/nfc.h"
 #if defined(CONFIG_BOARD_PEARL_MAIN)
 #include "gnss/gnss.h"
@@ -143,7 +145,7 @@ app_assert_cb(fatal_error_info_t *err_info)
                                     &fatal_error, PB_ENCODE_DELIMITED);
 
         can_message_t to_send = {.destination =
-                                     CONFIG_CAN_ADDRESS_DEFAULT_REMOTE,
+                                     CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX,
                                  .bytes = buffer,
                                  .size = stream.bytes_written};
 
@@ -155,7 +157,7 @@ app_assert_cb(fatal_error_info_t *err_info)
         /* last chance, but might fail */
         publish_store(&fatal_error, sizeof(fatal_error),
                       orb_mcu_sec_SecToJetson_fatal_error_tag,
-                      CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                      CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
     }
 }
 
@@ -174,7 +176,7 @@ heartbeat_timeout_handler(void)
         .ms_until_shutdown = shutdown_delay_ms};
     publish_new((void *)&shutdown, sizeof(shutdown),
                 orb_mcu_main_McuToJetson_shutdown_tag,
-                CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 
     k_msleep(shutdown_delay_ms);
 
@@ -198,32 +200,32 @@ send_reset_reason(void)
             fatal_error.reason = orb_mcu_FatalError_FatalReason_FATAL_WATCHDOG;
             publish_new(&fatal_error, sizeof(fatal_error),
                         orb_mcu_main_McuToJetson_fatal_error_tag,
-                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                        CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
         }
         if (IS_SOFTWARE(reset_reason)) {
             fatal_error.reason =
                 orb_mcu_FatalError_FatalReason_FATAL_SOFTWARE_UNKNOWN;
             publish_new(&fatal_error, sizeof(fatal_error),
                         orb_mcu_main_McuToJetson_fatal_error_tag,
-                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                        CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
         }
         if (IS_BOR(reset_reason)) {
             fatal_error.reason = orb_mcu_FatalError_FatalReason_FATAL_BROWNOUT;
             publish_new(&fatal_error, sizeof(fatal_error),
                         orb_mcu_main_McuToJetson_fatal_error_tag,
-                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                        CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
         }
         if (IS_PIN(reset_reason)) {
             fatal_error.reason = orb_mcu_FatalError_FatalReason_FATAL_PIN_RESET;
             publish_new(&fatal_error, sizeof(fatal_error),
                         orb_mcu_main_McuToJetson_fatal_error_tag,
-                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                        CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
         }
         if (IS_LOW_POWER(reset_reason)) {
             fatal_error.reason = orb_mcu_FatalError_FatalReason_FATAL_LOW_POWER;
             publish_new(&fatal_error, sizeof(fatal_error),
                         orb_mcu_main_McuToJetson_fatal_error_tag,
-                        CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+                        CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
         }
     }
 }
@@ -238,7 +240,7 @@ wait_jetson_up(void)
 
         // as soon as the Jetson sends the first message, send firmware version
         if (runner_successful_jobs_count() > 0) {
-            version_fw_send(CONFIG_CAN_ADDRESS_DEFAULT_REMOTE);
+            version_fw_send(CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 
             uint32_t error_count = app_assert_soft_count();
             if (error_count) {
@@ -250,6 +252,14 @@ wait_jetson_up(void)
             jetson_up_and_running = true;
         }
     }
+}
+
+static int
+send_mcu_ping(orb_mcu_Ping *ping)
+{
+    return publish_new(ping, sizeof(orb_mcu_Ping),
+                       orb_mcu_main_MainToSec_ping_pong_tag,
+                       CONFIG_CAN_ADDRESS_MCU_TO_MCU_TX);
 }
 
 static void
@@ -264,6 +274,7 @@ initialize(void)
 
     // initialize runner before communication modules
     runner_init();
+    ping_init(send_mcu_ping);
 
     app_assert_init(app_assert_cb);
 
@@ -333,6 +344,8 @@ initialize(void)
 
     err_code = button_init();
     ASSERT_SOFT(err_code);
+
+    ping_sec_init();
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     err_code = gnss_init();
