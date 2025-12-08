@@ -706,9 +706,7 @@ battery_rx_thread()
                 }
             } else if (err_code == RET_SUCCESS &&
                        vbat_sw_voltage_mv >
-                           BATTERY_MINIMUM_VOLTAGE_STARTUP_MV &&
-                       corded_power_supply == false) {
-                // vbat > BATTERY_MINIMUM_VOLTAGE_RUNTIME_MV
+                           BATTERY_MINIMUM_VOLTAGE_STARTUP_MV) {
                 corded_power_supply = true;
                 ORB_STATE_SET_CURRENT(RET_SUCCESS, "corded");
                 LOG_DBG("Corded power supply");
