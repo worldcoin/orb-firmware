@@ -69,6 +69,13 @@ ir_camera_system_ir_eye_camera_is_enabled(void);
 ret_code_t
 ir_camera_system_enable_ir_face_camera(void);
 
+/** Same as ir_camera_system_enable_ir_face_camera()
+ */
+ret_code_t
+ir_camera_system_enable_rgb_face_camera(void);
+ret_code_t
+ir_camera_system_disable_rgb_face_camera(void);
+
 /**
  * @brief Disable the IR face camera
  *

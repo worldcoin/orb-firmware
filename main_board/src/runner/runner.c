@@ -264,8 +264,27 @@ handle_start_triggering_ir_face_camera_message(job_t *job)
     orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_start_triggering_ir_face_camera_tag);
 
-    LOG_DBG("");
     ir_camera_system_enable_ir_face_camera();
+    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+}
+
+static void
+handle_start_triggering_rgb_face_camera_message(job_t *job)
+{
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_start_triggering_rgb_face_camera_tag);
+
+    ir_camera_system_enable_rgb_face_camera();
+    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+}
+
+static void
+handle_stop_triggering_rgb_face_camera_message(job_t *job)
+{
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_stop_triggering_rgb_face_camera_tag);
+
+    ir_camera_system_disable_rgb_face_camera();
     job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
 }
 
@@ -1733,6 +1752,10 @@ static const hm_callback handle_message_callbacks[] = {
     [orb_mcu_main_JetsonToMcu_set_time_tag] = handle_set_time,
     [orb_mcu_main_JetsonToMcu_reboot_orb_tag] = handle_reboot_orb,
     [orb_mcu_main_JetsonToMcu_boot_complete_tag] = handle_boot_complete,
+    [orb_mcu_main_JetsonToMcu_start_triggering_rgb_face_camera_tag] =
+        handle_start_triggering_rgb_face_camera_message,
+    [orb_mcu_main_JetsonToMcu_stop_triggering_rgb_face_camera_tag] =
+        handle_stop_triggering_rgb_face_camera_message,
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
     [orb_mcu_main_JetsonToMcu_cone_leds_sequence_tag] =
         handle_cone_leds_sequence,
@@ -1749,7 +1772,7 @@ static const hm_callback handle_message_callbacks[] = {
 #endif
 };
 
-BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 53),
+BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 55),
              "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
