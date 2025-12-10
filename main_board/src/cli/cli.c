@@ -1,7 +1,7 @@
-
 #include "cli.h"
 
 #include "date.h"
+#include "dfu.h"
 #include "mcu_ping.h"
 #include "orb_logs.h"
 
@@ -673,6 +673,30 @@ execute_ping_sec(const struct shell *sh, size_t argc, char **argv)
     return 0;
 }
 
+static int
+execute_dfu_secondary_activate(const struct shell *sh, size_t argc, char **argv)
+{
+    if (argc != 2) {
+        shell_error(sh, "Usage: dfu_secondary_activate <permanent|temporary>");
+        return -EINVAL;
+    }
+    int ret;
+    if (strcmp(argv[1], "permanent") == 0) {
+        ret = dfu_secondary_activate_permanently();
+    } else if (strcmp(argv[1], "temporary") == 0) {
+        ret = dfu_secondary_activate_temporarily();
+    } else {
+        shell_error(sh, "Invalid argument. Use 'permanent' or 'temporary'.");
+        return -EINVAL;
+    }
+    if (ret == 0) {
+        shell_print(sh, "Secondary image activation successful (%s)", argv[1]);
+    } else {
+        shell_error(sh, "Secondary image activation failed: %d", ret);
+    }
+    return ret;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(
     sub_orb,
     SHELL_CMD(reboot, NULL, "Reboot system with optional delay",
@@ -700,6 +724,9 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 #endif
     SHELL_CMD(stats, NULL, "Show runner statistics", execute_runner_stats),
     SHELL_CMD(ping_sec, NULL, "Send ping to security MCU", execute_ping_sec),
+    SHELL_CMD(dfu_secondary_activate, NULL,
+              "Activate secondary image (permanent|temporary)",
+              execute_dfu_secondary_activate),
     SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(orb, &sub_orb, "Orb commands", NULL);
