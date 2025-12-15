@@ -259,15 +259,15 @@
         //       Diamond: R1=10k, R2=10k
         // [15]: 3V3_LTE
         //       Diamond: R1=10k, R2=10k
-        // [16]: 1V2
-        //       Diamond: R1=27R, R2=inf
+        // [16]: 3V3_LDO
+        //       Diamond: R1=10k, R2=10k
         // [17]: 2V8
         //       Diamond: R1=10k, R2=10k
         // [18]: VREFINT (typ. 1.212 V)
         //
         io-channels = <&adc1 1>, <&adc1 2>, <&adc1 3>, <&adc1 7>, <&adc1 9>, <&adc1 11>, <&adc1 14>, <&adc1 16>, <&adc1 17>,<&adc4 1>, <&adc4 2>, <&adc5 7>, <&adc5 8>, <&adc5 9>, <&adc5 12>, <&adc5 13>, <&adc5 14>, <&adc5 15>, <&adc5 18>;
-        io-channel-names = "vbat_sw", "3v3_ssd", "3v3_wifi", "pvcc", "12v_caps", "v_scap_low", "v_scap_high", "die_temp", "3v3_uc","1v8_sec", "4v7_sec", "1v8", "3v3", "5v", "3v6", "3v3_lte", "1v2", "2V8", "vrefint";
-        voltage-divider-scalings = "10.4f", "2.0f", "2.0f", "19.81f", "6.7f", "1.0f", "1.0f", "1.0f", "3.0f","1.0f", "3.0f", "1.0f", "2.0f", "3.0f", "2.0f", "2.0f", "1.0f", "2.0f", "1.0f";
+        io-channel-names = "vbat_sw", "3v3_ssd", "3v3_wifi", "pvcc", "12v_caps", "v_scap_low", "v_scap_high", "die_temp", "3v3_uc","1v8_sec", "4v7_sec", "1v8", "3v3", "5v", "3v6", "3v3_lte", "3v3_ldo", "2V8", "vrefint";
+        voltage-divider-scalings = "10.4f", "2.0f", "2.0f", "19.81f", "6.7f", "1.0f", "1.0f", "1.0f", "3.0f","1.0f", "3.0f", "1.0f", "2.0f", "3.0f", "2.0f", "2.0f", "2.0f", "2.0f", "1.0f";
     };
 
     i2c-mux-gpio-mainboard {
@@ -856,7 +856,7 @@
         zephyr,resolution = <12>;
     };
 
-    channel@e {		// 1V2
+    channel@e {		// 3V3_LDO
         reg = <14>;
         zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 48)>;	// ~1.1 µs @ ADC_CLK = 42.5 MHz
         zephyr,gain = "ADC_GAIN_1";

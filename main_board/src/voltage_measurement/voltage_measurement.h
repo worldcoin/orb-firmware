@@ -41,7 +41,7 @@ typedef enum {
     CHANNEL_5V,
     CHANNEL_3V6,
     CHANNEL_3V3_LTE,
-    CHANNEL_1V2,
+    CHANNEL_3V3_LDO,
     CHANNEL_2V8,
     CHANNEL_VREFINT,
 #endif

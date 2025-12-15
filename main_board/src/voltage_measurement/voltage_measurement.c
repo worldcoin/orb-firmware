@@ -630,7 +630,7 @@ publish_all_voltages(void)
 
     for (orb_mcu_main_Voltage_VoltageSource i =
              orb_mcu_main_Voltage_VoltageSource_MAIN_MCU_INTERNAL;
-         i <= orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_7; ++i) {
+         i <= orb_mcu_main_Voltage_VoltageSource_SUPPLY_3V3_LDO; ++i) {
         voltage_msg.source = i;
 
         voltage_measurement_channel_t channel = CHANNEL_3V3_UC;
@@ -713,7 +713,13 @@ publish_all_voltages(void)
             break;
 
         case orb_mcu_main_Voltage_VoltageSource_SUPPLY_1V2:
-            channel = CHANNEL_1V2;
+            /* diamond b3 feature - deprecated
+               replaced by 3v3 ldo
+               do nothing */
+            break;
+
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_3V3_LDO:
+            channel = CHANNEL_3V3_LDO;
             break;
 
         case orb_mcu_main_Voltage_VoltageSource_SUPPLY_2V8:
