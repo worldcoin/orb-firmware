@@ -922,6 +922,7 @@ ret_code_t
 front_leds_init(void)
 {
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
+    /* some boards rev. have different kind of led strip */
     orb_mcu_Hardware_FrontUnitVersion fu_version = version_get_front_unit_rev();
     if (fu_version ==
         orb_mcu_Hardware_FrontUnitVersion_FRONT_UNIT_VERSION_V6_2B) {
@@ -934,21 +935,24 @@ front_leds_init(void)
         return RET_ERROR_INTERNAL;
     }
 
-    k_tid_t tid =
-        k_thread_create(&front_led_thread_data, front_leds_stack_area,
-                        K_THREAD_STACK_SIZEOF(front_leds_stack_area),
-                        (k_thread_entry_t)front_leds_thread, NULL, NULL, NULL,
-                        THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS, 0, K_NO_WAIT);
-    k_thread_name_set(tid, "front_leds");
-
-    front_leds_self_test();
-
+    // turn on 5V switched power for front unit to perform self-tests
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
     const struct gpio_dt_spec en_5v_switched =
         GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_en_5v_switched_gpios);
     int ret = gpio_pin_configure_dt(&en_5v_switched, GPIO_OUTPUT_ACTIVE);
     ASSERT_SOFT(ret);
 #endif
+
+    front_leds_self_test();
+
+    // ready to roll
+    // spawn the thread for handling front unit leds
+    k_tid_t tid =
+        k_thread_create(&front_led_thread_data, front_leds_stack_area,
+                        K_THREAD_STACK_SIZEOF(front_leds_stack_area),
+                        (k_thread_entry_t)front_leds_thread, NULL, NULL, NULL,
+                        THREAD_PRIORITY_FRONT_UNIT_RGB_LEDS, 0, K_NO_WAIT);
+    k_thread_name_set(tid, "front_leds");
 
     return RET_SUCCESS;
 }
