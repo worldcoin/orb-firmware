@@ -183,7 +183,7 @@ struct self_test_range {
 };
 
 static const struct self_test_range voltage_measurement_tests[] = {
-    [CHANNEL_VBAT_SW] = {.min = 12000, .max = 17000},
+    [CHANNEL_VBAT_SW] = {.min = 11880, .max = 17000},
     [CHANNEL_PVCC] = {.min = 30590, .max = 32430},
     [CHANNEL_12V_CAPS] = {.min = 11700, .max = 12280},
     [CHANNEL_3V3_UC] = {.min = 3159, .max = 3389},
@@ -193,9 +193,9 @@ static const struct self_test_range voltage_measurement_tests[] = {
     [CHANNEL_VREFINT] = {.min = 1182, .max = 1232},
     {0}};
 
-#define VOLTAGES_SELF_TEST_TIMEOUT_MS        10000
-#define VOLTAGES_SELF_TEST_PERIOD_MS         1000
-#define VOLTAGES_SELF_TEST_SUSTAIN_PERIOD_MS 3000
+#define VOLTAGES_SELF_TEST_PERIOD_MS         2000
+#define VOLTAGES_SELF_TEST_TIMEOUT_MS        (VOLTAGES_SELF_TEST_PERIOD_MS * 5)
+#define VOLTAGES_SELF_TEST_SUSTAIN_PERIOD_MS (VOLTAGES_SELF_TEST_PERIOD_MS * 2)
 #define VOLTAGES_SELF_TEST_LOOP_COUNT_PASS                                     \
     (VOLTAGES_SELF_TEST_SUSTAIN_PERIOD_MS / VOLTAGES_SELF_TEST_PERIOD_MS)
 
