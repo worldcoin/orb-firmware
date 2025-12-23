@@ -105,6 +105,7 @@ dfu_load(uint32_t current_block_number, uint32_t block_count,
     // buffer
     if (dfu_state.wr_idx + size > sizeof(dfu_state.bytes)) {
         k_sem_give(&sem_dfu_free_space);
+
         return RET_ERROR_NO_MEM;
     }
     memcpy(&dfu_state.bytes[dfu_state.wr_idx], data, size);
@@ -250,9 +251,6 @@ process_dfu_blocks_thread()
             k_sem_give(&sem_dfu_free_space);
 
             if (dfu_state.dfu_cb != NULL) {
-                if (err_code != RET_SUCCESS) {
-                    LOG_ERR("Error during dfu block processing");
-                }
                 dfu_state.dfu_cb(dfu_state.ctx, err_code);
             }
         } break;

@@ -1020,6 +1020,15 @@ handle_dfu_block_message(job_t *job)
     }
 
     switch (ret) {
+    case RET_SUCCESS:
+        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+        break;
+
+    case RET_ERROR_NO_MEM:
+        /* internal dfu buffer not processed? */
+        job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
+        break;
+
     case RET_ERROR_INVALID_PARAM:
         job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
         break;
@@ -1028,11 +1037,9 @@ handle_dfu_block_message(job_t *job)
         job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
         break;
 
-    case RET_SUCCESS:
-        job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
-        break;
     default:
         LOG_ERR("Unhandled error code %d", ret);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     };
 }
 
