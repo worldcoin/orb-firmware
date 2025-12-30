@@ -42,6 +42,7 @@ enum polarizer_wheel_mode_e {
     POLARIZER_WHEEL_MODE_POSITIONING, // encoder-assisted positioning (for
                                       // standard positions)
     POLARIZER_WHEEL_MODE_CUSTOM_ANGLE,
+    POLARIZER_WHEEL_MODE_PENDING_IDLE,
 };
 
 enum encoder_state_e {
@@ -130,7 +131,7 @@ BUILD_ASSERT(POLARIZER_WHEEL_NOTCH_DETECT_ATTEMPTS > 4);
 static K_SEM_DEFINE(home_sem, 0, 1);
 
 /* Work item for deferring encoder enable/disable from ISR context */
-static struct k_work encoder_work;
+static struct k_work polarizer_async_work;
 
 // Enable encoder interrupt
 static ret_code_t
@@ -176,11 +177,58 @@ disable_encoder(void)
     return RET_SUCCESS;
 }
 
+// clear the polarizer wheel step interrupt flag
+static ret_code_t
+clear_step_interrupt(void)
+{
+    /* Channel to clearing capture flag mapping. */
+    static void __maybe_unused (*const clear_capture_interrupt[])(
+        TIM_TypeDef *) = {LL_TIM_ClearFlag_CC1, LL_TIM_ClearFlag_CC2,
+                          LL_TIM_ClearFlag_CC3, LL_TIM_ClearFlag_CC4};
+
+    clear_capture_interrupt[polarizer_step_pwm_spec->channel - 1](
+        polarizer_step_timer);
+
+    return RET_SUCCESS;
+}
+
+static ret_code_t
+disable_step_interrupt(void)
+{
+    /* Channel to disable capture interrupt mapping. */
+    static void __maybe_unused (*const disable_capture_interrupt[])(
+        TIM_TypeDef *) = {LL_TIM_DisableIT_CC1, LL_TIM_DisableIT_CC2,
+                          LL_TIM_DisableIT_CC3, LL_TIM_DisableIT_CC4};
+
+    clear_step_interrupt();
+    disable_capture_interrupt[polarizer_step_pwm_spec->channel - 1](
+        polarizer_step_timer);
+
+    return RET_SUCCESS;
+}
+
+static int
+polarizer_stop()
+{
+    const int ret = pwm_set_dt(polarizer_step_pwm_spec, 0, 0);
+    disable_step_interrupt();
+    return ret;
+}
+
 static void
-encoder_work_handler(struct k_work *work)
+polarizer_work_handler(struct k_work *work)
 {
     ARG_UNUSED(work);
     int ret;
+
+    if (g_polarizer_wheel_instance.positioning.mode ==
+        POLARIZER_WHEEL_MODE_PENDING_IDLE) {
+        // stop the motor first
+        polarizer_stop();
+        drv8434s_scale_current(DRV8434S_TRQ_DAC_25);
+        g_polarizer_wheel_instance.positioning.mode = POLARIZER_WHEEL_MODE_IDLE;
+    }
+
     switch (g_polarizer_wheel_instance.positioning.encoder_state) {
     case ENCODER_PENDING_ENABLE:
         ret = enable_encoder();
@@ -201,15 +249,26 @@ encoder_enable_async(void)
 {
     g_polarizer_wheel_instance.positioning.encoder_state =
         ENCODER_PENDING_ENABLE;
-    k_work_submit(&encoder_work);
+    k_work_submit(&polarizer_async_work);
 }
 
+/**
+ * Stop polarizer wheel motion & encoder in case enabled
+ */
 static inline void
-encoder_disable_async(void)
+polarizer_stop_async(void)
 {
-    g_polarizer_wheel_instance.positioning.encoder_state =
-        ENCODER_PENDING_DISABLE;
-    k_work_submit(&encoder_work);
+    if (g_polarizer_wheel_instance.positioning.mode ==
+            POLARIZER_WHEEL_MODE_POSITIONING ||
+        g_polarizer_wheel_instance.positioning.mode ==
+            POLARIZER_WHEEL_MODE_HOMING) {
+        g_polarizer_wheel_instance.positioning.encoder_state =
+            ENCODER_PENDING_DISABLE;
+    }
+
+    g_polarizer_wheel_instance.positioning.mode =
+        POLARIZER_WHEEL_MODE_PENDING_IDLE;
+    k_work_submit(&polarizer_async_work);
 }
 
 /**
@@ -233,21 +292,6 @@ circular_signed_distance(int32_t from, int32_t to)
     return diff;
 }
 
-// clear the polarizer wheel step interrupt flag
-static ret_code_t
-clear_step_interrupt(void)
-{
-    /* Channel to clearing capture flag mapping. */
-    static void __maybe_unused (*const clear_capture_interrupt[])(
-        TIM_TypeDef *) = {LL_TIM_ClearFlag_CC1, LL_TIM_ClearFlag_CC2,
-                          LL_TIM_ClearFlag_CC3, LL_TIM_ClearFlag_CC4};
-
-    clear_capture_interrupt[polarizer_step_pwm_spec->channel - 1](
-        polarizer_step_timer);
-
-    return RET_SUCCESS;
-}
-
 // Enable polarizer wheel step interrupt
 static ret_code_t
 enable_step_interrupt(void)
@@ -264,21 +308,6 @@ enable_step_interrupt(void)
     return RET_SUCCESS;
 }
 
-static ret_code_t
-disable_step_interrupt(void)
-{
-    /* Channel to disable capture interrupt mapping. */
-    static void __maybe_unused (*const disable_capture_interrupt[])(
-        TIM_TypeDef *) = {LL_TIM_DisableIT_CC1, LL_TIM_DisableIT_CC2,
-                          LL_TIM_DisableIT_CC3, LL_TIM_DisableIT_CC4};
-
-    clear_step_interrupt();
-    disable_capture_interrupt[polarizer_step_pwm_spec->channel - 1](
-        polarizer_step_timer);
-
-    return RET_SUCCESS;
-}
-
 static int
 polarizer_move(const uint32_t frequency)
 {
@@ -286,14 +315,6 @@ polarizer_move(const uint32_t frequency)
     enable_step_interrupt();
     return pwm_set_dt(polarizer_step_pwm_spec, NSEC_PER_SEC / frequency,
                       (NSEC_PER_SEC / frequency) / 2);
-}
-
-static int
-polarizer_stop()
-{
-    const int ret = pwm_set_dt(polarizer_step_pwm_spec, 0, 0);
-    disable_step_interrupt();
-    return ret;
 }
 
 static int
@@ -455,10 +476,7 @@ polarizer_wheel_step_isr(const void *arg)
             LOG_INF("Reached target (%d), stopping motor",
                     (int32_t)atomic_get(
                         &g_polarizer_wheel_instance.step_count.target));
-            encoder_disable_async();
-            polarizer_stop();
-            g_polarizer_wheel_instance.positioning.mode =
-                POLARIZER_WHEEL_MODE_IDLE;
+            polarizer_stop_async();
         }
     }
 }
@@ -621,8 +639,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
         // wait for completion and disconnect interrupt
         k_sleep(K_SECONDS(4));
 
-        ASSERT_SOFT(polarizer_stop());
-        ASSERT_SOFT(disable_encoder());
+        polarizer_stop_async();
 
         LOG_INF("Polarizer wheel homed");
         ORB_STATE_SET_CURRENT(RET_SUCCESS, "homed");
@@ -835,7 +852,7 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
     memset(&g_polarizer_wheel_instance, 0, sizeof(g_polarizer_wheel_instance));
 
     // Initialize work item for deferred encoder enable/disable
-    k_work_init(&encoder_work, encoder_work_handler);
+    k_work_init(&polarizer_async_work, polarizer_work_handler);
 
     // Polarizer spi chip select is controlled manually, configure inactive
     ret_val =
