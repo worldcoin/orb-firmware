@@ -181,6 +181,7 @@ disable_step_interrupt(void)
 static int
 polarizer_move(const uint32_t frequency)
 {
+    drv8434s_scale_current(DRV8434S_TRQ_DAC_100);
     enable_step_interrupt();
     return pwm_set_dt(polarizer_step_pwm_spec, NSEC_PER_SEC / frequency,
                       (NSEC_PER_SEC / frequency) / 2);
@@ -447,6 +448,8 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
         homing_failed();
     }
 
+    drv8434s_scale_current(DRV8434S_TRQ_DAC_25);
+
     // reset step counter
     atomic_clear(&g_polarizer_wheel_instance.step_count.current);
 }
@@ -691,7 +694,6 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
     // Enable the DRV8434s motor driver if configuration is successful
     // Scale the current to 75% of the maximum current
     if (ret_val == RET_SUCCESS) {
-        drv8434s_scale_current(DRV8434S_TRQ_DAC_75);
         ret_val = drv8434s_enable();
         ASSERT_SOFT(ret_val);
         if (ret_val != RET_SUCCESS) {
