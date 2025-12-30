@@ -44,6 +44,12 @@
 // from notch edge to notch center
 #define POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER 100
 
+// because one position has a second notch close to it, the encoder
+// cannot be used over the entire course between 2 positions.
+// instead, encoder is enabled only when distance to notch is
+// within this window:
+#define POLARIZER_WHEEL_ENCODER_ENABLE_DISTANCE_TO_NOTCH_MICROSTEPS 200
+
 enum polarizer_wheel_angle_e {
     POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE = 0,
     POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE = 1200,
