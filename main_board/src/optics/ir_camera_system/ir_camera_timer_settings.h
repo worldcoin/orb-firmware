@@ -17,13 +17,16 @@ BUILD_ASSERT(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US == 5000 &&
              "to ensure hardware safty circuit is not triggered.");
 #endif // !defined(CONFIG_ZTEST)
 #else
-#define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US     7500
-#define IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE     0.25
+#define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US             7500
+// face cam ir duration is capped to 2000us to avoid weird cosmetic issues in
+// case rgb/ir cam exposure is fixed & doesn't respond to ir light
+#define IR_CAMERA_SYSTEM_FACE_CAMERA_MAX_IR_LED_ON_TIME_US 2000
+#define IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE             0.25
 // when computing the next rgb/ir strobe falling edge, keep a 50us margin
 // to avoid pulsing too close to the next rgb frame start (with an ir pulse
 // that could eventually override the rgb capture)
 // from measurements: with 30us, the ir light might bleed into the rgb capture
-#define IR_CAMERA_SYSTEM_NEXT_STROBE_END_MARGIN_US (50UL)
+#define IR_CAMERA_SYSTEM_NEXT_STROBE_END_MARGIN_US         (50UL)
 #if !defined(CONFIG_ZTEST)
 BUILD_ASSERT(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US <= 8000 &&
                  IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE == 0.25,
