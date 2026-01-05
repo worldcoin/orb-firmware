@@ -249,7 +249,10 @@ encoder_enable_async(void)
 {
     g_polarizer_wheel_instance.positioning.encoder_state =
         ENCODER_PENDING_ENABLE;
-    k_work_submit(&polarizer_async_work);
+    int ret = k_work_submit(&polarizer_async_work);
+    if (ret < 0) {
+        LOG_ERR("Failed to submit encoder enable work: %d", ret);
+    }
 }
 
 /**
@@ -268,7 +271,10 @@ polarizer_stop_async(void)
 
     g_polarizer_wheel_instance.positioning.mode =
         POLARIZER_WHEEL_MODE_PENDING_IDLE;
-    k_work_submit(&polarizer_async_work);
+    int ret = k_work_submit(&polarizer_async_work);
+    if (ret < 0) {
+        LOG_ERR("Failed to submit polarizer stop work: %d", ret);
+    }
 }
 
 /**
