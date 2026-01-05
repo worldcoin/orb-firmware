@@ -130,7 +130,7 @@ BUILD_ASSERT(POLARIZER_WHEEL_NOTCH_DETECT_ATTEMPTS > 4);
 
 static K_SEM_DEFINE(home_sem, 0, 1);
 
-/* Work item for deferring encoder enable/disable from ISR context */
+/* Work item for deferring encoder & motor enable/disable from ISR context */
 static struct k_work polarizer_async_work;
 
 // Enable encoder interrupt
@@ -253,15 +253,15 @@ encoder_enable_async(void)
 }
 
 /**
- * Stop polarizer wheel motion & encoder in case enabled
+ * Stop polarizer wheel motion (& encoder in case enabled)
  */
 static inline void
 polarizer_stop_async(void)
 {
-    if (g_polarizer_wheel_instance.positioning.mode ==
-            POLARIZER_WHEEL_MODE_POSITIONING ||
-        g_polarizer_wheel_instance.positioning.mode ==
-            POLARIZER_WHEEL_MODE_HOMING) {
+    if (g_polarizer_wheel_instance.positioning.encoder_state ==
+            ENCODER_ENABLED ||
+        g_polarizer_wheel_instance.positioning.encoder_state ==
+            ENCODER_PENDING_ENABLE) {
         g_polarizer_wheel_instance.positioning.encoder_state =
             ENCODER_PENDING_DISABLE;
     }
@@ -309,7 +309,7 @@ enable_step_interrupt(void)
 }
 
 static int
-polarizer_move(const uint32_t frequency)
+polarizer_rotate(const uint32_t frequency)
 {
     drv8434s_scale_current(DRV8434S_TRQ_DAC_100);
     enable_step_interrupt();
@@ -355,7 +355,8 @@ encoder_callback(const struct device *dev, struct gpio_callback *cb,
                 POLARIZER_WHEEL_MODE_HOMING) {
                 LOG_DBG("notches detected: %u",
                         g_polarizer_wheel_instance.homing.notch_count);
-                /* stop early */
+                /* stop instantly the wheel rotation, keep encoder isr enabled
+                 */
                 polarizer_stop();
                 k_sem_give(&home_sem);
             } else if (g_polarizer_wheel_instance.positioning.mode ==
@@ -518,21 +519,9 @@ polarizer_wheel_step_relative(const uint32_t frequency,
         atomic_set(&g_polarizer_wheel_instance.step_count.target, target);
     }
 
-    ret_val = polarizer_move(frequency);
+    ret_val = polarizer_rotate(frequency);
 
     return ret_val;
-}
-
-static void
-homing_failed()
-{
-    g_polarizer_wheel_instance.homing.success = false;
-    g_polarizer_wheel_instance.positioning.mode = POLARIZER_WHEEL_MODE_IDLE;
-    int ret = polarizer_stop();
-    ASSERT_SOFT(ret);
-
-    ret = disable_encoder();
-    ASSERT_SOFT(ret);
 }
 
 static void
@@ -576,7 +565,8 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
             if (ret != RET_SUCCESS) {
                 LOG_ERR("Unable to spin polarizer wheel: %d, attempt %u", ret,
                         spin_attempt);
-                homing_failed();
+                g_polarizer_wheel_instance.homing.success = false;
+                polarizer_stop_async();
                 ORB_STATE_SET_CURRENT(ret, "unable to spin");
                 return;
             }
@@ -595,7 +585,8 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
                 // encoder not detected, no wheel?
                 ORB_STATE_SET_CURRENT(RET_ERROR_NOT_INITIALIZED,
                                       "no encoder: no wheel? staled?");
-                homing_failed();
+                g_polarizer_wheel_instance.homing.success = false;
+                polarizer_stop_async();
                 LOG_WRN(
                     "Encoder not detected, is there a wheel? is it moving?");
                 return;
@@ -647,13 +638,12 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     } else {
         // ❌ failure homing
         // encoder bumps not detected at expected positions
-        g_polarizer_wheel_instance.positioning.mode = POLARIZER_WHEEL_MODE_IDLE;
+        g_polarizer_wheel_instance.homing.success = false;
+        polarizer_stop_async();
+
         ORB_STATE_SET_CURRENT(RET_ERROR_NOT_INITIALIZED,
                               "bumps not correctly detected");
-        homing_failed();
     }
-
-    drv8434s_scale_current(DRV8434S_TRQ_DAC_25);
 
     // reset step counter
     atomic_clear(&g_polarizer_wheel_instance.step_count.current);
@@ -757,7 +747,7 @@ polarizer_wheel_set_angle(uint32_t frequency, uint32_t angle_decidegrees)
 
     atomic_set(&g_polarizer_wheel_instance.step_count.target, target_step);
 
-    ret_val = polarizer_move(frequency);
+    ret_val = polarizer_rotate(frequency);
     if (ret_val == 0) {
         if (use_encoder) {
             g_polarizer_wheel_instance.positioning.mode =
