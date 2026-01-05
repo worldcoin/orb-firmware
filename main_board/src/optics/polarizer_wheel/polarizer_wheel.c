@@ -603,7 +603,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
         // we start counting steps between notches to detect the small gap, and
         // thus, notch #0
         if (g_polarizer_wheel_instance.homing.notch_count != 0 &&
-            g_polarizer_wheel_instance.step_count.current <
+            atomic_get(&g_polarizer_wheel_instance.step_count.current) <
                 POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MAX &&
             g_polarizer_wheel_instance.step_count.current >
                 POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MIN) {
@@ -927,7 +927,7 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
         .ctrl7.EN_SSC = DRV8434S_REG_CTRL7_VAL_ENSSC_ENABLE,
         .ctrl7.TRQ_SCALE = DRV8434S_REG_CTRL7_VAL_TRQSCALE_NOSCALE};
 
-    size_t timeout = 3;
+    int timeout = 3;
     do {
         ret_val = drv8434s_clear_fault();
         if (ret_val) {
@@ -959,7 +959,7 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
                 ASSERT_SOFT(ret_val);
             }
         }
-    } while (timeout-- && ret_val != RET_SUCCESS);
+    } while (--timeout >= 0 && ret_val != RET_SUCCESS);
 
     // Enable the DRV8434s motor driver if configuration is successful
     // Scale the current to 75% of the maximum current
