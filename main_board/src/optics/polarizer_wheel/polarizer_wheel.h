@@ -19,28 +19,25 @@
  * - Motor Driver used: DRV8434s
  * - Motor Step Angle: 7.5 degrees
  *   Microstepping configured (128 microsteps / step)
- * - Bump angle from edge to center is 5.58 degrees
+ * - Bump angle from edge to center is 5.58 degrees ~= 3/4 of 7.5 degrees
+ *   From intuition, given how microsteps work, i (fouge) prefer to round up to
+ *   multiple of 4: microsteps from edge to center: 128*3/4 = 96
  *
  * (360 degrees / 7.5 degrees per step) * 128 (microsteps)
  *   = 6144 steps/revolution
  *
  */
-#define POLARIZER_WHEEL_DEGREES_PER_STEP    7.5
-#define POLARIZER_WHEEL_MICROSTEPS_PER_STEP 128
-// from notch edge to notch center
-#define POLARIZER_WHEEL_DEGREES_NOTCH_EDGE_TO_CENTER 5.58
-#define POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER                        \
-    (POLARIZER_WHEEL_MICROSTEPS_PER_STEP *                                     \
-     POLARIZER_WHEEL_DEGREES_NOTCH_EDGE_TO_CENTER /                            \
-     POLARIZER_WHEEL_DEGREES_PER_STEP)
+#define POLARIZER_WHEEL_DEGREES_PER_STEP 7.5
 
+#define POLARIZER_WHEEL_MICROSTEPS_PER_STEP 128
 #define POLARIZER_WHEEL_STEPS_PER_TURN                                         \
     (int)(360.0 / POLARIZER_WHEEL_DEGREES_PER_STEP)
-
 #define POLARIZER_WHEEL_MICROSTEPS_360_DEGREES                                 \
     (POLARIZER_WHEEL_STEPS_PER_TURN * POLARIZER_WHEEL_MICROSTEPS_PER_STEP)
 #define POLARIZER_WHEEL_MICROSTEPS_120_DEGREES                                 \
     (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 3)
+// round at 3/4 of 128
+#define POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER 96
 
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN                       \
     (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 3)
