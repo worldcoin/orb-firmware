@@ -5,6 +5,7 @@
 #include "voltage_measurement/voltage_measurement.h"
 #include <app_assert.h>
 #include <app_config.h>
+#include <math.h>
 #include <stdlib.h>
 #include <stm32_ll_hrtim.h>
 #include <zephyr/device.h>
@@ -27,26 +28,45 @@ ORB_STATE_REGISTER(liquid_lens);
 
 #define LIQUID_LENS_DEFAULT_SAMPLING_PERIOD_US 1000
 #define LIQUID_LENS_CONTROLLER_KI                                              \
-    ((float)LIQUID_LENS_DEFAULT_SAMPLING_PERIOD_US / 10000.0f)
+    (500.0f * (float)LIQUID_LENS_DEFAULT_SAMPLING_PERIOD_US / 1000000.0f)
 
-#define LIQUID_LENS_TIM_PERIOD      0x3300
-#define LIQUID_LENS_TIM_PERIOD_HALF (LIQUID_LENS_TIM_PERIOD / 2) // 0x1980
-#define LIQUID_LENS_TIM_POS_BRIDGE  LL_HRTIM_TIMER_B
-#define LIQUID_LENS_TIM_NEG_BRIDGE  LL_HRTIM_TIMER_A
-#define LIQUID_LENS_TIM_HS1_OUTPUT  LL_HRTIM_OUTPUT_TB2
-#define LIQUID_LENS_TIM_LS1_OUTPUT  LL_HRTIM_OUTPUT_TB1
-#define LIQUID_LENS_TIM_HS2_OUTPUT  LL_HRTIM_OUTPUT_TA2
-#define LIQUID_LENS_TIM_LS2_OUTPUT  LL_HRTIM_OUTPUT_TA1
+// Output PWM in per_mille = (feed forward) * (target current in mA)
+// On the development Orb a PWM output increase by 100 per_mille lead to a
+// current increase of 72 mA This means for getting the target output current we
+// would need a feed forward constant of roughly 1.5. We split this in two
+// parts: The feed forward part gets a constant of 1.0 and the I-controller is
+// configured to 500 (which scales down to 0.5 by the current sampling period of
+// 1000 us).
+// Exact value: 100/72 = 1,388, however 1.5 worked well. In practice it
+// doesn't need to be that accurate, because the system oscillates after
+// a change of the output value, which is corrected by the I part in the
+// following few cycles. Additionally the 1,388 factor is only valid for
+// this specific lens at room temperature. At higher temperatures the output
+//  current will be lower, so we need a higher factor.
+#define LIQUID_LENS_CONTROLLER_FEED_FORWARD (1.0f)
+#define LIQUID_LENS_TIM_PERIOD              0x3300
+#define LIQUID_LENS_TIM_PERIOD_HALF         (LIQUID_LENS_TIM_PERIOD / 2) // 0x1980
+#define LIQUID_LENS_TIM_POS_BRIDGE          LL_HRTIM_TIMER_B
+#define LIQUID_LENS_TIM_NEG_BRIDGE          LL_HRTIM_TIMER_A
+#define LIQUID_LENS_TIM_HS1_OUTPUT          LL_HRTIM_OUTPUT_TB2
+#define LIQUID_LENS_TIM_LS1_OUTPUT          LL_HRTIM_OUTPUT_TB1
+#define LIQUID_LENS_TIM_HS2_OUTPUT          LL_HRTIM_OUTPUT_TA2
+#define LIQUID_LENS_TIM_LS2_OUTPUT          LL_HRTIM_OUTPUT_TA1
 
-#define LIQUID_LENS_MAX_CONTROL_OUTPUT 99 //%
+#define LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE 999
 
 #define DT_INST_CLK(inst)                                                      \
     {                                                                          \
         .bus = DT_CLOCKS_CELL(inst, bus), .enr = DT_CLOCKS_CELL(inst, bits)    \
     }
 
-static atomic_t target_current_ma;
-static int8_t control_output_pwm = 0;
+// atomic_t is long in Zephyr, which is 32-bit on STM32
+// Note: volatile not needed - atomic_get/set include compiler barriers
+static atomic_t target_current_ma = ATOMIC_INIT(0);
+static float pwm_output_integral_per_mille = 0.0f; // range: -999 ... 999
+// Tracks the last PWM output sent to H-bridge (feed_forward + integral).
+// Used in self-test to verify control loop responds and stabilizes.
+static int16_t last_pwm_output_per_mille = 0;
 
 static const struct gpio_dt_spec liquid_lens_en =
     GPIO_DT_SPEC_GET(DT_PATH(liquid_lens), enable_gpios);
@@ -104,7 +124,6 @@ self_test(void);
 ret_code_t
 liquid_set_target_current_ma(int32_t new_target_current_ma)
 {
-
     const int32_t clamped_target_current_ma =
         CLAMP(new_target_current_ma, LIQUID_LENS_MIN_CURRENT_MA,
               LIQUID_LENS_MAX_CURRENT_MA);
@@ -121,17 +140,24 @@ liquid_set_target_current_ma(int32_t new_target_current_ma)
     return RET_SUCCESS;
 }
 
+/**
+ * @brief Set the PWM duty cycle
+ * Can be used in interrupt context
+ * @param per_mille PWM duty cycle in per_mille, clamped to [-999,999]
+ */
 static void
-liquid_lens_set_pwm_percentage(int8_t percentage)
+liquid_lens_set_pwm(int16_t per_mille)
 {
+    per_mille = CLAMP(per_mille, -LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE,
+                      LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE);
     LL_HRTIM_TIM_SetCompare2(
         HR_TIMER, LIQUID_LENS_TIM_POS_BRIDGE,
         (LIQUID_LENS_TIM_PERIOD_HALF +
-         (LIQUID_LENS_TIM_PERIOD_HALF * (int32_t)percentage) / 100));
+         (LIQUID_LENS_TIM_PERIOD_HALF * (int32_t)per_mille) / 1000));
     LL_HRTIM_TIM_SetCompare2(
         HR_TIMER, LIQUID_LENS_TIM_NEG_BRIDGE,
         (LIQUID_LENS_TIM_PERIOD_HALF -
-         (LIQUID_LENS_TIM_PERIOD_HALF * (int32_t)percentage) / 100));
+         (LIQUID_LENS_TIM_PERIOD_HALF * (int32_t)per_mille) / 1000));
 }
 
 // interrupt context!
@@ -164,30 +190,42 @@ adc_callback(const struct device *dev, const struct adc_sequence *sequence,
                       liquid_lens_current_amplifier_gain /
                       liquid_lens_shunt_resistance_ohms);
 
-        // PID control (currently just I.)
-        // todo: The data type of control_output_pwm should be switched from
-        // int8_t to float. Otherwise the I control part can only accumulate an
-        // error if the error is quite large (9 mA right now). If the error is
-        // lower it is rounded down to zero. For more details see
-        // https://linear.app/worldcoin/issue/O-2064/liquid-lens-current-hysteresis
-        const int32_t lens_current_error =
-            atomic_get(&target_current_ma) - lens_current_ma;
-        const int32_t ki = LIQUID_LENS_CONTROLLER_KI * 10000;
-        const int32_t prev_control_output = control_output_pwm;
-        control_output_pwm +=
-            (int8_t)((int32_t)(lens_current_error * ki) / 10000);
+        // Get target current atomically (no critical section needed)
+        const int32_t target_ma = atomic_get(&target_current_ma);
 
-        LOG_DBG(
-            "current: %dmA; sig: %dmV; ref: %dmV; error: %dmA; output: %d%%",
-            lens_current_ma, current_amplifier_sig_mv, current_amplifier_ref_mv,
-            lens_current_error, control_output_pwm);
+        LOG_DBG("lens_current_ma: %d; sig_mV: %d; ref_mV: %d", lens_current_ma,
+                current_amplifier_sig_mv, current_amplifier_ref_mv);
 
-        control_output_pwm =
-            CLAMP(control_output_pwm, -LIQUID_LENS_MAX_CONTROL_OUTPUT,
-                  LIQUID_LENS_MAX_CONTROL_OUTPUT);
-        if (prev_control_output != control_output_pwm) {
-            liquid_lens_set_pwm_percentage(control_output_pwm);
+        // PID control (currently just I.) with feed forward
+        const int32_t lens_current_error_ma = target_ma - lens_current_ma;
+
+        pwm_output_integral_per_mille +=
+            (float)lens_current_error_ma * LIQUID_LENS_CONTROLLER_KI;
+        // limit integral value to prevent controller windup
+        if (pwm_output_integral_per_mille <
+            -LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE) {
+            pwm_output_integral_per_mille =
+                -LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE;
+        } else if (pwm_output_integral_per_mille >
+                   LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE) {
+            pwm_output_integral_per_mille =
+                LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE;
         }
+
+        // Compute feed forward from atomic target (avoids critical section)
+        const float pwm_feed_forward_per_mille =
+            LIQUID_LENS_CONTROLLER_FEED_FORWARD * (float)target_ma;
+
+        // Combine feed forward and integral in float, then round to nearest
+        const float pwm_output_float =
+            pwm_feed_forward_per_mille + pwm_output_integral_per_mille;
+        const int16_t pwm_output_per_mille =
+            (int16_t)CLAMP(lroundf(pwm_output_float),
+                           -LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE,
+                           LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE);
+
+        last_pwm_output_per_mille = pwm_output_per_mille;
+        liquid_lens_set_pwm(pwm_output_per_mille);
     }
 
     return ADC_ACTION_REPEAT;
@@ -236,6 +274,9 @@ liquid_lens_enable(void)
     if (liquid_lens_is_enabled()) {
         return;
     }
+
+    // Reset integral to avoid windup from previous enable/disable cycles
+    pwm_output_integral_per_mille = 0.0f;
 
     LOG_INF("Enabling liquid lens current");
     LL_HRTIM_EnableOutput(
@@ -391,10 +432,19 @@ liquid_lens_init(const orb_mcu_Hardware *hw_version)
 
     LL_HRTIM_TIM_SetCompare1(HR_TIMER, LIQUID_LENS_TIM_POS_BRIDGE, 0);
     LL_HRTIM_TIM_SetCompare1(HR_TIMER, LIQUID_LENS_TIM_NEG_BRIDGE, 0);
-    liquid_lens_set_pwm_percentage(0);
+    liquid_lens_set_pwm(0);
 
     LL_HRTIM_TIM_EnablePreload(HR_TIMER, LIQUID_LENS_TIM_POS_BRIDGE |
                                              LIQUID_LENS_TIM_NEG_BRIDGE);
+
+    // Configure update trigger: transfer preloaded compare values to active
+    // registers at timer reset (start of each PWM period). This ensures both
+    // H-bridge legs update synchronously, preventing asymmetric pulses that
+    // could cause DC offset and unwanted lens position drift.
+    LL_HRTIM_TIM_SetUpdateTrig(HR_TIMER, LIQUID_LENS_TIM_POS_BRIDGE,
+                               LL_HRTIM_UPDATETRIG_RESET);
+    LL_HRTIM_TIM_SetUpdateTrig(HR_TIMER, LIQUID_LENS_TIM_NEG_BRIDGE,
+                               LL_HRTIM_UPDATETRIG_RESET);
 
     /* Configure channels individually prior to sampling. */
     for (size_t i = 0U; i < ARRAY_SIZE(adc_channels); i++) {
@@ -458,9 +508,9 @@ self_test(void)
 #endif
 
     k_msleep(10);
-    int8_t prev_pwm = control_output_pwm;
+    int16_t prev_pwm = last_pwm_output_per_mille;
 
-    // check that PWM value changes with new target current
+    // check that PWM output changes with new target current
     (void)liquid_set_target_current_ma(50);
 #ifdef CONFIG_ZTEST
     target = atomic_get(&target_current_ma);
@@ -470,22 +520,22 @@ self_test(void)
     k_msleep(10);
 
 #ifdef CONFIG_ZTEST
-    zassert_not_equal(control_output_pwm, prev_pwm,
+    zassert_not_equal(last_pwm_output_per_mille, prev_pwm,
                       "liquid_lens: pwm didn't change even though "
                       "target_current_ma increased from 0 to 50");
 #endif
 
-    if (control_output_pwm != prev_pwm) {
-        // check that PWM value is stable
-        prev_pwm = control_output_pwm;
+    if (last_pwm_output_per_mille != prev_pwm) {
+        // check that PWM output is stable
+        prev_pwm = last_pwm_output_per_mille;
 
         k_msleep(10);
 #ifdef CONFIG_ZTEST
-        zassert_true(abs(control_output_pwm - prev_pwm) <= 1,
+        zassert_true(abs(last_pwm_output_per_mille - prev_pwm) <= 1,
                      "liquid_lens: pwm didn't stabilize: %d -> %d", prev_pwm,
-                     control_output_pwm);
+                     last_pwm_output_per_mille);
 #endif
-        if (control_output_pwm == prev_pwm) {
+        if (abs(last_pwm_output_per_mille - prev_pwm) <= 1) {
             // pwm stabilized
             ret = RET_SUCCESS;
         }
@@ -515,6 +565,89 @@ ZTEST(hardware, test_liquid_lens)
 
     const int ret = self_test();
     zassert_equal(ret, RET_SUCCESS, "liquid_lens: self test failed");
+
+    liquid_lens_disable();
+}
+
+ZTEST(hardware, test_liquid_lens_anti_windup)
+{
+    liquid_lens_enable();
+
+    // Set extreme positive target to force integral to upper limit
+    liquid_set_target_current_ma(LIQUID_LENS_MAX_CURRENT_MA);
+    k_msleep(100); // Let integral accumulate
+
+    zassert_true(pwm_output_integral_per_mille <=
+                     LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE,
+                 "Integral exceeded upper bound: %d",
+                 (int)pwm_output_integral_per_mille);
+
+    // Set extreme negative target to force integral to lower limit
+    liquid_set_target_current_ma(LIQUID_LENS_MIN_CURRENT_MA);
+    k_msleep(100);
+
+    zassert_true(pwm_output_integral_per_mille >=
+                     -LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE,
+                 "Integral exceeded lower bound: %d",
+                 (int)pwm_output_integral_per_mille);
+
+    liquid_lens_disable();
+}
+
+ZTEST(hardware, test_liquid_lens_pwm_clamping)
+{
+    // Test that liquid_lens_set_pwm clamps values correctly
+    // We can't directly test the function since it's static, but we can
+    // verify through last_pwm_output_per_mille after extreme targets
+
+    liquid_lens_enable();
+
+    // Set maximum target - PWM should not exceed 999
+    liquid_set_target_current_ma(LIQUID_LENS_MAX_CURRENT_MA);
+    k_msleep(50);
+
+    zassert_true(
+        last_pwm_output_per_mille <= LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE,
+        "PWM output exceeded upper limit: %d", last_pwm_output_per_mille);
+    zassert_true(
+        last_pwm_output_per_mille >= -LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE,
+        "PWM output exceeded lower limit: %d", last_pwm_output_per_mille);
+
+    // Set minimum target - PWM should not go below -999
+    liquid_set_target_current_ma(LIQUID_LENS_MIN_CURRENT_MA);
+    k_msleep(50);
+
+    zassert_true(
+        last_pwm_output_per_mille <= LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE,
+        "PWM output exceeded upper limit: %d", last_pwm_output_per_mille);
+    zassert_true(
+        last_pwm_output_per_mille >= -LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE,
+        "PWM output exceeded lower limit: %d", last_pwm_output_per_mille);
+
+    liquid_lens_disable();
+}
+
+ZTEST(hardware, test_liquid_lens_integral_reset_on_enable)
+{
+    liquid_lens_enable();
+
+    // Set non-zero target to accumulate some integral
+    liquid_set_target_current_ma(100);
+    k_msleep(50);
+
+    // Integral should be non-zero now
+    float integral_before_disable = pwm_output_integral_per_mille;
+    zassert_true(integral_before_disable != 0.0f,
+                 "Expected non-zero integral after target change");
+
+    liquid_lens_disable();
+
+    // Re-enable - integral should be reset to 0
+    liquid_lens_enable();
+
+    zassert_true(pwm_output_integral_per_mille == 0.0f,
+                 "Integral was not reset on re-enable: %d",
+                 (int)pwm_output_integral_per_mille);
 
     liquid_lens_disable();
 }
