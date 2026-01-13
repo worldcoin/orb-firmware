@@ -1,58 +1,193 @@
 {
-  description = "orb-firmware flake";
+  description = "orb-firmware flake - extends orb-software environment";
   inputs = {
-    # Worlds largest repository of linux software
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
+    # Import orb-software flake as base environment
+    # Override with local path via: --override-input orb-software path:/path/to/orb-software
+    orb-software.url = "github:worldcoin/orb-software";
+
+    # Share nixpkgs with orb-software to avoid duplicates
+    nixpkgs.follows = "orb-software/nixpkgs";
+    nixpkgs-unstable.follows = "orb-software/nixpkgs-unstable";
+
     # Provides eachDefaultSystem and other utility functions
-    utils.url = "github:numtide/flake-utils";
+    flake-utils.follows = "orb-software/flake-utils";
+
+    # Zephyr SDK support (just for SDK and host tools)
+    zephyr-nix.url = "github:nix-community/zephyr-nix";
+    zephyr-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, utils, }:
-    # This helper function is used to more easily abstract
-    # over the host platform.
-    # See https://github.com/numtide/flake-utils#eachdefaultsystem--system---attrs
-    utils.lib.eachDefaultSystem (system:
+  outputs = { self, orb-software, nixpkgs, nixpkgs-unstable, flake-utils, zephyr-nix, ... }:
+    flake-utils.lib.eachDefaultSystem (system:
       let
-        p = {
-          # The platform that you are running nix on and building from
-          native = nixpkgs.legacyPackages.${system};
-          # The other platforms we support for cross compilation
-          arm-linux = nixpkgs.legacyPackages.aarch64-linux;
-          x86-linux = nixpkgs.legacyPackages.x86_64-linux;
-          arm-macos = nixpkgs.legacyPackages.aarch64-darwin;
-          x86-macos = nixpkgs.legacyPackages.x86_64-darwin;
+        pkgs = import nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
         };
-        pythonShell = (ps: with ps; [
-          pyocd
-          cmsis-pack-manager
+        pkgs-unstable = import nixpkgs-unstable {
+          inherit system;
+          config.allowUnfree = true;
+        };
+
+        # Get the orb-software devShell for this system
+        orbSoftwareShell = orb-software.devShells.${system}.default;
+
+        zephyr = zephyr-nix.packages.${system};
+
+        # Python environment with firmware-specific packages
+        # Using unstable nixpkgs for better Python package availability
+        # For packages not included (canopen), use: pip install --user canopen
+        pythonEnv = pkgs-unstable.python312.withPackages (ps: with ps; [
+          # Core packages
+          pip # for installing additional packages not in nixpkgs
+          pyserial
+          pyyaml
+          colorama
+          click
+          jinja2
+          packaging
+          requests
+          tqdm
+
+          # Build/testing
+          pytest
+          coverage
+
+          # Embedded development
+          intelhex
+          pyelftools
+          pyusb
+          pyftdi
+
+          # Zephyr/embedded tools
+          west # Zephyr meta tool
+          pyocd # ARM Cortex-M debugger
+          cmsis-pack-manager # CMSIS pack management
+
+          # CAN bus
+          python-can
+          # canopen - install via pip if needed (nixpkgs version has test failures)
+
+          # CBOR serialization
+          cbor2
+
+          # Git/versioning
+          gitpython
+
+          # Data analysis
+          numpy
+          matplotlib
+
+          # Code quality
+          pylint
+          mypy
+
+          # Documentation
+          tabulate
+
+          # Protocol buffers
+          grpcio
+          grpcio-tools
+          protobuf
+
+          # Misc utilities
+          psutil
+          pycparser
           cffi
+          cryptography
+          lxml
+          pillow
         ]);
+
       in
-      # See https://nixos.wiki/wiki/Flakes#Output_schema
       {
-        # Everything in here becomes your shell (nix develop)
-        devShells.default = p.native.mkShell {
-          # Nix makes the following list of dependencies available to the development
-          # environment.
-          buildInputs = (with p.native; [
+        devShells.default = pkgs.mkShell {
+          # Inherit everything from orb-software shell
+          inputsFrom = [ orbSoftwareShell ];
+
+          # Add firmware-specific build dependencies
+          buildInputs = (with pkgs; [
+            # Build system
+            cmake
+            ninja
+            gnumake
+            ccache
+            gperf
+            dtc
+
+            # C/C++ tooling
+            clang-tools # includes clang-format, clang-tidy
+            llvmPackages.libclang
+
+            # Python environment with all packages
+            pythonEnv
+
+            # Protocol buffers
             protobuf
-            nixpkgs-fmt
 
-            (python3.withPackages pythonShell)
-            black
+            # Debugging and flashing
+            openocd
 
-            # This is missing on mac m1 nix, for some reason.
-            # see https://stackoverflow.com/a/69732679
-            libiconv
-          ]);
+            # USB support
+            libusb1
 
-          # The following sets up environment variables for the shell. These are used
-          # by the build.rs build scripts of the rust crates.
+            # Security/crypto
+            gnupg
+            openssl
+
+            # Compression
+            zstd
+            xxHash
+
+            # Misc
+            graphviz # for dependency graphs
+          ]) ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            # Linux-specific packages for USB/device access
+            pkgs.udev
+          ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+            # macOS-specific packages
+            pkgs.libiconv
+          ] ++ [
+            # Zephyr SDK with ARM toolchain (add more targets as needed)
+            (zephyr.sdk-0_16.override {
+              targets = [
+                "arm-zephyr-eabi"
+                # Add more targets if needed:
+                # "riscv64-zephyr-elf"
+                # "x86_64-zephyr-elf"
+              ];
+            })
+          ];
+
           shellHook = ''
-            '';
+            # Inherit orb-software shell hook
+            ${orbSoftwareShell.shellHook or ""}
+
+            # Firmware-specific environment variables
+            export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
+
+            # Ensure ccache is used
+            export USE_CCACHE=1
+
+            # Fix Python site-packages path for the firmware Python environment
+            # This ensures protobuf and other packages are found
+            export PYTHONPATH="${pythonEnv}/${pythonEnv.sitePackages}''${PYTHONPATH:+:$PYTHONPATH}"
+
+            # Add local scripts to PATH if they exist
+            if [ -d "$PWD/utils" ]; then
+              export PATH="$PWD/utils:$PATH"
+            fi
+
+            echo ""
+            echo "🔧 orb-firmware development environment loaded"
+            echo "   Extends orb-software with firmware-specific tools"
+            echo "   Zephyr SDK: 0.16.x (compatible with Zephyr 3.5.x - 4.1.x)"
+            echo ""
+          '';
         };
+
         # Lets you type `nix fmt` to format the flake.
-        formatter = p.native.nixpkgs-fmt;
+        formatter = pkgs.nixpkgs-fmt;
       }
     );
 }
