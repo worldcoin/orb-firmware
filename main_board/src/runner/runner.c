@@ -1222,6 +1222,8 @@ handle_polarizer(job_t *job)
 
     if (err_code == RET_SUCCESS) {
         job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+    } else if (err_code == RET_ERROR_BUSY) {
+        job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
     } else if (err_code == RET_ERROR_INVALID_PARAM) {
         job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
     } else {

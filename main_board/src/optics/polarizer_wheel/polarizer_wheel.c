@@ -12,7 +12,7 @@
 #include <app_assert.h>
 #include <app_config.h>
 #include <common.pb.h>
-#include <math.h>
+#include <pubsub/pubsub.h>
 #include <stdlib.h>
 #include <stm32g474xx.h>
 #include <stm32g4xx_ll_tim.h>
@@ -35,6 +35,31 @@ enum polarizer_wheel_direction_e {
     POLARIZER_WHEEL_DIRECTION_FORWARD = 1,
 };
 
+enum polarizer_wheel_mode_e {
+    POLARIZER_WHEEL_MODE_UNKNOWN = 0,
+    POLARIZER_WHEEL_MODE_IDLE,
+    POLARIZER_WHEEL_MODE_HOMING,
+    POLARIZER_WHEEL_MODE_POSITIONING, // encoder-assisted positioning (for
+                                      // standard positions)
+    POLARIZER_WHEEL_MODE_CUSTOM_ANGLE,
+    POLARIZER_WHEEL_MODE_PENDING_IDLE,
+    POLARIZER_WHEEL_MODE_PENDING_HOME,
+};
+
+enum encoder_state_e {
+    ENCODER_DISABLED = 0,
+    ENCODER_ENABLED,
+    ENCODER_PENDING_ENABLE,
+    ENCODER_PENDING_DISABLE,
+};
+
+enum acceleration_state_e {
+    ACCELERATION_IDLE = 0,  /* no acceleration: fixed speed */
+    ACCELERATION_RAMP_UP,   /* ramp up */
+    ACCELERATION_FULL,      /* full speed, after ramp up & before ramp down */
+    ACCELERATION_RAMP_DOWN, /* ramp down */
+};
+
 typedef struct {
     struct {
         uint8_t notch_count;
@@ -47,6 +72,40 @@ typedef struct {
         atomic_t target;
         enum polarizer_wheel_direction_e direction;
     } step_count;
+
+    struct {
+        enum polarizer_wheel_mode_e mode;
+        // target notch edge position in microsteps (used for encoder-assisted
+        // positioning)
+        int32_t target_notch_edge;
+        enum encoder_state_e encoder_state;
+        uint32_t frequency;
+        // flag to track if encoder was triggered during positioning
+        atomic_t encoder_triggered;
+        uint32_t start_time_ms;
+        // for state reporting: previous position before motion started
+        orb_mcu_main_PolarizerWheelState_Position previous_position;
+        // for state reporting: target position (standard positions only)
+        orb_mcu_main_PolarizerWheelState_Position target_position;
+        // for state reporting: step loss detected by encoder (absolute value)
+        uint32_t step_loss_microsteps;
+    } positioning;
+
+    struct {
+        atomic_t current_frequency;
+        uint32_t target_frequency;
+        uint32_t start_frequency;
+        uint32_t ramp_index;
+        uint32_t total_ramp_steps;
+        enum acceleration_state_e state;
+    } acceleration;
+
+#if CONFIG_POLARIZER_LOG_LEVEL_DBG
+    struct {
+        uint32_t min_frequency;
+        uint32_t max_frequency;
+    } debug_stats;
+#endif
 } polarizer_wheel_instance_t;
 
 static polarizer_wheel_instance_t g_polarizer_wheel_instance = {0};
@@ -101,35 +160,59 @@ static const DRV8434S_DriverCfg_t drv8434_cfg = {
 
 // there are 4 notches so we need a minimum of 4 notch detection attempts
 BUILD_ASSERT(POLARIZER_WHEEL_NOTCH_DETECT_ATTEMPTS > 4);
+BUILD_ASSERT(POLARIZER_WHEEL_DECELERATION_RAMP_STEPS > 0);
+BUILD_ASSERT(POLARIZER_WHEEL_ACCELERATION_RAMP_STEPS <= 10000,
+             "Ramp steps too large, risk of overflow in S-curve calculation");
+BUILD_ASSERT(POLARIZER_WHEEL_DECELERATION_RAMP_STEPS <= 10000,
+             "Ramp steps too large, risk of overflow in S-curve calculation");
 
 static K_SEM_DEFINE(home_sem, 0, 1);
+
+/* Work item for deferring encoder & motor enable/disable from ISR context */
+static struct k_work polarizer_async_work;
 
 // Enable encoder interrupt
 static ret_code_t
 enable_encoder(void)
 {
-    const int ret = gpio_pin_configure_dt(&polarizer_encoder_enable_spec,
-                                          GPIO_OUTPUT_ACTIVE);
+    if (k_is_in_isr()) {
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    int ret = gpio_pin_configure_dt(&polarizer_encoder_enable_spec,
+                                    GPIO_OUTPUT_ACTIVE);
     if (ret) {
         return ret;
     }
 
-    return gpio_pin_interrupt_configure_dt(&polarizer_encoder_spec,
-                                           GPIO_INT_EDGE_RISING);
+    ret = gpio_pin_interrupt_configure_dt(&polarizer_encoder_spec,
+                                          GPIO_INT_EDGE_RISING);
+    if (ret) {
+        return ret;
+    }
+
+    g_polarizer_wheel_instance.positioning.encoder_state = ENCODER_ENABLED;
+    return RET_SUCCESS;
 }
 
 // Disable the interrupt
 static ret_code_t
 disable_encoder(void)
 {
-    const int ret = gpio_pin_configure_dt(&polarizer_encoder_enable_spec,
-                                          GPIO_OUTPUT_INACTIVE);
+    int ret = gpio_pin_configure_dt(&polarizer_encoder_enable_spec,
+                                    GPIO_OUTPUT_INACTIVE);
     if (ret) {
         return ret;
     }
 
-    return gpio_pin_interrupt_configure_dt(&polarizer_encoder_spec,
-                                           GPIO_INT_DISABLE);
+    ret = gpio_pin_interrupt_configure_dt(&polarizer_encoder_spec,
+                                          GPIO_INT_DISABLE);
+    if (ret) {
+        return ret;
+    }
+
+    g_polarizer_wheel_instance.positioning.encoder_state = ENCODER_DISABLED;
+    return RET_SUCCESS;
 }
 
 // clear the polarizer wheel step interrupt flag
@@ -142,22 +225,6 @@ clear_step_interrupt(void)
                           LL_TIM_ClearFlag_CC3, LL_TIM_ClearFlag_CC4};
 
     clear_capture_interrupt[polarizer_step_pwm_spec->channel - 1](
-        polarizer_step_timer);
-
-    return RET_SUCCESS;
-}
-
-// Enable polarizer wheel step interrupt
-static ret_code_t
-enable_step_interrupt(void)
-{
-    /* Channel to enable capture interrupt mapping. */
-    static void __maybe_unused (*const enable_capture_interrupt[])(
-        TIM_TypeDef *) = {LL_TIM_EnableIT_CC1, LL_TIM_EnableIT_CC2,
-                          LL_TIM_EnableIT_CC3, LL_TIM_EnableIT_CC4};
-
-    clear_step_interrupt();
-    enable_capture_interrupt[polarizer_step_pwm_spec->channel - 1](
         polarizer_step_timer);
 
     return RET_SUCCESS;
@@ -179,20 +246,188 @@ disable_step_interrupt(void)
 }
 
 static int
-polarizer_move(const uint32_t frequency)
+polarizer_set_frequency(const uint32_t frequency)
 {
-    drv8434s_scale_current(DRV8434S_TRQ_DAC_100);
-    enable_step_interrupt();
+    if (frequency > POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MAXIMUM ||
+        frequency < POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MINIMUM) {
+        return RET_ERROR_INVALID_PARAM;
+    }
     return pwm_set_dt(polarizer_step_pwm_spec, NSEC_PER_SEC / frequency,
                       (NSEC_PER_SEC / frequency) / 2);
 }
 
 static int
-polarizer_stop()
+polarizer_halt()
 {
     const int ret = pwm_set_dt(polarizer_step_pwm_spec, 0, 0);
     disable_step_interrupt();
+
+    // Reset acceleration state to prevent stale data on next move
+    g_polarizer_wheel_instance.acceleration.state = ACCELERATION_IDLE;
+    atomic_clear(&g_polarizer_wheel_instance.acceleration.current_frequency);
+    g_polarizer_wheel_instance.acceleration.target_frequency = 0;
+
     return ret;
+}
+
+static ret_code_t
+polarizer_wheel_home_async_internal(void);
+
+static int
+report_reached_state(void)
+{
+    static orb_mcu_main_PolarizerWheelState state_report = {0};
+
+    uint32_t elapsed_ms = k_uptime_get_32() -
+                          g_polarizer_wheel_instance.positioning.start_time_ms;
+
+    state_report.previous_position =
+        g_polarizer_wheel_instance.positioning.previous_position;
+    state_report.current_position =
+        g_polarizer_wheel_instance.positioning.target_position;
+    state_report.step_loss_microsteps =
+        g_polarizer_wheel_instance.positioning.step_loss_microsteps;
+    state_report.transition_time_ms = elapsed_ms;
+
+    LOG_INF(
+        "Polarizer state: %d -> %d [%u], step_loss=%u, time=%u ms",
+        state_report.previous_position, state_report.current_position,
+        (uint32_t)atomic_get(&g_polarizer_wheel_instance.step_count.current),
+        state_report.step_loss_microsteps, state_report.transition_time_ms);
+
+    return publish_new(&state_report, sizeof(state_report),
+                       orb_mcu_main_McuToJetson_polarizer_wheel_state_tag,
+                       CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
+}
+
+static void
+polarizer_work_handler(struct k_work *work)
+{
+    ARG_UNUSED(work);
+    int ret;
+
+    if (g_polarizer_wheel_instance.positioning.mode ==
+        POLARIZER_WHEEL_MODE_PENDING_IDLE) {
+        /* Check if this was an encoder-assisted positioning move
+         * that completed successfully (encoder was triggered)
+         * then report new state */
+        if (atomic_get(
+                &g_polarizer_wheel_instance.positioning.encoder_triggered) ==
+                1 &&
+            g_polarizer_wheel_instance.positioning.target_position !=
+                orb_mcu_main_PolarizerWheelState_Position_UNKNOWN) {
+            report_reached_state();
+        }
+
+        // stop the motor first
+        polarizer_halt();
+        drv8434s_scale_current(DRV8434S_TRQ_DAC_25);
+        g_polarizer_wheel_instance.positioning.mode = POLARIZER_WHEEL_MODE_IDLE;
+    } else if (g_polarizer_wheel_instance.positioning.mode ==
+               POLARIZER_WHEEL_MODE_PENDING_HOME) {
+        g_polarizer_wheel_instance.positioning.mode = POLARIZER_WHEEL_MODE_IDLE;
+        ret = polarizer_wheel_home_async_internal();
+        if (ret != RET_SUCCESS) {
+            LOG_ERR("Failed to start homing from work handler: %d", ret);
+        }
+    }
+
+    switch (g_polarizer_wheel_instance.positioning.encoder_state) {
+    case ENCODER_PENDING_ENABLE:
+        ret = enable_encoder();
+        ASSERT_SOFT(ret);
+        break;
+    case ENCODER_PENDING_DISABLE:
+        ret = disable_encoder();
+        ASSERT_SOFT(ret);
+        break;
+    default:
+        /* Already in final state, nothing to do */
+        break;
+    }
+}
+
+static inline void
+encoder_enable_async(void)
+{
+    g_polarizer_wheel_instance.positioning.encoder_state =
+        ENCODER_PENDING_ENABLE;
+    int ret = k_work_submit(&polarizer_async_work);
+    if (ret < 0) {
+        LOG_ERR("Failed to submit encoder enable work: %d", ret);
+    }
+}
+
+/**
+ * Stop polarizer wheel motion (& encoder in case enabled)
+ */
+static inline void
+polarizer_stop_async(void)
+{
+    if (g_polarizer_wheel_instance.positioning.encoder_state ==
+            ENCODER_ENABLED ||
+        g_polarizer_wheel_instance.positioning.encoder_state ==
+            ENCODER_PENDING_ENABLE) {
+        g_polarizer_wheel_instance.positioning.encoder_state =
+            ENCODER_PENDING_DISABLE;
+    }
+
+    g_polarizer_wheel_instance.positioning.mode =
+        POLARIZER_WHEEL_MODE_PENDING_IDLE;
+    int ret = k_work_submit(&polarizer_async_work);
+    if (ret < 0) {
+        LOG_ERR("Failed to submit polarizer stop work: %d", ret);
+    }
+}
+
+/**
+ * Calculate the shortest signed distance between two positions on the circular
+ * wheel.
+ * @param from Starting position in microsteps [0, 360°)
+ * @param to Target position in microsteps [0, 360°)
+ * @return Signed distance: positive = forward, negative = backward
+ */
+static int32_t
+circular_signed_distance(int32_t from, int32_t to)
+{
+    int32_t diff = to - from;
+    int32_t half_range = POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 2;
+
+    if (diff > half_range) {
+        diff -= POLARIZER_WHEEL_MICROSTEPS_360_DEGREES;
+    } else if (diff < -half_range) {
+        diff += POLARIZER_WHEEL_MICROSTEPS_360_DEGREES;
+    }
+    return diff;
+}
+
+// Enable polarizer wheel step interrupt
+static ret_code_t
+enable_step_interrupt(void)
+{
+    /* Channel to enable capture interrupt mapping. */
+    static void __maybe_unused (*const enable_capture_interrupt[])(
+        TIM_TypeDef *) = {LL_TIM_EnableIT_CC1, LL_TIM_EnableIT_CC2,
+                          LL_TIM_EnableIT_CC3, LL_TIM_EnableIT_CC4};
+
+    clear_step_interrupt();
+    enable_capture_interrupt[polarizer_step_pwm_spec->channel - 1](
+        polarizer_step_timer);
+
+    return RET_SUCCESS;
+}
+
+static int
+polarizer_rotate(const uint32_t frequency)
+{
+    const int ret = drv8434s_scale_current(DRV8434S_TRQ_DAC_100);
+    if (ret) {
+        ASSERT_SOFT(ret);
+        return ret;
+    }
+
+    enable_step_interrupt();
+    return polarizer_set_frequency(frequency);
 }
 
 static int
@@ -229,13 +464,133 @@ encoder_callback(const struct device *dev, struct gpio_callback *cb,
 
     if (pins & BIT(polarizer_encoder_spec.pin)) {
         if (gpio_pin_get_dt(&polarizer_encoder_spec) == 1) {
-            LOG_DBG("notches detected: %u",
-                    g_polarizer_wheel_instance.homing.notch_count);
-            /* stop early */
-            polarizer_stop();
-            k_sem_give(&home_sem);
+            if (g_polarizer_wheel_instance.positioning.mode ==
+                POLARIZER_WHEEL_MODE_HOMING) {
+                LOG_DBG("notches detected: %u",
+                        g_polarizer_wheel_instance.homing.notch_count);
+                /* stop instantly the wheel rotation, keep encoder isr enabled
+                 */
+                polarizer_halt();
+                k_sem_give(&home_sem);
+            } else if (g_polarizer_wheel_instance.positioning.mode ==
+                           POLARIZER_WHEEL_MODE_POSITIONING &&
+                       atomic_get(&g_polarizer_wheel_instance.positioning
+                                       .encoder_triggered) == 0) {
+                /* Mark encoder as triggered for this positioning move */
+                atomic_set(
+                    &g_polarizer_wheel_instance.positioning.encoder_triggered,
+                    1);
+
+                /* Calculate step loss (difference between expected and actual
+                 * position) for reporting */
+                int32_t current_position =
+                    atomic_get(&g_polarizer_wheel_instance.step_count.current);
+                int32_t step_loss = circular_signed_distance(
+                    g_polarizer_wheel_instance.positioning.target_notch_edge,
+                    current_position);
+                /* Store absolute value for reporting */
+                g_polarizer_wheel_instance.positioning.step_loss_microsteps =
+                    (uint32_t)abs(step_loss);
+                LOG_DBG(
+                    "Step loss detected: %d µsteps (current: %d, "
+                    "target: %d, dir: %d)",
+                    step_loss, current_position,
+                    g_polarizer_wheel_instance.positioning.target_notch_edge,
+                    g_polarizer_wheel_instance.step_count.direction);
+                /*
+                 * keep the motor running,
+                 * but set step counter to the expected edge position
+                 */
+                atomic_set(
+                    &g_polarizer_wheel_instance.step_count.current,
+                    g_polarizer_wheel_instance.positioning.target_notch_edge);
+
+                /*
+                 * Start deceleration using S-curve,
+                 * if speed increased, decrease back to initial speed: use
+                 * previous start frequency as target frequency otherwise keep
+                 * current speed until stop
+                 */
+                g_polarizer_wheel_instance.acceleration.state =
+                    ACCELERATION_RAMP_DOWN;
+                if ((int32_t)g_polarizer_wheel_instance.acceleration
+                        .start_frequency <=
+                    atomic_get(&g_polarizer_wheel_instance.acceleration
+                                    .current_frequency)) {
+                    g_polarizer_wheel_instance.acceleration.target_frequency =
+                        g_polarizer_wheel_instance.acceleration.start_frequency;
+                    g_polarizer_wheel_instance.acceleration.start_frequency =
+                        atomic_get(&g_polarizer_wheel_instance.acceleration
+                                        .current_frequency);
+                } else {
+                    g_polarizer_wheel_instance.acceleration.target_frequency =
+                        atomic_get(&g_polarizer_wheel_instance.acceleration
+                                        .current_frequency);
+                    g_polarizer_wheel_instance.acceleration.start_frequency =
+                        atomic_get(&g_polarizer_wheel_instance.acceleration
+                                        .current_frequency);
+                }
+
+                g_polarizer_wheel_instance.acceleration.ramp_index = 0;
+                g_polarizer_wheel_instance.acceleration.total_ramp_steps =
+                    POLARIZER_WHEEL_DECELERATION_RAMP_STEPS;
+
+                LOG_DBG(
+                    "Encoder-assisted: edge=%d, moving to center=%ld, "
+                    "decelerating from %u to %u Hz",
+                    g_polarizer_wheel_instance.positioning.target_notch_edge,
+                    atomic_get(&g_polarizer_wheel_instance.step_count.target),
+                    g_polarizer_wheel_instance.acceleration.start_frequency,
+                    g_polarizer_wheel_instance.acceleration.target_frequency);
+            }
         }
     }
+}
+
+/*
+ * Calculate the frequency for the S-curve acceleration/deceleration
+ * Uses cubic formula: freq = start +/- range * (3p² - 2p³)
+ * where p = ramp_index / total_ramp_steps
+ *
+ * @note step and total must be < 2^21 (~2M) to avoid uint64_t overflow
+ *       in cubic calculations. Current usage with ramp steps <= 100 is safe.
+ */
+static uint32_t
+calculate_scurve_frequency(uint32_t step, uint32_t total, uint32_t start_freq,
+                           uint32_t target_freq, bool ramp_up)
+{
+    if (step >= total) {
+        return target_freq;
+    }
+
+    if (total == 0) {
+        ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
+        return start_freq;
+    }
+
+    if (ramp_up) {
+        if (target_freq < start_freq) {
+            /* Non-increasing or misconfigured ramp-up: no interpolation. */
+            ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
+            return start_freq;
+        }
+    } else {
+        if (target_freq > start_freq) {
+            /* Non-decreasing or misconfigured deceleration: no interpolation.
+             */
+            ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
+            return start_freq;
+        }
+    }
+
+    const uint64_t step_sq = (uint64_t)step * step;
+    const uint64_t step_cb = step_sq * step;
+    const uint64_t total_cb = (uint64_t)total * total * total;
+    const uint64_t numerator = 3 * step_sq * total - 2 * step_cb;
+    const uint32_t range =
+        ramp_up ? (target_freq - start_freq) : (start_freq - target_freq);
+    return ramp_up ? start_freq + (uint32_t)((numerator * range) / total_cb)
+                   : start_freq - (uint32_t)((numerator * range) / total_cb);
 }
 
 /**
@@ -272,11 +627,131 @@ polarizer_wheel_step_isr(const void *arg)
                        POLARIZER_WHEEL_MICROSTEPS_360_DEGREES - 1);
         }
 
-        if (g_polarizer_wheel_instance.step_count.target ==
-            g_polarizer_wheel_instance.step_count.current) {
-            LOG_DBG("Reached target (%lu), stopping motor",
-                    g_polarizer_wheel_instance.step_count.target);
-            polarizer_stop();
+        // Handle acceleration with S-curve (smoothstep)
+        if (g_polarizer_wheel_instance.acceleration.state ==
+                ACCELERATION_RAMP_UP ||
+            g_polarizer_wheel_instance.acceleration.state ==
+                ACCELERATION_RAMP_DOWN) {
+            g_polarizer_wheel_instance.acceleration.ramp_index++;
+
+            const uint32_t step =
+                g_polarizer_wheel_instance.acceleration.ramp_index;
+            const uint32_t total =
+                g_polarizer_wheel_instance.acceleration.total_ramp_steps;
+            const uint32_t start_freq =
+                g_polarizer_wheel_instance.acceleration.start_frequency;
+            const uint32_t target_freq =
+                g_polarizer_wheel_instance.acceleration.target_frequency;
+
+            uint32_t current_freq = atomic_get(
+                &g_polarizer_wheel_instance.acceleration.current_frequency);
+            if (step >= total) {
+                // Ramp up complete, now at full speed
+                current_freq = target_freq;
+                g_polarizer_wheel_instance.acceleration.state =
+                    ACCELERATION_FULL;
+            } else if (total != 0) {
+                current_freq = calculate_scurve_frequency(
+                    step, total, start_freq, target_freq,
+                    (g_polarizer_wheel_instance.acceleration.state ==
+                     ACCELERATION_RAMP_UP));
+            }
+
+            const int ret = polarizer_set_frequency(current_freq);
+            ASSERT_SOFT(ret);
+            if (ret == 0) {
+                atomic_set(
+                    &g_polarizer_wheel_instance.acceleration.current_frequency,
+                    current_freq);
+            }
+            LOG_DBG("Freq: %u, ret: %d (target: %u; step: %u/%u)", current_freq,
+                    ret, target_freq, step, total);
+
+#if CONFIG_POLARIZER_LOG_LEVEL_DBG
+            /* Track min/max frequency for debug stats */
+            if (current_freq <
+                g_polarizer_wheel_instance.debug_stats.min_frequency) {
+                g_polarizer_wheel_instance.debug_stats.min_frequency =
+                    current_freq;
+            }
+            if (current_freq >
+                g_polarizer_wheel_instance.debug_stats.max_frequency) {
+                g_polarizer_wheel_instance.debug_stats.max_frequency =
+                    current_freq;
+            }
+#endif
+        }
+
+        // Enable encoder when within detection window of target notch edge
+        // (only for encoder-assisted positioning mode, and encoder not already
+        // enabled or pending)
+        if (g_polarizer_wheel_instance.positioning.mode ==
+                POLARIZER_WHEEL_MODE_POSITIONING &&
+            g_polarizer_wheel_instance.positioning.encoder_state ==
+                ENCODER_DISABLED) {
+            const int32_t current_pos =
+                atomic_get(&g_polarizer_wheel_instance.step_count.current);
+            const int32_t target_edge =
+                g_polarizer_wheel_instance.positioning.target_notch_edge;
+
+            const int32_t distance =
+                abs(circular_signed_distance(current_pos, target_edge));
+
+            // Enable encoder when within window (defer to work queue since
+            // we're in ISR context)
+            if (distance <=
+                POLARIZER_WHEEL_ENCODER_ENABLE_DISTANCE_TO_NOTCH_MICROSTEPS) {
+                LOG_DBG("Enabling encoder: distance: %d, current: %d, target "
+                        "edge: %d, dir: %d",
+                        distance, current_pos, target_edge,
+                        g_polarizer_wheel_instance.step_count.direction);
+                // cannot enable encoder in ISR context, defer to work queue,
+                // which is fine since the encoder should trigger within the
+                // next `POLARIZER_WHEEL_ENCODER_ENABLE_WINDOW_MICROSTEPS`
+                // microsteps
+                encoder_enable_async();
+            }
+        }
+
+        if (atomic_get(&g_polarizer_wheel_instance.step_count.target) ==
+            atomic_get(&g_polarizer_wheel_instance.step_count.current)) {
+            /* Check if encoder was expected but never triggered
+             * This happens when more than 100 motor steps were lost
+             * (see POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER)
+             */
+            if (g_polarizer_wheel_instance.positioning.mode ==
+                    POLARIZER_WHEEL_MODE_POSITIONING &&
+                atomic_get(&g_polarizer_wheel_instance.positioning
+                                .encoder_triggered) == 0) {
+                polarizer_halt();
+                LOG_ERR(
+                    "Encoder not triggered during positioning! "
+                    "Expected edge at %d, current pos: %d, dir: %d",
+                    g_polarizer_wheel_instance.positioning.target_notch_edge,
+                    (int32_t)atomic_get(
+                        &g_polarizer_wheel_instance.step_count.current),
+                    g_polarizer_wheel_instance.step_count.direction);
+                // trigger homing to reset polarizer state
+                polarizer_wheel_home_async();
+                return;
+            }
+
+            // halt motor asap, but queue stop op to ensure motor is fully
+            // stopped
+            polarizer_halt();
+            polarizer_stop_async();
+
+#if CONFIG_POLARIZER_LOG_LEVEL_DBG
+            __maybe_unused uint32_t elapsed_ms =
+                k_uptime_get_32() -
+                g_polarizer_wheel_instance.positioning.start_time_ms;
+            LOG_DBG("Reached target=%ld; time=%u ms; min_frequency=%u; "
+                    "max_frequency=%u",
+                    atomic_get(&g_polarizer_wheel_instance.step_count.target),
+                    elapsed_ms,
+                    g_polarizer_wheel_instance.debug_stats.min_frequency,
+                    g_polarizer_wheel_instance.debug_stats.max_frequency);
+#endif
         }
     }
 }
@@ -318,20 +793,9 @@ polarizer_wheel_step_relative(const uint32_t frequency,
         atomic_set(&g_polarizer_wheel_instance.step_count.target, target);
     }
 
-    ret_val = polarizer_move(frequency);
+    ret_val = polarizer_rotate(frequency);
 
     return ret_val;
-}
-
-static void
-homing_failed()
-{
-    g_polarizer_wheel_instance.homing.success = false;
-    int ret = polarizer_stop();
-    ASSERT_SOFT(ret);
-
-    ret = disable_encoder();
-    ASSERT_SOFT(ret);
 }
 
 static void
@@ -342,6 +806,15 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
     ARG_UNUSED(p3);
 
     clear_step_interrupt();
+
+    // set mode to homing
+    g_polarizer_wheel_instance.positioning.previous_position =
+        orb_mcu_main_PolarizerWheelState_Position_UNKNOWN;
+    g_polarizer_wheel_instance.positioning.target_position =
+        orb_mcu_main_PolarizerWheelState_Position_PASS_THROUGH;
+    g_polarizer_wheel_instance.positioning.step_loss_microsteps = 0;
+    g_polarizer_wheel_instance.positioning.mode = POLARIZER_WHEEL_MODE_HOMING;
+    g_polarizer_wheel_instance.positioning.start_time_ms = k_uptime_get_32();
 
     // enable encoder interrupt to detect notches
     enable_encoder();
@@ -372,7 +845,8 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
             if (ret != RET_SUCCESS) {
                 LOG_ERR("Unable to spin polarizer wheel: %d, attempt %u", ret,
                         spin_attempt);
-                homing_failed();
+                g_polarizer_wheel_instance.homing.success = false;
+                polarizer_stop_async();
                 ORB_STATE_SET_CURRENT(ret, "unable to spin");
                 return;
             }
@@ -384,14 +858,14 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
         }
 
         if (spin_attempt != 0) {
-            LOG_WRN("Spin attempt %u, current step counter: %u", spin_attempt,
-                    (uint32_t)atomic_get(
-                        &g_polarizer_wheel_instance.step_count.current));
+            LOG_WRN("Spin attempt %u, current step counter: %lu", spin_attempt,
+                    atomic_get(&g_polarizer_wheel_instance.step_count.current));
             if (spin_attempt == POLARIZER_WHEEL_HOMING_SPIN_ATTEMPTS) {
                 // encoder not detected, no wheel?
                 ORB_STATE_SET_CURRENT(RET_ERROR_NOT_INITIALIZED,
                                       "no encoder: no wheel? staled?");
-                homing_failed();
+                g_polarizer_wheel_instance.homing.success = false;
+                polarizer_stop_async();
                 LOG_WRN(
                     "Encoder not detected, is there a wheel? is it moving?");
                 return;
@@ -407,12 +881,12 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
         // detection, all we do is to reset the step counter. From that point,
         // we start counting steps between notches to detect the small gap, and
         // thus, notch #0
+        int32_t current_steps =
+            atomic_get(&g_polarizer_wheel_instance.step_count.current);
         if (g_polarizer_wheel_instance.homing.notch_count != 0 &&
-            g_polarizer_wheel_instance.step_count.current <
-                POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MAX &&
-            g_polarizer_wheel_instance.step_count.current >
-                POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MIN) {
-            polarizer_stop();
+            current_steps < POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MAX &&
+            current_steps > POLARIZER_CLOSE_NOTCH_DETECTION_MICROSTEPS_MIN) {
+            polarizer_halt();
             notch_0_detected = true;
         }
 
@@ -434,74 +908,263 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
         // wait for completion and disconnect interrupt
         k_sleep(K_SECONDS(4));
 
-        ASSERT_SOFT(polarizer_stop());
-        ASSERT_SOFT(disable_encoder());
+        g_polarizer_wheel_instance.positioning.mode = POLARIZER_WHEEL_MODE_IDLE;
+        polarizer_stop_async();
 
         LOG_INF("Polarizer wheel homed");
         ORB_STATE_SET_CURRENT(RET_SUCCESS, "homed");
         g_polarizer_wheel_instance.homing.success = true;
+
+        report_reached_state();
     } else {
         // ❌ failure homing
         // encoder bumps not detected at expected positions
+        g_polarizer_wheel_instance.homing.success = false;
+        polarizer_stop_async();
+
         ORB_STATE_SET_CURRENT(RET_ERROR_NOT_INITIALIZED,
                               "bumps not correctly detected");
-        homing_failed();
     }
-
-    drv8434s_scale_current(DRV8434S_TRQ_DAC_25);
 
     // reset step counter
     atomic_clear(&g_polarizer_wheel_instance.step_count.current);
 }
 
+/**
+ * Convert angle in decidegrees to PolarizerWheelState Position enum
+ * @param angle_decidegrees Angle in decidegrees (0-3600)
+ * @return Position enum value, UNKNOWN if not a standard position
+ */
+static orb_mcu_main_PolarizerWheelState_Position
+angle_to_position(uint32_t angle_decidegrees)
+{
+    switch (angle_decidegrees) {
+    case POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE:
+        return orb_mcu_main_PolarizerWheelState_Position_PASS_THROUGH;
+    case POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE:
+        return orb_mcu_main_PolarizerWheelState_Position_VERTICAL;
+    case POLARIZER_WHEEL_HORIZONTALLY_POLARIZED_ANGLE:
+        return orb_mcu_main_PolarizerWheelState_Position_HORIZONTAL;
+    default:
+        return orb_mcu_main_PolarizerWheelState_Position_UNKNOWN;
+    }
+}
+
+/**
+ * Get current position as PolarizerWheelState Position enum based on step count
+ * @return Position enum value, UNKNOWN if not at a standard position
+ */
+static orb_mcu_main_PolarizerWheelState_Position
+get_current_position(void)
+{
+    int32_t current_step =
+        atomic_get(&g_polarizer_wheel_instance.step_count.current);
+
+    // Convert microsteps to decidegrees
+    // decidegrees = microsteps * 3600 / POLARIZER_WHEEL_MICROSTEPS_360_DEGREES
+    uint32_t angle_decidegrees =
+        (uint32_t)current_step * 3600 / POLARIZER_WHEEL_MICROSTEPS_360_DEGREES;
+
+    // Check with some tolerance
+    const uint32_t tolerance = 10;
+    if (angle_decidegrees <= tolerance ||
+        angle_decidegrees >= (3600 - tolerance)) {
+        return orb_mcu_main_PolarizerWheelState_Position_PASS_THROUGH;
+    } else if (angle_decidegrees >= (1200 - tolerance) &&
+               angle_decidegrees <= (1200 + tolerance)) {
+        return orb_mcu_main_PolarizerWheelState_Position_VERTICAL;
+    } else if (angle_decidegrees >= (2400 - tolerance) &&
+               angle_decidegrees <= (2400 + tolerance)) {
+        return orb_mcu_main_PolarizerWheelState_Position_HORIZONTAL;
+    }
+
+    return orb_mcu_main_PolarizerWheelState_Position_UNKNOWN;
+}
+
+/**
+ * Calculate the notch edge position for encoder-assisted positioning
+ * The edge is located POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER before
+ * the center position (in the direction of movement)
+ */
+static int32_t
+calculate_notch_edge(int32_t target_step,
+                     enum polarizer_wheel_direction_e direction)
+{
+    int32_t edge;
+    if (direction == POLARIZER_WHEEL_DIRECTION_FORWARD) {
+        edge = target_step - POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER;
+        if (edge < 0) {
+            edge += POLARIZER_WHEEL_MICROSTEPS_360_DEGREES;
+        }
+    } else {
+        edge = target_step + POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER;
+        if (edge >= POLARIZER_WHEEL_MICROSTEPS_360_DEGREES) {
+            edge -= POLARIZER_WHEEL_MICROSTEPS_360_DEGREES;
+        }
+    }
+    return edge;
+}
+
 ret_code_t
-polarizer_wheel_set_angle(uint32_t frequency, uint32_t angle_decidegrees)
+polarizer_wheel_set_angle(const uint32_t frequency,
+                          const uint32_t angle_decidegrees)
 {
     ret_code_t ret_val = RET_SUCCESS;
 
+    if (g_polarizer_wheel_instance.positioning.mode ==
+        POLARIZER_WHEEL_MODE_UNKNOWN) {
+        return RET_ERROR_NOT_INITIALIZED;
+    }
+
     if (angle_decidegrees > 3600 ||
-        frequency > POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_1SEC_PER_TURN) {
+        frequency > POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MAXIMUM ||
+        frequency < POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MINIMUM) {
         return RET_ERROR_INVALID_PARAM;
+    }
+
+    // reject any new angle setting when the encoder is being used
+    if (g_polarizer_wheel_instance.positioning.mode !=
+        POLARIZER_WHEEL_MODE_IDLE) {
+        return RET_ERROR_BUSY;
     }
 
     atomic_val_t target_step = ((int)angle_decidegrees *
                                 POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 3600) %
                                POLARIZER_WHEEL_MICROSTEPS_360_DEGREES;
-    atomic_val_t current =
-        atomic_get(&g_polarizer_wheel_instance.step_count.current);
+    g_polarizer_wheel_instance.positioning.previous_position =
+        get_current_position();
+    g_polarizer_wheel_instance.positioning.target_position =
+        angle_to_position(angle_decidegrees);
+    g_polarizer_wheel_instance.positioning.step_loss_microsteps = 0;
+    g_polarizer_wheel_instance.positioning.start_time_ms = k_uptime_get_32();
 
-    if (target_step == current) {
+    if (g_polarizer_wheel_instance.positioning.previous_position ==
+        g_polarizer_wheel_instance.positioning.target_position) {
+        report_reached_state();
         return RET_SUCCESS;
     }
 
-    if (target_step >= current) {
-        if ((target_step - current) <
-            POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 2) {
-            set_direction(POLARIZER_WHEEL_DIRECTION_FORWARD);
-        } else {
-            set_direction(POLARIZER_WHEEL_DIRECTION_BACKWARD);
-        }
+    /* Determine shortest direction to target */
+    int32_t signed_dist = circular_signed_distance(
+        atomic_get(&g_polarizer_wheel_instance.step_count.current),
+        target_step);
+    if (signed_dist > 0) {
+        set_direction(POLARIZER_WHEEL_DIRECTION_FORWARD);
     } else {
-        if (current - target_step >
-            POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 2) {
-            set_direction(POLARIZER_WHEEL_DIRECTION_FORWARD);
-        } else {
-            set_direction(POLARIZER_WHEEL_DIRECTION_BACKWARD);
-        }
+        set_direction(POLARIZER_WHEEL_DIRECTION_BACKWARD);
     }
 
-    LOG_INF("angle(deci): %u, target_step: %ld, current: %ld, dir: %d",
-            angle_decidegrees, target_step, current,
+    LOG_INF("Set angle: %u dº, pos: %d, µsteps: %ld, dir: %d",
+            angle_decidegrees,
+            g_polarizer_wheel_instance.positioning.target_position,
+            atomic_get(&target_step),
             g_polarizer_wheel_instance.step_count.direction);
+
+    /* Use encoder-assisted positioning for standard positions
+     * i.e., orb_mcu_main_PolarizerWheelState_Position is not unknown
+     */
+    const bool use_encoder =
+        g_polarizer_wheel_instance.positioning.target_position !=
+        orb_mcu_main_PolarizerWheelState_Position_UNKNOWN;
+    if (use_encoder) {
+        /* Calculate the notch edge position based on direction */
+        g_polarizer_wheel_instance.positioning.target_notch_edge =
+            calculate_notch_edge(
+                target_step, g_polarizer_wheel_instance.step_count.direction);
+
+        /* Set up acceleration ramp based on target frequency */
+        if (frequency > POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT) {
+            g_polarizer_wheel_instance.acceleration.state =
+                ACCELERATION_RAMP_UP;
+            g_polarizer_wheel_instance.acceleration.start_frequency =
+                (frequency <= POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_1SEC_PER_TURN)
+                    ? POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT
+                    : POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_1SEC_PER_TURN;
+            atomic_set(
+                &g_polarizer_wheel_instance.acceleration.current_frequency,
+                g_polarizer_wheel_instance.acceleration.start_frequency);
+            g_polarizer_wheel_instance.acceleration.target_frequency =
+                frequency;
+            g_polarizer_wheel_instance.acceleration.ramp_index = 0;
+            g_polarizer_wheel_instance.acceleration.total_ramp_steps =
+                POLARIZER_WHEEL_ACCELERATION_RAMP_STEPS;
+        } else {
+            g_polarizer_wheel_instance.acceleration.state = ACCELERATION_IDLE;
+            atomic_set(
+                &g_polarizer_wheel_instance.acceleration.current_frequency,
+                frequency);
+            // set start & target frequency so the ramp-up/down algo
+            // can still make use of these values, even at constant speed
+            g_polarizer_wheel_instance.acceleration.start_frequency = frequency;
+            g_polarizer_wheel_instance.acceleration.target_frequency =
+                frequency;
+        }
+
+        g_polarizer_wheel_instance.positioning.frequency = frequency;
+        g_polarizer_wheel_instance.positioning.encoder_state = ENCODER_DISABLED;
+        atomic_clear(&g_polarizer_wheel_instance.positioning.encoder_triggered);
+
+        /* Record previous and target positions for state reporting */
+        g_polarizer_wheel_instance.positioning.previous_position =
+            get_current_position();
+        g_polarizer_wheel_instance.positioning.step_loss_microsteps = 0;
+
+        /* Don't enable encoder here - ISR will enable it when within
+         * POLARIZER_WHEEL_ENCODER_ENABLE_WINDOW of target_notch_edge since
+         * there is an extra bump for initial wheel positioning that needs
+         * to be skipped
+         */
+        LOG_DBG("Encoder-assisted positioning: angle(deci)=%u, "
+                "target_step=%ld, edge=%d, dir=%d (encoder enabled within %d "
+                "steps)",
+                angle_decidegrees, target_step,
+                g_polarizer_wheel_instance.positioning.target_notch_edge,
+                g_polarizer_wheel_instance.step_count.direction,
+                POLARIZER_WHEEL_ENCODER_ENABLE_DISTANCE_TO_NOTCH_MICROSTEPS);
+    } else {
+        /* Custom angle / non-encoder positioning: run at the requested
+         * frequency directly */
+        g_polarizer_wheel_instance.acceleration.state = ACCELERATION_IDLE;
+        atomic_set(&g_polarizer_wheel_instance.acceleration.current_frequency,
+                   frequency);
+        g_polarizer_wheel_instance.acceleration.start_frequency = frequency;
+        g_polarizer_wheel_instance.acceleration.target_frequency = frequency;
+    }
+
+    /* set target */
     atomic_set(&g_polarizer_wheel_instance.step_count.target, target_step);
 
-    ret_val = polarizer_move(frequency);
+#if CONFIG_POLARIZER_LOG_LEVEL_DBG
+    /* Initialize debug stats for this movement */
+    g_polarizer_wheel_instance.debug_stats.min_frequency = UINT32_MAX;
+    g_polarizer_wheel_instance.debug_stats.max_frequency = 0;
+#endif
+
+    /* Ready to rotate */
+    ret_val = polarizer_rotate(
+        atomic_get(&g_polarizer_wheel_instance.acceleration.current_frequency));
+    if (ret_val == 0) {
+        if (use_encoder) {
+            g_polarizer_wheel_instance.positioning.mode =
+                POLARIZER_WHEEL_MODE_POSITIONING;
+        } else {
+            g_polarizer_wheel_instance.positioning.mode =
+                POLARIZER_WHEEL_MODE_CUSTOM_ANGLE;
+            LOG_DBG("angle(deci): %u, target_step: %ld, current: %ld, dir: %d",
+                    angle_decidegrees, target_step,
+                    atomic_get(&g_polarizer_wheel_instance.step_count.current),
+                    g_polarizer_wheel_instance.step_count.direction);
+        }
+    } else {
+        LOG_WRN("Unable to spin the wheel: %d", ret_val);
+        g_polarizer_wheel_instance.positioning.mode = POLARIZER_WHEEL_MODE_IDLE;
+    }
 
     return ret_val;
 }
 
-ret_code_t
-polarizer_wheel_home_async(void)
+static ret_code_t
+polarizer_wheel_home_async_internal(void)
 {
     static bool started_once = false;
 
@@ -522,6 +1185,29 @@ polarizer_wheel_home_async(void)
     }
 
     return RET_SUCCESS;
+}
+
+ret_code_t
+polarizer_wheel_home_async(void)
+{
+    if (k_is_in_isr()) {
+        if (g_polarizer_wheel_instance.positioning.mode ==
+            POLARIZER_WHEEL_MODE_PENDING_HOME) {
+            // already in progress
+            return RET_SUCCESS;
+        }
+
+        g_polarizer_wheel_instance.positioning.mode =
+            POLARIZER_WHEEL_MODE_PENDING_HOME;
+        int ret = k_work_submit(&polarizer_async_work);
+        if (ret < 0) {
+            LOG_ERR("Failed to submit homing work: %d", ret);
+            return RET_ERROR_INTERNAL;
+        }
+        return RET_SUCCESS;
+    }
+
+    return polarizer_wheel_home_async_internal();
 }
 
 static bool
@@ -573,6 +1259,10 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
 
     // clear the polarizer wheel runtime context
     memset(&g_polarizer_wheel_instance, 0, sizeof(g_polarizer_wheel_instance));
+    g_polarizer_wheel_instance.positioning.mode = POLARIZER_WHEEL_MODE_UNKNOWN;
+
+    // Initialize work item for deferred encoder enable/disable
+    k_work_init(&polarizer_async_work, polarizer_work_handler);
 
     // Polarizer spi chip select is controlled manually, configure inactive
     ret_val =
@@ -646,6 +1336,9 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
     // Set up the DRV8434s device configuration
     const DRV8434S_DeviceCfg_t drv8434s_cfg = {
         .ctrl2.EN_OUT = DRV8434S_REG_CTRL2_VAL_ENOUT_DISABLE,
+        // TOFF: Fixed off-time for current decay
+        // 16µs is a good starting point. For higher speeds, consider testing
+        // 8µs, 24µs, or 32µs if step loss occurs despite acceleration
         .ctrl2.TOFF = DRV8434S_REG_CTRL2_VAL_TOFF_16US,
         .ctrl2.DECAY = DRV8434S_REG_CTRL2_VAL_DECAY_SMARTRIPPLE,
         .ctrl3.SPI_DIR = DRV8434S_REG_CTRL3_VAL_SPIDIR_PIN,
@@ -657,7 +1350,7 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
         .ctrl7.EN_SSC = DRV8434S_REG_CTRL7_VAL_ENSSC_ENABLE,
         .ctrl7.TRQ_SCALE = DRV8434S_REG_CTRL7_VAL_TRQSCALE_NOSCALE};
 
-    size_t timeout = 3;
+    int timeout = 3;
     do {
         ret_val = drv8434s_clear_fault();
         if (ret_val) {
@@ -689,10 +1382,9 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
                 ASSERT_SOFT(ret_val);
             }
         }
-    } while (timeout-- && ret_val != RET_SUCCESS);
+    } while (--timeout >= 0 && ret_val != RET_SUCCESS);
 
     // Enable the DRV8434s motor driver if configuration is successful
-    // Scale the current to 75% of the maximum current
     if (ret_val == RET_SUCCESS) {
         ret_val = drv8434s_enable();
         ASSERT_SOFT(ret_val);

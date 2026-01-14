@@ -1,0 +1,10 @@
+# Use the firmware development environment
+# This extends the orb-software environment with firmware-specific tools
+
+# Option 1: Use orb-software from GitHub (default)
+use flake ./utils/env
+
+# Option 2: Use local orb-software checkout (recommended for development)
+# Adjust the path to match your local orb-software checkout
+# ORB_SOFTWARE_PATH="${HOME}/worldcoin/orb-software"
+# use flake ./utils/env --override-input orb-software "path:${ORB_SOFTWARE_PATH}"

@@ -1,163 +1,119 @@
 /******************************************************************************
- * @file drv8434.h
- * @brief Header file for Texas Instruments DRV8434 stepper motor driver
+ * @file drv8434s.h
+ * @brief Header file for Texas Instruments DRV8434S stepper motor driver
  *
- * This file declares the application level interface functions for the DRV8434
- * such as initialize, configure, and control
- *
+ * This file declares the application level interface functions for the DRV8434S
+ * such as initialize, configure, and control.
  *
  * @note All register addresses and bit definitions are based on
- *       DRV8434 datasheet SLOSE70 – DECEMBER 2020
+ *       DRV8434S datasheet SLOSE70 – DECEMBER 2020
  *
  * @author Srikar Chintapalli
- *
  ******************************************************************************/
 
 #include "drv8434s_private.h"
 
 /**
- * @brief Initialize the DRV8434 run-time context
+ * @brief Initialize the DRV8434S run-time context
  *
- * @param cfg A reference to a driver configuration struct is passed in
+ * This function is responsible for initializing the DRV8434S run-time
+ * context with the passed in driver configuration.
  *
- * @return Indicates successful initialization of runtime context
- *
- * @details This functon is responsible for initializing the DRV8434 run-time
- *          context with the passed in driver configuration
+ * @param cfg Pointer to the driver configuration struct
+ * @return ret_code_t RET_SUCCESS on success, error code otherwise
  */
-
 ret_code_t
 drv8434s_init(const DRV8434S_DriverCfg_t *cfg);
 
 /**
- * @brief DRV8434 Disable Outputs of Half Bridges
+ * @brief Disable outputs of half bridges
  *
- * @return Indicates successful or unsuccessful operation
- *
- *
+ * @return ret_code_t RET_SUCCESS on success, error code otherwise
  */
-
 ret_code_t
 drv8434s_disable(void);
 
 /**
- * @brief DRV8434 Enable Outputs of Half Bridges
+ * @brief Enable outputs of half bridges
  *
- * @return Indicates successful or unsuccessful operation
- *
- *
+ * @return ret_code_t RET_SUCCESS on success, error code otherwise
  */
-
 ret_code_t
 drv8434s_enable(void);
 
 /**
- * @brief DRV8434 Write the ASIC specific device configuration
+ * @brief Write the device configuration to the DRV8434S
  *
- *
- * @return Indicates successful or unsuccessful operation
- *
- *
+ * @param cfg Pointer to the device configuration struct
+ * @return ret_code_t RET_SUCCESS on success, error code otherwise
  */
-
 ret_code_t
 drv8434s_write_config(DRV8434S_DeviceCfg_t const *const cfg);
 
 /**
- * @brief DRV8434 Read back the ASIC specific device configuration
+ * @brief Read back the device configuration from the DRV8434S
  *
- *
- * @return Indicates successful or unsuccessful operation
- *
- *
+ * @return ret_code_t RET_SUCCESS on success, error code otherwise
  */
-
 ret_code_t
 drv8434s_read_config(void);
 
 /**
- * @brief DRV8434 Verify the ASIC specific device configuration
+ * @brief Verify the device configuration matches expected values
  *
- *
- * @return Indicates successful or unsuccessful operation
- *
- *
+ * @return ret_code_t RET_SUCCESS if configuration matches, error code otherwise
  */
-
 ret_code_t
 drv8434s_verify_config(void);
 
 /**
- * @brief DRV8434 Enable Stall Guard
+ * @brief Enable stall guard detection
  *
- *
- * @return Indicates successful or unsuccessful operation
- *
- *
+ * @return ret_code_t RET_SUCCESS on success, error code otherwise
  */
-
 ret_code_t
 drv8434s_enable_stall_guard(void);
 
 /**
- * @brief DRV8434 Enable Stall Guard
+ * @brief Scale the motor drive current
  *
- * @param percentage Percentage to scale current
- *
- * @return Indicates successful or unsuccessful operation
- *
- *
+ * @param current The torque DAC value to set (determines current scaling)
+ * @return ret_code_t RET_SUCCESS on success, error code otherwise
  */
-
 ret_code_t
 drv8434s_scale_current(enum DRV8434S_TRQ_DAC_Val current);
 
 /**
- * @brief DRV8434 Get a copy of register data
+ * @brief Get a copy of the current register data
  *
- * @param reg A reference to a register set struct
+ * Copies the run-time context's register set into the provided struct.
  *
- * @return Indicates successful or unsuccessful operation
- *
- * @details This functon is responsible for copying the run-time context's
- *          register set into the passed in reference
+ * @param reg Pointer to the register struct to populate
+ * @return ret_code_t RET_SUCCESS on success, error code otherwise
  */
-
 ret_code_t
 drv8434s_get_register_data(DRV8434S_Registers_t *reg);
 
 /**
- * @brief DRV8434 Clear Fault
+ * @brief Clear any fault conditions
  *
- *
- * @return Indicates successful or unsuccessful operation
- *
- *
+ * @return ret_code_t RET_SUCCESS on success, error code otherwise
  */
-
 ret_code_t
 drv8434s_clear_fault(void);
 
 /**
- * @brief DRV8434 Unlock Control Registers
+ * @brief Unlock the control registers for writing
  *
- *
- * @return Indicates successful or unsuccessful operation
- *
- *
+ * @return ret_code_t RET_SUCCESS on success, error code otherwise
  */
-
 ret_code_t
 drv8434s_unlock_control_registers(void);
 
 /**
- * @brief DRV8434 Lock Control Registers
+ * @brief Lock the control registers to prevent modification
  *
- *
- * @return Indicates successful or unsuccessful operation
- *
- *
+ * @return ret_code_t RET_SUCCESS on success, error code otherwise
  */
-
 ret_code_t
 drv8434s_lock_control_registers(void);
