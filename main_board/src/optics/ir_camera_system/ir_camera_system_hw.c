@@ -1449,7 +1449,7 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
                                       TIMER_CLOCK_FREQ_MHZ;
 
         if (remaining_us + global_timer_settings.on_time_in_us >
-            IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US) {
+            IR_CAMERA_SYSTEM_FACE_CAMERA_MAX_IR_LED_ON_TIME_US) {
             // More than max IR duration time left: reconfigure MASTER_TIMER to
             // trigger before expected time and set IR LEDs pulse to last max
             // duration time
@@ -1462,18 +1462,20 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
                     (remaining_ticks -
                      global_timer_settings.master_max_ir_leds_tick));
 
-            LL_TIM_SetAutoReload(LED_850NM_TIMER,
-                                 IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US);
-            LL_TIM_SetAutoReload(LED_940NM_TIMER,
-                                 IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US);
+            LL_TIM_SetAutoReload(
+                LED_850NM_TIMER,
+                IR_CAMERA_SYSTEM_FACE_CAMERA_MAX_IR_LED_ON_TIME_US);
+            LL_TIM_SetAutoReload(
+                LED_940NM_TIMER,
+                IR_CAMERA_SYSTEM_FACE_CAMERA_MAX_IR_LED_ON_TIME_US);
         } else {
-            // Less than IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US left: set IR
-            // LEDs to last until end of period + on_time_in_us
+            // Less than IR_CAMERA_SYSTEM_FACE_CAMERA_MAX_IR_LED_ON_TIME_US
+            // left: set IR LEDs to last until end of period + on_time_in_us
 
             // Total duration = remaining time to ARR + configured on_time
             // /!\ we assume:
             // remaining_us + global_timer_settings.on_time_in_us
-            //          < IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US
+            //          < IR_CAMERA_SYSTEM_FACE_CAMERA_MAX_IR_LED_ON_TIME_US
             // as checked above
             uint32_t total_duration_us =
                 remaining_us + global_timer_settings.on_time_in_us;
