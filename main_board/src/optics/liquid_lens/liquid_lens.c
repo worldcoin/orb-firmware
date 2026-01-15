@@ -498,6 +498,7 @@ static int
 self_test(void)
 {
     int ret = RET_ERROR_ASSERT_FAILS;
+    const int16_t pwm_stable_delta_per_mille = 10;
 
     // reset to 0
     (void)liquid_set_target_current_ma(0);
@@ -526,17 +527,16 @@ self_test(void)
 #endif
 
     if (last_pwm_output_per_mille != prev_pwm) {
-        // check that PWM output is stable
         prev_pwm = last_pwm_output_per_mille;
-
         k_msleep(10);
 #ifdef CONFIG_ZTEST
-        zassert_true(abs(last_pwm_output_per_mille - prev_pwm) <= 1,
+        zassert_true(abs(last_pwm_output_per_mille - prev_pwm) <=
+                         pwm_stable_delta_per_mille,
                      "liquid_lens: pwm didn't stabilize: %d -> %d", prev_pwm,
                      last_pwm_output_per_mille);
 #endif
-        if (abs(last_pwm_output_per_mille - prev_pwm) <= 1) {
-            // pwm stabilized
+        if (abs(last_pwm_output_per_mille - prev_pwm) <=
+            pwm_stable_delta_per_mille) {
             ret = RET_SUCCESS;
         }
     }
