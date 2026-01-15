@@ -58,7 +58,11 @@ VERSION_PATCH=Z
 
 Typically, increment `VERSION_PATCH` by 1.
 
-### 5. Create the Version Bump Commit
+### 5. Create a New Branch
+
+Branch follow format `release/vX.Y.Z`
+
+### 6. Create the Version Bump Commit
 
 **Commit message format:**
 
@@ -86,7 +90,7 @@ main board:
 Signed-off-by: Cyril Fougeray <cyril.fougeray@toolsforhumanity.com>
 ```
 
-### 6. Create the Commit
+### 7. Create the Commit
 
 ```bash
 git add VERSION
