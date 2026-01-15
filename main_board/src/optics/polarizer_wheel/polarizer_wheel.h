@@ -21,7 +21,8 @@
  *   Microstepping configured (128 microsteps / step)
  * - Bump angle from edge to center is 5.58 degrees ~= 3/4 of 7.5 degrees
  *   From intuition, given how microsteps work, i (fouge) prefer to round up to
- *   multiple of 4: microsteps from edge to center: 128*3/4 = 96
+ *   multiple of 4: microsteps from edge to center:
+ * POLARIZER_WHEEL_MICROSTEPS_PER_STEP*3/4
  *
  * (360 degrees / 7.5 degrees per step) * 128 (microsteps)
  *   = 6144 steps/revolution
@@ -29,15 +30,16 @@
  */
 #define POLARIZER_WHEEL_DEGREES_PER_STEP 7.5
 
-#define POLARIZER_WHEEL_MICROSTEPS_PER_STEP 128
+#define POLARIZER_WHEEL_MICROSTEPS_PER_STEP 64
 #define POLARIZER_WHEEL_STEPS_PER_TURN                                         \
     (int)(360.0 / POLARIZER_WHEEL_DEGREES_PER_STEP)
 #define POLARIZER_WHEEL_MICROSTEPS_360_DEGREES                                 \
     (POLARIZER_WHEEL_STEPS_PER_TURN * POLARIZER_WHEEL_MICROSTEPS_PER_STEP)
 #define POLARIZER_WHEEL_MICROSTEPS_120_DEGREES                                 \
     (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 3)
-// round at 3/4 of 128
-#define POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER 96
+// round at 3/4 of POLARIZER_WHEEL_MICROSTEPS_PER_STEP
+#define POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER                        \
+    (POLARIZER_WHEEL_MICROSTEPS_PER_STEP * 3 / 4)
 
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN                       \
     (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 3)
@@ -47,6 +49,8 @@
     (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES)
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_400MSEC_PER_TURN                    \
     (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES * 2.5)
+#define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_200MSEC_PER_TURN                    \
+    (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES * 5)
 
 // default speed, min & max
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MINIMUM                             \
@@ -54,7 +58,7 @@
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT                             \
     POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MAXIMUM                             \
-    POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_400MSEC_PER_TURN
+    POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_200MSEC_PER_TURN
 
 #define POLARIZER_MICROSTEPS_PER_SECOND(ms)                                    \
     (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES * 1000 / ms)
@@ -63,16 +67,20 @@
 // cannot be used over the entire course between 2 positions.
 // instead, encoder is enabled only when distance to notch is
 // within this window:
-#define POLARIZER_WHEEL_ENCODER_ENABLE_DISTANCE_TO_NOTCH_MICROSTEPS 200
+#define POLARIZER_WHEEL_ENCODER_ENABLE_DISTANCE_TO_NOTCH_MICROSTEPS            \
+    (POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER)
 
 // Acceleration ramp configuration
 // Number of steps over which to ramp from start to target frequency
 // Lower value = faster ramp, higher value = smoother ramp
-#define POLARIZER_WHEEL_ACCELERATION_RAMP_STEPS 100
+// <=> accelerate over 7.5º = POLARIZER_WHEEL_DEGREES_PER_STEP
+#define POLARIZER_WHEEL_ACCELERATION_RAMP_STEPS                                \
+    POLARIZER_WHEEL_MICROSTEPS_PER_STEP
 
 // Deceleration ramp configuration (used when encoder detects notch)
 // Should be <= POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER
-#define POLARIZER_WHEEL_DECELERATION_RAMP_STEPS 20
+#define POLARIZER_WHEEL_DECELERATION_RAMP_STEPS                                \
+    POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER
 
 enum polarizer_wheel_angle_e {
     POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE = 0,
