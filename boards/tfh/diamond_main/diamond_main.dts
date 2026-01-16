@@ -73,12 +73,6 @@
         supply-vbat-sw-enable-gpios = <&gpio_exp_pwr_brd 12 GPIO_ACTIVE_HIGH>;
         front-unit-pvcc-enabled-gpios = <&gpio_exp_front_unit 0 GPIO_ACTIVE_HIGH>;
 
-        polarizer-stepper-spi-cs-gpios = <&gpio_exp1 0 GPIO_ACTIVE_LOW>;
-        polarizer-stepper-direction-gpios = <&gpio_exp1 1 GPIO_ACTIVE_HIGH>;
-        polarizer-stepper-enable-gpios = <&gpio_exp1 2 GPIO_ACTIVE_HIGH>;
-        polarizer-stepper-encoder-enable-gpios = <&gpio_exp1 3 GPIO_ACTIVE_LOW>;
-        polarizer-stepper-encoder-gpios = <&gpioc 11 GPIO_ACTIVE_HIGH>;
-
         // rgb/ir face cam is used as master for synchronizing
         // ir leds with the camera
         rgb-ir-face-strobe-gpios = <&gpioc 0 GPIO_ACTIVE_HIGH>;
@@ -1208,6 +1202,18 @@
         reg = <1>;
         spi-max-frequency = <4000000>;
         status = "okay";
+
+        micro-step-res = <64>;
+        spi-cs-gpios = <&gpio_exp1 0 GPIO_ACTIVE_LOW>;
+        dir-gpios = <&gpio_exp1 1 GPIO_ACTIVE_HIGH>;
+        en-gpios = <&gpio_exp1 2 GPIO_ACTIVE_HIGH>;
+
+        polarizer_wheel: polarizer_wheel {
+            compatible = "tfh,polarizer-wheel";
+
+            encoder-enable-gpios = <&gpio_exp1 3 GPIO_ACTIVE_LOW>;
+            encoder-gpios = <&gpioc 11 GPIO_ACTIVE_HIGH>;
+        };
     };
 };
 

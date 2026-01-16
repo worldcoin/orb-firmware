@@ -113,9 +113,9 @@ static polarizer_wheel_instance_t g_polarizer_wheel_instance = {0};
 // Peripherals (Motor Driver SPI, motor driver enable, encoder enable, encoder
 // feedback, step PWM)
 static const struct device *polarizer_spi_bus_controller =
-    DEVICE_DT_GET(DT_PARENT(DT_NODELABEL(polarizer_controller)));
+    DEVICE_DT_GET(DT_PARENT(DT_PARENT(DT_NODELABEL(polarizer_wheel))));
 static const struct gpio_dt_spec polarizer_spi_cs_gpio =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), polarizer_stepper_spi_cs_gpios);
+    GPIO_DT_SPEC_GET(DT_PARENT(DT_NODELABEL(polarizer_wheel)), spi_cs_gpios);
 static const struct pwm_dt_spec polarizer_step_pwm_spec_evt =
     PWM_DT_SPEC_GET(DT_PATH(polarizer_step_evt));
 static const struct pwm_dt_spec polarizer_step_pwm_spec_dvt =
@@ -123,14 +123,13 @@ static const struct pwm_dt_spec polarizer_step_pwm_spec_dvt =
 static const struct pwm_dt_spec *polarizer_step_pwm_spec =
     &polarizer_step_pwm_spec_dvt;
 static const struct gpio_dt_spec polarizer_enable_spec =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), polarizer_stepper_enable_gpios);
+    GPIO_DT_SPEC_GET(DT_PARENT(DT_NODELABEL(polarizer_wheel)), en_gpios);
 static const struct gpio_dt_spec polarizer_step_dir_spec =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), polarizer_stepper_direction_gpios);
+    GPIO_DT_SPEC_GET(DT_PARENT(DT_NODELABEL(polarizer_wheel)), dir_gpios);
 static const struct gpio_dt_spec polarizer_encoder_enable_spec =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user),
-                     polarizer_stepper_encoder_enable_gpios);
+    GPIO_DT_SPEC_GET(DT_NODELABEL(polarizer_wheel), encoder_enable_gpios);
 static const struct gpio_dt_spec polarizer_encoder_spec =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), polarizer_stepper_encoder_gpios);
+    GPIO_DT_SPEC_GET(DT_NODELABEL(polarizer_wheel), encoder_gpios);
 
 // timer handle and irq number
 static TIM_TypeDef *polarizer_step_timer =
@@ -146,7 +145,7 @@ static struct gpio_callback polarizer_encoder_cb_data;
 // Set up the DRV8434 driver configuration
 static const DRV8434S_DriverCfg_t drv8434_cfg = {
     .spi = (struct spi_dt_spec)SPI_DT_SPEC_GET(
-        DT_NODELABEL(polarizer_controller),
+        DT_PARENT(DT_NODELABEL(polarizer_wheel)),
         SPI_WORD_SET(8) | SPI_OP_MODE_MASTER | SPI_MODE_CPHA | SPI_TRANSFER_MSB,
         0),
     .spi_cs_gpio = &polarizer_spi_cs_gpio};

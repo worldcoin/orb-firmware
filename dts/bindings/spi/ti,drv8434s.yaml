@@ -1,5 +1,24 @@
-description: "drv8434 motor controller"
+# Copyright (c) 2025 Tools for Humanity GmbH
+# SPDX-License-Identifier: Apache-2.0
 
-include: spi-device.yaml
+description: |
+  TI DRV8434S stepper motor driver.
+  This is an SPI-controlled stepper motor driver with direction and enable control pins.
 
 compatible: "ti,drv8434s"
+
+include:
+  - name: spi-device.yaml
+  - name: stepper-controller.yaml
+    property-allowlist:
+      - micro-step-res
+      - dir-gpios
+      - en-gpios
+
+properties:
+  spi-cs-gpios:
+    type: phandle-array
+    required: false
+    description: |
+      GPIO pin for software-controlled SPI chip select.
+      This is used when the CS is directly controlled via a GPIO expander.

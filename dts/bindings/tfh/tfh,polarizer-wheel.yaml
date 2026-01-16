@@ -1,0 +1,21 @@
+# Copyright (c) 2025 Tools for Humanity GmbH
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Polarizer wheel assembly with encoder feedback.
+  This node should be a child of a ti,drv8434s motor driver node.
+
+compatible: "tfh,polarizer-wheel"
+
+properties:
+  encoder-enable-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      GPIO pin to enable the encoder.
+
+  encoder-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      GPIO pin for encoder signal input.

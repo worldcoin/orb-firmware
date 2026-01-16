@@ -30,7 +30,8 @@
  */
 #define POLARIZER_WHEEL_DEGREES_PER_STEP 7.5
 
-#define POLARIZER_WHEEL_MICROSTEPS_PER_STEP 64
+#define POLARIZER_WHEEL_MICROSTEPS_PER_STEP                                    \
+    DT_PROP(DT_PARENT(DT_NODELABEL(polarizer_wheel)), micro_step_res)
 #define POLARIZER_WHEEL_STEPS_PER_TURN                                         \
     (int)(360.0 / POLARIZER_WHEEL_DEGREES_PER_STEP)
 #define POLARIZER_WHEEL_MICROSTEPS_360_DEGREES                                 \
