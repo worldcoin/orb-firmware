@@ -35,6 +35,7 @@ manifest:
       groups: [internal]
   self:
     path: orb
+    west-commands: utils/west-commands.yml
 
   # by default, only public projects are built
   # if access is granted, enable internal projects

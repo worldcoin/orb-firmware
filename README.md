@@ -61,21 +61,50 @@ enumerated in the [west.yml](west.yml) file.
    west update
    ```
 
+5. Set up workspace with development tools.
+
+   This installs AI coding assistant instructions and environment configuration to the workspace root.
+
+   ```shell
+   west setup
+   ```
+
+   To remove these files later, run:
+
+   ```shell
+   west setup clean
+   ```
+
+#### Nix (Recommended)
+
+If you have [Nix](https://nixos.org/) and [direnv](https://direnv.net/) installed, the development environment
+is automatically set up when you enter the workspace directory.
+
+6. Allow direnv to load the environment.
+
+   ```shell
+   cd "$WEST_TOPDIR"
+   direnv allow
+   ```
+
+   This will automatically install all dependencies, including the Zephyr SDK and toolchain.
+   You can now skip to [Build and Flash](#finally-to-build-and-flash).
+
 #### Docker
 
-5. If you prefer to use Docker, you can use the provided [Dockerfile](utils/docker/Dockerfile).
+7. If you prefer to use Docker, you can use the provided [Dockerfile](utils/docker/Dockerfile).
    ```shell
     cd utils/docker
     make build
     make shell
    ```
 
-#### Native
+#### Native (Manual Setup)
 
 These instructions are mainly just an adaptation of the instructions in
 the [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting_started/index.html).
 
-5. Install the dependencies. Two ways:
+7. Install the dependencies. Two ways:
 
    - Follow instructions in this section
      for [installing dependencies](https://docs.zephyrproject.org/latest/getting_started/index.html#install-dependencies).
@@ -89,7 +118,7 @@ the [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting
      conda activate worldcoin
      ```
 
-6. Install a toolchain.
+8. Install a toolchain.
 
    You may change `INSTALL_LOC` to choose an installation location.
    You may also change `SDK_VER` to choose a specific toolchain version:
@@ -143,7 +172,7 @@ the [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting
    "$tmp"
    ```
 
-7. (Linux-based OS) Install udev rules to allow for flashing as a non-root user
+9. (Linux-based OS) Install udev rules to allow for flashing as a non-root user
 
    ```shell
    # make sure to set $SDK_VER, based on previous step
@@ -151,24 +180,24 @@ the [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting
    sudo udevadm control --reload
    ```
 
-8. Install the protobuf compiler.
+10. Install the protobuf compiler.
 
-   ```shell
-   if [ "$(uname -s)" = Darwin ]; then
-       brew install protobuf-c
-   else
-       sudo apt install protobuf-compiler
-   fi
-   pip3 install protobuf grpcio-tools
-   ```
+```shell
+if [ "$(uname -s)" = Darwin ]; then
+    brew install protobuf-c
+else
+    sudo apt install protobuf-compiler
+fi
+pip3 install protobuf grpcio-tools
+```
 
-9. Install CMSIS Pack for PyOCD
+11. Install CMSIS Pack for PyOCD
 
-   ```shell
-   pyocd pack install stm32g474vetx
-   ```
+```shell
+pyocd pack install stm32g474vetx
+```
 
-10. Export CMake packages.
+12. Export CMake packages.
 
 ```shell
 cd "$WEST_TOPDIR"
