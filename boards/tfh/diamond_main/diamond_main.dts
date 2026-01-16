@@ -208,8 +208,10 @@
         zephyr,deferred-init;
     };
 
-    liquid_lens {
+    liquid_lens: liquid_lens {
         compatible = "tfh,liquid-lens";
+
+        hrtim = <&hrtim1>;
 
         io-channels = <&adc3 10>, <&adc3 11>, <&adc3 18>;
         io-channel-names = "ina240_ref", "ina240_sig", "vrefint";
@@ -218,6 +220,9 @@
 
         amplifier-gains = <10>;
         shunt-resistor-ohms = "0.15f";
+
+        pinctrl-0 = <&hrtim1_cha1_pa8 &hrtim1_cha2_pa9 &hrtim1_chb1_pa10 &hrtim1_chb2_pa11>;
+        pinctrl-names = "default";
     };
 
     voltage_measurement {
@@ -892,12 +897,6 @@
 
 &hrtim1 {
     status = "okay";
-
-    liquid_lens: liquid_lens {
-        compatible = "tfh,stm32-pwm";
-        pinctrl-0 = <&hrtim1_cha1_pa8 &hrtim1_cha2_pa9 &hrtim1_chb1_pa10 &hrtim1_chb2_pa11>;
-        pinctrl-names = "default";
-    };
 };
 
 &timers2 {

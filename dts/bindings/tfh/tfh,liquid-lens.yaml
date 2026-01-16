@@ -2,33 +2,66 @@
 # SPDX-License-Identifier: Apache-2.0
 
 description: |
-  Description for the liquid lens
+  Liquid lens driver using STM32 HRTIM for H-bridge control with current
+  feedback via ADC. The driver uses a PI controller to regulate the lens
+  current based on ADC measurements from a current sense amplifier.
 
 compatible: "tfh,liquid-lens"
 
+include: [base.yaml, pinctrl-device.yaml]
+
 properties:
+  hrtim:
+    type: phandle
+    required: true
+    description: |
+      Reference to the HRTIM peripheral used for H-bridge PWM control.
+
   io-channels:
     type: phandle-array
     required: true
     description: |
-      Channels for reading the current going through the liquid lens
+      ADC channels for reading the current going through the liquid lens.
+      Expected channels in order:
+        - INA240 reference voltage
+        - INA240 signal voltage
+        - Internal voltage reference (VREFINT)
+
   io-channel-names:
     type: string-array
     required: true
     description: |
-      Names of the channels for reading the current going through the liquid lens
+      Names of the ADC channels for reading the current.
+      Expected names: "ina240_ref", "ina240_sig", "vrefint"
+
   enable-gpios:
     type: phandle-array
     required: true
     description: |
-      GPIO pin to enable liquid lens gate drivers
+      GPIO pin to enable liquid lens gate drivers (H-bridge enable)
+
   amplifier-gains:
     type: array
     required: true
     description: |
-      Gain of the amplifier in the current measurement circuit
+      Gain of the current sense amplifier (INA240) in the measurement circuit.
+      On Pearl, this is an array with values for different hardware versions.
+      On Diamond, this is a single-element array.
+
   shunt-resistor-ohms:
     type: string-array
     required: true
     description: |
-      Shunt resistor value in Ohms
+      Shunt resistor value in Ohms used for current sensing.
+      Stored as string to preserve floating-point precision.
+      On Pearl, this is an array with values for different hardware versions.
+      On Diamond, this is a single-element array.
+
+  pinctrl-0:
+    required: true
+    description: |
+      Pin control configuration for HRTIM output pins.
+      Should include pins for both H-bridge legs (HA1, HA2, HB1, HB2).
+
+  pinctrl-names:
+    required: true

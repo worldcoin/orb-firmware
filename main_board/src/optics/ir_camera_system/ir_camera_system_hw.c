@@ -6,13 +6,13 @@
 #include "ir_camera_system_internal.h"
 #include "ir_camera_timer_settings.h"
 #include "optics/1d_tof/tof_1d.h"
-#include "optics/liquid_lens/liquid_lens.h"
 #include "optics/mirror/mirror.h"
 #include "system/version/version.h"
 #include "ui/rgb_leds/front_leds/front_leds.h"
 #include <app_assert.h>
 #include <app_config.h>
 #include <assert.h>
+#include <drivers/optics/liquid_lens/liquid_lens.h>
 #include <math.h>
 #include <soc.h>
 #include <stm32_ll_tim.h>
@@ -51,6 +51,9 @@ static struct stm32_pclken master_timer_pclken = DT_INST_CLK(MASTER_TIMER_NODE);
 #define MASTER_TIMER         ((TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(MASTER_TIMER_NODE)))
 #define MASTER_TIMER_CHANNEL (DT_PROP_BY_IDX(MASTER_TIMER_NODE, channels, 0))
 // END --- IR camera system master timer
+
+// Liquid lens device reference
+#define LIQUID_LENS_DEV DEVICE_DT_GET(DT_NODELABEL(liquid_lens))
 
 // I expect all camera triggers to be on the same timer, but with different
 // channels
@@ -405,11 +408,12 @@ camera_exposure_completes_isr(void *arg)
 #endif
             } else {
                 if (use_focus_sweep_polynomial) {
-                    liquid_set_target_current_ma(
+                    liquid_lens_set_target_current(
+                        LIQUID_LENS_DEV,
                         evaluate_focus_sweep_polynomial(sweep_index));
                 } else {
-                    liquid_set_target_current_ma(
-                        global_focus_values[sweep_index]);
+                    liquid_lens_set_target_current(
+                        LIQUID_LENS_DEV, global_focus_values[sweep_index]);
                 }
             }
         } else if (get_mirror_sweep_in_progress() == true) {
@@ -445,9 +449,10 @@ static void
 initialize_focus_sweep(void)
 {
     if (use_focus_sweep_polynomial) {
-        liquid_set_target_current_ma(evaluate_focus_sweep_polynomial(0));
+        liquid_lens_set_target_current(LIQUID_LENS_DEV,
+                                       evaluate_focus_sweep_polynomial(0));
     } else {
-        liquid_set_target_current_ma(global_focus_values[0]);
+        liquid_lens_set_target_current(LIQUID_LENS_DEV, global_focus_values[0]);
     }
 
     sweep_index = 1;

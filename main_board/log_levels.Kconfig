@@ -42,10 +42,6 @@ module = MIRROR
 module-str = MIRROR
 source "subsys/logging/Kconfig.template.log_config"
 
-module = LIQUID_LENS
-module-str = LIQUID_LENS
-source "subsys/logging/Kconfig.template.log_config"
-
 module = VERSION
 module-str = VERSION
 source "subsys/logging/Kconfig.template.log_config"

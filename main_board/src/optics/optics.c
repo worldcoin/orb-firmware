@@ -1,17 +1,18 @@
 #include "optics.h"
 #include "optics/1d_tof/tof_1d.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
-#include "optics/liquid_lens/liquid_lens.h"
 #include "optics/mirror/mirror.h"
 #include "optics/polarizer_wheel/polarizer_wheel.h"
 #include "orb_logs.h"
 #include "pubsub/pubsub.h"
 #include <app_assert.h>
+#include <drivers/optics/liquid_lens/liquid_lens.h>
 #include <orb_state.h>
+#include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 
 LOG_MODULE_REGISTER(optics, CONFIG_OPTICS_LOG_LEVEL);
-ORB_STATE_REGISTER(pvcc);
+ORB_STATE_REGISTER_MULTIPLE(pvcc, liquid_lens);
 
 static struct k_mutex *i2c1_mutex = NULL;
 
@@ -100,8 +101,35 @@ optics_init(const orb_mcu_Hardware *hw_version, struct k_mutex *mutex)
     err_code = mirror_init();
     ASSERT_SOFT(err_code);
 
-    err_code = liquid_lens_init(hw_version);
-    ASSERT_SOFT(err_code);
+    /* Liquid lens is now a Zephyr device driver, initialized automatically.
+     * Configure gain/resistance based on hardware version. */
+    const struct device *liquid_lens_dev =
+        DEVICE_DT_GET(DT_NODELABEL(liquid_lens));
+    if (!device_is_ready(liquid_lens_dev)) {
+        LOG_ERR("Liquid lens device not ready");
+        ORB_STATE_SET(liquid_lens, RET_ERROR_NOT_INITIALIZED,
+                      "device not ready");
+        ASSERT_SOFT(RET_ERROR_NOT_INITIALIZED);
+    } else {
+        LOG_INF("Liquid lens device ready");
+
+#if defined(CONFIG_BOARD_PEARL_MAIN)
+        /* Pearl has different configurations for EV1-4 vs EV5 */
+        if (hw_version->version ==
+            orb_mcu_Hardware_OrbVersion_HW_VERSION_PEARL_EV5) {
+            /* EV5 configuration: gain=10, shunt=0.15 ohms */
+            liquid_lens_configure_current_sense(liquid_lens_dev, 10, 0.15f);
+        } else {
+            /* EV1-4 configuration: gain=20, shunt=0.15 ohms */
+            liquid_lens_configure_current_sense(liquid_lens_dev, 20, 0.15f);
+        }
+#else
+        /* Diamond configuration: gain=10, shunt=0.15 ohms (already set by
+         * default) */
+        UNUSED_VARIABLE(hw_version);
+#endif
+        ORB_STATE_SET(liquid_lens, RET_SUCCESS, "initialized");
+    }
 
     err_code = tof_1d_init(distance_is_unsafe_cb, mutex, hw_version);
     ASSERT_SOFT(err_code);
