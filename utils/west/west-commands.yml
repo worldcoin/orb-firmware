@@ -1,0 +1,9 @@
+# West extension commands for orb-firmware
+# See: https://docs.zephyrproject.org/latest/develop/west/extensions.html
+
+west-commands:
+  - file: utils/west/setup.py
+    commands:
+      - name: setup
+        class: Setup
+        help: set up workspace with common files

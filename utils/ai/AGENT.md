@@ -1,16 +1,89 @@
 # AGENT.md
 
-This file provides guidance to AI coding assistants when working with the orb-firmware public repository.
+This file provides guidance to AI coding assistants when working with the orb-firmware repository.
 
 ## Overview
 
 This repository contains the public MCU firmware for the Worldcoin Orb, built with Zephyr RTOS.
 
+## Prime Directive
+
+- Keep changes small and compiling.
+- Prefer existing patterns; do not introduce new dependencies without asking.
+- If unsure, propose 2 options with tradeoffs (don't guess).
+
 ## Build System
 
-- **Framework**: Zephyr RTOS with West build system
+- **RTOS**: Zephyr
+- **Build Tool**: West (CMake under the hood)
 - **Language**: C
 - **Structure**: West workspace with root in a parent directory (use `west topdir` to obtain path)
+
+## Key Folders
+
+- `orb/public/main_board/` - Main MCU firmware source
+- `boards/` - Board overlays / definitions (if present)
+- `dts/` - Devicetree overlays (if present)
+- `tests/` - Tests (if present)
+
+## Environment Assumptions
+
+- Commands are run from the west workspace (where `west topdir` works).
+- Toolchain is installed and Zephyr env is set up.
+
+## Build & Flash Commands
+
+### Build (first time / new board)
+
+```bash
+west build -b <BOARD> -d build/<BOARD> app
+```
+
+### Incremental build
+
+```bash
+west build -d build/<BOARD>
+```
+
+### Clean rebuild (use when build system is "stuck")
+
+```bash
+west build -p always -d build/<BOARD>
+```
+
+### Flash
+
+```bash
+west flash -d build/<BOARD>
+```
+
+### Debug
+
+```bash
+west debug -d build/<BOARD>
+```
+
+## Testing
+
+Preferred: Twister for repo tests
+
+```bash
+west twister -T tests -p <PLATFORM> --inline-logs -v
+```
+
+Twister is Zephyr's test runner. See [Twister documentation](https://docs.zephyrproject.org/latest/develop/test/twister.html).
+
+## Style & Quality Gates
+
+- If the repo defines formatting/lint scripts, run them.
+- Don't reformat unrelated code.
+
+## Output Expectations
+
+- **Before coding**: A short plan (3–6 steps).
+- **After coding**: What changed + where, and the exact build/test commands you ran + results.
+
+---
 
 ## Version Bump Process
 
@@ -60,7 +133,7 @@ Typically, increment `VERSION_PATCH` by 1.
 
 ### 5. Create a New Branch
 
-Branch follow format `release/vX.Y.Z`
+Branch follows format `release/vX.Y.Z`
 
 ### 6. Create the Version Bump Commit
 
@@ -127,6 +200,8 @@ git add VERSION
 git commit  # with proper message format
 ```
 
+---
+
 ## Commit Message Conventions
 
 - Follow Conventional Commits format
@@ -137,11 +212,17 @@ git commit  # with proper message format
 ## Directory Structure
 
 ```
-public/
-├── VERSION              # Firmware version (MAJOR.MINOR.PATCH)
-├── main_board/          # Main MCU firmware source
-│   └── src/
-│       └── optics/      # Optics-related modules
-├── west.yml             # West manifest
-└── zephyr/              # Zephyr module configuration
+orb-firmware/
+├── AGENT.md             # AI assistant instructions (this file)
+├── orb/
+│   └── public/
+│       ├── VERSION      # Firmware version (MAJOR.MINOR.PATCH)
+│       ├── main_board/  # Main MCU firmware source
+│       │   └── src/
+│       │       └── optics/  # Optics-related modules
+│       ├── west.yml     # West manifest
+│       └── zephyr/      # Zephyr module configuration
+├── bootloader/          # Bootloader code
+├── modules/             # Additional modules
+└── zephyr/              # Zephyr RTOS
 ```
