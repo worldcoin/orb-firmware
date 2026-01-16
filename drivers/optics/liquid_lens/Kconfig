@@ -1,0 +1,40 @@
+# Copyright (c) 2023 Tools for Humanity GmbH
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig LIQUID_LENS
+	bool "Liquid lens driver"
+	default y
+	depends on DT_HAS_TFH_LIQUID_LENS_ENABLED
+	depends on ADC
+	depends on GPIO
+	select PINCTRL
+	help
+	  Enable the liquid lens driver which controls the lens current
+	  using STM32 HRTIM PWM with current feedback via ADC.
+
+if LIQUID_LENS
+
+module = LIQUID_LENS
+module-str = liquid_lens
+source "subsys/logging/Kconfig.template.log_config"
+
+config LIQUID_LENS_INIT_PRIORITY
+	int "Liquid lens initialization priority"
+	default 90
+	help
+	  Initialization priority for the liquid lens driver.
+	  Should be after ADC and GPIO drivers are initialized.
+
+config LIQUID_LENS_THREAD_STACK_SIZE
+	int "Stack size for liquid lens control thread"
+	default 1024
+	help
+	  Stack size for the liquid lens ADC sampling and control thread.
+
+config LIQUID_LENS_THREAD_PRIORITY
+	int "Thread priority for liquid lens control"
+	default 5
+	help
+	  Priority for the liquid lens ADC sampling and control thread.
+
+endif # LIQUID_LENS

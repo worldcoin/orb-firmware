@@ -96,7 +96,6 @@ list(APPEND SOURCES_FILES
     src/optics/ir_camera_system/ir_camera_timer_settings.c
     src/optics/ir_camera_system/ir_camera_system_hw.c
     src/optics/ir_camera_system/ir_camera_system.c
-    src/optics/liquid_lens/liquid_lens.c
     src/optics/mirror/mirror.c
     src/optics/mirror/mirror_private.c
 

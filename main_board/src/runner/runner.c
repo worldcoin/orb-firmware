@@ -6,7 +6,6 @@
 #include "mcu.pb.h"
 #include "mcu_ping.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
-#include "optics/liquid_lens/liquid_lens.h"
 #include "optics/mirror/mirror.h"
 #include "orb_logs.h"
 #include "pb_encode.h"
@@ -22,6 +21,7 @@
 #include "ui/ui.h"
 #include "voltage_measurement/voltage_measurement.h"
 #include <date.h>
+#include <drivers/optics/liquid_lens/liquid_lens.h>
 #include <heartbeat.h>
 #include <math.h>
 #include <optics/polarizer_wheel/polarizer_wheel.h>
@@ -1108,8 +1108,16 @@ handle_liquid_lens(job_t *job)
     orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_liquid_lens_tag);
 
+    const struct device *ll_dev = DEVICE_DT_GET(DT_NODELABEL(liquid_lens));
+
     int32_t current = msg->payload.liquid_lens.current;
     bool enable = msg->payload.liquid_lens.enable;
+
+    if (!device_is_ready(ll_dev)) {
+        LOG_ERR("Liquid lens device not ready");
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+        return;
+    }
 
     if (!IN_RANGE(current, LIQUID_LENS_MIN_CURRENT_MA,
                   LIQUID_LENS_MAX_CURRENT_MA)) {
@@ -1118,21 +1126,18 @@ handle_liquid_lens(job_t *job)
         job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
     } else {
         LOG_DBG("Value: %d", current);
-        ret_code_t err = liquid_set_target_current_ma(current);
+        int err = liquid_lens_set_target_current(ll_dev, current);
 
-        switch (err) {
-        case RET_SUCCESS:
+        if (err == 0) {
             job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
             if (enable) {
-                liquid_lens_enable();
+                liquid_lens_enable(ll_dev);
             } else {
-                liquid_lens_disable();
+                liquid_lens_disable(ll_dev);
             }
-            break;
-        case RET_ERROR_BUSY:
+        } else if (err == -EBUSY) {
             job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
-            break;
-        default:
+        } else {
             job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
             LOG_ERR("Unhandled: %d!", err);
         }
