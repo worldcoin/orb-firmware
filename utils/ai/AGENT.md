@@ -215,14 +215,161 @@ git commit  # with proper message format
 orb-firmware/
 ├── AGENT.md             # AI assistant instructions (this file)
 ├── orb/
-│   └── public/
-│       ├── VERSION      # Firmware version (MAJOR.MINOR.PATCH)
-│       ├── main_board/  # Main MCU firmware source
-│       │   └── src/
-│       │       └── optics/  # Optics-related modules
-│       ├── west.yml     # West manifest
-│       └── zephyr/      # Zephyr module configuration
+│   ├── public/
+│   │   ├── VERSION      # Firmware version (MAJOR.MINOR.PATCH)
+│   │   ├── main_board/  # Main MCU firmware source
+│   │   │   └── src/
+│   │   │       └── optics/  # Optics-related modules
+│   │   ├── west.yml     # West manifest
+│   │   └── zephyr/      # Zephyr module configuration
+│   └── private/         # Internal only (if available)
+│       ├── west.yml     # Private west manifest
+│       └── sec_board/   # Security MCU firmware
 ├── bootloader/          # Bootloader code
 ├── modules/             # Additional modules
 └── zephyr/              # Zephyr RTOS
 ```
+
+---
+
+## Private Repository Release Process (Internal Only)
+
+> **Note:** This section only applies when `orb/private/` is available.
+
+When creating a new version in `orb/private/`, follow these steps:
+
+### 1. Update Public Repository Reference
+
+First, pull the latest `main` branch in `orb/public/`:
+
+```bash
+cd orb/public
+git checkout main
+git pull
+```
+
+### 2. Get the Git Revision
+
+Get the current git revision hash from `orb/public/`:
+
+```bash
+cd orb/public
+git rev-parse HEAD
+```
+
+### 3. Update west.yml
+
+Update the `revision` field for `orb-firmware` in `orb/private/west.yml` with the git revision obtained in step 2:
+
+```yaml
+projects:
+  - name: orb-firmware
+    revision: <NEW_GIT_REVISION_HERE> # Update this line
+    import: ...
+```
+
+### 4. Determine Version Number
+
+Read the version from `orb/public/VERSION`:
+
+```bash
+cat orb/public/VERSION
+```
+
+### 5. Verify Version Was Bumped
+
+**IMPORTANT:** Before proceeding, verify that the version has actually been bumped since the last release.
+
+Get the last release tag:
+
+```bash
+cd orb/private
+git describe --tags --abbrev=0
+```
+
+Compare the tag version (e.g., `v4.0.3`) with the VERSION file (e.g., `4.0.4`).
+
+- **If they match, STOP.** The VERSION file has not been bumped. Do not create a release without a version bump.
+- **If they differ, proceed** with the release process.
+
+### 6. Create Release Branch
+
+Create a new branch named `release/vX.Y.Z` (using the version from step 4):
+
+```bash
+cd orb/private
+git checkout -b release/vX.Y.Z
+```
+
+### 7. Generate Commit Message with Changelog
+
+The commit message must enumerate all changes since the last version tag. Find the previous tag:
+
+```bash
+cd orb/private
+git describe --tags --abbrev=0
+```
+
+Generate the changelog for each board:
+
+#### main_board changes (in orb/public):
+
+```bash
+cd orb/public
+git log <PREVIOUS_TAG>..HEAD --oneline -- main_board/
+```
+
+#### sec_board changes (in orb/private):
+
+```bash
+cd orb/private
+git log <PREVIOUS_TAG>..HEAD --oneline -- sec_board/
+```
+
+### 8. Create the Commit
+
+Stage and commit the changes with a detailed message. Do not include #xxx PR numbers, or replace with full URL (markdown) based
+on remote within each repositories.
+
+```bash
+cd orb/private
+git add west.yml
+git commit -m "$(cat <<'EOF'
+release: bump to vX.Y.Z
+
+Update orb-firmware revision to <GIT_REV>.
+
+## main_board changes
+
+- <list changes from orb/public/main_board>
+
+## sec_board changes
+
+- <list changes from orb/private/sec_board>
+
+EOF
+)"
+```
+
+### Private Release File Locations
+
+| File                  | Path                     | Purpose                                              |
+| --------------------- | ------------------------ | ---------------------------------------------------- |
+| Public manifest       | `orb/public/west.yml`    | West manifest for public builds                      |
+| Private manifest      | `orb/private/west.yml`   | West manifest with orb-firmware revision             |
+| Version file          | `orb/public/VERSION`     | Contains VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH |
+| Main board source     | `orb/public/main_board/` | Main MCU firmware source code                        |
+| Security board source | `orb/private/sec_board/` | Security MCU firmware source code                    |
+
+### Private Release Example
+
+For version 4.0.4:
+
+1. Pull main in `orb/public/`
+2. Get revision: `00ec11452548d00189317d1df85e023d23c9c4e5`
+3. Update `orb/private/west.yml` revision field
+4. Read `orb/public/VERSION`: 4.0.4
+5. Verify version bumped: last tag is `v4.0.3`, VERSION is `4.0.4` → proceed
+6. Create branch: `release/v4.0.4`
+7. Generate changelog for `main_board` and `sec_board`
+8. Commit with changelog
