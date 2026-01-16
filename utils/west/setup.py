@@ -1,9 +1,11 @@
-# Copyright (c) 2025 Worldcoin
+# Copyright (c) 2026 Tools For Humanity
 # SPDX-License-Identifier: Apache-2.0
 
 """West extension command for setting up the workspace with common files."""
 
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 from west import log
@@ -94,12 +96,115 @@ class Setup(WestCommand):
             ".envrc",
         ]
 
+    def _check_direnv(self):
+        """Check if direnv is installed and provide installation instructions if not."""
+        try:
+            result = subprocess.run(
+                ["direnv", "--version"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode == 0:
+                version = result.stdout.strip()
+                log.dbg(f"direnv found: {version}")
+                return True
+        except FileNotFoundError:
+            pass
+
+        # direnv not found - show installation instructions
+        log.wrn("direnv is not installed.")
+        log.wrn("")
+        log.wrn("direnv is recommended for automatic environment setup.")
+        log.wrn("The .envrc file will be installed, but won't work without direnv.")
+        log.wrn("")
+        log.wrn("To install direnv:")
+        log.wrn("")
+
+        # Detect platform and show appropriate instructions
+        if sys.platform == "darwin":
+            log.wrn("  macOS (Homebrew):")
+            log.wrn("    brew install direnv")
+            log.wrn("")
+            log.wrn("  macOS (Nix):")
+            log.wrn("    nix-env -i direnv")
+        elif sys.platform.startswith("linux"):
+            log.wrn("  Ubuntu/Debian:")
+            log.wrn("    sudo apt install direnv")
+            log.wrn("")
+            log.wrn("  Fedora:")
+            log.wrn("    sudo dnf install direnv")
+            log.wrn("")
+            log.wrn("  Arch Linux:")
+            log.wrn("    sudo pacman -S direnv")
+            log.wrn("")
+            log.wrn("  Nix:")
+            log.wrn("    nix-env -i direnv")
+        else:
+            log.wrn("  See: https://direnv.net/docs/installation.html")
+
+        log.wrn("")
+        log.wrn("After installing, add the hook to your shell:")
+        log.wrn('  bash:  eval "$(direnv hook bash)"  # add to ~/.bashrc')
+        log.wrn('  zsh:   eval "$(direnv hook zsh)"   # add to ~/.zshrc')
+        log.wrn(
+            "  fish:  direnv hook fish | source   # add to ~/.config/fish/config.fish"
+        )
+        log.wrn("")
+        log.wrn("See: https://direnv.net/docs/hook.html")
+        log.wrn("")
+
+        return False
+
+    def _check_nix(self):
+        """Check if nix is installed and provide installation instructions if not."""
+        try:
+            result = subprocess.run(
+                ["nix", "--version"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode == 0:
+                version = result.stdout.strip()
+                log.dbg(f"nix found: {version}")
+                return True
+        except FileNotFoundError:
+            pass
+
+        # nix not found - show installation instructions
+        log.wrn("nix is not installed.")
+        log.wrn("")
+        log.wrn("nix is recommended for reproducible development environments.")
+        log.wrn("The .envrc file uses nix flakes for environment setup.")
+        log.wrn("")
+        log.wrn("To install nix (recommended: Determinate Systems installer):")
+        log.wrn("")
+        log.wrn("  curl --proto '=https' --tlsv1.2 -sSf -L \\")
+        log.wrn("    https://install.determinate.systems/nix | sh -s -- install")
+        log.wrn("")
+        log.wrn("Or official installer:")
+        log.wrn("  sh <(curl -L https://nixos.org/nix/install) --daemon")
+        log.wrn("")
+        log.wrn("See: https://nixos.org/download.html")
+        log.wrn("")
+
+        return False
+
     def _do_install(self, args):
         """Install setup files to workspace root."""
+        # Check for required tools
+        has_direnv = self._check_direnv()
+        has_nix = self._check_nix()
+
+        if not has_direnv or not has_nix:
+            log.inf("Continuing with setup anyway...")
+            log.inf("")
+
         # Get workspace root (where west topdir points)
         workspace_root = Path(self.topdir)
 
-        # Source directory is where this script lives (utils/west_commands/)
+        # Source directory is where this script lives (utils/west/)
         # We need to go up to the repo root (orb/public/)
         utils_dir = Path(__file__).parent.parent
         repo_root = utils_dir.parent
@@ -154,6 +259,11 @@ class Setup(WestCommand):
             log.inf(f"Dry run complete. Would copy {copied_count} file(s).")
         else:
             log.inf(f"Done. Copied {copied_count} file(s), skipped {skipped_count}.")
+
+        # Remind user to allow direnv if it's installed
+        if has_direnv and not args.dry_run and copied_count > 0:
+            log.inf("")
+            log.inf("Next step: Run 'direnv allow' to activate the environment.")
 
     def _do_clean(self, args):
         """Remove installed setup files from workspace root."""
