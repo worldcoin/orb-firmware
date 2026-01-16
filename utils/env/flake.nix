@@ -166,6 +166,19 @@
             # Firmware-specific environment variables
             export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
 
+            # Set ZEPHYR_BASE and add Zephyr scripts to PATH (equivalent to sourcing zephyr-env.sh)
+            # This is needed for tools like twister
+            if command -v west &> /dev/null; then
+              _west_topdir=$(west topdir 2>/dev/null || echo "")
+              if [ -n "$_west_topdir" ] && [ -d "$_west_topdir/zephyr" ]; then
+                export ZEPHYR_BASE="$_west_topdir/zephyr"
+                if ! echo "$PATH" | grep -q "$ZEPHYR_BASE/scripts"; then
+                  export PATH="$ZEPHYR_BASE/scripts:$PATH"
+                fi
+              fi
+              unset _west_topdir
+            fi
+
             # Ensure ccache is used
             export USE_CCACHE=1
 
@@ -182,6 +195,9 @@
             echo "🔧 orb-firmware development environment loaded"
             echo "   Extends orb-software with firmware-specific tools"
             echo "   Zephyr SDK: 0.16.x (compatible with Zephyr 3.5.x - 4.1.x)"
+            if [ -n "''${ZEPHYR_BASE:-}" ]; then
+              echo "   ZEPHYR_BASE: $ZEPHYR_BASE"
+            fi
             echo ""
           '';
         };
