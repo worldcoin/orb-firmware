@@ -169,7 +169,9 @@ if (CONFIG_ZTEST)
         list(APPEND SOURCES_FILES src/pubsub/pubsub_tests.c)
     endif()
     if (CONFIG_BOARD_DIAMOND_MAIN)
-        list(APPEND SOURCES_FILES src/ui/rgb_leds/cone_leds/cone_leds_tests.c)
+        list(APPEND SOURCES_FILES
+            src/ui/rgb_leds/cone_leds/cone_leds_tests.c
+            src/optics/polarizer_wheel/polarizer_wheel_tests.c)
     endif()
 endif ()
 

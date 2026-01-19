@@ -88,6 +88,13 @@ config TEST_FAN
 config TEST_GNSS
 	bool "Test GNSS frame parsing"
 
+config TEST_POLARIZER_WHEEL
+    bool "Test polarizer wheel (Diamond only)"
+    depends on BOARD_DIAMOND_MAIN
+    help
+      Test polarizer wheel homing and positioning.
+      Requires Diamond hardware with polarizer wheel installed.
+
 config APP_TESTS_ALL
     bool "Enable all integration tests"
     select TEST_VOLTAGE_MEASUREMENT
@@ -96,6 +103,7 @@ config APP_TESTS_ALL
     select TEST_OPERATOR_LEDS
     select TEST_USER_LEDS
     select TEST_GNSS
+    select TEST_POLARIZER_WHEEL if BOARD_DIAMOND_MAIN
     select ORB_LIB_STORAGE_TESTS
 
 config CI_INTEGRATION_TESTS
