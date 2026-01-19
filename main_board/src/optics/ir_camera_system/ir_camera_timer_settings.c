@@ -147,7 +147,7 @@ timer_settings_from_fps(uint16_t fps,
         }
 
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
-        if (ret == RET_SUCCESS && ts.fps != 0) {
+        if (ret == RET_SUCCESS) {
             compute_master_timer_durations(&ts);
         }
 #endif
