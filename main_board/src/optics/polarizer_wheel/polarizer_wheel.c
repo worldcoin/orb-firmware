@@ -486,20 +486,30 @@ encoder_callback(const struct device *dev, struct gpio_callback *cb,
                     &g_polarizer_wheel_instance.positioning.encoder_triggered,
                     1);
 
-                /* Calculate step loss (difference between expected and actual
+                /* Calculate step difference (between expected and actual
                  * position) for reporting */
                 int32_t current_position =
                     atomic_get(&g_polarizer_wheel_instance.step_count.current);
-                int32_t step_loss = circular_signed_distance(
+                int32_t step_diff = circular_signed_distance(
                     g_polarizer_wheel_instance.positioning.target_notch_edge,
                     current_position);
+                /* Use direction to determine if it's a loss or gain:
+                 * - Forward: positive diff = ahead = gain, negative = loss
+                 * - Backward: positive diff = behind = loss, negative = gain
+                 * Normalize so that positive = loss, negative = gain */
+                int32_t step_loss =
+                    (g_polarizer_wheel_instance.step_count.direction ==
+                     POLARIZER_WHEEL_DIRECTION_FORWARD)
+                        ? -step_diff
+                        : step_diff;
                 /* Store absolute value for reporting */
                 g_polarizer_wheel_instance.positioning.step_loss_microsteps =
                     (uint32_t)abs(step_loss);
                 LOG_DBG(
-                    "Step loss detected: %d µsteps (current: %d, "
+                    "Step %s detected: %d µsteps (current: %d, "
                     "target: %d, dir: %d)",
-                    step_loss, current_position,
+                    step_loss > 0 ? "loss" : "gain", abs(step_loss),
+                    current_position,
                     g_polarizer_wheel_instance.positioning.target_notch_edge,
                     g_polarizer_wheel_instance.step_count.direction);
                 /*
