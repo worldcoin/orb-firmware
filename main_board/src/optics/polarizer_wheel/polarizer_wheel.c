@@ -107,7 +107,7 @@ typedef struct {
         /* for state reporting */
         orb_mcu_main_PolarizerWheelState_Position previous_position;
         orb_mcu_main_PolarizerWheelState_Position target_position;
-        uint32_t step_loss_microsteps;
+        uint32_t step_diff_microsteps;
     } positioning;
 
     /* Acceleration state */
@@ -448,11 +448,11 @@ report_reached_state(void)
     state_report.current_position =
         g_polarizer_wheel_instance.positioning.target_position;
     state_report.step_loss_microsteps =
-        g_polarizer_wheel_instance.positioning.step_loss_microsteps;
+        g_polarizer_wheel_instance.positioning.step_diff_microsteps;
     state_report.transition_time_ms = elapsed_ms;
 
     LOG_INF(
-        "Polarizer state: %d -> %d [%u], step_loss=%u, time=%u ms",
+        "Polarizer state: %d -> %d [%u], step_diff=%u, time=%u ms",
         state_report.previous_position, state_report.current_position,
         (uint32_t)atomic_get(&g_polarizer_wheel_instance.step_count.current),
         state_report.step_loss_microsteps, state_report.transition_time_ms);
@@ -803,7 +803,7 @@ process_encoder_event_positioning(void)
                             ? -step_diff
                             : step_diff;
 
-    g_polarizer_wheel_instance.positioning.step_loss_microsteps =
+    g_polarizer_wheel_instance.positioning.step_diff_microsteps =
         (uint32_t)abs(step_loss);
 
     LOG_DBG("Step %s detected: %d steps (current=%d, target=%d, dir=%d)",
@@ -873,7 +873,7 @@ execute_homing(void)
         orb_mcu_main_PolarizerWheelState_Position_UNKNOWN;
     g_polarizer_wheel_instance.positioning.target_position =
         orb_mcu_main_PolarizerWheelState_Position_PASS_THROUGH;
-    g_polarizer_wheel_instance.positioning.step_loss_microsteps = 0;
+    g_polarizer_wheel_instance.positioning.step_diff_microsteps = 0;
     g_polarizer_wheel_instance.positioning.start_time_ms = k_uptime_get_32();
 
     /* Enable encoder for notch detection */
@@ -949,28 +949,49 @@ execute_homing(void)
         atomic_clear(&g_polarizer_wheel_instance.step_count.current);
     }
 
-    disable_encoder();
-
     if (notch_0_detected) {
-        /* Success - move to passthrough position */
+        /* Success - move to passthrough position with encoder assistance */
+        k_sem_reset(&encoder_sem);
+
+        /* Start movement towards passthrough position (120 degrees away) */
         int ret = polarizer_wheel_step_relative(
             POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
             POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER +
                 POLARIZER_WHEEL_MICROSTEPS_120_DEGREES);
         ASSERT_SOFT(ret);
 
-        /* Wait for motion to complete by polling step_sem */
-        int32_t target =
-            atomic_get(&g_polarizer_wheel_instance.step_count.target);
-        uint32_t timeout_ms = 4000;
-        uint32_t start_time = k_uptime_get_32();
+        /* Wait for encoder to detect passthrough notch */
+        ret = k_sem_take(&encoder_sem, K_SECONDS(4));
+        if (ret == 0) {
+            /* Encoder triggered - correct step counter to notch edge */
+            int32_t current_pos =
+                atomic_get(&g_polarizer_wheel_instance.step_count.current);
+            int32_t expected_edge = POLARIZER_WHEEL_MICROSTEPS_120_DEGREES;
 
-        while (atomic_get(&g_polarizer_wheel_instance.step_count.current) !=
-                   target &&
-               (k_uptime_get_32() - start_time) < timeout_ms) {
-            k_sem_take(&step_sem, K_MSEC(10));
+            LOG_DBG("Homing encoder: current=%d, expected_edge=%d", current_pos,
+                    expected_edge);
+
+            atomic_set(&g_polarizer_wheel_instance.step_count.current,
+                       expected_edge);
+
+            /* Update target to finish at center */
+            int32_t target =
+                expected_edge + POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER;
+            atomic_set(&g_polarizer_wheel_instance.step_count.target, target);
+
+            /* Wait for remaining steps to complete */
+            uint32_t timeout_ms = 1000;
+            uint32_t start_time = k_uptime_get_32();
+            while (atomic_get(&g_polarizer_wheel_instance.step_count.current) !=
+                       target &&
+                   (k_uptime_get_32() - start_time) < timeout_ms) {
+                k_sem_take(&step_sem, K_MSEC(10));
+            }
+        } else {
+            LOG_WRN("Encoder not triggered during homing to passthrough");
         }
 
+        disable_encoder();
         polarizer_halt();
         g_polarizer_wheel_instance.state = STATE_IDLE;
 
@@ -980,6 +1001,7 @@ execute_homing(void)
 
         report_reached_state();
     } else {
+        disable_encoder();
         g_polarizer_wheel_instance.homing.success = false;
         g_polarizer_wheel_instance.state = STATE_UNINITIALIZED;
         polarizer_halt();
@@ -1024,7 +1046,7 @@ execute_set_angle(uint32_t frequency, uint32_t angle_decidegrees)
         get_current_position();
     g_polarizer_wheel_instance.positioning.target_position =
         angle_to_position(angle_decidegrees);
-    g_polarizer_wheel_instance.positioning.step_loss_microsteps = 0;
+    g_polarizer_wheel_instance.positioning.step_diff_microsteps = 0;
     g_polarizer_wheel_instance.positioning.start_time_ms = k_uptime_get_32();
 
     if (g_polarizer_wheel_instance.positioning.previous_position ==
