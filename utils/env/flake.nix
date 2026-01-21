@@ -52,6 +52,9 @@
           # Build/testing
           pytest
           coverage
+          junitparser
+          anytree
+          ply
 
           # Embedded development
           intelhex

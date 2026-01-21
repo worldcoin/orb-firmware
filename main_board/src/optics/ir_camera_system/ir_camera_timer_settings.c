@@ -21,6 +21,10 @@ LOG_MODULE_REGISTER(ir_camera_timer_settings,
 static void
 compute_master_timer_durations(struct ir_camera_timer_settings *settings)
 {
+    if (settings->fps == 0) {
+        return;
+    }
+
     // to give an idea of the timing:
     // fps = 30 (current rgb/ir camera default)
     // period = 33.33ms
@@ -79,7 +83,7 @@ timer_settings_from_on_time_us(
     }
 
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
-    if (ret == RET_SUCCESS) {
+    if (ret == RET_SUCCESS && ts.fps != 0) {
         compute_master_timer_durations(&ts);
     }
 #endif
