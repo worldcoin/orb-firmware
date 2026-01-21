@@ -575,6 +575,8 @@ ZTEST(hardware, test_liquid_lens_anti_windup)
 {
     liquid_lens_enable();
 
+    const float integral_start = pwm_output_integral_per_mille;
+
     // Start from zero to ensure a known state
     liquid_set_target_current_ma(0);
     k_msleep(10);
@@ -587,13 +589,18 @@ ZTEST(hardware, test_liquid_lens_anti_windup)
     }
 
     // Let integral accumulate at max current
-    k_msleep(150);
+    k_msleep(80);
+
+    const float integral_after_positive = pwm_output_integral_per_mille;
 
     // Verify upper bound: integral should be clamped
     zassert_true(pwm_output_integral_per_mille <=
                      LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE,
                  "Integral exceeded upper bound: %d",
                  (int)pwm_output_integral_per_mille);
+    zassert_true(integral_after_positive > integral_start,
+                 "Integral did not increase on positive drive: %d -> %d",
+                 (int)integral_start, (int)integral_after_positive);
 
     // Ramp down gradually through zero to min current
     for (int32_t current = LIQUID_LENS_MAX_CURRENT_MA;
@@ -603,13 +610,18 @@ ZTEST(hardware, test_liquid_lens_anti_windup)
     }
 
     // Let integral accumulate at min current
-    k_msleep(150);
+    k_msleep(80);
+
+    const float integral_after_negative = pwm_output_integral_per_mille;
 
     // Verify lower bound: integral should be clamped
     zassert_true(pwm_output_integral_per_mille >=
                      -LIQUID_LENS_MAX_CONTROL_OUTPUT_PER_MILLE,
                  "Integral exceeded lower bound: %d",
                  (int)pwm_output_integral_per_mille);
+    zassert_true(integral_after_negative < integral_after_positive,
+                 "Integral did not decrease on negative drive: %d -> %d",
+                 (int)integral_after_positive, (int)integral_after_negative);
 
     liquid_lens_disable();
 }
