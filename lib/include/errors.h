@@ -1,6 +1,6 @@
 #pragma once
 
-typedef enum {
+typedef enum ret_code_e {
     RET_SUCCESS = 0x00,
     RET_ERROR_INTERNAL = 0x01,
     RET_ERROR_NO_MEM = 0x02,

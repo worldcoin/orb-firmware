@@ -34,6 +34,47 @@ BUILD_ASSERT(ORB_STATE_NAME_MAX_LENGTH ==
              "orb_state name length must match orb_mcu_HardwareState "
              "source_name length");
 
+static orb_mcu_HardwareState_Status
+to_pb_status(const ret_code_t ret)
+{
+    switch (ret) {
+    case RET_SUCCESS:
+        return orb_mcu_HardwareState_Status_STATUS_SUCCESS;
+    case RET_ERROR_INTERNAL:
+        return orb_mcu_HardwareState_Status_STATUS_ERROR_INTERNAL;
+    case RET_ERROR_NO_MEM:
+        return orb_mcu_HardwareState_Status_STATUS_ERROR_NO_MEM;
+    case RET_ERROR_NOT_FOUND:
+        return orb_mcu_HardwareState_Status_STATUS_ERROR_NOT_FOUND;
+    case RET_ERROR_INVALID_PARAM:
+        return orb_mcu_HardwareState_Status_STATUS_ERROR_INVALID_PARAM;
+    case RET_ERROR_INVALID_STATE:
+        return orb_mcu_HardwareState_Status_STATUS_ERROR_INVALID_STATE;
+    case RET_ERROR_INVALID_ADDR:
+        return orb_mcu_HardwareState_Status_STATUS_ERROR_INVALID_ADDR;
+    case RET_ERROR_BUSY:
+        return orb_mcu_HardwareState_Status_STATUS_ERROR_BUSY;
+    case RET_ERROR_OFFLINE:
+        return orb_mcu_HardwareState_Status_STATUS_ERROR_OFFLINE;
+    case RET_ERROR_FORBIDDEN:
+        return orb_mcu_HardwareState_Status_STATUS_ERROR_FORBIDDEN;
+    case RET_ERROR_TIMEOUT:
+        return orb_mcu_HardwareState_Status_STATUS_ERROR_TIMEOUT;
+    case RET_ERROR_NOT_INITIALIZED:
+        return orb_mcu_HardwareState_Status_STATUS_ERROR_NOT_INITIALIZED;
+    case RET_ERROR_ASSERT_FAILS:
+        return orb_mcu_HardwareState_Status_STATUS_ERROR_ASSERT_FAILS;
+    case RET_ERROR_ALREADY_INITIALIZED:
+        return orb_mcu_HardwareState_Status_STATUS_ERROR_ALREADY_INITIALIZED;
+    case RET_ERROR_NOT_SUPPORTED:
+        return orb_mcu_HardwareState_Status_STATUS_ERROR_NOT_SUPPORTED;
+    case RET_ERROR_UNSAFE:
+        return orb_mcu_HardwareState_Status_STATUS_ERROR_UNSAFE;
+    }
+
+    return orb_mcu_HardwareState_Status_STATUS_ERROR_INTERNAL;
+}
+
 ret_code_t
 diag_sync(uint32_t remote)
 {
@@ -89,7 +130,7 @@ diag_sync(uint32_t remote)
         memset(&hw_state, 0, sizeof(hw_state));
         memccpy(hw_state.source_name, data->name, '\0',
                 sizeof(hw_state.source_name));
-        hw_state.status = data->dynamic_data->status;
+        hw_state.status = to_pb_status(data->dynamic_data->status);
         memccpy(hw_state.message, data->dynamic_data->message, '\0',
                 sizeof(hw_state.message));
         ret = publish_new(&hw_state, sizeof(hw_state),
