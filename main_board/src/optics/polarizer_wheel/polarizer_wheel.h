@@ -73,16 +73,11 @@
 #define POLARIZER_WHEEL_ENCODER_ENABLE_DISTANCE_TO_NOTCH_MICROSTEPS            \
     (POLARIZER_WHEEL_MICROSTEPS_PER_STEP)
 
-// Acceleration ramp configuration
-// Number of steps over which to ramp from start to target frequency
-// Lower value = faster ramp, higher value = smoother ramp
-// <=> accelerate over 2 * 7.5º = 15º
-#define POLARIZER_WHEEL_ACCELERATION_RAMP_STEPS                                \
-    (2 * POLARIZER_WHEEL_MICROSTEPS_PER_STEP)
-
-// Deceleration ramp: decelerate over 25º
-#define POLARIZER_WHEEL_DECELERATION_RAMP_STEPS                                \
-    (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES * 25 / 360)
+// Acceleration/deceleration uses linear ramping with constant acceleration
+// of 11500 µsteps/s². The number of steps for ramping is calculated
+// dynamically based on the kinematic equation: s = (v² - v₀²) / (2*a)
+// Maximum ramp distance is 512 µsteps (1024 µsteps between positions,
+// split evenly between acceleration and deceleration phases).
 
 enum polarizer_wheel_angle_e {
     POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE = 0,
