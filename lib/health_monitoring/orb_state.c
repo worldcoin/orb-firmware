@@ -68,8 +68,8 @@ orb_state_iter(struct orb_state_const_data **data_ptr)
 }
 
 int
-orb_state_set(struct orb_state_dynamic_data *data, const int state,
-              const char *fmt, ...)
+orb_state_set_impl(struct orb_state_dynamic_data *data, const ret_code_t state,
+                   const char *fmt, ...)
 {
     if (data == NULL) {
         return -ENXIO; // no data provided

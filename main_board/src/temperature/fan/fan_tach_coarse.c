@@ -1,3 +1,4 @@
+#include "errors.h"
 #include "fan.h"
 #include "fan_tach.h"
 #include "orb_state.h"
@@ -132,7 +133,7 @@ fan_tach_init(void)
 
 exit:
     if (err_code != RET_SUCCESS) {
-        ORB_STATE_SET_CURRENT(err_code, "init failed");
+        ORB_STATE_SET_CURRENT(RET_ERROR_INTERNAL, "init failed");
     } else {
         ORB_STATE_SET_CURRENT(RET_SUCCESS);
     }

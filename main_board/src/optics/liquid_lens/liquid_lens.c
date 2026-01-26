@@ -1,4 +1,5 @@
 #include "liquid_lens.h"
+#include "errors.h"
 #include "orb_logs.h"
 #include "orb_state.h"
 #include "system/version/version.h"
@@ -305,7 +306,7 @@ liquid_lens_disable(void)
     if (ret == RET_SUCCESS) {
         ORB_STATE_SET_CURRENT(RET_SUCCESS);
     } else {
-        ORB_STATE_SET_CURRENT(ret, "self-test failed");
+        ORB_STATE_SET_CURRENT(RET_ERROR_INTERNAL, "self-test failed");
     }
 
     LOG_INF("Disabling liquid lens current");
@@ -485,7 +486,7 @@ liquid_lens_init(const orb_mcu_Hardware *hw_version)
         if (ret == RET_SUCCESS) {
             ORB_STATE_SET_CURRENT(RET_SUCCESS);
         } else {
-            ORB_STATE_SET_CURRENT(ret, "self-test failed");
+            ORB_STATE_SET_CURRENT(RET_ERROR_ASSERT_FAILS, "self-test failed");
         }
 
         liquid_lens_disable();

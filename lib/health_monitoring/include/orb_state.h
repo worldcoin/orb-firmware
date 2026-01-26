@@ -5,6 +5,8 @@
 #include <string.h>
 #include <zephyr/sys/util.h>
 
+#include "errors.h"
+
 /*
  * Principle of this module is to provide a way to register
  * states of the system, which can be used for health monitoring and
@@ -33,7 +35,7 @@ struct orb_state_const_data {
 };
 
 struct orb_state_dynamic_data {
-    int status;
+    ret_code_t status;
     char message[ORB_STATE_MESSAGE_MAX_LENGTH];
 };
 
@@ -99,16 +101,23 @@ struct orb_state_dynamic_data {
 
 #define ORB_STATE_GET(name) (ORB_STATE_ITEM_DYNAMIC_DATA(name).status)
 
+#define orb_state_set(data, state, ...)                                        \
+    ({                                                                         \
+        BUILD_ASSERT(state >= RET_SUCCESS && state <= RET_ERROR_UNSAFE,        \
+                     "state must be of type ret_code_t");                      \
+        orb_state_set_impl(data, state, __VA_ARGS__);                          \
+    })
+
 /**
  * @param data Pointer to the dynamic data structure for the state.
- * @param state int value representing the state.
+ * @param state ret_code_t value representing the state.
  * @param fmt format string for the message.
  * @param ... optional arguments for the format string.
  * @return 0 on success, negative error code on failure.
  */
 int
-orb_state_set(struct orb_state_dynamic_data *data, const int state,
-              const char *fmt, ...);
+orb_state_set_impl(struct orb_state_dynamic_data *data, const ret_code_t state,
+                   const char *fmt, ...);
 
 /**
  * Iterate over the registered states.

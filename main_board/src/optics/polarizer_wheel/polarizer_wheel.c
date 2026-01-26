@@ -847,7 +847,7 @@ polarizer_wheel_auto_homing_thread(void *p1, void *p2, void *p3)
                         spin_attempt);
                 g_polarizer_wheel_instance.homing.success = false;
                 polarizer_stop_async();
-                ORB_STATE_SET_CURRENT(ret, "unable to spin");
+                ORB_STATE_SET_CURRENT(RET_ERROR_INTERNAL, "unable to spin");
                 return;
             }
             ret = k_sem_take(&home_sem, K_SECONDS(4));
