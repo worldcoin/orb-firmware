@@ -52,6 +52,8 @@
     (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES * 2.5)
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_200MSEC_PER_TURN                    \
     (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES * 5)
+#define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_100MSEC_PER_TURN                    \
+    (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES * 10)
 
 // default speed, min & max
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MINIMUM                             \
@@ -59,7 +61,7 @@
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT                             \
     POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MAXIMUM                             \
-    POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_200MSEC_PER_TURN
+    POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_100MSEC_PER_TURN
 
 #define POLARIZER_MICROSTEPS_PER_SECOND(ms)                                    \
     (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES * 1000 / ms)
@@ -67,21 +69,20 @@
 // because one position has a second notch close to it, the encoder
 // cannot be used over the entire course between 2 positions.
 // instead, encoder is enabled only when distance to notch is
-// within this window:
+// within this window (7.5º before notch target)
 #define POLARIZER_WHEEL_ENCODER_ENABLE_DISTANCE_TO_NOTCH_MICROSTEPS            \
-    (POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER)
+    (POLARIZER_WHEEL_MICROSTEPS_PER_STEP)
 
 // Acceleration ramp configuration
 // Number of steps over which to ramp from start to target frequency
 // Lower value = faster ramp, higher value = smoother ramp
-// <=> accelerate over 7.5º = POLARIZER_WHEEL_DEGREES_PER_STEP
+// <=> accelerate over 2 * 7.5º = 15º
 #define POLARIZER_WHEEL_ACCELERATION_RAMP_STEPS                                \
-    POLARIZER_WHEEL_MICROSTEPS_PER_STEP
+    (2 * POLARIZER_WHEEL_MICROSTEPS_PER_STEP)
 
-// Deceleration ramp configuration (used when encoder detects notch)
-// Should be <= POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER
+// Deceleration ramp: decelerate over 25º
 #define POLARIZER_WHEEL_DECELERATION_RAMP_STEPS                                \
-    POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER
+    (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES * 25 / 360)
 
 enum polarizer_wheel_angle_e {
     POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE = 0,
