@@ -133,6 +133,25 @@ ret_code_t
 polarizer_wheel_home_async(void);
 
 /**
+ * Start bump width calibration.
+ *
+ * This spins the wheel 2 full turns from the current position to measure
+ * the width of each bump (pass_through, vertical, horizontal) in microsteps.
+ * After calibration, the wheel returns to pass_through position.
+ *
+ * The measured widths are used to improve centering accuracy when moving
+ * to standard positions.
+ *
+ * @pre Homing must be completed successfully before calibration
+ *
+ * @retval RET_ERROR_BUSY if another operation is in progress
+ * @retval RET_ERROR_NOT_INITIALIZED if not homed or module not initialized
+ * @retval RET_SUCCESS calibration started successfully
+ */
+ret_code_t
+polarizer_wheel_calibrate_async(void);
+
+/**
  * @brief Initialize the polarizer wheel
  * Spawn homing thread once completed
  *
@@ -146,3 +165,24 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version);
  */
 bool
 polarizer_wheel_homed(void);
+
+/**
+ * Bump width calibration data measured during calibration.
+ * Widths are in microsteps.
+ */
+typedef struct {
+    uint32_t pass_through;
+    uint32_t vertical;
+    uint32_t horizontal;
+    bool valid; /**< true if calibration completed successfully */
+} polarizer_wheel_bump_widths_t;
+
+/**
+ * Get the calibrated bump widths measured during calibration.
+ *
+ * @param[out] widths Pointer to structure to fill with bump widths
+ * @return RET_SUCCESS if calibration data is valid, RET_ERROR_NOT_INITIALIZED
+ *         if calibration has not been performed
+ */
+ret_code_t
+polarizer_wheel_get_bump_widths(polarizer_wheel_bump_widths_t *widths);
