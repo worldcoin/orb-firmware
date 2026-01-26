@@ -252,7 +252,28 @@ circular_signed_distance(int32_t from, int32_t to)
 }
 
 /*
+ * Bias factor for S-curve acceleration (0-100).
+ * Higher values = faster initial acceleration, less time at low speed.
+ * 0 = no bias (symmetric curve), 50 = moderate bias, 100 = strong bias.
+ */
+#ifndef POLARIZER_SCURVE_BIAS
+#define POLARIZER_SCURVE_BIAS 30
+#endif
+
+/*
  * Calculate the frequency for the S-curve acceleration/deceleration
+ * Uses smootherstep formula: freq = start +/- range * (6p⁵ - 15p⁴ + 10p³)
+ * where p = ramp_index / total_ramp_steps
+ *
+ * Smootherstep has zero first AND second derivatives at endpoints,
+ * providing smoother transitions than basic smoothstep (3p² - 2p³).
+ *
+ * Optional bias (POLARIZER_SCURVE_BIAS) shifts the curve for faster initial
+ * acceleration by applying: p' = p + bias * p * (1-p)²
+ * This pulls the curve toward faster progress in the early portion.
+ *
+ * @note step and total must be < 2^12 (~4000) to avoid uint64_t overflow
+ *       in quintic calculations. Current usage with ramp steps <= 100 is safe.
  */
 static uint32_t
 calculate_scurve_frequency(uint32_t step, uint32_t total, uint32_t start_freq,
@@ -279,14 +300,49 @@ calculate_scurve_frequency(uint32_t step, uint32_t total, uint32_t start_freq,
         }
     }
 
-    const uint64_t step_sq = (uint64_t)step * step;
-    const uint64_t step_cb = step_sq * step;
-    const uint64_t total_cb = (uint64_t)total * total * total;
-    const uint64_t numerator = 3 * step_sq * total - 2 * step_cb;
+    /*
+     * Apply bias for faster initial acceleration (ramp-up only).
+     * p' = p + (bias/100) * p * (1-p)²
+     * In integer math: step' = step + bias * step * (total-step)² / (100 *
+     * total²)
+     */
+    uint32_t effective_step = step;
+#if POLARIZER_SCURVE_BIAS > 0
+    if (ramp_up && step < total) {
+        const uint64_t remaining = total - step;
+        const uint64_t bias_correction =
+            ((uint64_t)POLARIZER_SCURVE_BIAS * step * remaining * remaining) /
+            (100ULL * (uint64_t)total * total);
+        effective_step = step + (uint32_t)bias_correction;
+        if (effective_step > total) {
+            effective_step = total;
+        }
+    }
+#endif
+
+    /*
+     * Smootherstep: f(p) = 6p⁵ - 15p⁴ + 10p³ = p³ * (6p² - 15p + 10)
+     * Factored for integer math:
+     *   numerator = step³ * (6*step² - 15*step*total + 10*total²)
+     *   denominator = total⁵
+     */
+    const uint64_t s = effective_step;
+    const uint64_t t = total;
+    const uint64_t s_sq = s * s;
+    const uint64_t s_cb = s_sq * s;
+    const uint64_t t_sq = t * t;
+    const uint64_t t_cb = t_sq * t;
+    const uint64_t t_5 = t_cb * t_sq;
+
+    /* Compute polynomial: 6s² - 15st + 10t² */
+    const uint64_t poly = 6 * s_sq - 15 * s * t + 10 * t_sq;
+    const uint64_t numerator = s_cb * poly;
+
     const uint32_t range =
         ramp_up ? (target_freq - start_freq) : (start_freq - target_freq);
-    return ramp_up ? start_freq + (uint32_t)((numerator * range) / total_cb)
-                   : start_freq - (uint32_t)((numerator * range) / total_cb);
+    const uint32_t delta = (uint32_t)((numerator * range) / t_5);
+
+    return ramp_up ? start_freq + delta : start_freq - delta;
 }
 
 /* Clear the polarizer wheel step interrupt flag */
