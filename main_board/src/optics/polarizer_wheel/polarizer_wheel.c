@@ -763,7 +763,7 @@ polarizer_wheel_step_isr(const void *arg)
                 /*
                  * Start deceleration using S-curve, but only if not already
                  * ramping down. This is a fallback - deceleration should
-                 * normally be triggered by the 30° distance check above.
+                 * normally be triggered by the 25° distance check above.
                  */
                 if (g_polarizer_wheel_instance.acceleration.state !=
                     ACCELERATION_RAMP_DOWN) {
@@ -1166,7 +1166,7 @@ polarizer_wheel_set_angle(const uint32_t frequency,
                 target_step, g_polarizer_wheel_instance.step_count.direction);
 
         /* Set up acceleration ramp based on target frequency
-         * Start from MINIMUM frequency for maximum motor torque at startup,
+         * Start from DEFAULT frequency for maximum motor torque at startup,
          * then accelerate to target frequency using S-curve profile */
         if (frequency > POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT) {
             g_polarizer_wheel_instance.acceleration.state =
