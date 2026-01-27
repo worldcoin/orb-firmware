@@ -1064,7 +1064,15 @@ execute_homing(void)
         g_polarizer_wheel_instance.state = STATE_IDLE;
 
         LOG_INF("Polarizer wheel homed");
-        ORB_STATE_SET_CURRENT(RET_SUCCESS, "homed");
+        if (g_polarizer_wheel_instance.calibration.calibration_complete) {
+            ORB_STATE_SET_CURRENT(
+                RET_SUCCESS, "homed,cal:%u,%u,%u",
+                g_polarizer_wheel_instance.calibration.bump_width_pass_through,
+                g_polarizer_wheel_instance.calibration.bump_width_vertical,
+                g_polarizer_wheel_instance.calibration.bump_width_horizontal);
+        } else {
+            ORB_STATE_SET_CURRENT(RET_SUCCESS, "homed");
+        }
         g_polarizer_wheel_instance.homing.success = true;
         atomic_clear(&g_polarizer_wheel_instance.step_count.current);
 
@@ -1311,6 +1319,11 @@ execute_calibration(void)
         g_polarizer_wheel_instance.calibration.bump_width_vertical > 0 &&
         g_polarizer_wheel_instance.calibration.bump_width_horizontal > 0) {
         g_polarizer_wheel_instance.calibration.calibration_complete = true;
+        ORB_STATE_SET_CURRENT(
+            RET_SUCCESS, "calibrated: %u,%u,%u",
+            g_polarizer_wheel_instance.calibration.bump_width_pass_through,
+            g_polarizer_wheel_instance.calibration.bump_width_vertical,
+            g_polarizer_wheel_instance.calibration.bump_width_horizontal);
         LOG_INF("Bump calibration complete: pass_through=%u, vertical=%u, "
                 "horizontal=%u microsteps",
                 g_polarizer_wheel_instance.calibration.bump_width_pass_through,
