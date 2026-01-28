@@ -377,7 +377,18 @@ cd <PUBLIC_REPO>
 git rev-parse HEAD
 ```
 
-### 3. Update west.yml
+### 3. Checkout the Private Repository
+
+Before modifying the repo, ensure you're on the latest `main` branch:
+
+```bash
+cd <PRIVATE_REPO>
+git fetch origin
+git checkout main
+git pull origin main
+```
+
+### 4. Update west.yml
 
 Update the `revision` field for `orb-firmware` in `<PRIVATE_REPO>/west.yml` with the git revision obtained in step 2:
 
@@ -388,7 +399,7 @@ projects:
     import: ...
 ```
 
-### 4. Determine Version Number
+### 5. Determine Version Number
 
 Read the version from `<PUBLIC_REPO>/VERSION`:
 
@@ -396,7 +407,7 @@ Read the version from `<PUBLIC_REPO>/VERSION`:
 cat <PUBLIC_REPO>/VERSION
 ```
 
-### 5. Verify Version Was Bumped
+### 6. Verify Version Was Bumped
 
 **IMPORTANT:** Before proceeding, verify that the version has actually been bumped since the last release.
 
@@ -412,7 +423,7 @@ Compare the tag version (e.g., `v4.0.3`) with the VERSION file (e.g., `4.0.4`).
 - **If they match, STOP.** The VERSION file has not been bumped. Do not create a release without a version bump.
 - **If they differ, proceed** with the release process.
 
-### 6. Create Release Branch
+### 7. Create Release Branch
 
 Create a new branch named `release/vX.Y.Z` (using the version from step 4):
 
@@ -421,7 +432,7 @@ cd <PRIVATE_REPO>
 git checkout -b release/vX.Y.Z
 ```
 
-### 7. Generate Commit Message with Changelog
+### 8. Generate Commit Message with Changelog
 
 The commit message must enumerate all changes since the last version tag. Find the previous tag:
 
@@ -446,7 +457,7 @@ cd <PRIVATE_REPO>
 git log <PREVIOUS_TAG>..HEAD --oneline -- sec_board/
 ```
 
-### 8. Create the Commit
+### 9. Create the Commit
 
 Stage and commit the changes with a detailed message. Do not include `#xxx` PR numbers, or replace with full URL (markdown) based on remote within each repository.
 
@@ -486,9 +497,10 @@ For version 4.0.4:
 
 1. Pull main in `<PUBLIC_REPO>`
 2. Get revision: `00ec11452548d00189317d1df85e023d23c9c4e5`
-3. Update `<PRIVATE_REPO>/west.yml` revision field
-4. Read `<PUBLIC_REPO>/VERSION`: 4.0.4
-5. Verify version bumped: last tag is `v4.0.3`, VERSION is `4.0.4` → proceed
-6. Create branch: `release/v4.0.4`
-7. Generate changelog for `main_board` and `sec_board`
-8. Commit with changelog
+3. Checkout and pull main in `<PRIVATE_REPO>`
+4. Update `<PRIVATE_REPO>/west.yml` revision field
+5. Read `<PUBLIC_REPO>/VERSION`: 4.0.4
+6. Verify version bumped: last tag is `v4.0.3`, VERSION is `4.0.4` → proceed
+7. Create branch: `release/v4.0.4`
+8. Generate changelog for `main_board` and `sec_board`
+9. Commit with changelog
