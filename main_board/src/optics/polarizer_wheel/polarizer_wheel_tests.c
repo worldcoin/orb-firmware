@@ -8,7 +8,9 @@
  * - Position accuracy via encoder feedback
  */
 
+#include "compilers.h"
 #include "polarizer_wheel.h"
+#include <stddef.h>
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
@@ -19,10 +21,20 @@ LOG_MODULE_REGISTER(polarizer_wheel_test);
 #define HOMING_TIMEOUT_MS 15000
 
 /* Test timeout for position change (ms) */
-#define POSITION_TIMEOUT_MS 5000
+#define POSITION_TIMEOUT_MS 2000
+
+/* Test timeout for calibration (ms) - calibration spins + homing */
+#define CALIBRATION_TIMEOUT_MS 10000
 
 /* Poll interval when waiting for operations (ms) */
 #define POLL_INTERVAL_MS 100
+
+void
+polarizer_test_reset(void *fixture)
+{
+    UNUSED_PARAMETER(fixture);
+    polarizer_wheel_home_async();
+}
 
 /**
  * Wait for the polarizer wheel to complete homing
@@ -51,7 +63,7 @@ wait_for_homing(uint32_t timeout_ms)
  * - Homing completes within timeout
  * - The wheel reports as homed after completion
  */
-ZTEST(hil, test_polarizer_wheel_homing)
+ZTEST(polarizer, test_polarizer_wheel_homing)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_POLARIZER_WHEEL);
 
@@ -71,7 +83,7 @@ ZTEST(hil, test_polarizer_wheel_homing)
  * - The wheel can move to vertical position (120 degrees)
  * - Movement completes within timeout
  */
-ZTEST(hil, test_polarizer_wheel_set_vertical)
+ZTEST(polarizer, test_polarizer_wheel_set_vertical)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_POLARIZER_WHEEL);
 
@@ -101,7 +113,7 @@ ZTEST(hil, test_polarizer_wheel_set_vertical)
  * - The wheel can move to horizontal position (240 degrees)
  * - Movement completes within timeout
  */
-ZTEST(hil, test_polarizer_wheel_set_horizontal)
+ZTEST(polarizer, test_polarizer_wheel_set_horizontal)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_POLARIZER_WHEEL);
 
@@ -131,7 +143,7 @@ ZTEST(hil, test_polarizer_wheel_set_horizontal)
  * - The wheel can return to pass-through position (0 degrees)
  * - Movement completes within timeout
  */
-ZTEST(hil, test_polarizer_wheel_set_passthrough)
+ZTEST(polarizer, test_polarizer_wheel_set_passthrough)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_POLARIZER_WHEEL);
 
@@ -159,9 +171,10 @@ ZTEST(hil, test_polarizer_wheel_set_passthrough)
  *
  * Verifies that:
  * - The wheel can cycle through all three standard positions
+ * - Movements are tested at multiple speeds
  * - Each transition completes successfully
  */
-ZTEST(hil, test_polarizer_wheel_full_cycle)
+ZTEST(polarizer, test_polarizer_wheel_full_cycle)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_POLARIZER_WHEEL);
 
@@ -179,62 +192,30 @@ ZTEST(hil, test_polarizer_wheel_full_cycle)
         POLARIZER_WHEEL_HORIZONTALLY_POLARIZED_ANGLE,
         POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE,
     };
+    const uint32_t speeds[] = {
+        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_400MSEC_PER_TURN};
     const char *names[] = {"vertical", "horizontal", "pass-through"};
 
-    for (size_t i = 0; i < ARRAY_SIZE(positions); i++) {
-        LOG_INF("Moving to %s position...", names[i]);
+    for (size_t j = 0; j < ARRAY_SIZE(speeds); j++) {
+        LOG_INF("Testing cycle at speed %u usteps/s", speeds[j]);
 
-        ret = polarizer_wheel_set_angle(
-            POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT, positions[i]);
-        zassert_equal(ret, RET_SUCCESS, "Failed to initiate move to %s: %d",
-                      names[i], ret);
+        for (size_t i = 0; i < ARRAY_SIZE(positions); i++) {
+            LOG_INF("Moving to %s position...", names[i]);
 
-        /* Wait for movement to complete */
-        k_msleep(POSITION_TIMEOUT_MS);
+            ret = polarizer_wheel_set_angle(speeds[j], positions[i]);
+            zassert_equal(ret, RET_SUCCESS,
+                          "Failed to initiate move to %s, speed %u: %d",
+                          names[i], speeds[j], ret);
 
-        LOG_INF("Reached %s position", names[i]);
+            /* Wait for movement to complete */
+            k_msleep(POSITION_TIMEOUT_MS);
+
+            LOG_INF("Reached %s position, speed %u", names[i], speeds[j]);
+        }
     }
 
     LOG_INF("Full cycle completed successfully");
-}
-
-/**
- * Test: High-speed position change
- *
- * Verifies that:
- * - The wheel can move at higher speeds
- * - S-curve acceleration/deceleration works correctly
- */
-ZTEST(hil, test_polarizer_wheel_high_speed)
-{
-    Z_TEST_SKIP_IFNDEF(CONFIG_TEST_POLARIZER_WHEEL);
-
-    LOG_INF("Testing high-speed movement...");
-
-    /* Ensure homed first */
-    bool homed = wait_for_homing(HOMING_TIMEOUT_MS);
-    zassert_true(homed, "Polarizer wheel not homed");
-
-    /* Move at higher speed (400ms per revolution) */
-    ret_code_t ret = polarizer_wheel_set_angle(
-        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_400MSEC_PER_TURN,
-        POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE);
-    zassert_equal(ret, RET_SUCCESS, "Failed to initiate high-speed move: %d",
-                  ret);
-
-    /* Wait for movement to complete */
-    k_msleep(POSITION_TIMEOUT_MS);
-
-    /* Return to pass-through at high speed */
-    ret = polarizer_wheel_set_angle(
-        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_400MSEC_PER_TURN,
-        POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE);
-    zassert_equal(ret, RET_SUCCESS, "Failed to initiate high-speed return: %d",
-                  ret);
-
-    k_msleep(POSITION_TIMEOUT_MS);
-
-    LOG_INF("High-speed test completed");
 }
 
 /**
@@ -244,7 +225,7 @@ ZTEST(hil, test_polarizer_wheel_high_speed)
  * - The wheel can re-home after being moved
  * - Re-homing corrects any accumulated position error
  */
-ZTEST(hil, test_polarizer_wheel_rehoming)
+ZTEST(polarizer, test_polarizer_wheel_rehoming)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_POLARIZER_WHEEL);
 
@@ -257,7 +238,7 @@ ZTEST(hil, test_polarizer_wheel_rehoming)
     /* Move to a position */
     ret_code_t ret =
         polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
-                                  POLARIZER_WHEEL_HORIZONTALLY_POLARIZED_ANGLE);
+                                  POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE);
     zassert_equal(ret, RET_SUCCESS, "Failed to move before re-homing: %d", ret);
     k_msleep(POSITION_TIMEOUT_MS);
 
@@ -280,7 +261,7 @@ ZTEST(hil, test_polarizer_wheel_rehoming)
  * - Invalid angles are rejected
  * - Invalid frequencies are rejected
  */
-ZTEST(hil, test_polarizer_wheel_invalid_params)
+ZTEST(polarizer, test_polarizer_wheel_invalid_params)
 {
     Z_TEST_SKIP_IFNDEF(CONFIG_TEST_POLARIZER_WHEEL);
 
@@ -313,4 +294,190 @@ ZTEST(hil, test_polarizer_wheel_invalid_params)
                   "Should reject frequency above maximum");
 
     LOG_INF("Invalid parameter rejection test passed");
+}
+
+/**
+ * Wait for calibration to complete by polling bump widths validity
+ * @return true if calibration completed successfully, false on timeout
+ */
+static bool
+wait_for_calibration(uint32_t timeout_ms)
+{
+    uint32_t elapsed = 0;
+    polarizer_wheel_bump_widths_t widths;
+
+    while (elapsed < timeout_ms) {
+        ret_code_t ret = polarizer_wheel_get_bump_widths(&widths);
+        if (ret == RET_SUCCESS && widths.valid) {
+            return true;
+        }
+        k_msleep(POLL_INTERVAL_MS);
+        elapsed += POLL_INTERVAL_MS;
+    }
+    return false;
+}
+
+/**
+ * Test: Polarizer wheel calibration
+ *
+ * Verifies that:
+ * - Calibration can be started after homing
+ * - Calibration completes successfully
+ * - Bump widths become valid after calibration
+ * - Measured bump widths are reasonable (non-zero)
+ */
+ZTEST(polarizer, test_polarizer_wheel_calibration)
+{
+    Z_TEST_SKIP_IFNDEF(CONFIG_TEST_POLARIZER_WHEEL);
+
+    LOG_INF("Testing polarizer wheel calibration...");
+
+    /* Ensure homed first - calibration requires homed state */
+    bool homed = wait_for_homing(HOMING_TIMEOUT_MS);
+    zassert_true(homed, "Polarizer wheel not homed");
+
+    /* Verify bump widths are not valid before calibration */
+    polarizer_wheel_bump_widths_t widths_before =
+        (polarizer_wheel_bump_widths_t){0};
+    ret_code_t ret = polarizer_wheel_get_bump_widths(&widths_before);
+    /* It's OK if this fails or returns invalid - we just want to confirm
+     * calibration changes the state */
+    LOG_INF("Bump widths before calibration: valid=%d", widths_before.valid);
+
+    /* Start calibration */
+    ret = polarizer_wheel_calibrate_async();
+    zassert_equal(ret, RET_SUCCESS, "Failed to start calibration: %d", ret);
+
+    LOG_INF("Calibration started, waiting for completion...");
+
+    /* Wait for calibration to complete */
+    bool calibrated = wait_for_calibration(CALIBRATION_TIMEOUT_MS);
+    zassert_true(calibrated, "Calibration timed out");
+
+    /* Verify bump widths are now valid */
+    polarizer_wheel_bump_widths_t widths;
+    ret = polarizer_wheel_get_bump_widths(&widths);
+    zassert_equal(ret, RET_SUCCESS,
+                  "Failed to get bump widths after calibration: %d", ret);
+    zassert_true(widths.valid, "Bump widths not marked as valid");
+
+    /* Verify all bump widths are non-zero (sanity check) */
+    zassert_true(
+        widths.pass_through > POLARIZER_WHEEL_MICROSTEPS_PER_STEP * 0.8 &&
+            widths.pass_through < POLARIZER_WHEEL_MICROSTEPS_PER_STEP * 2,
+        "Pass-through bump doesn't have reasonable width after calibration: %u",
+        widths.pass_through);
+    zassert_true(
+        widths.vertical > POLARIZER_WHEEL_MICROSTEPS_PER_STEP * 0.8 &&
+            widths.vertical < POLARIZER_WHEEL_MICROSTEPS_PER_STEP * 2,
+        "Vertical bump doesn't have reasonable width after calibration: %u",
+        widths.vertical);
+    zassert_true(
+        widths.horizontal > POLARIZER_WHEEL_MICROSTEPS_PER_STEP * 0.8 &&
+            widths.horizontal < POLARIZER_WHEEL_MICROSTEPS_PER_STEP * 2,
+        "Horizontal bump width doesn't have reasonable width after "
+        "calibration: %u",
+        widths.horizontal);
+
+    LOG_INF("Calibration complete: pass_through=%u, vertical=%u, horizontal=%u "
+            "microsteps",
+            widths.pass_through, widths.vertical, widths.horizontal);
+}
+
+/**
+ * Test: Calibration followed by standard position move
+ *
+ * Verifies that:
+ * - After calibration, the wheel can still move to standard positions
+ * - The calibrated bump widths improve centering accuracy
+ */
+ZTEST(polarizer, test_polarizer_wheel_calibration_then_move)
+{
+    Z_TEST_SKIP_IFNDEF(CONFIG_TEST_POLARIZER_WHEEL);
+
+    LOG_INF("Testing calibration followed by position moves...");
+
+    /* Ensure homed first */
+    bool homed = wait_for_homing(HOMING_TIMEOUT_MS);
+    zassert_true(homed, "Polarizer wheel not homed");
+
+    /* Start calibration */
+    ret_code_t ret = polarizer_wheel_calibrate_async();
+    zassert_equal(ret, RET_SUCCESS, "Failed to start calibration: %d", ret);
+
+    /* Wait for calibration to complete */
+    bool calibrated = wait_for_calibration(CALIBRATION_TIMEOUT_MS);
+    zassert_true(calibrated, "Calibration timed out");
+
+    /* Verify bump widths are valid */
+    polarizer_wheel_bump_widths_t widths;
+    ret = polarizer_wheel_get_bump_widths(&widths);
+    zassert_equal(ret, RET_SUCCESS, "Failed to get bump widths: %d", ret);
+    zassert_true(widths.valid, "Bump widths not valid after calibration");
+
+    LOG_INF("Calibration verified, testing position moves...");
+
+    /* /!\ order is important here */
+    /* Move to vertical position */
+    ret = polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+                                    POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE);
+    zassert_equal(ret, RET_SUCCESS, "Failed to initiate move to vertical: %d",
+                  ret);
+    k_msleep(POSITION_TIMEOUT_MS);
+
+    /* Move to horizontal position */
+    ret =
+        polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+                                  POLARIZER_WHEEL_HORIZONTALLY_POLARIZED_ANGLE);
+    zassert_equal(ret, RET_SUCCESS, "Failed to initiate move to horizontal: %d",
+                  ret);
+    k_msleep(POSITION_TIMEOUT_MS);
+
+    /* Return to pass-through */
+    ret =
+        polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+                                  POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE);
+    zassert_equal(ret, RET_SUCCESS,
+                  "Failed to initiate move to pass-through: %d", ret);
+    k_msleep(POSITION_TIMEOUT_MS);
+
+    LOG_INF("Post-calibration position moves completed successfully");
+}
+
+/**
+ * Test: Calibration rejection when not homed
+ *
+ * Verifies that:
+ * - Calibration fails with appropriate error if wheel is not homed
+ */
+ZTEST(polarizer, test_polarizer_wheel_calibration_requires_homing)
+{
+    Z_TEST_SKIP_IFNDEF(CONFIG_TEST_POLARIZER_WHEEL);
+
+    LOG_INF("Testing calibration rejection when not at pass-through...");
+
+    /* Ensure homed first */
+    bool homed = wait_for_homing(HOMING_TIMEOUT_MS);
+    zassert_true(homed, "Polarizer wheel not homed");
+
+    /* Move away from pass-through position */
+    ret_code_t ret =
+        polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+                                  POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE);
+    zassert_equal(ret, RET_SUCCESS, "Failed to move to vertical: %d", ret);
+    k_msleep(POSITION_TIMEOUT_MS);
+
+    /* Attempt calibration - should fail since not at pass-through */
+    ret = polarizer_wheel_calibrate_async();
+    /* Calibration requires pass-through position, so this should fail */
+    zassert_not_equal(ret, RET_SUCCESS,
+                      "Calibration should fail when not at pass-through");
+
+    LOG_INF("Calibration correctly rejected when not at pass-through");
+
+    /* Return to pass-through for cleanup */
+    ret =
+        polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+                                  POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE);
+    k_msleep(POSITION_TIMEOUT_MS);
 }

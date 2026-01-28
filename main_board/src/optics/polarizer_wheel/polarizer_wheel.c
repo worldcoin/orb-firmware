@@ -89,15 +89,16 @@ typedef struct {
         bool success;
     } homing;
 
-    /* Bump calibration state - measures bump widths during homing */
+    /* Bump calibration state - measures bump widths in dedicated calibration
+     * routine */
     struct {
         /* Bump widths in microsteps for each position */
         uint32_t bump_width_pass_through;
         uint32_t bump_width_vertical;
         uint32_t bump_width_horizontal;
         /* Tracking during calibration */
-        uint8_t bump_index; /* 0=pass_through, 1=vertical, 2=extra(skip),
-                               3=horizontal */
+        uint8_t bump_index; /* 0=vertical, 1=extra(skip), 2=horizontal,
+                               3=pass_through */
         uint32_t bump_entry_position; /* step position when entering bump */
         bool inside_bump; /* true when on bump (between rising and falling edge)
                            */
@@ -1073,6 +1074,7 @@ execute_homing(void)
         } else {
             ORB_STATE_SET_CURRENT(RET_SUCCESS, "homed");
         }
+        g_polarizer_wheel_instance.state = STATE_IDLE;
         g_polarizer_wheel_instance.homing.success = true;
         atomic_clear(&g_polarizer_wheel_instance.step_count.current);
 
@@ -1179,10 +1181,9 @@ execute_calibration(void)
      *
      * We spin 2x 270 degrees (step_relative is limited to 360 degrees max)
      */
-    uint8_t bumps_measured = 0;
     bool calibration_done = false;
 
-    /* Spin 2 times 270 degrees = 2 full turns */
+    /* Spin 2 times 270 degrees */
     for (int spin = 0; spin < 2 && !calibration_done; spin++) {
         k_sem_reset(&encoder_sem);
 
@@ -1247,7 +1248,6 @@ execute_calibration(void)
                             LOG_INF(
                                 "Calibration: vertical width = %u microsteps",
                                 bump_width);
-                            bumps_measured++;
                             break;
                         case 1: /* extra bump - skip */
                             LOG_DBG("Calibration: extra bump width = %u "
@@ -1263,7 +1263,6 @@ execute_calibration(void)
                             LOG_INF(
                                 "Calibration: horizontal width = %u microsteps",
                                 bump_width);
-                            bumps_measured++;
                             break;
                         case 3: /* pass_through */
                             if (g_polarizer_wheel_instance.calibration
@@ -1274,7 +1273,6 @@ execute_calibration(void)
                             LOG_INF("Calibration: pass_through width = %u "
                                     "microsteps",
                                     bump_width);
-                            bumps_measured++;
                             break;
                         }
 

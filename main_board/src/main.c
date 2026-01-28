@@ -80,6 +80,11 @@ ZTEST_SUITE(ir_camera, NULL, NULL, ir_camera_test_reset, ir_camera_test_reset,
 ZTEST_SUITE(storage, NULL, NULL, clean_storage, NULL, clean_storage);
 #endif
 
+#if CONFIG_TEST_POLARIZER_WHEEL
+#include "optics/polarizer_wheel/polarizer_wheel_tests.h"
+ZTEST_SUITE(polarizer, NULL, NULL, NULL, polarizer_test_reset, NULL);
+#endif
+
 #endif
 
 /**
@@ -385,9 +390,9 @@ initialize(void)
         // on diamond evt, timer2 is used by fan tach & stepper but
         // pwm cannot be used as output and input for same timer
         // so we default to polarizer if one is detected
-        // wait 10 seconds for polarizer homing to finish, if unsuccessful (no
+        // wait 15 seconds for polarizer homing to finish, if unsuccessful (no
         // polarizer dectected?): use fan tach
-        k_msleep(10000);
+        k_msleep(15000);
         if (!polarizer_wheel_homed()) {
             err_code = fan_tach_init();
             ASSERT_SOFT(err_code);

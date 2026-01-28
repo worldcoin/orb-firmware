@@ -537,7 +537,7 @@ execute_polarizer(const struct shell *sh, size_t argc, char **argv)
             shell_error(sh, "Failed to start calibration: %d", ret);
             return -EIO;
         }
-        shell_print(sh, "Starting bump width calibration (2 full turns)...");
+        shell_print(sh, "Starting bump width calibration...");
         return 0;
     } else if (strcmp(argv[1], "status") == 0) {
         /* Show calibration status */
