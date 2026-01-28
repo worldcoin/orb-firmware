@@ -1657,20 +1657,22 @@ polarizer_wheel_calibrate_async(void)
         return RET_ERROR_BUSY;
     }
 
-    if (g_polarizer_wheel_instance.state == STATE_UNINITIALIZED) {
+    if (g_polarizer_wheel_instance.state == STATE_UNINITIALIZED ||
+        !g_polarizer_wheel_instance.homing.success) {
         k_mutex_unlock(&cmd_mutex);
-        return RET_ERROR_NOT_INITIALIZED;
-    }
-
-    if (!g_polarizer_wheel_instance.homing.success) {
-        k_mutex_unlock(&cmd_mutex);
-        LOG_ERR("Calibration requires successful homing first");
         return RET_ERROR_NOT_INITIALIZED;
     }
 
     if (g_polarizer_wheel_instance.state != STATE_IDLE) {
         k_mutex_unlock(&cmd_mutex);
         return RET_ERROR_BUSY;
+    }
+
+    if (get_current_position() !=
+        orb_mcu_main_PolarizerWheelState_Position_PASS_THROUGH) {
+        k_mutex_unlock(&cmd_mutex);
+        LOG_ERR("Calibration requires to be at pass through position first");
+        return RET_ERROR_INVALID_STATE;
     }
 
     /* Queue the calibration command */
