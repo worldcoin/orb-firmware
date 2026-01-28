@@ -1214,6 +1214,18 @@ handle_polarizer(job_t *job)
             polarizer_wheel_set_angle(frequency_usteps_per_second,
                                       msg->payload.polarizer.angle_decidegrees);
         break;
+    case orb_mcu_main_Polarizer_Command_POLARIZER_CALIBRATE_HOME: {
+        err_code = polarizer_wheel_calibrate_async();
+        if (err_code == RET_SUCCESS) {
+            job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+        } else if (err_code == RET_ERROR_BUSY) {
+            job_ack(orb_mcu_Ack_ErrorCode_IN_PROGRESS, job);
+        } else {
+            // not homed or module not initialized
+            job_ack(orb_mcu_Ack_ErrorCode_INVALID_STATE, job);
+        }
+        return;
+    } break;
     default:
         // not implemented yet
         job_ack(orb_mcu_Ack_ErrorCode_OPERATION_NOT_SUPPORTED, job);

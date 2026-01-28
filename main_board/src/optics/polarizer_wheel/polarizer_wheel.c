@@ -48,6 +48,7 @@ enum polarizer_wheel_state_e {
     STATE_UNINITIALIZED = 0,
     STATE_IDLE,
     STATE_HOMING,
+    STATE_CALIBRATING,
     STATE_POSITIONING,
     STATE_CUSTOM_ANGLE,
 };
@@ -57,6 +58,7 @@ enum polarizer_wheel_cmd_e {
     CMD_NONE = 0,
     CMD_HOME,
     CMD_SET_ANGLE,
+    CMD_CALIBRATE,
 };
 
 /* Acceleration state */
@@ -86,6 +88,24 @@ typedef struct {
         uint8_t notch_count;
         bool success;
     } homing;
+
+    /* Bump calibration state - measures bump widths in dedicated calibration
+     * routine */
+    struct {
+        /* Bump widths in microsteps for each position */
+        uint32_t bump_width_pass_through;
+        uint32_t bump_width_vertical;
+        uint32_t bump_width_horizontal;
+        /* Tracking during calibration */
+        uint8_t bump_index; /* 0=vertical, 1=extra(skip), 2=horizontal,
+                               3=pass_through */
+        uint32_t bump_entry_position; /* step position when entering bump */
+        bool inside_bump; /* true when on bump (between rising and falling edge)
+                           */
+        bool calibration_complete;
+        bool
+            needs_calibration; /* true if calibration should run after homing */
+    } calibration;
 
     /* Step counting */
     struct {
@@ -232,6 +252,8 @@ static ret_code_t
 enable_step_interrupt(void);
 static ret_code_t
 disable_step_interrupt(void);
+static void
+execute_calibration(void);
 
 /*
  * Calculate the shortest signed distance between two positions on the circular
@@ -508,20 +530,59 @@ get_current_position(void)
 }
 
 /**
+ * Get the edge-to-center distance for a given target position.
+ * Uses calibrated bump width if available, otherwise falls back to default.
+ *
+ * @param target_step Target position in microsteps (0, 120°, or 240°
+ * equivalent)
+ * @return Distance from bump edge to center in microsteps
+ */
+static uint32_t
+get_edge_to_center_for_position(int32_t target_step)
+{
+    if (!g_polarizer_wheel_instance.calibration.calibration_complete) {
+        return POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER;
+    }
+
+    /* Determine which position this target corresponds to */
+    const int32_t pass_through_pos = 0;
+    const int32_t vertical_pos = POLARIZER_WHEEL_MICROSTEPS_120_DEGREES;
+    const int32_t horizontal_pos = POLARIZER_WHEEL_MICROSTEPS_120_DEGREES * 2;
+
+    /* Allow some tolerance for position matching */
+    const int32_t tolerance = POLARIZER_WHEEL_MICROSTEPS_PER_STEP;
+
+    if (abs(target_step - pass_through_pos) < tolerance ||
+        abs(target_step - POLARIZER_WHEEL_MICROSTEPS_360_DEGREES) < tolerance) {
+        return g_polarizer_wheel_instance.calibration.bump_width_pass_through /
+               2;
+    } else if (abs(target_step - vertical_pos) < tolerance) {
+        return g_polarizer_wheel_instance.calibration.bump_width_vertical / 2;
+    } else if (abs(target_step - horizontal_pos) < tolerance) {
+        return g_polarizer_wheel_instance.calibration.bump_width_horizontal / 2;
+    }
+
+    /* For custom angles, use default */
+    return POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER;
+}
+
+/**
  * Calculate the notch edge position for encoder-assisted positioning
  */
 static int32_t
 calculate_notch_edge(int32_t target_step,
                      enum polarizer_wheel_direction_e direction)
 {
+    uint32_t edge_to_center = get_edge_to_center_for_position(target_step);
     int32_t edge;
+
     if (direction == POLARIZER_WHEEL_DIRECTION_FORWARD) {
-        edge = target_step - POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER;
+        edge = target_step - (int32_t)edge_to_center;
         if (edge < 0) {
             edge += POLARIZER_WHEEL_MICROSTEPS_360_DEGREES;
         }
     } else {
-        edge = target_step + POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER;
+        edge = target_step + (int32_t)edge_to_center;
         if (edge >= POLARIZER_WHEEL_MICROSTEPS_360_DEGREES) {
             edge -= POLARIZER_WHEEL_MICROSTEPS_360_DEGREES;
         }
@@ -545,8 +606,16 @@ encoder_callback(const struct device *dev, struct gpio_callback *cb,
     ARG_UNUSED(cb);
 
     if (pins & BIT(polarizer_encoder_spec.pin)) {
-        if (gpio_pin_get_dt(&polarizer_encoder_spec) == 1) {
+        if (g_polarizer_wheel_instance.state == STATE_CALIBRATING) {
+            /* During calibration, signal on both rising and falling edges.
+             * The thread determines edge type by reading the pin state. */
             k_sem_give(&encoder_sem);
+        } else {
+            /* For homing/positioning, only signal on rising edge (entering
+             * bump) */
+            if (gpio_pin_get_dt(&polarizer_encoder_spec) == 1) {
+                k_sem_give(&encoder_sem);
+            }
         }
     }
 }
@@ -996,10 +1065,28 @@ execute_homing(void)
         g_polarizer_wheel_instance.state = STATE_IDLE;
 
         LOG_INF("Polarizer wheel homed");
-        ORB_STATE_SET_CURRENT(RET_SUCCESS, "homed");
+        if (g_polarizer_wheel_instance.calibration.calibration_complete) {
+            ORB_STATE_SET_CURRENT(
+                RET_SUCCESS, "homed,cal:%u,%u,%u",
+                g_polarizer_wheel_instance.calibration.bump_width_pass_through,
+                g_polarizer_wheel_instance.calibration.bump_width_vertical,
+                g_polarizer_wheel_instance.calibration.bump_width_horizontal);
+        } else {
+            ORB_STATE_SET_CURRENT(RET_SUCCESS, "homed");
+        }
+        g_polarizer_wheel_instance.state = STATE_IDLE;
         g_polarizer_wheel_instance.homing.success = true;
+        atomic_clear(&g_polarizer_wheel_instance.step_count.current);
 
         report_reached_state();
+
+        /* Trigger calibration if needed (e.g., during startup) */
+        if (g_polarizer_wheel_instance.calibration.needs_calibration) {
+            g_polarizer_wheel_instance.calibration.needs_calibration = false;
+            LOG_INF("Starting bump width calibration after homing");
+            execute_calibration();
+            return; /* execute_calibration will call execute_homing again */
+        }
     } else {
         disable_encoder();
         g_polarizer_wheel_instance.homing.success = false;
@@ -1010,12 +1097,251 @@ execute_homing(void)
                               "bumps not correctly detected");
     }
 
-    /* Reset step counter */
-    atomic_clear(&g_polarizer_wheel_instance.step_count.current);
-
     /* Schedule idle current scale-down */
     g_polarizer_wheel_instance.idle_current_scale_down_time_ms =
         k_uptime_get_32() + POLARIZER_IDLE_CURRENT_DELAY_MS;
+}
+
+/**
+ * Execute bump width calibration.
+ * Spins at least one full turns from pass-through position to measure bump
+ * widths. Must be called after homing is complete (wheel at pass_through
+ * position).
+ *
+ * Bump order when spinning forward from pass_through:
+ * 1. Exit pass_through (falling edge) - can't measure, we start centered
+ * 2. vertical (rising + falling) - measure
+ * 3. extra bump (rising + falling) - skip
+ * 4. horizontal (rising + falling) - measure
+ * 5. pass_through (rising + falling) - measure
+ * 6. Repeat for second turn (for verification/averaging if needed)
+ */
+static void
+execute_calibration(void)
+{
+    if (g_polarizer_wheel_instance.state != STATE_IDLE) {
+        LOG_ERR("Calibration requires IDLE state, current: %d",
+                g_polarizer_wheel_instance.state);
+        return;
+    }
+
+    if (!g_polarizer_wheel_instance.homing.success) {
+        LOG_ERR("Calibration requires successful homing first");
+        return;
+    }
+
+    if (get_current_position() !=
+        orb_mcu_main_PolarizerWheelState_Position_PASS_THROUGH) {
+        LOG_ERR("Calibration requires to be at pass through position first");
+        return;
+    }
+
+    LOG_INF("Starting bump width calibration");
+    g_polarizer_wheel_instance.state = STATE_CALIBRATING;
+
+    /* Initialize calibration state */
+    g_polarizer_wheel_instance.calibration.bump_width_pass_through = 0;
+    g_polarizer_wheel_instance.calibration.bump_width_vertical = 0;
+    g_polarizer_wheel_instance.calibration.bump_width_horizontal = 0;
+    g_polarizer_wheel_instance.calibration.bump_index = 0;
+    g_polarizer_wheel_instance.calibration.bump_entry_position = 0;
+    g_polarizer_wheel_instance.calibration.inside_bump = false;
+    g_polarizer_wheel_instance.calibration.calibration_complete = false;
+
+    /* Configure encoder for both edge detection */
+    int ret = gpio_pin_configure_dt(&polarizer_encoder_enable_spec,
+                                    GPIO_OUTPUT_ACTIVE);
+    if (ret) {
+        LOG_ERR("Failed to enable encoder: %d", ret);
+        g_polarizer_wheel_instance.state = STATE_IDLE;
+        return;
+    }
+
+    ret = gpio_pin_interrupt_configure_dt(&polarizer_encoder_spec,
+                                          GPIO_INT_EDGE_BOTH);
+    if (ret) {
+        LOG_ERR("Failed to configure encoder interrupt: %d", ret);
+        g_polarizer_wheel_instance.state = STATE_IDLE;
+        return;
+    }
+
+    k_sem_reset(&encoder_sem);
+
+    set_direction(POLARIZER_WHEEL_DIRECTION_FORWARD);
+
+    /*
+     * Process encoder events during calibration spin.
+     * From pass_through center, spinning forward:
+     * - vertical (rise/fall), horizontal (rise/fall), extra (rise/fall),
+     *   pass_through (rise/fall)
+     * - Second turn repeats the pattern
+     *
+     * Bump index mapping:
+     * 0,4 = vertical, 1,5 = extra (skip), 2,6 = horizontal, 3,7 = pass_through
+     *
+     * We spin 2x 270 degrees (step_relative is limited to 360 degrees max)
+     */
+    bool calibration_done = false;
+
+    /* Spin 2 times 270 degrees */
+    for (int spin = 0; spin < 2 && !calibration_done; spin++) {
+        k_sem_reset(&encoder_sem);
+
+        ret = polarizer_wheel_step_relative(
+            POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+            POLARIZER_WHEEL_MICROSTEPS_360_DEGREES * 3 / 4);
+        if (ret != RET_SUCCESS) {
+            LOG_ERR("Unable to spin for calibration (spin %d): %d", spin, ret);
+            gpio_pin_interrupt_configure_dt(&polarizer_encoder_spec,
+                                            GPIO_INT_DISABLE);
+            g_polarizer_wheel_instance.state = STATE_IDLE;
+            return;
+        }
+
+        uint32_t spin_timeout_ms = 4000; /* 4 seconds per 180 degree spin */
+        uint32_t spin_start = k_uptime_get_32();
+
+        while ((k_uptime_get_32() - spin_start) < spin_timeout_ms) {
+            ret = k_sem_take(&encoder_sem, K_MSEC(50));
+            if (ret == 0) {
+                /* Encoder edge detected */
+                int32_t current_pos =
+                    atomic_get(&g_polarizer_wheel_instance.step_count.current);
+                bool is_high = gpio_pin_get_dt(&polarizer_encoder_spec) == 1;
+
+                if (is_high) {
+                    /* Rising edge: entering a bump */
+                    g_polarizer_wheel_instance.calibration.bump_entry_position =
+                        current_pos;
+                    g_polarizer_wheel_instance.calibration.inside_bump = true;
+                    LOG_DBG("Calibration: entering bump at pos %d (index %d)",
+                            current_pos,
+                            g_polarizer_wheel_instance.calibration.bump_index);
+                } else {
+                    /* Falling edge: exiting a bump */
+                    if (g_polarizer_wheel_instance.calibration.inside_bump) {
+                        /* Calculate bump width, handling wrap-around at 360° */
+                        int32_t entry_pos =
+                            (int32_t)g_polarizer_wheel_instance.calibration
+                                .bump_entry_position;
+                        int32_t width = current_pos - entry_pos;
+                        if (width < 0) {
+                            /* Wrapped around 0 position */
+                            width += POLARIZER_WHEEL_MICROSTEPS_360_DEGREES;
+                        }
+                        uint32_t bump_width = (uint32_t)width;
+
+                        /* Map bump index to position:
+                         * 0,4 = vertical, 1,5 = extra (skip),
+                         * 2,6 = horizontal, 3,7 = pass_through */
+                        uint8_t position_index =
+                            g_polarizer_wheel_instance.calibration.bump_index %
+                            4;
+
+                        switch (position_index) {
+                        case 0: /* vertical */
+                            if (g_polarizer_wheel_instance.calibration
+                                    .bump_width_vertical == 0) {
+                                g_polarizer_wheel_instance.calibration
+                                    .bump_width_vertical = bump_width;
+                            }
+                            LOG_INF(
+                                "Calibration: vertical width = %u microsteps",
+                                bump_width);
+                            break;
+                        case 1: /* extra bump - skip */
+                            LOG_DBG("Calibration: extra bump width = %u "
+                                    "microsteps (skipped)",
+                                    bump_width);
+                            break;
+                        case 2: /* horizontal */
+                            if (g_polarizer_wheel_instance.calibration
+                                    .bump_width_horizontal == 0) {
+                                g_polarizer_wheel_instance.calibration
+                                    .bump_width_horizontal = bump_width;
+                            }
+                            LOG_INF(
+                                "Calibration: horizontal width = %u microsteps",
+                                bump_width);
+                            break;
+                        case 3: /* pass_through */
+                            if (g_polarizer_wheel_instance.calibration
+                                    .bump_width_pass_through == 0) {
+                                g_polarizer_wheel_instance.calibration
+                                    .bump_width_pass_through = bump_width;
+                            }
+                            LOG_INF("Calibration: pass_through width = %u "
+                                    "microsteps",
+                                    bump_width);
+                            break;
+                        }
+
+                        g_polarizer_wheel_instance.calibration.bump_index++;
+                        g_polarizer_wheel_instance.calibration.inside_bump =
+                            false;
+
+                        /* Check if we have all measurements */
+                        if (g_polarizer_wheel_instance.calibration
+                                    .bump_width_pass_through > 0 &&
+                            g_polarizer_wheel_instance.calibration
+                                    .bump_width_vertical > 0 &&
+                            g_polarizer_wheel_instance.calibration
+                                    .bump_width_horizontal > 0) {
+                            LOG_INF("Calibration: all bumps measured");
+                            calibration_done = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            /* Check if motor stopped (target reached) */
+            if (atomic_get(&g_polarizer_wheel_instance.step_count.current) ==
+                atomic_get(&g_polarizer_wheel_instance.step_count.target)) {
+                LOG_DBG("Calibration: spin %d complete", spin);
+                break;
+            }
+        }
+
+        /* Wait for motor to fully stop before next spin */
+        polarizer_halt();
+    }
+
+    polarizer_halt();
+
+    /* Disable both-edge detection, restore rising-edge only */
+    gpio_pin_interrupt_configure_dt(&polarizer_encoder_spec, GPIO_INT_DISABLE);
+
+    /* Verify calibration succeeded */
+    if (g_polarizer_wheel_instance.calibration.bump_width_pass_through > 0 &&
+        g_polarizer_wheel_instance.calibration.bump_width_vertical > 0 &&
+        g_polarizer_wheel_instance.calibration.bump_width_horizontal > 0) {
+        g_polarizer_wheel_instance.calibration.calibration_complete = true;
+        ORB_STATE_SET_CURRENT(
+            RET_SUCCESS, "calibrated: %u,%u,%u",
+            g_polarizer_wheel_instance.calibration.bump_width_pass_through,
+            g_polarizer_wheel_instance.calibration.bump_width_vertical,
+            g_polarizer_wheel_instance.calibration.bump_width_horizontal);
+        LOG_INF("Bump calibration complete: pass_through=%u, vertical=%u, "
+                "horizontal=%u microsteps",
+                g_polarizer_wheel_instance.calibration.bump_width_pass_through,
+                g_polarizer_wheel_instance.calibration.bump_width_vertical,
+                g_polarizer_wheel_instance.calibration.bump_width_horizontal);
+    } else {
+        LOG_WRN("Bump calibration incomplete: pass_through=%u, vertical=%u, "
+                "horizontal=%u",
+                g_polarizer_wheel_instance.calibration.bump_width_pass_through,
+                g_polarizer_wheel_instance.calibration.bump_width_vertical,
+                g_polarizer_wheel_instance.calibration.bump_width_horizontal);
+    }
+
+    /* Queue homing to return to known position.
+     * Set needs_calibration to false to prevent re-triggering calibration. */
+    g_polarizer_wheel_instance.state = STATE_IDLE;
+    g_polarizer_wheel_instance.homing.success = false;
+    g_polarizer_wheel_instance.calibration.needs_calibration = false;
+    LOG_INF("Calibration done, queuing homing");
+    execute_homing();
 }
 
 /**
@@ -1228,6 +1554,9 @@ polarizer_wheel_thread(void *p1, void *p2, void *p3)
                     g_polarizer_wheel_instance.pending_cmd.set_angle
                         .angle_decidegrees);
                 break;
+            case CMD_CALIBRATE:
+                execute_calibration();
+                break;
             default:
                 break;
             }
@@ -1311,6 +1640,41 @@ polarizer_wheel_home_async(void)
     /* Queue the homing command */
     g_polarizer_wheel_instance.pending_cmd.type = CMD_HOME;
     g_polarizer_wheel_instance.homing.success = false;
+    k_sem_give(&cmd_sem);
+
+    k_mutex_unlock(&cmd_mutex);
+    return RET_SUCCESS;
+}
+
+ret_code_t
+polarizer_wheel_calibrate_async(void)
+{
+    /* Lock to prevent concurrent command queuing */
+    int ret = k_mutex_lock(&cmd_mutex, K_MSEC(100));
+    if (ret != 0) {
+        return RET_ERROR_BUSY;
+    }
+
+    if (g_polarizer_wheel_instance.state == STATE_UNINITIALIZED ||
+        !g_polarizer_wheel_instance.homing.success) {
+        k_mutex_unlock(&cmd_mutex);
+        return RET_ERROR_NOT_INITIALIZED;
+    }
+
+    if (g_polarizer_wheel_instance.state != STATE_IDLE) {
+        k_mutex_unlock(&cmd_mutex);
+        return RET_ERROR_BUSY;
+    }
+
+    if (get_current_position() !=
+        orb_mcu_main_PolarizerWheelState_Position_PASS_THROUGH) {
+        k_mutex_unlock(&cmd_mutex);
+        LOG_ERR("Calibration requires to be at pass through position first");
+        return RET_ERROR_INVALID_STATE;
+    }
+
+    /* Queue the calibration command */
+    g_polarizer_wheel_instance.pending_cmd.type = CMD_CALIBRATE;
     k_sem_give(&cmd_sem);
 
     k_mutex_unlock(&cmd_mutex);
@@ -1500,7 +1864,8 @@ polarizer_wheel_init(const orb_mcu_Hardware *hw_version)
                     THREAD_PRIORITY_POLARIZER_WHEEL, 0, K_NO_WAIT);
     k_thread_name_set(&thread_data_polarizer_wheel, "polarizer");
 
-    /* Queue initial homing */
+    /* Queue initial homing with calibration */
+    g_polarizer_wheel_instance.calibration.needs_calibration = true;
     ret_val = polarizer_wheel_home_async();
 
 exit:
@@ -1517,4 +1882,30 @@ bool
 polarizer_wheel_homed(void)
 {
     return g_polarizer_wheel_instance.homing.success;
+}
+
+ret_code_t
+polarizer_wheel_get_bump_widths(polarizer_wheel_bump_widths_t *widths)
+{
+    if (widths == NULL) {
+        return RET_ERROR_INVALID_PARAM;
+    }
+
+    if (!g_polarizer_wheel_instance.calibration.calibration_complete) {
+        widths->valid = false;
+        widths->pass_through = 0;
+        widths->vertical = 0;
+        widths->horizontal = 0;
+        return RET_ERROR_NOT_INITIALIZED;
+    }
+
+    widths->pass_through =
+        g_polarizer_wheel_instance.calibration.bump_width_pass_through;
+    widths->vertical =
+        g_polarizer_wheel_instance.calibration.bump_width_vertical;
+    widths->horizontal =
+        g_polarizer_wheel_instance.calibration.bump_width_horizontal;
+    widths->valid = true;
+
+    return RET_SUCCESS;
 }

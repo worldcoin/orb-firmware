@@ -9,6 +9,7 @@
 #include <compilers.h>
 #include <main.pb.h>
 #include <optics/ir_camera_system/ir_camera_timer_settings.h>
+#include <optics/polarizer_wheel/polarizer_wheel.h>
 #include <orb_state.h>
 #include <power/battery/battery.h>
 #include <runner/runner.h>
@@ -494,6 +495,8 @@ execute_polarizer(const struct shell *sh, size_t argc, char **argv)
         shell_error(sh, "Usage: polarizer <command> [args]");
         shell_print(sh, "Commands:");
         shell_print(sh, "  home                    - Home the polarizer wheel");
+        shell_print(sh, "  calibrate               - Calibrate bump widths");
+        shell_print(sh, "  status                  - Show calibration status");
         shell_print(sh,
                     "  pass_through [speed]    - Set to pass-through position");
         shell_print(
@@ -527,6 +530,31 @@ execute_polarizer(const struct shell *sh, size_t argc, char **argv)
         message.payload.polarizer.command =
             orb_mcu_main_Polarizer_Command_POLARIZER_HOME;
         shell_print(sh, "Homing polarizer wheel...");
+    } else if (strcmp(argv[1], "calibrate") == 0) {
+        /* Direct API call - doesn't go through runner/protobuf */
+        ret_code_t ret = polarizer_wheel_calibrate_async();
+        if (ret != RET_SUCCESS) {
+            shell_error(sh, "Failed to start calibration: %d", ret);
+            return -EIO;
+        }
+        shell_print(sh, "Starting bump width calibration...");
+        return 0;
+    } else if (strcmp(argv[1], "status") == 0) {
+        /* Show calibration status */
+        polarizer_wheel_bump_widths_t widths;
+        ret_code_t ret = polarizer_wheel_get_bump_widths(&widths);
+        shell_print(sh, "Polarizer wheel status:");
+        shell_print(sh, "  Homed: %s", polarizer_wheel_homed() ? "yes" : "no");
+        if (ret == RET_SUCCESS && widths.valid) {
+            shell_print(sh, "  Calibration: complete");
+            shell_print(sh, "  Bump widths (microsteps):");
+            shell_print(sh, "    pass_through: %u", widths.pass_through);
+            shell_print(sh, "    vertical:     %u", widths.vertical);
+            shell_print(sh, "    horizontal:   %u", widths.horizontal);
+        } else {
+            shell_print(sh, "  Calibration: not performed");
+        }
+        return 0;
     } else if (strcmp(argv[1], "pass_through") == 0) {
         message.payload.polarizer.command =
             orb_mcu_main_Polarizer_Command_POLARIZER_PASS_THROUGH;
