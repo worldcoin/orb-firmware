@@ -237,11 +237,6 @@ static const DRV8434S_DriverCfg_t drv8434_cfg = {
 #define POLARIZER_WHEEL_NOTCH_DETECT_ATTEMPTS 9
 
 BUILD_ASSERT(POLARIZER_WHEEL_NOTCH_DETECT_ATTEMPTS > 4);
-BUILD_ASSERT(POLARIZER_WHEEL_DECELERATION_RAMP_STEPS > 0);
-BUILD_ASSERT(POLARIZER_WHEEL_ACCELERATION_RAMP_STEPS <= 10000,
-             "Ramp steps too large, risk of overflow in S-curve calculation");
-BUILD_ASSERT(POLARIZER_WHEEL_DECELERATION_RAMP_STEPS <= 10000,
-             "Ramp steps too large, risk of overflow in S-curve calculation");
 
 /* Forward declarations */
 static int
@@ -274,41 +269,106 @@ circular_signed_distance(int32_t from, int32_t to)
 }
 
 /*
- * Calculate the frequency for the S-curve acceleration/deceleration
+ * Linear acceleration/deceleration configuration and helpers
+ */
+/* Linear acceleration in µsteps/s² */
+#define LINEAR_ACCELERATION_USTEPS_PER_S2 11500
+
+/* Maximum ramp distance in µsteps (512 for accel + 512 for decel = 1024 between
+ * positions) */
+#define MAX_RAMP_STEPS 512
+
+/**
+ * Calculate the number of steps required to decelerate from start_freq to
+ * target_freq using linear deceleration.
+ *
+ * Uses kinematic equation: s = (v₀² - v²) / (2*a)
+ *
+ * @param start_freq Starting frequency in Hz (µsteps/s)
+ * @param target_freq Target frequency in Hz (µsteps/s)
+ * @return Number of steps required for deceleration
  */
 static uint32_t
-calculate_scurve_frequency(uint32_t step, uint32_t total, uint32_t start_freq,
-                           uint32_t target_freq, bool ramp_up)
+calculate_deceleration_distance(uint32_t start_freq, uint32_t target_freq)
 {
-    if (step >= total) {
-        return target_freq;
+    if (start_freq <= target_freq) {
+        return 0;
     }
 
-    if (total == 0) {
-        ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
-        return start_freq;
-    }
+    const uint64_t start_freq_sq = (uint64_t)start_freq * start_freq;
+    const uint64_t target_freq_sq = (uint64_t)target_freq * target_freq;
+    const uint64_t delta_freq_sq = start_freq_sq - target_freq_sq;
 
+    /* s = (v₀² - v²) / (2*a) */
+    uint32_t distance =
+        (uint32_t)(delta_freq_sq / (2ULL * LINEAR_ACCELERATION_USTEPS_PER_S2));
+
+    /* Cap to maximum ramp distance */
+    return (distance > MAX_RAMP_STEPS) ? MAX_RAMP_STEPS : distance;
+}
+
+/**
+ * Calculate frequency using linear acceleration/deceleration.
+ * Uses kinematic equation: v² = v₀² + 2*a*s
+ * where v is velocity (frequency), a is acceleration, s is displacement (steps)
+ *
+ * @param step Current step index in the ramp (0-based)
+ * @param start_freq Starting frequency in Hz (µsteps/s)
+ * @param target_freq Target frequency in Hz (µsteps/s)
+ * @param ramp_up true for acceleration, false for deceleration
+ * @return Calculated frequency for the current step
+ */
+static uint32_t
+calculate_linear_ramp_frequency(uint32_t step, uint32_t start_freq,
+                                uint32_t target_freq, bool ramp_up)
+{
     if (ramp_up) {
-        if (target_freq < start_freq) {
+        if (target_freq <= start_freq) {
             ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
             return start_freq;
         }
     } else {
-        if (target_freq > start_freq) {
+        if (target_freq >= start_freq) {
             ASSERT_SOFT(RET_ERROR_INVALID_PARAM);
             return start_freq;
         }
     }
 
-    const uint64_t step_sq = (uint64_t)step * step;
-    const uint64_t step_cb = step_sq * step;
-    const uint64_t total_cb = (uint64_t)total * total * total;
-    const uint64_t numerator = 3 * step_sq * total - 2 * step_cb;
-    const uint32_t range =
-        ramp_up ? (target_freq - start_freq) : (start_freq - target_freq);
-    return ramp_up ? start_freq + (uint32_t)((numerator * range) / total_cb)
-                   : start_freq - (uint32_t)((numerator * range) / total_cb);
+    /* v² = v₀² + 2*a*s (ramp up) or v² = v₀² - 2*a*s (ramp down) */
+    const uint64_t start_freq_sq = (uint64_t)start_freq * start_freq;
+    const uint64_t accel_term = 2ULL * LINEAR_ACCELERATION_USTEPS_PER_S2 * step;
+
+    uint64_t freq_sq;
+    if (ramp_up) {
+        freq_sq = start_freq_sq + accel_term;
+        /* Clamp to target frequency */
+        const uint64_t target_freq_sq = (uint64_t)target_freq * target_freq;
+        if (freq_sq >= target_freq_sq) {
+            return target_freq;
+        }
+    } else {
+        /* Deceleration: v² = v₀² - 2*a*s */
+        if (accel_term >= start_freq_sq) {
+            /* Would go below zero, clamp to target */
+            return target_freq;
+        }
+        freq_sq = start_freq_sq - accel_term;
+        /* Clamp to target frequency */
+        const uint64_t target_freq_sq = (uint64_t)target_freq * target_freq;
+        if (freq_sq <= target_freq_sq) {
+            return target_freq;
+        }
+    }
+
+    /* Integer square root approximation using Newton's method */
+    uint64_t x = freq_sq;
+    uint64_t y = (x + 1) / 2;
+    while (y < x) {
+        x = y;
+        y = (x + freq_sq / x) / 2;
+    }
+
+    return (uint32_t)x;
 }
 
 /* Clear the polarizer wheel step interrupt flag */
@@ -748,8 +808,6 @@ process_step_event(void)
 
         const uint32_t step =
             g_polarizer_wheel_instance.acceleration.ramp_index;
-        const uint32_t total =
-            g_polarizer_wheel_instance.acceleration.total_ramp_steps;
         const uint32_t start_freq =
             g_polarizer_wheel_instance.acceleration.start_frequency;
         const uint32_t target_freq =
@@ -758,14 +816,14 @@ process_step_event(void)
         uint32_t current_freq =
             g_polarizer_wheel_instance.acceleration.current_frequency;
 
-        if (step >= total) {
-            current_freq = target_freq;
+        current_freq = calculate_linear_ramp_frequency(
+            step, start_freq, target_freq,
+            (g_polarizer_wheel_instance.acceleration.state ==
+             ACCELERATION_RAMP_UP));
+
+        /* Check if ramp is complete (frequency reached target) */
+        if (current_freq == target_freq) {
             g_polarizer_wheel_instance.acceleration.state = ACCELERATION_FULL;
-        } else if (total != 0) {
-            current_freq = calculate_scurve_frequency(
-                step, total, start_freq, target_freq,
-                (g_polarizer_wheel_instance.acceleration.state ==
-                 ACCELERATION_RAMP_UP));
         }
 
         const int ret = polarizer_set_frequency(current_freq);
@@ -788,13 +846,21 @@ process_step_event(void)
     }
 
     /* For positioning mode: check if we should start deceleration */
+    /* Also check during RAMP_UP since we may need to decelerate before reaching
+     * target speed */
     if (g_polarizer_wheel_instance.state == STATE_POSITIONING &&
-        g_polarizer_wheel_instance.acceleration.state == ACCELERATION_FULL) {
+        (g_polarizer_wheel_instance.acceleration.state == ACCELERATION_FULL ||
+         g_polarizer_wheel_instance.acceleration.state ==
+             ACCELERATION_RAMP_UP)) {
 
         const int32_t distance_to_target =
             abs(circular_signed_distance(current_pos, target_pos));
 
-        if (distance_to_target <= POLARIZER_WHEEL_DECELERATION_RAMP_STEPS) {
+        const uint32_t decel_distance = calculate_deceleration_distance(
+            g_polarizer_wheel_instance.acceleration.current_frequency,
+            POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT);
+
+        if (distance_to_target <= (int32_t)decel_distance) {
             g_polarizer_wheel_instance.acceleration.state =
                 ACCELERATION_RAMP_DOWN;
             g_polarizer_wheel_instance.acceleration.ramp_index = 0;
@@ -803,11 +869,10 @@ process_step_event(void)
             g_polarizer_wheel_instance.acceleration.target_frequency =
                 POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT;
             g_polarizer_wheel_instance.acceleration.total_ramp_steps =
-                POLARIZER_WHEEL_DECELERATION_RAMP_STEPS;
-            LOG_DBG("S-curve deceleration: %u -> %u Hz over %u steps",
+                decel_distance;
+            LOG_DBG("Linear deceleration: %u -> %u Hz over %u steps",
                     g_polarizer_wheel_instance.acceleration.start_frequency,
-                    POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
-                    POLARIZER_WHEEL_DECELERATION_RAMP_STEPS);
+                    POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT, decel_distance);
         }
     }
 
@@ -1412,15 +1477,22 @@ execute_set_angle(uint32_t frequency, uint32_t angle_decidegrees)
             g_polarizer_wheel_instance.acceleration.state =
                 ACCELERATION_RAMP_UP;
             g_polarizer_wheel_instance.acceleration.start_frequency =
-                POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT;
+                POLARIZER_WHEEL_MICROSTEPS_360_DEGREES;
             g_polarizer_wheel_instance.acceleration.current_frequency =
                 g_polarizer_wheel_instance.acceleration.start_frequency;
             g_polarizer_wheel_instance.acceleration.target_frequency =
                 frequency;
             g_polarizer_wheel_instance.acceleration.ramp_index = 0;
+            /* Calculate expected ramp steps for logging:
+             * s = (v² - v₀²) / (2*a) */
+            const uint64_t target_sq = (uint64_t)frequency * frequency;
+            const uint64_t start_sq =
+                (uint64_t)POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT *
+                POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT;
             g_polarizer_wheel_instance.acceleration.total_ramp_steps =
-                POLARIZER_WHEEL_ACCELERATION_RAMP_STEPS;
-            LOG_DBG("S-curve acceleration: %u -> %u Hz over %u steps",
+                (uint32_t)((target_sq - start_sq) /
+                           (2ULL * LINEAR_ACCELERATION_USTEPS_PER_S2));
+            LOG_DBG("Linear acceleration: %u -> %u Hz over %u steps",
                     g_polarizer_wheel_instance.acceleration.start_frequency,
                     g_polarizer_wheel_instance.acceleration.target_frequency,
                     g_polarizer_wheel_instance.acceleration.total_ramp_steps);
