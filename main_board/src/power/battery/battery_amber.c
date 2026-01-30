@@ -884,3 +884,11 @@ memfault_platform_get_stateofcharge(sMfltPlatformBatterySoc *soc)
 }
 
 #endif
+
+#ifdef CONFIG_NO_JETSON_BOOT
+bool
+battery_is_corded_power_supply(void)
+{
+    return corded_power_supply;
+}
+#endif

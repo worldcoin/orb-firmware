@@ -32,3 +32,16 @@ battery_init(void);
 void
 battery_dump_stats(const struct shell *sh);
 #endif
+
+#ifdef CONFIG_NO_JETSON_BOOT
+/**
+ * Check if the Orb is running on corded power supply (no battery)
+ *
+ * @note This function is only available in test builds
+ *
+ * @retval true if running on corded power supply
+ * @retval false if running on battery
+ */
+bool
+battery_is_corded_power_supply(void);
+#endif
