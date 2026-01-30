@@ -497,27 +497,46 @@ execute_polarizer(const struct shell *sh, size_t argc, char **argv)
         shell_print(sh, "  home                    - Home the polarizer wheel");
         shell_print(sh, "  calibrate               - Calibrate bump widths");
         shell_print(sh, "  status                  - Show calibration status");
+        shell_print(sh, "  pass_through [speed] [-s]");
         shell_print(sh,
-                    "  pass_through [speed]    - Set to pass-through position");
+                    "                          - Set to pass-through position");
         shell_print(
             sh,
-            "  horizontal [speed]      - Set to horizontal polarization (0°)");
+            "  horizontal [speed] [-s] - Set to horizontal polarization (0°)");
         shell_print(
             sh,
-            "  vertical [speed]        - Set to vertical polarization (90°)");
+            "  vertical [speed] [-s]   - Set to vertical polarization (90°)");
+        shell_print(sh, "  angle <angle> [speed] [-s]");
         shell_print(
-            sh, "  angle <angle> [speed]   - Set custom angle in decidegrees");
-        shell_print(sh, "Speed is optional (0 = default speed)");
+            sh, "                          - Set custom angle in decidegrees");
+        shell_print(sh, "Options:");
+        shell_print(sh,
+                    "  speed   - ms per turn (0 = default speed with ramps)");
+        shell_print(
+            sh,
+            "  -s      - Use shortest path (may go backward, less reliable)");
         return -EINVAL;
     }
 
     orb_mcu_main_JetsonToMcu message = {0};
     message.which_payload = orb_mcu_main_JetsonToMcu_polarizer_tag;
     message.payload.polarizer.speed = 0; // Default speed
+    message.payload.polarizer.shortest_path = false;
+
+    // Check for -s flag anywhere in arguments
+    bool shortest_path = false;
+    for (size_t i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-s") == 0) {
+            shortest_path = true;
+            message.payload.polarizer.shortest_path = true;
+            break;
+        }
+    }
 
     // Parse speed if provided (for commands that support it)
+    // Skip -s flag when parsing positional arguments
     uint32_t speed = 0;
-    if (argc >= 3) {
+    if (argc >= 3 && strcmp(argv[2], "-s") != 0) {
         char *endptr;
         speed = strtoul(argv[2], &endptr, 10);
         if (*endptr != '\0') {
@@ -560,20 +579,25 @@ execute_polarizer(const struct shell *sh, size_t argc, char **argv)
             orb_mcu_main_Polarizer_Command_POLARIZER_PASS_THROUGH;
         message.payload.polarizer.speed = speed;
         shell_print(sh,
-                    "Setting polarizer to pass-through position (speed: %u)",
-                    speed);
+                    "Setting polarizer to pass-through position (speed: %u, "
+                    "shortest: %s)",
+                    speed, shortest_path ? "yes" : "no");
     } else if (strcmp(argv[1], "horizontal") == 0) {
         message.payload.polarizer.command =
             orb_mcu_main_Polarizer_Command_POLARIZER_0_HORIZONTAL;
         message.payload.polarizer.speed = speed;
-        shell_print(sh, "Setting polarizer to horizontal (0°) (speed: %u)",
-                    speed);
+        shell_print(sh,
+                    "Setting polarizer to horizontal (0°) (speed: %u, "
+                    "shortest: %s)",
+                    speed, shortest_path ? "yes" : "no");
     } else if (strcmp(argv[1], "vertical") == 0) {
         message.payload.polarizer.command =
             orb_mcu_main_Polarizer_Command_POLARIZER_90_VERTICAL;
         message.payload.polarizer.speed = speed;
-        shell_print(sh, "Setting polarizer to vertical (90°) (speed: %u)",
-                    speed);
+        shell_print(sh,
+                    "Setting polarizer to vertical (90°) (speed: %u, "
+                    "shortest: %s)",
+                    speed, shortest_path ? "yes" : "no");
     } else if (strcmp(argv[1], "angle") == 0) {
         if (argc < 3) {
             shell_error(sh,
@@ -588,8 +612,8 @@ execute_polarizer(const struct shell *sh, size_t argc, char **argv)
             return -EINVAL;
         }
 
-        // Parse speed if provided as 4th argument
-        if (argc >= 4) {
+        // Parse speed if provided as 4th argument (skip if it's -s flag)
+        if (argc >= 4 && strcmp(argv[3], "-s") != 0) {
             speed = strtoul(argv[3], &endptr, 10);
             if (*endptr != '\0') {
                 shell_error(sh, "Invalid speed value: %s", argv[3]);
@@ -601,9 +625,10 @@ execute_polarizer(const struct shell *sh, size_t argc, char **argv)
             orb_mcu_main_Polarizer_Command_POLARIZER_CUSTOM_ANGLE;
         message.payload.polarizer.angle_decidegrees = angle;
         message.payload.polarizer.speed = speed;
-        shell_print(
-            sh, "Setting polarizer to custom angle %u decidegrees (speed: %u)",
-            angle, speed);
+        shell_print(sh,
+                    "Setting polarizer to custom angle %u decidegrees (speed: "
+                    "%u, shortest: %s)",
+                    angle, speed, shortest_path ? "yes" : "no");
     } else {
         shell_error(sh, "Unknown polarizer command: %s", argv[1]);
         return -EINVAL;

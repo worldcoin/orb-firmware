@@ -94,9 +94,9 @@ ZTEST(polarizer, test_polarizer_wheel_set_vertical)
     zassert_true(homed, "Polarizer wheel not homed");
 
     /* Move to vertical position (1200 decidegrees = 120 degrees) */
-    ret_code_t ret =
-        polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
-                                  POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE);
+    ret_code_t ret = polarizer_wheel_set_angle(
+        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+        POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE, false);
     zassert_equal(ret, RET_SUCCESS, "Failed to initiate move to vertical: %d",
                   ret);
 
@@ -124,9 +124,9 @@ ZTEST(polarizer, test_polarizer_wheel_set_horizontal)
     zassert_true(homed, "Polarizer wheel not homed");
 
     /* Move to horizontal position (2400 decidegrees = 240 degrees) */
-    ret_code_t ret =
-        polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
-                                  POLARIZER_WHEEL_HORIZONTALLY_POLARIZED_ANGLE);
+    ret_code_t ret = polarizer_wheel_set_angle(
+        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+        POLARIZER_WHEEL_HORIZONTALLY_POLARIZED_ANGLE, false);
     zassert_equal(ret, RET_SUCCESS, "Failed to initiate move to horizontal: %d",
                   ret);
 
@@ -154,9 +154,9 @@ ZTEST(polarizer, test_polarizer_wheel_set_passthrough)
     zassert_true(homed, "Polarizer wheel not homed");
 
     /* Move to pass-through position (0 decidegrees) */
-    ret_code_t ret =
-        polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
-                                  POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE);
+    ret_code_t ret = polarizer_wheel_set_angle(
+        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+        POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE, false);
     zassert_equal(ret, RET_SUCCESS,
                   "Failed to initiate move to pass-through: %d", ret);
 
@@ -203,7 +203,7 @@ ZTEST(polarizer, test_polarizer_wheel_full_cycle)
         for (size_t i = 0; i < ARRAY_SIZE(positions); i++) {
             LOG_INF("Moving to %s position...", names[i]);
 
-            ret = polarizer_wheel_set_angle(speeds[j], positions[i]);
+            ret = polarizer_wheel_set_angle(speeds[j], positions[i], false);
             zassert_equal(ret, RET_SUCCESS,
                           "Failed to initiate move to %s, speed %u: %d",
                           names[i], speeds[j], ret);
@@ -236,9 +236,9 @@ ZTEST(polarizer, test_polarizer_wheel_rehoming)
     zassert_true(homed, "Polarizer wheel not homed initially");
 
     /* Move to a position */
-    ret_code_t ret =
-        polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
-                                  POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE);
+    ret_code_t ret = polarizer_wheel_set_angle(
+        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+        POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE, false);
     zassert_equal(ret, RET_SUCCESS, "Failed to move before re-homing: %d", ret);
     k_msleep(POSITION_TIMEOUT_MS);
 
@@ -275,21 +275,21 @@ ZTEST(polarizer, test_polarizer_wheel_invalid_params)
 
     /* Test invalid angle (> 360 degrees) */
     ret = polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
-                                    3700); /* > 3600 decidegrees */
+                                    3700, false); /* > 3600 decidegrees */
     zassert_equal(ret, RET_ERROR_INVALID_PARAM,
                   "Should reject angle > 360 degrees");
 
     /* Test frequency too low */
-    ret = polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MINIMUM -
-                                        1,
-                                    POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE);
+    ret = polarizer_wheel_set_angle(
+        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MINIMUM - 1,
+        POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE, false);
     zassert_equal(ret, RET_ERROR_INVALID_PARAM,
                   "Should reject frequency below minimum");
 
     /* Test frequency too high */
-    ret = polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MAXIMUM +
-                                        1,
-                                    POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE);
+    ret = polarizer_wheel_set_angle(
+        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MAXIMUM + 1,
+        POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE, false);
     zassert_equal(ret, RET_ERROR_INVALID_PARAM,
                   "Should reject frequency above maximum");
 
@@ -420,23 +420,24 @@ ZTEST(polarizer, test_polarizer_wheel_calibration_then_move)
     /* /!\ order is important here */
     /* Move to vertical position */
     ret = polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
-                                    POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE);
+                                    POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE,
+                                    false);
     zassert_equal(ret, RET_SUCCESS, "Failed to initiate move to vertical: %d",
                   ret);
     k_msleep(POSITION_TIMEOUT_MS);
 
     /* Move to horizontal position */
-    ret =
-        polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
-                                  POLARIZER_WHEEL_HORIZONTALLY_POLARIZED_ANGLE);
+    ret = polarizer_wheel_set_angle(
+        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+        POLARIZER_WHEEL_HORIZONTALLY_POLARIZED_ANGLE, false);
     zassert_equal(ret, RET_SUCCESS, "Failed to initiate move to horizontal: %d",
                   ret);
     k_msleep(POSITION_TIMEOUT_MS);
 
     /* Return to pass-through */
-    ret =
-        polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
-                                  POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE);
+    ret = polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+                                    POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE,
+                                    false);
     zassert_equal(ret, RET_SUCCESS,
                   "Failed to initiate move to pass-through: %d", ret);
     k_msleep(POSITION_TIMEOUT_MS);
@@ -461,9 +462,9 @@ ZTEST(polarizer, test_polarizer_wheel_calibration_requires_homing)
     zassert_true(homed, "Polarizer wheel not homed");
 
     /* Move away from pass-through position */
-    ret_code_t ret =
-        polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
-                                  POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE);
+    ret_code_t ret = polarizer_wheel_set_angle(
+        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+        POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE, false);
     zassert_equal(ret, RET_SUCCESS, "Failed to move to vertical: %d", ret);
     k_msleep(POSITION_TIMEOUT_MS);
 
@@ -476,8 +477,70 @@ ZTEST(polarizer, test_polarizer_wheel_calibration_requires_homing)
     LOG_INF("Calibration correctly rejected when not at pass-through");
 
     /* Return to pass-through for cleanup */
-    ret =
-        polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
-                                  POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE);
+    ret = polarizer_wheel_set_angle(POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
+                                    POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE,
+                                    false);
     k_msleep(POSITION_TIMEOUT_MS);
+}
+
+/**
+ * Test: Open-loop positioning with ramp mode (STATE_POSITIONING)
+ *
+ * This test verifies the STATE_POSITIONING code path which is used when:
+ * - frequency == 0 (triangular acceleration ramp mode)
+ *
+ * Unlike STATE_POSITIONING_WITH_ENCODER, this mode does not use encoder
+ * feedback during movement. After reaching each position, we verify the
+ * encoder GPIO state to confirm the wheel stopped on a bump/notch.
+ */
+ZTEST(polarizer, test_polarizer_wheel_ramp_mode_positioning)
+{
+    Z_TEST_SKIP_IFNDEF(CONFIG_TEST_POLARIZER_WHEEL);
+
+    LOG_INF(
+        "Testing ramp mode (STATE_POSITIONING) with encoder verification...");
+
+    /* Ensure homed first */
+    bool homed = wait_for_homing(HOMING_TIMEOUT_MS);
+    zassert_true(homed, "Polarizer wheel not homed");
+
+    ret_code_t ret;
+    int encoder_state;
+
+    /* Test positions in order: vertical -> horizontal -> pass-through */
+    const uint32_t positions[] = {
+        POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE,
+        POLARIZER_WHEEL_HORIZONTALLY_POLARIZED_ANGLE,
+        POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE,
+    };
+    const char *names[] = {"vertical", "horizontal", "pass-through"};
+
+    for (size_t i = 0; i < ARRAY_SIZE(positions); i++) {
+        LOG_INF("Moving to %s position with ramp mode (frequency=0)...",
+                names[i]);
+
+        /* Use frequency=0 to trigger STATE_POSITIONING (ramp mode, no encoder
+         * feedback) */
+        ret = polarizer_wheel_set_angle(0, positions[i], false);
+        zassert_equal(ret, RET_SUCCESS,
+                      "Failed to initiate ramp mode move to %s: %d", names[i],
+                      ret);
+
+        /* Wait for movement to complete */
+        k_msleep(POSITION_TIMEOUT_MS);
+
+        /* Verify encoder state shows we're on a bump */
+        ret = polarizer_wheel_get_encoder_state(&encoder_state);
+        zassert_equal(ret, RET_SUCCESS, "Failed to get encoder state at %s: %d",
+                      names[i], ret);
+        zassert_equal(encoder_state, 1,
+                      "Encoder not triggered at %s position (state=%d, "
+                      "expected=1). Wheel may not be centered on bump.",
+                      names[i], encoder_state);
+
+        LOG_INF("Reached %s position, encoder state verified (on bump)",
+                names[i]);
+    }
+
+    LOG_INF("Ramp mode positioning test completed successfully");
 }

@@ -1177,9 +1177,9 @@ handle_polarizer(job_t *job)
     ret_code_t err_code;
 
     uint32_t frequency_usteps_per_second =
-        msg->payload.polarizer.speed == 0
-            ? POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT
-            : POLARIZER_MICROSTEPS_PER_SECOND(msg->payload.polarizer.speed);
+        msg->payload.polarizer.speed != 0
+            ? POLARIZER_MICROSTEPS_PER_SECOND(msg->payload.polarizer.speed)
+            : 0;
 
     switch (msg->payload.polarizer.command) {
     case orb_mcu_main_Polarizer_Command_POLARIZER_HOME: {
@@ -1197,22 +1197,26 @@ handle_polarizer(job_t *job)
     case orb_mcu_main_Polarizer_Command_POLARIZER_PASS_THROUGH:
         err_code = polarizer_wheel_set_angle(
             frequency_usteps_per_second,
-            POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE);
+            POLARIZER_WHEEL_POSITION_PASS_THROUGH_ANGLE,
+            msg->payload.polarizer.shortest_path);
         break;
     case orb_mcu_main_Polarizer_Command_POLARIZER_0_HORIZONTAL:
         err_code = polarizer_wheel_set_angle(
             frequency_usteps_per_second,
-            POLARIZER_WHEEL_HORIZONTALLY_POLARIZED_ANGLE);
+            POLARIZER_WHEEL_HORIZONTALLY_POLARIZED_ANGLE,
+            msg->payload.polarizer.shortest_path);
         break;
     case orb_mcu_main_Polarizer_Command_POLARIZER_90_VERTICAL:
         err_code = polarizer_wheel_set_angle(
             frequency_usteps_per_second,
-            POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE);
+            POLARIZER_WHEEL_VERTICALLY_POLARIZED_ANGLE,
+            msg->payload.polarizer.shortest_path);
         break;
     case orb_mcu_main_Polarizer_Command_POLARIZER_CUSTOM_ANGLE:
         err_code =
             polarizer_wheel_set_angle(frequency_usteps_per_second,
-                                      msg->payload.polarizer.angle_decidegrees);
+                                      msg->payload.polarizer.angle_decidegrees,
+                                      msg->payload.polarizer.shortest_path);
         break;
     case orb_mcu_main_Polarizer_Command_POLARIZER_CALIBRATE_HOME: {
         err_code = polarizer_wheel_calibrate_async();

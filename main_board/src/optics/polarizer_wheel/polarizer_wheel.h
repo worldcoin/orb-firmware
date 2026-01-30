@@ -61,7 +61,7 @@
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT                             \
     POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MAXIMUM                             \
-    POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_100MSEC_PER_TURN
+    POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_200MSEC_PER_TURN
 
 #define POLARIZER_MICROSTEPS_PER_SECOND(ms)                                    \
     (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES * 1000 / ms)
@@ -89,13 +89,20 @@ enum polarizer_wheel_angle_e {
  * Set angle to polarizer wheel
  * 0º being the passthrough glass once homing is completed
  *
- * @param frequency microsteps/sec, maximum is
- * POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_1SEC_PER_TURN
+ * @param frequency microsteps/sec for constant velocity mode, or 0 for
+ *        triangular acceleration ramp mode. When 0, speed linearly increases
+ *        until mid-course then decreases, with peak velocity determined by
+ *        fixed acceleration and course length. When non-zero, must be within
+ *        [POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MINIMUM,
+ *        POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MAXIMUM].
  * @param angle [0, 3600], use `polarizer_wheel_angle_e` for predefined angles
- * @return RET_SUCCESS on succes, RET_ERROR_INVALID_PARAM if out of range
+ * @param shortest_path if true, use shortest path (may change direction);
+ *        if false, always rotate forward (more reliable)
+ * @return RET_SUCCESS on success, RET_ERROR_INVALID_PARAM if out of range
  */
 ret_code_t
-polarizer_wheel_set_angle(uint32_t frequency, uint32_t angle);
+polarizer_wheel_set_angle(uint32_t frequency, uint32_t angle,
+                          bool shortest_path);
 
 /**
  * Spawn homing thread
@@ -184,3 +191,20 @@ typedef struct {
  */
 ret_code_t
 polarizer_wheel_get_bump_widths(polarizer_wheel_bump_widths_t *widths);
+
+#if CONFIG_ZTEST
+/**
+ * Get the current encoder state (for testing purposes).
+ *
+ * Reads the encoder GPIO to check if the wheel is currently on a bump/notch.
+ * The encoder must be enabled for this to return meaningful results.
+ *
+ * @param[out] state Pointer to store the encoder state (1 = on bump, 0 = off
+ * bump)
+ * @retval RET_SUCCESS on success
+ * @retval RET_ERROR_INVALID_PARAM if state is NULL
+ */
+ret_code_t
+polarizer_wheel_get_encoder_state(int *state);
+
+#endif // CONFIG_POLARIZER_WHEEL_UNIT_TESTS
