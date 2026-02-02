@@ -1,4 +1,5 @@
 #include "mcu.pb.h"
+#include "power/battery/battery.h"
 #include "pubsub.h"
 #include "system/version/version.h"
 #include <errors.h>
@@ -129,10 +130,13 @@ ZTEST(hil, test_pubsub_sent_messages)
     zassert_not_equal(mcu_to_jetson_payloads &
                           (1 << orb_mcu_main_McuToJetson_motor_range_tag),
                       0);
-    zassert_not_equal(
-        mcu_to_jetson_payloads &
-            (1 << orb_mcu_main_McuToJetson_battery_diag_common_tag),
-        0);
+
+    // Check if real battery is present (not on corded power supply)
+    bool battery_present = !battery_is_corded_power_supply();
+
+    if (!battery_present) {
+        LOG_WRN("Corded power supply mode, skipping battery-specific tests");
+    }
 #ifndef CONFIG_BOARD_DIAMOND_MAIN
     zassert_not_equal(
         mcu_to_jetson_payloads & (1 << orb_mcu_main_McuToJetson_tof_1d_tag), 0,
@@ -159,30 +163,42 @@ ZTEST(hil, test_pubsub_sent_messages)
                           (1 << orb_mcu_main_McuToJetson_hw_state_tag),
                       0);
 
-    zassert_not_equal(
-        mcu_to_jetson_payloads &
-            (1 << orb_mcu_main_McuToJetson_battery_info_hw_fw_tag),
-        0);
-    zassert_not_equal(
-        mcu_to_jetson_payloads &
-            (1 << orb_mcu_main_McuToJetson_battery_info_max_values_tag),
-        0);
-    zassert_not_equal(
-        mcu_to_jetson_payloads &
-            (1 << orb_mcu_main_McuToJetson_battery_info_soc_and_statistics_tag),
-        0);
+    // Battery info messages are only available when a real battery is present
+    if (battery_present) {
+        zassert_not_equal(
+            mcu_to_jetson_payloads &
+                (1 << orb_mcu_main_McuToJetson_battery_diag_common_tag),
+            0);
+        zassert_not_equal(
+            mcu_to_jetson_payloads &
+                (1 << orb_mcu_main_McuToJetson_battery_info_hw_fw_tag),
+            0);
+        zassert_not_equal(
+            mcu_to_jetson_payloads &
+                (1 << orb_mcu_main_McuToJetson_battery_info_max_values_tag),
+            0);
+        zassert_not_equal(
+            mcu_to_jetson_payloads &
+                (1
+                 << orb_mcu_main_McuToJetson_battery_info_soc_and_statistics_tag),
+            0);
+    }
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
     zassert_not_equal(mcu_to_jetson_payloads &
                           (1 << orb_mcu_main_McuToJetson_gnss_partial_tag),
                       0);
-    zassert_not_equal(
-        mcu_to_jetson_payloads &
-            (1 << orb_mcu_main_McuToJetson_battery_diag_safety_tag),
-        0);
-    zassert_not_equal(
-        mcu_to_jetson_payloads &
-            (1 << orb_mcu_main_McuToJetson_battery_diag_permanent_fail_tag),
-        0);
+    // Battery diagnostic messages are only available when a real battery is
+    // present
+    if (battery_present) {
+        zassert_not_equal(
+            mcu_to_jetson_payloads &
+                (1 << orb_mcu_main_McuToJetson_battery_diag_safety_tag),
+            0);
+        zassert_not_equal(
+            mcu_to_jetson_payloads &
+                (1 << orb_mcu_main_McuToJetson_battery_diag_permanent_fail_tag),
+            0);
+    }
 #endif
 }
