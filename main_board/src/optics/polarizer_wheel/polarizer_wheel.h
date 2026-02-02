@@ -192,6 +192,42 @@ typedef struct {
 ret_code_t
 polarizer_wheel_get_bump_widths(polarizer_wheel_bump_widths_t *widths);
 
+/**
+ * Set the linear acceleration for polarizer wheel motion.
+ *
+ * @param accel_steps_per_s2 Acceleration in steps/s² (will be converted to
+ *        µsteps/s² internally by multiplying by
+ * POLARIZER_WHEEL_MICROSTEPS_PER_STEP)
+ */
+void
+polarizer_wheel_set_acceleration(uint32_t accel_steps_per_s2);
+
+/**
+ * Get the current linear acceleration setting.
+ *
+ * @return Current acceleration in steps/s²
+ */
+uint32_t
+polarizer_wheel_get_acceleration(void);
+
+/**
+ * Set the maximum speed (frequency) for polarizer wheel motion.
+ *
+ * @param ms_per_turn Maximum speed in milliseconds per full turn.
+ *        Will be converted to frequency (µsteps/s) internally.
+ *        Use 0 to reset to default (200ms/turn).
+ */
+void
+polarizer_wheel_set_max_speed(uint32_t ms_per_turn);
+
+/**
+ * Get the current maximum speed setting.
+ *
+ * @return Current maximum speed in milliseconds per full turn
+ */
+uint32_t
+polarizer_wheel_get_max_speed(void);
+
 #if CONFIG_ZTEST
 /**
  * Get the current encoder state (for testing purposes).

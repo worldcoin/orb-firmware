@@ -271,9 +271,61 @@ circular_signed_distance(int32_t from, int32_t to)
 /*
  * Linear acceleration/deceleration configuration and helpers
  */
-/* Linear acceleration (8000 steps/s²) in µsteps/s² */
-#define LINEAR_ACCELERATION_USTEPS_PER_S2                                      \
-    (8000 * POLARIZER_WHEEL_MICROSTEPS_PER_STEP)
+/* Default linear acceleration (8000 steps/s²) */
+#define LINEAR_ACCELERATION_DEFAULT_STEPS_PER_S2 8000
+
+/* Default max speed (200ms per turn) */
+#define MAX_SPEED_DEFAULT_MS_PER_TURN 200
+
+/* Configurable linear acceleration in steps/s² (runtime modifiable) */
+static uint32_t g_linear_acceleration_steps_per_s2 =
+    LINEAR_ACCELERATION_DEFAULT_STEPS_PER_S2;
+
+/* Configurable max speed in ms/turn (runtime modifiable) */
+static uint32_t g_max_speed_ms_per_turn = MAX_SPEED_DEFAULT_MS_PER_TURN;
+
+/* Get current acceleration in µsteps/s² */
+static inline uint32_t
+get_linear_acceleration_usteps_per_s2(void)
+{
+    return g_linear_acceleration_steps_per_s2 *
+           POLARIZER_WHEEL_MICROSTEPS_PER_STEP;
+}
+
+/* Get current max frequency in µsteps/s */
+static inline uint32_t
+get_max_frequency(void)
+{
+    return POLARIZER_MICROSTEPS_PER_SECOND(g_max_speed_ms_per_turn);
+}
+
+void
+polarizer_wheel_set_acceleration(uint32_t accel_steps_per_s2)
+{
+    g_linear_acceleration_steps_per_s2 = accel_steps_per_s2;
+}
+
+uint32_t
+polarizer_wheel_get_acceleration(void)
+{
+    return g_linear_acceleration_steps_per_s2;
+}
+
+void
+polarizer_wheel_set_max_speed(uint32_t ms_per_turn)
+{
+    if (ms_per_turn == 0) {
+        g_max_speed_ms_per_turn = MAX_SPEED_DEFAULT_MS_PER_TURN;
+    } else {
+        g_max_speed_ms_per_turn = ms_per_turn;
+    }
+}
+
+uint32_t
+polarizer_wheel_get_max_speed(void)
+{
+    return g_max_speed_ms_per_turn;
+}
 
 /**
  * Calculate frequency using linear acceleration/deceleration.
@@ -295,7 +347,7 @@ calculate_linear_ramp_frequency(uint32_t ramp_step, uint32_t min_freq)
     /* v² = v₀² + 2*a*s - velocity based on distance from endpoint */
     const uint64_t min_freq_sq = (uint64_t)min_freq * min_freq;
     const uint64_t accel_term =
-        2ULL * LINEAR_ACCELERATION_USTEPS_PER_S2 * ramp_step;
+        2ULL * get_linear_acceleration_usteps_per_s2() * ramp_step;
     const uint64_t freq_sq = min_freq_sq + accel_term;
 
     /* Integer square root using Newton's method */
@@ -307,7 +359,7 @@ calculate_linear_ramp_frequency(uint32_t ramp_step, uint32_t min_freq)
     }
 
     x = CLAMP(x, POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MINIMUM,
-              POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MAXIMUM);
+              get_max_frequency());
 
     return (uint32_t)x;
 }
@@ -357,7 +409,7 @@ enable_step_interrupt(void)
 static int
 polarizer_set_frequency(const uint32_t frequency)
 {
-    if (frequency > POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MAXIMUM ||
+    if (frequency > get_max_frequency() ||
         frequency < POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MINIMUM) {
         return RET_ERROR_INVALID_PARAM;
     }
@@ -1574,8 +1626,7 @@ polarizer_wheel_set_angle(const uint32_t frequency,
     /* Validate parameters upfront.
      * frequency == 0 is a special case: use triangular acceleration ramp.
      * Otherwise, frequency must be within valid range for constant velocity. */
-    if (angle_decidegrees > 3600 ||
-        frequency > POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MAXIMUM ||
+    if (angle_decidegrees > 3600 || frequency > get_max_frequency() ||
         (frequency != 0 &&
          frequency < POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MINIMUM)) {
         return RET_ERROR_INVALID_PARAM;
