@@ -197,7 +197,8 @@ polarizer_wheel_get_bump_widths(polarizer_wheel_bump_widths_t *widths);
  *
  * @param accel_steps_per_s2 Acceleration in steps/s² (will be converted to
  *        µsteps/s² internally by multiplying by
- * POLARIZER_WHEEL_MICROSTEPS_PER_STEP)
+ *        POLARIZER_WHEEL_MICROSTEPS_PER_STEP).
+ *        Use 0 to reset to default (8000 steps/s²).
  */
 void
 polarizer_wheel_set_acceleration(uint32_t accel_steps_per_s2);

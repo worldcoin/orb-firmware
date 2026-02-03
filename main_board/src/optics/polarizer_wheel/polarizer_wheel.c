@@ -302,7 +302,12 @@ get_max_frequency(void)
 void
 polarizer_wheel_set_acceleration(uint32_t accel_steps_per_s2)
 {
-    g_linear_acceleration_steps_per_s2 = accel_steps_per_s2;
+    if (accel_steps_per_s2 == 0) {
+        g_linear_acceleration_steps_per_s2 =
+            LINEAR_ACCELERATION_DEFAULT_STEPS_PER_S2;
+    } else {
+        g_linear_acceleration_steps_per_s2 = accel_steps_per_s2;
+    }
 }
 
 uint32_t
@@ -526,11 +531,31 @@ report_reached_state(void)
         g_polarizer_wheel_instance.positioning.step_diff_microsteps;
     state_report.transition_time_ms = elapsed_ms;
 
+    // Motion settings
+    state_report.acceleration_steps_per_s2 = polarizer_wheel_get_acceleration();
+    state_report.max_speed_ms_per_turn = polarizer_wheel_get_max_speed();
+
+    // Calibration data
+    state_report.has_calibration = true;
+    state_report.calibration.valid =
+        g_polarizer_wheel_instance.calibration.calibration_complete;
+    if (state_report.calibration.valid) {
+        state_report.calibration.pass_through_width =
+            g_polarizer_wheel_instance.calibration.bump_width_pass_through;
+        state_report.calibration.vertical_width =
+            g_polarizer_wheel_instance.calibration.bump_width_vertical;
+        state_report.calibration.horizontal_width =
+            g_polarizer_wheel_instance.calibration.bump_width_horizontal;
+    }
+
     LOG_INF(
-        "Polarizer state: %d -> %d [%u], step_diff=%u, time=%u ms",
+        "Polarizer state: %d -> %d [%u], step_diff=%u, time=%u ms, "
+        "accel=%uµsteps/s2, max_speed=%u ms/turn",
         state_report.previous_position, state_report.current_position,
         (uint32_t)atomic_get(&g_polarizer_wheel_instance.step_count.current),
-        state_report.step_loss_microsteps, state_report.transition_time_ms);
+        state_report.step_loss_microsteps, state_report.transition_time_ms,
+        state_report.acceleration_steps_per_s2,
+        state_report.max_speed_ms_per_turn);
 
     return publish_new(&state_report, sizeof(state_report),
                        orb_mcu_main_McuToJetson_polarizer_wheel_state_tag,
@@ -1463,9 +1488,11 @@ execute_set_angle(uint32_t frequency, uint32_t angle_decidegrees,
             POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT;
         g_polarizer_wheel_instance.acceleration.start_position = start_pos;
         g_polarizer_wheel_instance.acceleration.total_distance = total_dist;
-        LOG_DBG("Triangular ramp: min %u Hz, total %u steps",
+        LOG_DBG("Triangular ramp: min %u Hz, total %u steps, accel %u "
+                "steps/s², max speed %u ms/turn",
                 g_polarizer_wheel_instance.acceleration.min_frequency,
-                total_dist);
+                total_dist, polarizer_wheel_get_acceleration(),
+                polarizer_wheel_get_max_speed());
 
         g_polarizer_wheel_instance.positioning.frequency =
             POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT;
