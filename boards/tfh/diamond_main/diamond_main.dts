@@ -945,7 +945,7 @@
 
 &timers8 {
     status = "okay";
-    st,prescaler = <15>;
+    st,prescaler = <27>;
 
     white_leds_pwm_evt: pwm {
         status = "okay";
@@ -1204,7 +1204,7 @@
         spi-max-frequency = <4000000>;
         status = "okay";
 
-        micro-step-res = <64>;
+        micro-step-res = <8>;
         spi-cs-gpios = <&gpio_exp1 0 GPIO_ACTIVE_LOW>;
         dir-gpios = <&gpio_exp1 1 GPIO_ACTIVE_HIGH>;
         en-gpios = <&gpio_exp1 2 GPIO_ACTIVE_HIGH>;
