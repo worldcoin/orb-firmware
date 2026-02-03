@@ -1246,6 +1246,21 @@ handle_polarizer(job_t *job)
         job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
     }
 }
+
+static void
+handle_polarizer_wheel_settings(job_t *job)
+{
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_polarizer_wheel_settings_tag);
+
+    // Apply settings (0 resets to default in the setter functions)
+    polarizer_wheel_set_acceleration(
+        msg->payload.polarizer_wheel_settings.acceleration_steps_per_s2);
+    polarizer_wheel_set_max_speed(
+        msg->payload.polarizer_wheel_settings.max_speed_ms_per_turn);
+
+    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+}
 #endif
 
 static void
@@ -1788,6 +1803,8 @@ static const hm_callback handle_message_callbacks[] = {
     [orb_mcu_main_JetsonToMcu_white_leds_brightness_tag] =
         handle_white_leds_brightness,
     [orb_mcu_main_JetsonToMcu_polarizer_tag] = handle_polarizer,
+    [orb_mcu_main_JetsonToMcu_polarizer_wheel_settings_tag] =
+        handle_polarizer_wheel_settings,
 #elif defined(CONFIG_BOARD_PEARL_MAIN)
     [orb_mcu_main_JetsonToMcu_cone_leds_sequence_tag] = handle_not_supported,
     [orb_mcu_main_JetsonToMcu_cone_leds_pattern_tag] = handle_not_supported,
@@ -1797,7 +1814,7 @@ static const hm_callback handle_message_callbacks[] = {
 #endif
 };
 
-BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 55),
+BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 56),
              "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
