@@ -492,29 +492,30 @@ static int
 execute_polarizer(const struct shell *sh, size_t argc, char **argv)
 {
     if (argc < 2) {
-        shell_error(sh, "Usage: polarizer <command> [args]");
+        shell_error(sh, "Usage: polarizer <command> [options]");
         shell_print(sh, "Commands:");
-        shell_print(sh, "  home                    - Home the polarizer wheel");
-        shell_print(sh, "  calibrate               - Calibrate bump widths");
-        shell_print(sh, "  status                  - Show calibration status");
-        shell_print(sh, "  pass_through [speed] [-s]");
+        shell_print(sh, "  home                - Home the polarizer wheel");
+        shell_print(sh, "  calibrate           - Calibrate bump widths");
+        shell_print(sh, "  status              - Show calibration status");
+        shell_print(sh, "  pass_through        - Set to pass-through position");
+        shell_print(
+            sh, "  horizontal          - Set to horizontal polarization (0°)");
+        shell_print(
+            sh, "  vertical            - Set to vertical polarization (90°)");
         shell_print(sh,
-                    "                          - Set to pass-through position");
+                    "  angle <decidegrees> - Set custom angle in decidegrees");
+        shell_print(sh, "Options (for position commands):");
         shell_print(
-            sh,
-            "  horizontal [speed] [-s] - Set to horizontal polarization (0°)");
+            sh, "  -s, --shortest      - Use shortest path (may go backward)");
+        shell_print(sh, "  -a, --acceleration <value>");
+        shell_print(sh, "                      - Set acceleration (steps/s², "
+                        "default 8000)");
+        shell_print(sh, "  -m, --max-speed <value>");
+        shell_print(sh, "                      - Set max speed limit (ms/turn, "
+                        "default 200)");
+        shell_print(sh, "  -c, --constant-speed <value>");
         shell_print(
-            sh,
-            "  vertical [speed] [-s]   - Set to vertical polarization (90°)");
-        shell_print(sh, "  angle <angle> [speed] [-s]");
-        shell_print(
-            sh, "                          - Set custom angle in decidegrees");
-        shell_print(sh, "Options:");
-        shell_print(sh,
-                    "  speed   - ms per turn (0 = default speed with ramps)");
-        shell_print(
-            sh,
-            "  -s      - Use shortest path (may go backward, less reliable)");
+            sh, "                      - Use constant velocity mode (ms/turn)");
         return -EINVAL;
     }
 
@@ -523,27 +524,61 @@ execute_polarizer(const struct shell *sh, size_t argc, char **argv)
     message.payload.polarizer.speed = 0; // Default speed
     message.payload.polarizer.shortest_path = false;
 
-    // Check for -s flag anywhere in arguments
+    // Parse flags from arguments
+    // Use defaults when not explicitly set
     bool shortest_path = false;
-    for (size_t i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-s") == 0) {
+    uint32_t max_speed = 200;     // default: 200 ms/turn
+    uint32_t acceleration = 8000; // default: 8000 steps/s²
+    uint32_t constant_speed = 0;
+    bool accel_set = false;
+    bool max_speed_set = false;
+
+    for (size_t i = 2; i < argc; i++) {
+        if (strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--shortest") == 0) {
             shortest_path = true;
             message.payload.polarizer.shortest_path = true;
-            break;
+        } else if ((strcmp(argv[i], "-a") == 0 ||
+                    strcmp(argv[i], "--acceleration") == 0) &&
+                   i + 1 < argc) {
+            char *endptr;
+            acceleration = strtoul(argv[++i], &endptr, 10);
+            if (*endptr != '\0') {
+                shell_error(sh, "Invalid acceleration value: %s", argv[i]);
+                return -EINVAL;
+            }
+            accel_set = true;
+        } else if ((strcmp(argv[i], "-m") == 0 ||
+                    strcmp(argv[i], "--max-speed") == 0) &&
+                   i + 1 < argc) {
+            char *endptr;
+            max_speed = strtoul(argv[++i], &endptr, 10);
+            if (*endptr != '\0') {
+                shell_error(sh, "Invalid max-speed value: %s", argv[i]);
+                return -EINVAL;
+            }
+            max_speed_set = true;
+        } else if ((strcmp(argv[i], "-c") == 0 ||
+                    strcmp(argv[i], "--constant-speed") == 0) &&
+                   i + 1 < argc) {
+            char *endptr;
+            constant_speed = strtoul(argv[++i], &endptr, 10);
+            if (*endptr != '\0') {
+                shell_error(sh, "Invalid constant-speed value: %s", argv[i]);
+                return -EINVAL;
+            }
         }
     }
 
-    // Parse speed if provided (for commands that support it)
-    // Skip -s flag when parsing positional arguments
-    uint32_t speed = 0;
-    if (argc >= 3 && strcmp(argv[2], "-s") != 0) {
-        char *endptr;
-        speed = strtoul(argv[2], &endptr, 10);
-        if (*endptr != '\0') {
-            shell_error(sh, "Invalid speed value: %s", argv[2]);
-            return -EINVAL;
-        }
+    // Validate mutually exclusive options
+    if (constant_speed && (accel_set || max_speed_set)) {
+        shell_error(sh,
+                    "-c/--constant-speed cannot be used with -a or -m flags");
+        return -EINVAL;
     }
+
+    // Apply acceleration and max speed (use defaults if not explicitly set)
+    polarizer_wheel_set_acceleration(acceleration);
+    polarizer_wheel_set_max_speed(max_speed);
 
     if (strcmp(argv[1], "home") == 0) {
         message.payload.polarizer.command =
@@ -577,27 +612,45 @@ execute_polarizer(const struct shell *sh, size_t argc, char **argv)
     } else if (strcmp(argv[1], "pass_through") == 0) {
         message.payload.polarizer.command =
             orb_mcu_main_Polarizer_Command_POLARIZER_PASS_THROUGH;
-        message.payload.polarizer.speed = speed;
-        shell_print(sh,
-                    "Setting polarizer to pass-through position (speed: %u, "
-                    "shortest: %s)",
-                    speed, shortest_path ? "yes" : "no");
+        message.payload.polarizer.speed = constant_speed;
+        shell_print(sh, "Setting polarizer to pass-through position");
+        shell_print(sh, "  mode: %s",
+                    constant_speed ? "constant velocity" : "ramp");
+        if (constant_speed) {
+            shell_print(sh, "  constant-speed: %u ms/turn", constant_speed);
+        } else {
+            shell_print(sh, "  acceleration: %u steps/s²", acceleration);
+            shell_print(sh, "  max-speed: %u ms/turn", max_speed);
+        }
+        shell_print(sh, "  shortest-path: %s", shortest_path ? "yes" : "no");
     } else if (strcmp(argv[1], "horizontal") == 0) {
         message.payload.polarizer.command =
             orb_mcu_main_Polarizer_Command_POLARIZER_0_HORIZONTAL;
-        message.payload.polarizer.speed = speed;
-        shell_print(sh,
-                    "Setting polarizer to horizontal (0°) (speed: %u, "
-                    "shortest: %s)",
-                    speed, shortest_path ? "yes" : "no");
+        message.payload.polarizer.speed = constant_speed;
+        shell_print(sh, "Setting polarizer to horizontal (0°)");
+        shell_print(sh, "  mode: %s",
+                    constant_speed ? "constant velocity" : "ramp");
+        if (constant_speed) {
+            shell_print(sh, "  constant-speed: %u ms/turn", constant_speed);
+        } else {
+            shell_print(sh, "  acceleration: %u steps/s²", acceleration);
+            shell_print(sh, "  max-speed: %u ms/turn", max_speed);
+        }
+        shell_print(sh, "  shortest-path: %s", shortest_path ? "yes" : "no");
     } else if (strcmp(argv[1], "vertical") == 0) {
         message.payload.polarizer.command =
             orb_mcu_main_Polarizer_Command_POLARIZER_90_VERTICAL;
-        message.payload.polarizer.speed = speed;
-        shell_print(sh,
-                    "Setting polarizer to vertical (90°) (speed: %u, "
-                    "shortest: %s)",
-                    speed, shortest_path ? "yes" : "no");
+        message.payload.polarizer.speed = constant_speed;
+        shell_print(sh, "Setting polarizer to vertical (90°)");
+        shell_print(sh, "  mode: %s",
+                    constant_speed ? "constant velocity" : "ramp");
+        if (constant_speed) {
+            shell_print(sh, "  constant-speed: %u ms/turn", constant_speed);
+        } else {
+            shell_print(sh, "  acceleration: %u steps/s²", acceleration);
+            shell_print(sh, "  max-speed: %u ms/turn", max_speed);
+        }
+        shell_print(sh, "  shortest-path: %s", shortest_path ? "yes" : "no");
     } else if (strcmp(argv[1], "angle") == 0) {
         if (argc < 3) {
             shell_error(sh,
@@ -612,23 +665,21 @@ execute_polarizer(const struct shell *sh, size_t argc, char **argv)
             return -EINVAL;
         }
 
-        // Parse speed if provided as 4th argument (skip if it's -s flag)
-        if (argc >= 4 && strcmp(argv[3], "-s") != 0) {
-            speed = strtoul(argv[3], &endptr, 10);
-            if (*endptr != '\0') {
-                shell_error(sh, "Invalid speed value: %s", argv[3]);
-                return -EINVAL;
-            }
-        }
-
         message.payload.polarizer.command =
             orb_mcu_main_Polarizer_Command_POLARIZER_CUSTOM_ANGLE;
         message.payload.polarizer.angle_decidegrees = angle;
-        message.payload.polarizer.speed = speed;
-        shell_print(sh,
-                    "Setting polarizer to custom angle %u decidegrees (speed: "
-                    "%u, shortest: %s)",
-                    angle, speed, shortest_path ? "yes" : "no");
+        message.payload.polarizer.speed = constant_speed;
+        shell_print(sh, "Setting polarizer to custom angle %u decidegrees",
+                    angle);
+        shell_print(sh, "  mode: %s",
+                    constant_speed ? "constant velocity" : "ramp");
+        if (constant_speed) {
+            shell_print(sh, "  constant-speed: %u ms/turn", constant_speed);
+        } else {
+            shell_print(sh, "  acceleration: %u steps/s²", acceleration);
+            shell_print(sh, "  max-speed: %u ms/turn", max_speed);
+        }
+        shell_print(sh, "  shortest-path: %s", shortest_path ? "yes" : "no");
     } else {
         shell_error(sh, "Unknown polarizer command: %s", argv[1]);
         return -EINVAL;
