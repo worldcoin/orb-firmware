@@ -813,6 +813,7 @@ publish_all_voltages(void)
         case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_5:
         case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_6:
         case orb_mcu_main_Voltage_VoltageSource_SUPER_CAP_7:
+        case orb_mcu_main_Voltage_VoltageSource_SUPPLY_3V3_LDO:
             continue;
 #endif
         default:
