@@ -166,7 +166,7 @@ static K_SEM_DEFINE(cmd_sem, 0, 1); /* signaled when command is pending */
 static K_MUTEX_DEFINE(cmd_mutex);
 
 /* Delay before scaling down motor current after idle (ms) */
-#define POLARIZER_IDLE_CURRENT_DELAY_MS 1000
+#define POLARIZER_IDLE_CURRENT_DELAY_MS 2000
 
 /**
  * Calculate timeout for the next k_poll iteration.
