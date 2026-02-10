@@ -29,7 +29,7 @@
 
 #include "orb_logs.h"
 
-LOG_MODULE_REGISTER(polarizer, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(polarizer);
 ORB_STATE_REGISTER(polarizer);
 
 /* Thread stack and data for the main polarizer thread */
@@ -340,6 +340,7 @@ polarizer_wheel_get_max_speed(void)
  * The ramp is symmetric: frequency increases from min_freq at start,
  * reaches peak at midpoint, then decreases back to min_freq at end.
  * The caller provides ramp_step which goes 0 -> midpoint -> 0.
+ * The frequency is capped at max_freq to prevent overshooting.
  *
  * @param ramp_step Distance from nearest endpoint (0 at start/end, max at
  * midpoint)
@@ -347,7 +348,9 @@ polarizer_wheel_get_max_speed(void)
  * @return Calculated frequency for the current step
  */
 static uint32_t
-calculate_linear_ramp_frequency(uint32_t ramp_step, uint32_t min_freq)
+calculate_linear_ramp_frequency(const uint32_t ramp_step,
+                                const uint32_t min_freq,
+                                const uint32_t max_freq)
 {
     /* v² = v₀² + 2*a*s - velocity based on distance from endpoint */
     const uint64_t min_freq_sq = (uint64_t)min_freq * min_freq;
@@ -363,8 +366,8 @@ calculate_linear_ramp_frequency(uint32_t ramp_step, uint32_t min_freq)
         y = (x + freq_sq / x) / 2;
     }
 
-    x = CLAMP(x, POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MINIMUM,
-              get_max_frequency());
+    /* Max speed plateau */
+    x = MIN(x, max_freq);
 
     return (uint32_t)x;
 }
@@ -848,7 +851,8 @@ process_step_event(void)
                                        : (total_dist - distance_traveled);
 
         uint32_t new_freq = calculate_linear_ramp_frequency(
-            ramp_step, g_polarizer_wheel_instance.acceleration.min_frequency);
+            ramp_step, g_polarizer_wheel_instance.acceleration.min_frequency,
+            get_max_frequency());
 
         const int ret = polarizer_set_frequency(new_freq);
         ASSERT_SOFT(ret);
