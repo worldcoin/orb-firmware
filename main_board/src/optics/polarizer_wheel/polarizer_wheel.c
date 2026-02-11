@@ -121,7 +121,6 @@ typedef struct {
         /* target notch edge position in microsteps */
         int32_t target_notch_edge;
         bool encoder_enabled;
-        uint32_t frequency;
         /* flag to track if encoder was triggered during positioning */
         atomic_t encoder_triggered;
         uint32_t start_time_ms;
@@ -133,7 +132,6 @@ typedef struct {
 
     /* Acceleration state - distance-based ramp control */
     struct {
-        uint32_t current_frequency;
         uint32_t min_frequency; /* frequency at start/end of travel */
         enum acceleration_state_e state;
         int32_t start_position;
@@ -321,7 +319,7 @@ polarizer_wheel_set_max_speed(uint32_t ms_per_turn)
 {
     if (ms_per_turn == 0) {
         g_max_speed_ms_per_turn = MAX_SPEED_DEFAULT_MS_PER_TURN;
-    } else {
+    } else if (ms_per_turn > POLARIZER_WHEEL_SPIN_ACCEL_MIN_SPEED_MS_PER_TURN) {
         g_max_speed_ms_per_turn = ms_per_turn;
     }
 }
@@ -345,6 +343,8 @@ polarizer_wheel_get_max_speed(void)
  * @param ramp_step Distance from nearest endpoint (0 at start/end, max at
  * midpoint)
  * @param min_freq Minimum frequency in Hz (µsteps/s) at start/end of travel
+ * @param max_freq Maximum frequency in Hz (µsteps/s), plateauing once reached
+ * until deceleration phase
  * @return Calculated frequency for the current step
  */
 static uint32_t
@@ -370,6 +370,35 @@ calculate_linear_ramp_frequency(const uint32_t ramp_step,
     x = MIN(x, max_freq);
 
     return (uint32_t)x;
+}
+
+/**
+ * Calculate the ramp step for the symmetric triangular velocity profile.
+ *
+ * Returns the distance from the nearest endpoint:
+ * - First half of travel: ramp_step increases (acceleration)
+ * - Second half of travel: ramp_step decreases (deceleration)
+ *
+ * Safely handles edge cases:
+ * - total_dist == 0: returns 0 (no movement)
+ * - distance_traveled >= total_dist: returns 0 (overshoot/at destination)
+ *
+ * @param distance_traveled Steps traveled so far
+ * @param total_dist Total distance of the move
+ * @return ramp_step value (0 at endpoints, max at midpoint)
+ */
+static uint32_t
+calculate_ramp_step(const uint32_t distance_traveled, const uint32_t total_dist)
+{
+    if (total_dist == 0 || distance_traveled >= total_dist) {
+        return 0;
+    }
+
+    const uint32_t midpoint = total_dist / 2;
+
+    return (distance_traveled < midpoint)
+               ? distance_traveled
+               : (total_dist - distance_traveled - 1);
 }
 
 /* Clear the polarizer wheel step interrupt flag */
@@ -433,7 +462,6 @@ polarizer_halt(void)
 
     /* Reset acceleration state */
     g_polarizer_wheel_instance.acceleration.state = ACCELERATION_IDLE;
-    g_polarizer_wheel_instance.acceleration.current_frequency = 0;
     g_polarizer_wheel_instance.acceleration.min_frequency = 0;
 
     return ret;
@@ -838,28 +866,15 @@ process_step_event(void)
                 current_pos));
         const uint32_t total_dist =
             g_polarizer_wheel_instance.acceleration.total_distance;
-        const uint32_t midpoint = total_dist / 2;
+        const uint32_t ramp_step =
+            calculate_ramp_step(distance_traveled, total_dist);
 
-        /*
-         * Symmetric triangular velocity profile:
-         * - First half: accelerate (ramp_step increases from 0 to midpoint)
-         * - Second half: decelerate (ramp_step decreases from midpoint to 0)
-         * Peak velocity is determined solely by acceleration and course length.
-         */
-        const uint32_t ramp_step = (distance_traveled < midpoint)
-                                       ? distance_traveled
-                                       : (total_dist - distance_traveled);
-
-        uint32_t new_freq = calculate_linear_ramp_frequency(
+        const uint32_t new_freq = calculate_linear_ramp_frequency(
             ramp_step, g_polarizer_wheel_instance.acceleration.min_frequency,
             get_max_frequency());
 
         const int ret = polarizer_set_frequency(new_freq);
         ASSERT_SOFT(ret);
-        if (ret == 0) {
-            g_polarizer_wheel_instance.acceleration.current_frequency =
-                new_freq;
-        }
 
 #if CONFIG_POLARIZER_LOG_LEVEL_DBG
         if (new_freq < g_polarizer_wheel_instance.debug_stats.min_frequency) {
@@ -1460,8 +1475,6 @@ execute_set_angle(uint32_t frequency, uint32_t angle_decidegrees,
      * - frequency == 0: use triangular acceleration ramp based on course length
      * - frequency != 0: use constant velocity at the specified frequency */
     const bool use_ramp = (frequency == 0);
-    const uint32_t actual_frequency =
-        use_ramp ? POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT : frequency;
 
     if (use_encoder) {
         g_polarizer_wheel_instance.positioning.target_notch_edge =
@@ -1487,25 +1500,21 @@ execute_set_angle(uint32_t frequency, uint32_t angle_decidegrees,
 
         g_polarizer_wheel_instance.acceleration.state = ACCELERATION_ACTIVE;
         g_polarizer_wheel_instance.acceleration.min_frequency =
-            POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT;
-        g_polarizer_wheel_instance.acceleration.current_frequency =
-            POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT;
+            POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_ACCEL_MIN_SPEED;
         g_polarizer_wheel_instance.acceleration.start_position = start_pos;
         g_polarizer_wheel_instance.acceleration.total_distance = total_dist;
+
+        /* set initial frequency */
+        frequency = g_polarizer_wheel_instance.acceleration.min_frequency;
         LOG_DBG("Triangular ramp: min %u Hz, total %u steps, accel %u "
                 "steps/s², max speed %u ms/turn",
                 g_polarizer_wheel_instance.acceleration.min_frequency,
                 total_dist, polarizer_wheel_get_acceleration(),
                 polarizer_wheel_get_max_speed());
-
-        g_polarizer_wheel_instance.positioning.frequency =
-            POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT;
     } else {
         /* Constant velocity mode */
         g_polarizer_wheel_instance.acceleration.state = ACCELERATION_IDLE;
-        g_polarizer_wheel_instance.acceleration.current_frequency = frequency;
         g_polarizer_wheel_instance.acceleration.min_frequency = frequency;
-        g_polarizer_wheel_instance.positioning.frequency = frequency;
         LOG_DBG("Constant velocity: %u Hz", frequency);
     }
 
@@ -1516,8 +1525,7 @@ execute_set_angle(uint32_t frequency, uint32_t angle_decidegrees,
     g_polarizer_wheel_instance.debug_stats.max_frequency = 0;
 #endif
 
-    ret_code_t ret_val = polarizer_rotate(actual_frequency);
-
+    ret_code_t ret_val = polarizer_rotate(frequency);
     if (ret_val == 0) {
         g_polarizer_wheel_instance.state =
             use_encoder ? STATE_POSITIONING_WITH_ENCODER : STATE_POSITIONING;
@@ -2011,6 +2019,13 @@ polarizer_wheel_get_encoder_state(int *state)
     }
 
     return RET_SUCCESS;
+}
+
+uint32_t
+polarizer_wheel_test_calculate_ramp_step(uint32_t distance_traveled,
+                                         uint32_t total_dist)
+{
+    return calculate_ramp_step(distance_traveled, total_dist);
 }
 
 #endif

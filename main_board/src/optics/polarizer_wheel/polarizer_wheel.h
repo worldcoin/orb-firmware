@@ -42,10 +42,15 @@
 #define POLARIZER_WHEEL_MICROSTEPS_NOTCH_EDGE_TO_CENTER                        \
     (POLARIZER_WHEEL_MICROSTEPS_PER_STEP * 3 / 4)
 
-#define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN                       \
-    (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 3)
+#define POLARIZER_MICROSTEPS_PER_SECOND(ms)                                    \
+    (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES * 1000 / ms)
+
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_4SEC_PER_TURN                       \
     (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 4)
+#define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_3SEC_PER_TURN                       \
+    (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 3)
+#define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_2SEC_PER_TURN                       \
+    (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES / 2)
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_1SEC_PER_TURN                       \
     (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES)
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_400MSEC_PER_TURN                    \
@@ -63,8 +68,10 @@
 #define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_MAXIMUM                             \
     POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_200MSEC_PER_TURN
 
-#define POLARIZER_MICROSTEPS_PER_SECOND(ms)                                    \
-    (POLARIZER_WHEEL_MICROSTEPS_360_DEGREES * 1000 / ms)
+#define POLARIZER_WHEEL_SPIN_ACCEL_MIN_SPEED_MS_PER_TURN 2000
+#define POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_ACCEL_MIN_SPEED                     \
+    POLARIZER_MICROSTEPS_PER_SECOND(                                           \
+        POLARIZER_WHEEL_SPIN_ACCEL_MIN_SPEED_MS_PER_TURN)
 
 // because one position has a second notch close to it, the encoder
 // cannot be used over the entire course between 2 positions.
@@ -243,5 +250,21 @@ polarizer_wheel_get_max_speed(void);
  */
 ret_code_t
 polarizer_wheel_get_encoder_state(int *state);
+
+/**
+ * Test helper: calculate the ramp step for the symmetric triangular velocity
+ * profile.
+ *
+ * Wraps the internal calculate_ramp_step() so unit tests can exercise the
+ * edge-case handling (total_dist == 0, overshoot, etc.) without needing
+ * hardware.
+ *
+ * @param distance_traveled Steps traveled so far
+ * @param total_dist        Total distance of the move
+ * @return ramp_step value (0 at endpoints, max at midpoint)
+ */
+uint32_t
+polarizer_wheel_test_calculate_ramp_step(uint32_t distance_traveled,
+                                         uint32_t total_dist);
 
 #endif // CONFIG_POLARIZER_WHEEL_UNIT_TESTS
