@@ -544,3 +544,54 @@ ZTEST(polarizer, test_polarizer_wheel_ramp_mode_positioning)
 
     LOG_INF("Ramp mode positioning test completed successfully");
 }
+
+/**
+ * Regression test: ramp_step calculation must not produce unsigned wraparound
+ * when total_dist is zero or when distance_traveled >= total_dist.
+ *
+ * Before the fix, `(total_dist - distance_traveled - 1)` would wrap around
+ * to UINT32_MAX when total_dist == 0, producing a dangerously large ramp_step
+ * and therefore an extreme motor frequency.
+ */
+ZTEST(polarizer, test_polarizer_wheel_ramp_step_zero_distance)
+{
+    Z_TEST_SKIP_IFNDEF(CONFIG_TEST_POLARIZER_WHEEL);
+
+    uint32_t step;
+
+    /* ---- total_dist == 0: must return 0, never UINT32_MAX ---- */
+    step = polarizer_wheel_test_calculate_ramp_step(0, 0);
+    zassert_equal(step, 0,
+                  "ramp_step should be 0 when total_dist is 0 (got %u)", step);
+
+    /* ---- distance_traveled == total_dist (at destination) ---- */
+    step = polarizer_wheel_test_calculate_ramp_step(100, 100);
+    zassert_equal(step, 0,
+                  "ramp_step should be 0 when distance_traveled == total_dist "
+                  "(got %u)",
+                  step);
+
+    /* ---- distance_traveled > total_dist (overshoot) ---- */
+    step = polarizer_wheel_test_calculate_ramp_step(110, 100);
+    zassert_equal(step, 0, "ramp_step should be 0 on overshoot (got %u)", step);
+
+    /* ---- normal case: first half (accelerating) ---- */
+    step = polarizer_wheel_test_calculate_ramp_step(10, 100);
+    zassert_equal(step, 10,
+                  "ramp_step should equal distance_traveled in first half "
+                  "(got %u)",
+                  step);
+
+    /* ---- normal case: second half (decelerating) ---- */
+    /* distance_traveled=90, total_dist=100 → ramp_step = 100-90-1 = 9 */
+    step = polarizer_wheel_test_calculate_ramp_step(90, 100);
+    zassert_equal(step, 9,
+                  "ramp_step should decelerate in second half (got %u)", step);
+
+    /* ---- total_dist == 1: only valid distance_traveled is 0 ---- */
+    step = polarizer_wheel_test_calculate_ramp_step(0, 1);
+    zassert_equal(step, 0,
+                  "ramp_step should be 0 for single-step move (got %u)", step);
+
+    LOG_INF("Ramp step zero-distance regression test passed");
+}
