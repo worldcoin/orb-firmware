@@ -32,12 +32,8 @@
 #include <stdlib.h>
 #include <uart_messaging.h>
 #include <ui/rgb_leds/front_leds/front_leds.h>
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
-
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-#include "ui/rgb_leds/cone_leds/cone_leds.h"
-#include "ui/white_leds/white_leds.h"
-#endif
 
 #if defined(CONFIG_MEMFAULT_METRICS_CONNECTIVITY_CONNECTED_TIME)
 #include <memfault/metrics/connectivity.h>
@@ -48,6 +44,28 @@
 #endif
 
 LOG_MODULE_REGISTER(runner, CONFIG_RUNNER_LOG_LEVEL);
+
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#include "ui/rgb_leds/cone_leds/cone_leds.h"
+#include "ui/white_leds/white_leds.h"
+
+static const struct gpio_dt_spec exp_mcu_rst_rqst_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), exp_mcu_rst_rqst_gpios);
+
+static void
+exp_mcu_rst_rqst_deassert_work_handler(struct k_work *work)
+{
+    ARG_UNUSED(work);
+
+    int ret = gpio_pin_set_dt(&exp_mcu_rst_rqst_gpio_spec, 0);
+    if (ret != 0) {
+        LOG_ERR("Failed to deassert reboot request GPIO: %d", ret);
+    }
+}
+
+static K_WORK_DELAYABLE_DEFINE(exp_mcu_rst_rqst_deassert_work,
+                               exp_mcu_rst_rqst_deassert_work_handler);
+#endif
 
 K_THREAD_STACK_DEFINE(runner_process_stack, THREAD_STACK_SIZE_RUNNER);
 static struct k_thread runner_process;
@@ -1197,6 +1215,41 @@ handle_power_cycle(job_t *job)
 
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
 static void
+handle_reboot_security_mcu(job_t *job)
+{
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_reboot_security_mcu_tag);
+
+    int ret;
+
+    orb_mcu_Hardware hw_revision = version_get();
+    if (hw_revision.version <
+        orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5) {
+        job_ack(orb_mcu_Ack_ErrorCode_VERSION, job);
+        return;
+    }
+
+    if (!gpio_is_ready_dt(&exp_mcu_rst_rqst_gpio_spec)) {
+        LOG_ERR("GPIO for security MCU reset request not ready");
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+        return;
+    }
+
+    ret =
+        gpio_pin_configure_dt(&exp_mcu_rst_rqst_gpio_spec, GPIO_OUTPUT_ACTIVE);
+    if (ret != 0) {
+        LOG_ERR("Failed to set GPIO high: %d", ret);
+        job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+        return;
+    }
+
+    k_work_schedule(&exp_mcu_rst_rqst_deassert_work, K_MSEC(1000));
+
+    LOG_INF("Security MCU reboot requested");
+    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+}
+
+static void
 handle_polarizer(job_t *job)
 {
     orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
@@ -1834,6 +1887,8 @@ static const hm_callback handle_message_callbacks[] = {
     [orb_mcu_main_JetsonToMcu_polarizer_tag] = handle_polarizer,
     [orb_mcu_main_JetsonToMcu_polarizer_wheel_settings_tag] =
         handle_polarizer_wheel_settings,
+    [orb_mcu_main_JetsonToMcu_reboot_security_mcu_tag] =
+        handle_reboot_security_mcu,
 #elif defined(CONFIG_BOARD_PEARL_MAIN)
     [orb_mcu_main_JetsonToMcu_cone_leds_sequence_tag] = handle_not_supported,
     [orb_mcu_main_JetsonToMcu_cone_leds_pattern_tag] = handle_not_supported,
@@ -1843,7 +1898,7 @@ static const hm_callback handle_message_callbacks[] = {
 #endif
 };
 
-BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 57),
+BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 58),
              "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void

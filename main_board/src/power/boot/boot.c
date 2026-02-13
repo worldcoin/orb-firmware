@@ -111,9 +111,10 @@ static const struct gpio_dt_spec supply_3v6_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v6_enable_gpios);
 static const struct gpio_dt_spec supply_5v_rgb_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_5v_rgb_enable_gpios);
-
 static const struct gpio_dt_spec usb_hub_reset_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), usb_hub_reset_gpios);
+static const struct gpio_dt_spec exp_mcu_rst_rqst_gpio_spec =
+    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), exp_mcu_rst_rqst_gpios);
 #endif
 
 static K_SEM_DEFINE(sem_reboot, 0, 1);
@@ -359,6 +360,17 @@ power_configure_gpios(void)
     if (ret != 0) {
         ASSERT_SOFT(ret);
         return RET_ERROR_INTERNAL;
+    }
+
+    if (version.version >=
+        orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_5) {
+        if (!gpio_is_ready_dt(&exp_mcu_rst_rqst_gpio_spec)) {
+            LOG_ERR("GPIO for security MCU reset request not ready");
+            return RET_ERROR_INTERNAL;
+        }
+        ret = gpio_pin_configure_dt(&exp_mcu_rst_rqst_gpio_spec,
+                                    GPIO_OUTPUT_INACTIVE);
+        ASSERT_SOFT(ret);
     }
 #endif
 
