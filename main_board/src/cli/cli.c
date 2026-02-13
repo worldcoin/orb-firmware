@@ -458,6 +458,20 @@ execute_date(const struct shell *sh, size_t argc, char **argv)
 
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
 static int
+execute_reboot_sec_mcu(const struct shell *sh, size_t argc, char **argv)
+{
+    UNUSED_PARAMETER(argc);
+    UNUSED_PARAMETER(argv);
+
+    orb_mcu_main_JetsonToMcu message = {
+        .which_payload = orb_mcu_main_JetsonToMcu_reboot_security_mcu_tag,
+    };
+
+    shell_print(sh, "Requesting security MCU reboot");
+    return runner_handle_new_cli(&message);
+}
+
+static int
 execute_white_leds(const struct shell *sh, size_t argc, char **argv)
 {
     if (argc != 2) {
@@ -861,6 +875,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
     SHELL_CMD(white_leds, NULL, "Control white LEDs", execute_white_leds),
     SHELL_CMD(polarizer, NULL, "Control polarizer wheel", execute_polarizer),
+    SHELL_CMD(reboot_sec, NULL, "Reboot security MCU", execute_reboot_sec_mcu),
 #endif
     SHELL_CMD(boot_config, NULL, "Get/set boot behavior (button|always_on)",
               execute_boot_config),
