@@ -352,6 +352,77 @@ git commit  # with proper message format
 
 ---
 
+## Isolated Workspace (Git Worktrees)
+
+Use git worktrees to work on a feature in a fully isolated copy of the workspace without affecting your main checkout. This is useful for parallel development, experiments, or vibe coding sessions where you want a throwaway environment.
+
+### Creating an Isolated Workspace
+
+Run from `<WORKSPACE>` root:
+
+```bash
+# 1. Define variables
+WORKSPACE=$(west topdir)
+BRANCH_NAME="feature/my-feature"
+WT_NAME="my-feature"
+NEW_WS="${WORKSPACE}-wt-${WT_NAME}"
+
+# 2. Create worktrees for both repos
+mkdir -p "${NEW_WS}/orb"
+
+cd "${WORKSPACE}/orb/public"
+git worktree add "${NEW_WS}/orb/public" -b "${BRANCH_NAME}"
+
+cd "${WORKSPACE}/orb/private"
+git worktree add "${NEW_WS}/orb/private" -b "${BRANCH_NAME}"
+
+# 3. Set up .west configuration
+mkdir -p "${NEW_WS}/.west"
+cp "${WORKSPACE}/.west/config" "${NEW_WS}/.west/config"
+
+# 4. Fetch dependencies (zephyr, modules, etc.)
+# IMPORTANT: Use --narrow and --depth=1 to avoid cloning full history
+cd "${NEW_WS}"
+west update --narrow --fetch-opt=--depth=1
+```
+
+### Pitfalls & Lessons Learned
+
+1. **`west update` must use `--narrow --fetch-opt=--depth=1`**: Without these flags, `west update` fetches the full history of every dependency (Zephyr, HAL, etc.) which takes a very long time and wastes disk space. Always use the shallow fetch.
+
+2. **Do NOT change `west.yml` revision to your branch name before pushing**: The private manifest pins `orb-firmware` to a commit hash. If you change this to a branch name that doesn't exist on the remote yet, `west update` will fail with `fatal: couldn't find remote ref`. Keep the original commit hash for `west update`, then change it only if needed after the branch is pushed.
+
+3. **Avoid `git stash` in worktrees**: Using `git stash` + `git stash pop` in a worktree can leave HEAD detached. If you need to temporarily set aside changes, prefer committing to the branch and amending later.
+
+4. **The public repo remote is named `worldcoin`**, not `origin`. Use `git push -u worldcoin <branch>`.
+
+### Cleaning Up
+
+```bash
+# Remove worktrees (from the ORIGINAL workspace repos)
+cd "${WORKSPACE}/orb/public"
+git worktree remove "${NEW_WS}/orb/public"
+
+cd "${WORKSPACE}/orb/private"
+git worktree remove "${NEW_WS}/orb/private"
+
+# Remove remaining files (west-managed deps, build artifacts)
+rm -rf "${NEW_WS}"
+```
+
+---
+
+## Linear Ticket Workflow
+
+When working on a fix or feature linked to a Linear ticket:
+
+1. **Create a worktree** using the Linear-suggested branch name (from the ticket details).
+2. **Implement the changes**, build, and verify.
+3. **Commit directly** with a proper Conventional Commits message and `Signed-off-by:` line. Do not ask for permission to commit - commit as soon as the change is verified.
+4. **Ask the user** whether the branch should be pushed to the remote. Do not push without confirmation.
+
+---
+
 ## Private Repository Release Process (Internal Only)
 
 > **Note:** This section only applies when `<PRIVATE_REPO>` exists (contains `sec_board/`).
