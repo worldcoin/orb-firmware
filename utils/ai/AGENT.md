@@ -67,12 +67,14 @@ All commands are run from `<WORKSPACE>` root.
 
 ### Build (first time / new board)
 
+Let's build the service image by default with warnings treated as errors to maintain code quality.
+
 ```bash
 # Main board (public)
-west build -b <BOARD> -d build/<BOARD> <PUBLIC_REPO>/main_board
+west build -b <BOARD> -d build/<BOARD> <PUBLIC_REPO>/main_board -- -DCMAKE_BUILD_TYPE="Service" -DEXTRA_COMPILE_FLAGS="-Werror"
 
 # Example for Pearl main board
-west build -b pearl_main -d build/pearl_main orb/public/main_board
+west build -b pearl_main -d build/pearl_main orb/public/main_board -- -DCMAKE_BUILD_TYPE="Service" -DEXTRA_COMPILE_FLAGS="-Werror"
 ```
 
 ### Incremental build
@@ -412,6 +414,76 @@ rm -rf "${NEW_WS}"
 
 ---
 
+## Hardware Lock (Mutex)
+
+Multiple agents may work in parallel across git worktrees, but the physical Orb hardware is a **shared, exclusive resource**. Before flashing or opening a serial connection, the agent **must** acquire a lock. This prevents two agents from flashing simultaneously or reading garbled serial output.
+
+### Lock File Location
+
+The lock lives in the **shared git directory**, which is the same for every worktree:
+
+```bash
+LOCK_FILE="$(git rev-parse --git-common-dir)/orb-hardware.lock"
+```
+
+### Lock File Format
+
+The lock file is a simple key=value text file:
+
+```
+AGENT=<identifier>
+WORKTREE=<path to the worktree>
+OPERATION=<flash|serial|flash+serial>
+TIMESTAMP=<unix epoch seconds>
+```
+
+### Protocol
+
+#### Acquiring the lock
+
+1. Read `$LOCK_FILE`. If it does **not** exist → create it and proceed.
+2. If it **does** exist, read `TIMESTAMP` and compute the age:
+   ```bash
+   age=$(( $(date +%s) - TIMESTAMP ))
+   ```
+3. If `age > 600` (10 minutes) → the lock is **stale**. Log a warning (`"Breaking stale lock held by <AGENT> since <TIMESTAMP>"`), remove the file, and create a new one.
+4. If the lock is **not stale** → **do not proceed**. Inform the user that the hardware is in use by another agent and which operation it is performing.
+
+#### Creating the lock
+
+```bash
+LOCK_FILE="$(git rev-parse --git-common-dir)/orb-hardware.lock"
+cat > "$LOCK_FILE" <<EOF
+AGENT=$(whoami)@$$
+WORKTREE=$(pwd)
+OPERATION=flash+serial
+TIMESTAMP=$(date +%s)
+EOF
+```
+
+#### Releasing the lock
+
+Remove the lock file as soon as the flash + serial verification is complete:
+
+```bash
+rm -f "$LOCK_FILE"
+```
+
+> **Always release the lock**, even if an error occurs during flashing or verification. Wrap the flash/verify sequence so that the lock is released in all exit paths.
+
+### Staleness Timeout
+
+The timeout is **10 minutes (600 seconds)**. This is generous enough for a full build-flash-verify cycle. If an agent crashes or the user kills a session, the lock will automatically be considered stale by the next agent after 10 minutes.
+
+### Rules
+
+- **Acquire before**: `west flash`, opening any serial port via the MCP server.
+- **Release after**: serial connection is closed and verification is complete.
+- **Never** hold the lock during long operations that don't touch hardware (building, code edits, git operations).
+- If the lock is held by someone else and is not stale, **wait and inform the user** — do not force-break a fresh lock.
+
+---
+
 ## Linear Ticket Workflow
 
 When working on a fix or feature linked to a Linear ticket:
@@ -419,7 +491,73 @@ When working on a fix or feature linked to a Linear ticket:
 1. **Create a worktree** using the Linear-suggested branch name (from the ticket details).
 2. **Implement the changes**, build, and verify.
 3. **Commit directly** with a proper Conventional Commits message and `Signed-off-by:` line. Do not ask for permission to commit - commit as soon as the change is verified.
-4. **Ask the user** whether the branch should be pushed to the remote. Do not push without confirmation.
+4. **Acquire the hardware lock** before touching the Orb (see [Hardware Lock](#hardware-lock-mutex)). If the lock is held by another agent, inform the user and wait.
+5. **Build and flash the target** to verify the firmware compiles cleanly and runs correctly on hardware. By default, build a Service image for `diamond_main` with warnings treated as errors. When the agent will verify autonomously via serial (step 6), add `-DCONFIG_INSTA_BOOT=y` so the MCU boots immediately after flash without waiting for a physical button press. Propose the commands for the user to review and execute:
+   ```bash
+   west build -b diamond_main -d build/diamond_main <PUBLIC_REPO>/main_board -- -DCMAKE_BUILD_TYPE="Service" -DEXTRA_COMPILE_FLAGS="-Werror" -DCONFIG_INSTA_BOOT=y
+   west flash -d build/diamond_main
+   ```
+   > **Note:** `CONFIG_INSTA_BOOT=y` skips the power-button wait so the agent can read boot logs immediately. Omit it if the user will test manually or if the build is intended for production.
+6. **Verify via serial** after flashing. If the Serial MCP server is available (see [Serial Communication](#serial-communication-mcp-server) below), open the main MCU serial port, read boot logs, and check for errors. Use CLI commands (e.g., `orb version`, `orb state`) to verify the new firmware is running correctly.
+7. **Release the hardware lock** once serial verification is complete (or if any step fails).
+8. **Ask the user** whether the branch should be pushed to the remote. Do not push without confirmation.
+
+---
+
+## Serial Communication (MCP Server)
+
+If the **Serial MCP server** (`serial-mcp`) is available, use it to communicate with MCUs and the Jetson over serial after flashing. This enables reading boot logs, checking for errors, and sending CLI commands to verify firmware behavior on hardware.
+
+### Serial Port Discovery
+
+Use `list_ports` to discover available serial ports. When the **debug board** is plugged in, 4 serial devices appear as `/dev/tty[name][x]` with `x` from 0 to 3:
+
+| Port Index | Device            | Purpose                 |
+| ---------- | ----------------- | ----------------------- |
+| 0          | `/dev/tty[name]0` | (reserved)              |
+| 1          | `/dev/tty[name]1` | Jetson CLI              |
+| 2          | `/dev/tty[name]2` | Main MCU CLI & logs     |
+| 3          | `/dev/tty[name]3` | Security MCU CLI & logs |
+
+> The exact device name prefix varies by host OS and debug board version (e.g., `/dev/cu.usbserial-xxx2` on macOS, `/dev/ttyUSB2` on Linux).
+
+### Connection Settings
+
+All serial ports use: **115200 baud, 8 data bits, no parity, 1 stop bit (8N1)**.
+
+```
+baud_rate: 115200
+data_bits: 8
+parity: none
+stop_bits: 1
+```
+
+### Post-Flash Verification Workflow
+
+After flashing new firmware, use the serial connection to verify it boots correctly:
+
+1. **List ports** with `list_ports` to find available serial devices.
+2. **Open** the main MCU serial port (index 2) with the settings above.
+3. **Read** boot logs — look for error messages (`<err>` log level), assertion failures, or crash dumps.
+4. **Send CLI commands** to verify the firmware is functional:
+   - Press Enter first to get a shell prompt (`uart:~$`).
+   - `orb version` — confirm the expected firmware version is running.
+   - `orb state` — check hardware component states for anomalies.
+   - `orb battery` — verify battery reporting is functional.
+   - `orb stats` — check runner job statistics.
+   - `orb ping_sec` — verify communication with the security MCU.
+5. **Close** the connection when done.
+
+If any errors are observed in the logs or commands fail unexpectedly, report the findings to the user before proceeding.
+
+### Available CLI Commands
+
+Commands are registered in source via `SHELL_CMD` / `SHELL_STATIC_SUBCMD_SET_CREATE` macros. To discover the latest commands and their usage, **read the CLI source files**:
+
+- **Main MCU**: `<PUBLIC_REPO>/main_board/src/cli/cli.c` — all commands are under the `orb` shell prefix.
+- **Security MCU**: `<PRIVATE_REPO>/sec_board/src/cli/cli.c` (if available).
+
+Look for `SHELL_CMD(...)` entries and the corresponding `execute_*` functions for argument details and validation.
 
 ---
 

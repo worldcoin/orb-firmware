@@ -20,21 +20,23 @@ if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "Service")
     message(STATUS "🛠️ Service image: optimized for size, logging & CLI enabled")
 
+    set(PEARL_MAIN_EXTEND_PARTITION 1)
     set(OVERLAY_CONFIG
             "debug.conf service.conf ${OVERLAY_CONFIG}"
             CACHE STRING "" FORCE)
     set(DTC_OVERLAY_FILE
-            "debug.overlay ${DTC_OVERLAY_FILE}"
+            "debug.overlay;${DTC_OVERLAY_FILE}"
             CACHE STRING "" FORCE)
 else ()
     message(STATUS "⚙️ Debug image: minimal optimization, debug info included, logging & CLI enabled")
     add_compile_options(-Og -g)
 
+    set(PEARL_MAIN_EXTEND_PARTITION 1)
     set(OVERLAY_CONFIG
             "debug.conf ${OVERLAY_CONFIG}"
             CACHE STRING "" FORCE)
     set(DTC_OVERLAY_FILE
-            "debug.overlay ${DTC_OVERLAY_FILE}"
+            "debug.overlay;${DTC_OVERLAY_FILE}"
             CACHE STRING "" FORCE)
 endif ()
 
@@ -72,6 +74,13 @@ find_package(McuPrivate)
 # DTC_OVERLAY_FILE on the CMake command line, we need to append onto
 # the list).
 list(APPEND DTC_OVERLAY_FILE ${CMAKE_CURRENT_LIST_DIR}/dts.overlay)
+
+# for pearl_main board service & debug image, the image won't fit so we extends the partition size
+if (PEARL_MAIN_EXTEND_PARTITION AND ${BOARD} STREQUAL "pearl_main")
+    message(WARNING "Extending partition size for pearl_main to fit service/debug images, DFU won't be possible.")
+    list(APPEND DTC_OVERLAY_FILE one_slot.overlay)
+endif()
+message(STATUS "Using DTC overlay files: ${DTC_OVERLAY_FILE}")
 
 # In case we don't use West to build, add our local modules to the list
 list(APPEND ZEPHYR_EXTRA_MODULES ${PROJECT_DIR})
