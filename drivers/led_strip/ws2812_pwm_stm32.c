@@ -7,10 +7,11 @@
 #define DT_DRV_COMPAT worldsemi_ws2812_pwm_stm32
 
 #include <soc.h>
-#include <stm32_ll_dma.h>
 #include <stm32_ll_rcc.h>
 #include <stm32_ll_tim.h>
 #include <zephyr/device.h>
+#include <zephyr/drivers/dma.h>
+#include <zephyr/drivers/dma/dma_stm32.h>
 #include <zephyr/drivers/led_strip.h>
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
@@ -56,7 +57,7 @@ static const uint32_t timer_ch2ll[TIMER_MAX_CH] = {
 #endif
 };
 
-// Mapping from timer channel given in DTB to STM32 HAL LL values
+// Mapping from timer channel given in DTB to CCR register offsets
 static const uint32_t timer_ch2ccr_offset[TIMER_MAX_CH] = {
     offsetof(TIM_TypeDef, CCR1),
     offsetof(TIM_TypeDef, CCR2),
@@ -68,68 +69,27 @@ static const uint32_t timer_ch2ccr_offset[TIMER_MAX_CH] = {
 #endif
 };
 
-// Mapping from timer number given in DTB to STM32 HAL LL values
-static const uint32_t timer_number2dma_up_event[] = {
-    [0] = LL_DMAMUX_REQ_TIM1_UP,   [1] = LL_DMAMUX_REQ_TIM2_UP,
-    [2] = LL_DMAMUX_REQ_TIM3_UP,   [3] = LL_DMAMUX_REQ_TIM4_UP,
-    [4] = LL_DMAMUX_REQ_TIM5_UP,   [7] = LL_DMAMUX_REQ_TIM8_UP,
-    [14] = LL_DMAMUX_REQ_TIM15_UP, [15] = LL_DMAMUX_REQ_TIM16_UP,
-    [16] = LL_DMAMUX_REQ_TIM17_UP, [19] = LL_DMAMUX_REQ_TIM20_UP};
-
-#if defined(DMA1_Channel8)
-#define DMA_MAX_CH 8
-#elif defined(DMA1_Channel7)
-#define DMA_MAX_CH 7
-#else
-#define DMA_MAX_CH 6
-#endif
-
-// Mapping from DMA channel given in DTB to STM32 HAL LL values
-static const uint32_t dma_ch2ll[DMA_MAX_CH] = {
-    LL_DMA_CHANNEL_1, LL_DMA_CHANNEL_2, LL_DMA_CHANNEL_3,
-    LL_DMA_CHANNEL_4, LL_DMA_CHANNEL_5, LL_DMA_CHANNEL_6,
-#ifdef DMA1_CHANNEL7
-    LL_DMA_CHANNEL_7,
-#endif
-#ifdef DMA1_CHANNEL8
-    LL_DMA_CHANNEL_8
-#endif
-};
-
-// Mapping from DMA channel given in DTB to STM32 HAL LL values
-static const uint32_t dma_ch2TC_clear_flag[DMA_MAX_CH] = {
-    DMA_IFCR_CTCIF1, DMA_IFCR_CTCIF2, DMA_IFCR_CTCIF3,
-    DMA_IFCR_CTCIF4, DMA_IFCR_CTCIF5, DMA_IFCR_CTCIF6,
-#ifdef DMA1_CHANNEL7
-    DMA_IFCR_CTCIF7,
-#endif
-#ifdef DMA1_CHANNEL8
-    DMA_IFCR_CTCIF8
-#endif
-};
-
 struct ws2812_pwm_stm32_data {
     // To hold clock frequency. We get this dynamically from the clock subsystem
     uint32_t tim_clk;
     // This points to an array with one byte for each bit
     uint8_t *pixel_bits;
-    // Tells the timer and dma interrupt to stop after one update
-    bool one_shot;
     // For the generic API update function to be able to wait for LEDs to update
     struct k_sem update_sem;
+    // DMA transfer configuration (mutable: block_size changes per transfer)
+    struct dma_config dma_cfg;
+    struct dma_block_config dma_blk_cfg;
 };
 
 struct ws2812_pwm_stm32_config {
-    // must substract 1 when looking up low level equivalent
+    // must subtract 1 when looking up low level equivalent
     uint32_t timer_channel;
-    // must substract 1 when looking up low level equivalent
-    uint32_t timer_number;
-    // must substract 1 when looking up low level equivalent
-    uint16_t timer_up_irq_num;
     TIM_TypeDef *timer;
-    // must substract 1 when looking up low level equivalent
+    // DMA controller device and channel from device tree
+    const struct device *dma_dev;
     uint32_t dma_channel;
-    DMA_TypeDef *dma;
+    uint32_t dma_slot;
+    uint32_t dma_channel_config;
     struct stm32_pclken pclken;
     const struct pinctrl_dev_config *pcfg;
     // Used as a maximum check
@@ -199,14 +159,27 @@ rgb_to_dma_pixels(const struct device *dev, struct led_rgb *pixels,
     memset(data->pixel_bits + num_pixels * 24, 0, NUM_RESET_PIXELS);
 }
 
+static void
+dma_complete_callback(const struct device *dma_dev, void *user_data,
+                      uint32_t channel, int status)
+{
+    const struct device *dev = user_data;
+    struct ws2812_pwm_stm32_data *data = dev->data;
+
+    ARG_UNUSED(dma_dev);
+    ARG_UNUSED(channel);
+    ARG_UNUSED(status);
+
+    k_sem_give(&data->update_sem);
+}
+
 static int
 ws2812_pwm_stm32_update_rgb(const struct device *dev, struct led_rgb *pixels,
                             size_t num_pixels)
 {
-    (void)pixels;
     const struct ws2812_pwm_stm32_config *config = dev->config;
     struct ws2812_pwm_stm32_data *data = dev->data;
-    const uint32_t dma_channel = dma_ch2ll[config->dma_channel - 1u];
+    int r;
 
     if (num_pixels > config->num_leds) {
         LOG_ERR("too many pixels given: %u, max: %u", num_pixels,
@@ -214,23 +187,19 @@ ws2812_pwm_stm32_update_rgb(const struct device *dev, struct led_rgb *pixels,
         return -EINVAL;
     }
 
-    // Datasheet says that to reconfigure a channel,
-    // we must first disable the issuer of events and then the DMA channel
-    // itself. So, first disable the timer and then the DMA channel
-
+    // Disable the timer and DMA channel before reconfiguring
     LL_TIM_DisableCounter(config->timer);
     rgb_to_dma_pixels(dev, pixels, num_pixels);
-    data->one_shot = true;
-    LL_DMA_DisableChannel(config->dma, dma_channel);
+    dma_stop(config->dma_dev, config->dma_channel);
 
-    LL_DMA_SetDataLength(config->dma, dma_channel,
-                         NUM_RESET_PIXELS + num_pixels * 24);
-    // We use the DMA complete interrupt to turn on the timer interrupt so that
-    // when the timer outputs its last PWM cycle, it can switch itself off.
-    // If you try to switch off the timer directly in the DMA complete ISR,
-    // then you will kill the timer before it can output its final cycle and
-    // thus the timer will drop a bit.
-    LL_DMA_EnableIT_TC(config->dma, dma_channel);
+    // Update block size for this transfer
+    data->dma_blk_cfg.block_size = NUM_RESET_PIXELS + num_pixels * 24;
+
+    r = dma_config(config->dma_dev, config->dma_channel, &data->dma_cfg);
+    if (r < 0) {
+        LOG_ERR("DMA config failed (%d)", r);
+        return r;
+    }
 
     LL_TIM_SetPrescaler(config->timer, 0);
     LL_TIM_SetAutoReload(config->timer,
@@ -242,7 +211,12 @@ ws2812_pwm_stm32_update_rgb(const struct device *dev, struct led_rgb *pixels,
 
     LL_TIM_EnableDMAReq_UPDATE(config->timer);
     LL_TIM_DisableIT_UPDATE(config->timer);
-    LL_DMA_EnableChannel(config->dma, dma_channel);
+
+    r = dma_start(config->dma_dev, config->dma_channel);
+    if (r < 0) {
+        LOG_ERR("DMA start failed (%d)", r);
+        return r;
+    }
 
     // We need to trigger an event so that the timer's CCR register
     // (representing the PWM duty cycle) is loaded with the first DMA-provided
@@ -371,28 +345,6 @@ get_tim_clk(const struct stm32_pclken *pclken, uint32_t *tim_clk)
     return 0;
 }
 
-static void
-dma_complete_isr(const void *arg)
-{
-    const struct device *dev = arg;
-    const struct ws2812_pwm_stm32_config *config = dev->config;
-    struct ws2812_pwm_stm32_data *data = dev->data;
-
-    // clear transfer complete interrupt flag
-    // This is the equivalent of calling LL_DMA_ClearFlag_TC1(config->dma),
-    // but parameterized by channel
-    WRITE_REG(config->dma->IFCR,
-              dma_ch2TC_clear_flag[config->dma_channel - 1u]);
-
-    /*
-        if (data->one_shot) {
-            LL_TIM_EnableIT_UPDATE(config->timer);
-            return;
-        }
-    */
-    k_sem_give(&data->update_sem);
-}
-
 static int
 ws2812_pwm_stm32_init(const struct device *dev)
 {
@@ -401,10 +353,7 @@ ws2812_pwm_stm32_init(const struct device *dev)
     const struct device *clk;
     LL_TIM_InitTypeDef init;
     LL_TIM_OC_InitTypeDef oc_init;
-    DMA_TypeDef *dma = config->dma;
     uint32_t timer_channel;
-    uint32_t dma_channel;
-    uint32_t dma_mux_periph_request;
     int r;
 
     LL_TIM_DisableCounter(config->timer);
@@ -487,71 +436,45 @@ ws2812_pwm_stm32_init(const struct device *dev)
     LL_TIM_OC_EnablePreload(config->timer, timer_channel);
     LL_TIM_EnableDMAReq_UPDATE(config->timer);
 
-    // Now setup DMA
-    LL_DMA_InitTypeDef dma_init;
-    LL_DMA_StructInit(&dma_init);
-
-    if (config->timer_number > ARRAY_SIZE(timer_number2dma_up_event) + 1) {
-        LOG_ERR("Invalid timer number (%d)", config->timer_number);
-        return -EINVAL;
+    // Setup DMA using Zephyr DMA API
+    if (!device_is_ready(config->dma_dev)) {
+        LOG_ERR("DMA device not ready");
+        return -ENODEV;
     }
 
-    dma_mux_periph_request =
-        timer_number2dma_up_event[config->timer_number - 1];
+    uint32_t ch_cfg = config->dma_channel_config;
 
-    // The timer_number2dma_up_event array has holes, which are filled with
-    // zeros
-    if (dma_mux_periph_request == 0) {
-        LOG_ERR("Invalid timer number (%d)", config->timer_number);
-        return -EINVAL;
-    }
+    // Configure DMA transfer
+    memset(&data->dma_cfg, 0, sizeof(data->dma_cfg));
+    data->dma_cfg.dma_slot = config->dma_slot;
+    data->dma_cfg.channel_direction = STM32_DMA_CONFIG_DIRECTION(ch_cfg);
+    data->dma_cfg.source_data_size = STM32_DMA_CONFIG_MEMORY_DATA_SIZE(ch_cfg);
+    data->dma_cfg.dest_data_size =
+        STM32_DMA_CONFIG_PERIPHERAL_DATA_SIZE(ch_cfg);
+    data->dma_cfg.channel_priority = STM32_DMA_CONFIG_PRIORITY(ch_cfg);
+    data->dma_cfg.block_count = 1;
+    data->dma_cfg.head_block = &data->dma_blk_cfg;
+    data->dma_cfg.dma_callback = dma_complete_callback;
+    data->dma_cfg.user_data = (void *)dev;
 
-    dma_init.PeriphOrM2MSrcAddress =
+    memset(&data->dma_blk_cfg, 0, sizeof(data->dma_blk_cfg));
+    data->dma_blk_cfg.source_address = (uint32_t)data->pixel_bits;
+    data->dma_blk_cfg.dest_address =
         ((uint32_t)config->timer) +
         timer_ch2ccr_offset[config->timer_channel - 1u];
-    dma_init.MemoryOrM2MDstAddress = (uint32_t)data->pixel_bits;
-    dma_init.Direction = LL_DMA_DIRECTION_MEMORY_TO_PERIPH;
-    dma_init.Mode = LL_DMA_MODE_NORMAL;
-    dma_init.PeriphOrM2MSrcIncMode = LL_DMA_PERIPH_NOINCREMENT;
-    dma_init.MemoryOrM2MDstIncMode = LL_DMA_MEMORY_INCREMENT;
-    // We are writing to a CCR register, which is 16 bits without dithering.
-    // With a period of 1.25us and duty cycles with a maximum of 600ns
-    // and a timer prescaler of 0, we can represent the duty cycle in one byte,
-    // do we use the DMA function that can transform bytes in a source in to 2
-    // bytes at the destination, sticking one byte of zeros in front
-    dma_init.PeriphOrM2MSrcDataSize = LL_DMA_PDATAALIGN_HALFWORD;
-    dma_init.MemoryOrM2MDstDataSize = LL_DMA_PDATAALIGN_BYTE;
+    data->dma_blk_cfg.block_size = 0;
+    data->dma_blk_cfg.source_addr_adj = STM32_DMA_CONFIG_MEMORY_ADDR_INC(ch_cfg)
+                                            ? DMA_ADDR_ADJ_INCREMENT
+                                            : DMA_ADDR_ADJ_NO_CHANGE;
+    data->dma_blk_cfg.dest_addr_adj =
+        STM32_DMA_CONFIG_PERIPHERAL_ADDR_INC(ch_cfg) ? DMA_ADDR_ADJ_INCREMENT
+                                                     : DMA_ADDR_ADJ_NO_CHANGE;
 
-    dma_init.NbData = 0;
-    dma_init.PeriphRequest = dma_mux_periph_request;
-    dma_init.Priority = LL_DMA_PRIORITY_HIGH;
-
-    if (!device_is_ready(DEVICE_DT_GET(DT_NODELABEL(dma1)))) {
-        LOG_ERR("NOT READY");
-        return -EBUSY;
+    r = dma_config(config->dma_dev, config->dma_channel, &data->dma_cfg);
+    if (r < 0) {
+        LOG_ERR("Could not configure DMA (%d)", r);
+        return r;
     }
-
-    if (config->dma_channel < 1u || config->dma_channel > DMA_MAX_CH) {
-        LOG_ERR("Invalid DMA channel (%d)", config->dma_channel);
-        return -EINVAL;
-    }
-
-    dma_channel = dma_ch2ll[config->dma_channel - 1u];
-    LL_DMA_Init(dma, dma_channel, &dma_init);
-
-    // Connect dynamic IRQ to corresponding DMA1 channel by adding channel
-    // number to IRQn number. We use config->dma_channel as it directly
-    // corresponds to the channel number, from 1 to N (depending on how many
-    // channels are supported).
-    irq_disable(DMA1_Channel1_IRQn + config->dma_channel - 1u);
-    irq_connect_dynamic(DMA1_Channel1_IRQn + config->dma_channel - 1u, 1,
-                        &dma_complete_isr, dev, 0);
-    irq_enable(DMA1_Channel1_IRQn + config->dma_channel - 1u);
-
-    LL_DMA_EnableIT_TC(dma, dma_channel);
-    LL_DMA_EnableChannel(dma, dma_channel);
-
-    LL_TIM_EnableDMAReq_UPDATE(config->timer);
 
     return 0;
 }
@@ -566,24 +489,19 @@ ws2812_pwm_stm32_init(const struct device *dev)
     static struct ws2812_pwm_stm32_data ws2812_pwm_stm32_data_##index =        \
         {/* using a compound literal */                                        \
          .pixel_bits = (uint8_t[NUM_RESET_PIXELS +                             \
-                                24 * DT_INST_PROP(index, num_leds)]){},        \
-         .one_shot = false};                                                   \
+                                24 * DT_INST_PROP(index, num_leds)]){}};       \
                                                                                \
     PINCTRL_DT_INST_DEFINE(index);                                             \
                                                                                \
     static const struct ws2812_pwm_stm32_config                                \
         ws2812_pwm_stm32_config_##index = {                                    \
             .timer_channel = DT_INST_PROP(index, timer_channel),               \
-            .timer_number = DT_INST_PROP(index, timer_number),                 \
-            .timer = (TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(                     \
-                DT_DRV_INST(index))), /* if timer has "up" interrupt, use      \
-                                         that, else use global interrupt */    \
-            .timer_up_irq_num = COND_CODE_1(                                   \
-                DT_IRQ_HAS_NAME(DT_PARENT(DT_DRV_INST(index)), up),            \
-                (DT_IRQ_BY_NAME(DT_PARENT(DT_DRV_INST(index)), up, irq)),      \
-                (DT_IRQ_BY_NAME(DT_PARENT(DT_DRV_INST(index)), global, irq))), \
-            .dma_channel = DT_INST_PROP(index, dma_channel),                   \
-            .dma = (DMA_TypeDef *)DT_REG_ADDR(DT_NODELABEL(dma1)),             \
+            .timer =                                                           \
+                (TIM_TypeDef *)DT_REG_ADDR(DT_PARENT(DT_DRV_INST(index))),     \
+            .dma_dev = DEVICE_DT_GET(STM32_DMA_CTLR(index, tx)),               \
+            .dma_channel = DT_INST_DMAS_CELL_BY_NAME(index, tx, channel),      \
+            .dma_slot = STM32_DMA_SLOT(index, tx, slot),                       \
+            .dma_channel_config = STM32_DMA_CHANNEL_CONFIG(index, tx),         \
             .pclken = DT_INST_CLK(index),                                      \
             .pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(index),                     \
             .num_leds = DT_INST_PROP(index, num_leds)};                        \
