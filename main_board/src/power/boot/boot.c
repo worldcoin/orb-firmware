@@ -71,10 +71,10 @@ static const struct gpio_dt_spec supply_3v3_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v3_enable_gpios);
 static const struct gpio_dt_spec supply_1v8_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_1v8_enable_gpios);
-static const struct gpio_dt_spec supply_pvcc_enable_gpio_spec =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_pvcc_enable_gpios);
-static const struct gpio_dt_spec supply_super_cap_enable_gpio_spec =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_super_cap_enable_gpios);
+static const struct device *pvcc_regulator =
+    DEVICE_DT_GET(DT_NODELABEL(pvcc_regulator));
+static const struct device *super_cap_charger =
+    DEVICE_DT_GET(DT_NODELABEL(super_cap_charger));
 static const struct gpio_dt_spec supply_vbat_sw_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_vbat_sw_enable_gpios);
 static const struct gpio_dt_spec power_button_gpio_spec =
@@ -101,8 +101,8 @@ static const struct gpio_dt_spec supply_3v3_lte_reset_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v3_lte_reset_gpios);
 static const struct gpio_dt_spec supply_3v3_lte_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_3v3_lte_enable_gpios);
-static const struct gpio_dt_spec supply_12v_caps_enable_gpio_spec =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_12v_caps_enable_gpios);
+static const struct device *supply_12v_caps =
+    DEVICE_DT_GET(DT_NODELABEL(supply_12v_caps));
 static const struct gpio_dt_spec supply_2v8_enable_gpio_spec =
     GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), supply_2v8_enable_gpios);
 static const struct gpio_dt_spec supply_3v6_enable_gpio_spec =
@@ -138,13 +138,9 @@ power_configure_gpios(void)
 #if defined(CONFIG_BOARD_PEARL_MAIN)
         !device_is_ready(supply_12v_enable_gpio_spec.port) ||
         !device_is_ready(supply_3v8_enable_rfid_irq_gpio_spec.port) ||
-#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-        !device_is_ready(supply_12v_caps_enable_gpio_spec.port) ||
 #endif
         !device_is_ready(supply_3v3_enable_gpio_spec.port) ||
         !device_is_ready(supply_1v8_enable_gpio_spec.port) ||
-        !device_is_ready(supply_super_cap_enable_gpio_spec.port) ||
-        !device_is_ready(supply_pvcc_enable_gpio_spec.port) ||
         !device_is_ready(power_button_gpio_spec.port) ||
         !device_is_ready(jetson_sleep_wake_gpio_spec.port) ||
         !device_is_ready(jetson_power_enable_gpio_spec.port) ||
@@ -177,12 +173,6 @@ power_configure_gpios(void)
         gpio_pin_configure_dt(&user_led1_3v3_gpios_spec, GPIO_OUTPUT_INACTIVE);
     ASSERT_SOFT(ret);
 
-    ret = gpio_pin_configure_dt(&supply_12v_caps_enable_gpio_spec,
-                                GPIO_OUTPUT_INACTIVE);
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return RET_ERROR_INTERNAL;
-    }
 #endif
 
     ret = gpio_pin_configure_dt(&supply_5v_enable_gpio_spec,
@@ -227,20 +217,6 @@ power_configure_gpios(void)
     }
 
     ret = gpio_pin_configure_dt(&supply_1v8_enable_gpio_spec,
-                                GPIO_OUTPUT_INACTIVE);
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return RET_ERROR_INTERNAL;
-    }
-
-    ret = gpio_pin_configure_dt(&supply_super_cap_enable_gpio_spec,
-                                GPIO_OUTPUT_INACTIVE);
-    if (ret != 0) {
-        ASSERT_SOFT(ret);
-        return RET_ERROR_INTERNAL;
-    }
-
-    ret = gpio_pin_configure_dt(&supply_pvcc_enable_gpio_spec,
                                 GPIO_OUTPUT_INACTIVE);
     if (ret != 0) {
         ASSERT_SOFT(ret);
@@ -555,7 +531,7 @@ turn_on_power_supplies(void)
     LOG_INF("VBAT_SW, 5V, 3.3V enabled");
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    ret = gpio_pin_set_dt(&supply_12v_caps_enable_gpio_spec, 1);
+    ret = regulator_enable(supply_12v_caps);
     ASSERT_SOFT(ret);
     LOG_INF("12V_CAPS enabled");
     k_msleep(20);
@@ -1119,7 +1095,12 @@ boot_turn_on_jetson(void)
 int
 boot_turn_on_super_cap_charger(void)
 {
-    int ret = gpio_pin_set_dt(&supply_super_cap_enable_gpio_spec, 1);
+    if (!device_is_ready(super_cap_charger)) {
+        LOG_ERR("super cap charger device not ready");
+        return RET_ERROR_NOT_INITIALIZED;
+    }
+
+    int ret = regulator_enable(super_cap_charger);
     if (ret) {
         return ret;
     }
@@ -1132,7 +1113,8 @@ boot_turn_on_super_cap_charger(void)
 int
 boot_turn_off_pvcc(void)
 {
-    gpio_pin_set_dt(&supply_pvcc_enable_gpio_spec, 0);
+    int ret = regulator_disable(pvcc_regulator);
+    ASSERT_SOFT(ret);
     LOG_DBG("PVCC disabled");
 
     return RET_SUCCESS;
@@ -1141,7 +1123,8 @@ boot_turn_off_pvcc(void)
 int
 boot_turn_on_pvcc(void)
 {
-    gpio_pin_set_dt(&supply_pvcc_enable_gpio_spec, 1);
+    int ret = regulator_enable(pvcc_regulator);
+    ASSERT_SOFT(ret);
     LOG_INF("PVCC enabled");
     return RET_SUCCESS;
 }

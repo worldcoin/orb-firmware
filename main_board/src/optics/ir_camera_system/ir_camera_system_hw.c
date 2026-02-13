@@ -220,7 +220,7 @@ static struct ir_camera_timer_settings global_timer_settings = {0};
 ///    voltage drops occur if the load current changes rapidly.
 ///     This mode is set during boot, see ir_camera_system_init`
 static const struct gpio_dt_spec front_unit_pvcc_pwm_mode =
-    GPIO_DT_SPEC_GET(DT_PATH(zephyr_user), front_unit_pvcc_pwm_mode_gpios);
+    GPIO_DT_SPEC_GET(DT_NODELABEL(pvcc_regulator), mode_gpios);
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
 // External STROBE (FLASH) input from the RGB-IR camera.
