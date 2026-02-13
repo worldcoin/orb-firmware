@@ -378,9 +378,10 @@ git worktree add "${NEW_WS}/orb/public" -b "${BRANCH_NAME}"
 cd "${WORKSPACE}/orb/private"
 git worktree add "${NEW_WS}/orb/private" -b "${BRANCH_NAME}"
 
-# 3. Set up .west configuration
+# 3. Set up the west workspace
 mkdir -p "${NEW_WS}/.west"
 cp "${WORKSPACE}/.west/config" "${NEW_WS}/.west/config"
+west setup --force
 
 # 4. Fetch dependencies (zephyr, modules, etc.)
 # IMPORTANT: Use --narrow and --depth=1 to avoid cloning full history
@@ -397,6 +398,8 @@ west update --narrow --fetch-opt=--depth=1
 3. **Avoid `git stash` in worktrees**: Using `git stash` + `git stash pop` in a worktree can leave HEAD detached. If you need to temporarily set aside changes, prefer committing to the branch and amending later.
 
 4. **The public repo remote is named `worldcoin`**, not `origin`. Use `git push -u worldcoin <branch>`.
+
+5. **Always update `<PRIVATE_REPO>/west.yml` when committing to both repos**: The private manifest pins `orb-firmware` (the public repo) to a specific commit hash via the `revision` field. When you commit changes to `orb/public`, you **must** update `<PRIVATE_REPO>/west.yml` with the new `orb/public` HEAD commit hash before committing and pushing `orb/private`. Otherwise, the private repo's CI and builds will reference an older public repo commit that doesn't include your changes. Run `cd <PUBLIC_REPO> && git rev-parse HEAD` to get the hash, then update the `revision:` field in `<PRIVATE_REPO>/west.yml`.
 
 ### Cleaning Up
 
