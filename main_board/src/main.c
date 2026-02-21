@@ -177,7 +177,6 @@ heartbeat_timeout_handler(void)
     const orb_mcu_main_ShutdownScheduled shutdown = {
         .shutdown_reason =
             orb_mcu_main_ShutdownScheduled_ShutdownReason_HEARTBEAT_TIMEOUT,
-        .has_ms_until_shutdown = true,
         .ms_until_shutdown = shutdown_delay_ms};
     publish_new((void *)&shutdown, sizeof(shutdown),
                 orb_mcu_main_McuToJetson_shutdown_tag,

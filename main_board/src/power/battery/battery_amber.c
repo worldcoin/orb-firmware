@@ -683,7 +683,6 @@ battery_rx_thread()
                     orb_mcu_main_ShutdownScheduled shutdown;
                     shutdown.shutdown_reason =
                         orb_mcu_main_ShutdownScheduled_ShutdownReason_BATTERY_REMOVED;
-                    shutdown.has_ms_until_shutdown = true;
                     shutdown.ms_until_shutdown =
                         (BATTERY_MESSAGES_FORCE_REBOOT_TIMEOUT_MS -
                          battery_messages_timeout);
