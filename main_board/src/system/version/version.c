@@ -32,6 +32,7 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * - v4.5 p[13..10] = 5 // dvt1
  * - v4.6 p[13..10] = 7 // dvt2
  * - v4.7 p[13..10] = 8 // pvt
+ * - v4.8 p[13..10] = 9 // pvt rev b
  *
  * ## Front unit
  * Hardware version can be fetched using IO expander on the front unit:
@@ -43,7 +44,7 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * - v6.3B p[13..10] = 5 // evt
  * - v6.3C p[13..10] = 7 // evt
  * - v6.3D p[13..10] = 8 // dvt
- * - v6.4A p[13..10] = 9 // pvt
+ * - v6.4A p[13..10] = 9 // pvt & pvt rev b
  *
  * ## Power board
  * Hardware version can be fetched using IO expander on the power board:
@@ -54,6 +55,7 @@ LOG_MODULE_REGISTER(version, CONFIG_VERSION_LOG_LEVEL);
  * - v1.4: p[13..10] = 4 // evt
  * - v1.5: p[13..10] = 5 // dvt
  * - v1.6: p[13..10] = 6 // pvt
+ * - v1.7: p[13..10] = 7 // pvt rev b
  **/
 
 #if defined(CONFIG_BOARD_PEARL_MAIN)
@@ -291,6 +293,10 @@ version_fetch_hardware_rev(orb_mcu_Hardware *hw_version)
             hw_version->version =
                 orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_7;
             break;
+        case 9:
+            hw_version->version =
+                orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_8;
+            break;
         default:
             LOG_ERR("Unknown main board from IO expander: %d", hw_bits);
             break;
@@ -426,6 +432,10 @@ version_get_power_board_rev(void)
             power_board_version =
                 orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_6;
             break;
+        case 7:
+            power_board_version =
+                orb_mcu_Hardware_PowerBoardVersion_POWER_BOARD_VERSION_V1_7;
+            break;
         default:
             LOG_ERR("Unknown power board from IO expander: %d", hw_bits);
             power_board_version =
@@ -512,13 +522,13 @@ static const char hardware_versions_str[][14] = {
 __maybe_unused static const char *software_type = "pearl-main-app";
 #elif CONFIG_BOARD_DIAMOND_MAIN
 static const char hardware_versions_str[][16] = {
-    "DIAMOND_UNKNOWN", "DIAMOND_POC1",    "DIAMOND_POC2",
-    "DIAMOND_B3",      "DIAMOND_EVT_4.3", "DIAMOND_EVT_4.4",
-    "DIAMOND_4.5",     "DIAMOND_4.6",     "DIAMOND_4.7"};
+    "DIAMOND_UNKNOWN", "DIAMOND_POC1",    "DIAMOND_POC2", "DIAMOND_B3",
+    "DIAMOND_EVT_4.3", "DIAMOND_EVT_4.4", "DIAMOND_4.5",  "DIAMOND_4.6",
+    "DIAMOND_4.7",     "DIAMOND_4.8"};
 __maybe_unused static const char *software_type = "diamond-main-app";
 
 BUILD_ASSERT(ARRAY_SIZE(hardware_versions_str) ==
-             orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_7 -
+             orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_8 -
                  orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1 + 2);
 
 #endif
@@ -595,7 +605,7 @@ ZTEST(hil, test_version_str)
 {
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
     for (int i = orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_POC1;
-         i < orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_7; i++) {
+         i <= orb_mcu_Hardware_OrbVersion_HW_VERSION_DIAMOND_V4_8; i++) {
         orb_mcu_Hardware hw_version = {.version = i};
         size_t hardware_version_idx = get_string_index(&hw_version);
         zassert_equal_ptr(

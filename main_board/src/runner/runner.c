@@ -365,7 +365,6 @@ handle_reboot_message(job_t *job)
             orb_mcu_main_ShutdownScheduled shutdown;
             shutdown.shutdown_reason =
                 orb_mcu_main_ShutdownScheduled_ShutdownReason_JETSON_REQUESTED_REBOOT;
-            shutdown.has_ms_until_shutdown = true;
             shutdown.ms_until_shutdown = delay * 1000;
             publish_new(&shutdown, sizeof(shutdown),
                         orb_mcu_main_McuToJetson_shutdown_tag,
