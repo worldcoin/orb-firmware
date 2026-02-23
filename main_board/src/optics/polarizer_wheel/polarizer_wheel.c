@@ -319,7 +319,8 @@ polarizer_wheel_set_max_speed(uint32_t ms_per_turn)
 {
     if (ms_per_turn == 0) {
         g_max_speed_ms_per_turn = MAX_SPEED_DEFAULT_MS_PER_TURN;
-    } else if (ms_per_turn > POLARIZER_WHEEL_SPIN_ACCEL_MIN_SPEED_MS_PER_TURN) {
+    } else if (ms_per_turn <=
+               POLARIZER_WHEEL_SPIN_ACCEL_MIN_SPEED_MS_PER_TURN) {
         g_max_speed_ms_per_turn = ms_per_turn;
     }
 }
