@@ -80,6 +80,11 @@ ZTEST_SUITE(ir_camera, NULL, NULL, ir_camera_test_reset, ir_camera_test_reset,
 ZTEST_SUITE(storage, NULL, NULL, clean_storage, NULL, clean_storage);
 #endif
 
+#if CONFIG_TEST_CONFIG
+#include "system/config/config_tests.h"
+ZTEST_SUITE(config, NULL, NULL, clean_config, NULL, clean_config);
+#endif
+
 #if CONFIG_TEST_POLARIZER_WHEEL
 #include "optics/polarizer_wheel/polarizer_wheel_tests.h"
 ZTEST_SUITE(polarizer, NULL, NULL, NULL, polarizer_test_reset, NULL);
