@@ -38,13 +38,27 @@ static K_MUTEX_DEFINE(config_mutex);
 static int
 persist_config(void)
 {
-    bool had_data = storage_has_data(&config_storage_area);
+    /*
+     * Free the old record first, then push the new one.
+     *
+     * storage_free() may trigger an erase of the entire partition when
+     * free space is below MINIMUM_EMPTY_SPACE.  If we pushed first and
+     * the subsequent free erased the partition, we'd lose the just-written
+     * record.  By freeing first, any erase happens on stale data, and the
+     * push that follows guarantees a copy always exists on flash.
+     *
+     * If power is lost between free and push, config_init() will find no
+     * record and fall back to defaults — acceptable since the caller's
+     * in-memory state (current_config) was already updated.
+     */
+    if (storage_has_data(&config_storage_area)) {
+        int free_ret = storage_free(&config_storage_area);
+        if (free_ret != RET_SUCCESS && free_ret != RET_ERROR_NOT_FOUND) {
+            LOG_WRN("failed to free old config record: %d", free_ret);
+        }
+    }
 
     /*
-     * Push the new record first so we never lose the config if the
-     * write fails or power is lost mid-operation.  On the next boot,
-     * config_init() will drain any duplicate records.
-     *
      * storage_push uses the record buffer internally for read-back
      * verification, so we need a mutable copy.
      */
@@ -54,20 +68,6 @@ persist_config(void)
     int ret = storage_push(&config_storage_area, (char *)&tmp, sizeof(tmp));
     if (ret != RET_SUCCESS) {
         LOG_ERR("config write failed: %d", ret);
-        return ret;
-    }
-
-    /* Now that the new record is safely stored, free the old one */
-    if (had_data) {
-        /*
-         * The old record is at rd_idx (head of the FIFO) while the
-         * new one we just pushed sits at wr_idx.  storage_free()
-         * invalidates the oldest record, which is the old config.
-         */
-        int free_ret = storage_free(&config_storage_area);
-        if (free_ret != RET_SUCCESS && free_ret != RET_ERROR_NOT_FOUND) {
-            LOG_WRN("failed to free old config record: %d", free_ret);
-        }
     }
 
     return ret;
