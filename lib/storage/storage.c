@@ -120,8 +120,8 @@ init_area(struct storage_area_s *area)
         area->rd_idx = area->wr_idx;
     }
 
-    LOG_DBG("Storage area initialized: rd: 0x%04lx, wr: 0x%04lx", area->rd_idx,
-            area->wr_idx);
+    LOG_DBG("Storage area initialized (partition %u): rd: 0x%04lx, wr: 0x%04lx",
+            fa->fa_id, area->rd_idx, area->wr_idx);
 
     return RET_SUCCESS;
 }
@@ -184,9 +184,10 @@ exit:
         reset_area(area);
         // print log after area reset to keep it in flash in case remote not
         // accessible
-        LOG_ERR("Area in invalid state has been reset (flash read ret %d); rd: "
-                "0x%04x, wr: 0x%04x",
-                flash_read_ret, rd_idx, wr_idx);
+        LOG_ERR(
+            "Area in invalid state has been reset (partition %u, flash read "
+            "ret %d); rd: 0x%04x, wr: 0x%04x",
+            area->fa->fa_id, flash_read_ret, rd_idx, wr_idx);
         err_code = RET_ERROR_INVALID_STATE;
     }
 
@@ -223,7 +224,8 @@ storage_free(struct storage_area_s *area)
     ret = flash_area_write(area->fa, (off_t)area->rd_idx, (const void *)&header,
                            sizeof(header));
     if (ret) {
-        LOG_ERR("Unable to invalidate record: %d", ret);
+        LOG_ERR("Unable to invalidate record (partition %u): %d",
+                area->fa->fa_id, ret);
         ret = RET_ERROR_INTERNAL;
         goto exit;
     }
@@ -237,13 +239,16 @@ storage_free(struct storage_area_s *area)
     area->rd_idx = (off_t)(area->rd_idx + sizeof(storage_header_t) +
                            record_size + padding);
 
-    LOG_DBG("New record freed, size: %u, rd off: 0x%x, wr off: 0x%x",
-            record_size, (uint32_t)area->rd_idx, (uint32_t)area->wr_idx);
+    LOG_DBG("New record freed (partition %u), size: %u, rd off: 0x%x, wr off: "
+            "0x%x",
+            area->fa->fa_id, record_size, (uint32_t)area->rd_idx,
+            (uint32_t)area->wr_idx);
 
     if (area->rd_idx >= area->wr_idx) {
         size_t space_left_bytes = area->fa->fa_size - (size_t)area->wr_idx;
         if (space_left_bytes < MINIMUM_EMPTY_SPACE) {
-            LOG_INF("%u bytes left, erasing", space_left_bytes);
+            LOG_INF("partition %u: %u bytes left, erasing", area->fa->fa_id,
+                    space_left_bytes);
             reset_area(area);
         }
     }
@@ -340,7 +345,8 @@ storage_push(struct storage_area_s *area, char *record, size_t size)
     ret = flash_area_read(area->fa, (off_t)(area->wr_idx + sizeof(header)),
                           (void *)record, size_to_write_trunc);
     if (ret) {
-        LOG_ERR("Unable to read back record after write: %d", ret);
+        LOG_ERR("Unable to read back record after write (partition %u): %d",
+                area->fa->fa_id, ret);
     }
 
     if (size % FLASH_WRITE_BLOCK_SIZE) {
@@ -354,7 +360,9 @@ storage_push(struct storage_area_s *area, char *record, size_t size)
     uint16_t rb_crc = crc16_ccitt(0xffff, record, size);
     if (header.crc16 != rb_crc) {
         reset_area(area);
-        LOG_ERR("Invalid CRC16 read after record has been written");
+        LOG_ERR("Invalid CRC16 read after record has been written "
+                "(partition %u)",
+                area->fa->fa_id);
 
         ret = RET_ERROR_INVALID_STATE;
         goto exit;
@@ -373,8 +381,10 @@ storage_push(struct storage_area_s *area, char *record, size_t size)
     // push write index with padding included
     area->wr_idx = (off_t)(area->wr_idx + (sizeof(header) + size_in_flash));
 
-    LOG_DBG("New record written, size: %u, rd off: 0x%x, wr off: 0x%x", size,
-            (uint32_t)area->rd_idx, (uint32_t)area->wr_idx);
+    LOG_DBG("New record written (partition %u), size: %u, rd off: 0x%x, wr "
+            "off: 0x%x",
+            area->fa->fa_id, size, (uint32_t)area->rd_idx,
+            (uint32_t)area->wr_idx);
 exit:
     k_sem_give(&sem_storage);
 
@@ -454,10 +464,12 @@ storage_init(struct storage_area_s *area, uint8_t partition_id)
 
     ret = init_area(area);
     if (ret != RET_SUCCESS) {
-        LOG_WRN("Unable to find valid records, erasing area");
+        LOG_WRN("Partition %u: unable to find valid records, erasing area",
+                partition_id);
         ret = flash_area_erase(area->fa, 0, area->fa->fa_size);
         if (ret) {
-            LOG_ERR("Unable to erase flash area: %d", ret);
+            LOG_ERR("Unable to erase flash area (partition %u): %d",
+                    partition_id, ret);
             ret = RET_ERROR_INTERNAL;
             goto exit;
         }
