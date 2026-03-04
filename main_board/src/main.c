@@ -28,7 +28,7 @@
 #include <orb_fatal.h>
 #include <orb_state.h>
 #include <pb_encode.h>
-#include <storage.h>
+
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
 
@@ -273,7 +273,7 @@ initialize(void)
 
     fatal_init();
 
-    err_code = storage_init();
+    err_code = pubsub_storage_init();
     ASSERT_SOFT(err_code);
 
     // initialize runner before communication modules

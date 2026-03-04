@@ -10,6 +10,8 @@
 
 LOG_MODULE_REGISTER(storage_tests, CONFIG_STORAGE_LOG_LEVEL);
 
+static struct storage_area_s test_area;
+
 void
 clean_storage(void *fixture)
 {
@@ -22,7 +24,8 @@ clean_storage(void *fixture)
         ret = flash_area_erase(fa, 0, fa->fa_size);
         zassert_equal(ret, 0, "flash_area_erase failed %d", ret);
         if (ret == 0) {
-            ret = storage_init();
+            ret =
+                storage_init(&test_area, FIXED_PARTITION_ID(storage_partition));
             zassert_equal(ret, 0, "storage_init failed %d", ret);
         }
     }
@@ -38,11 +41,11 @@ ZTEST(storage, test_init_erased)
     const struct flash_area *fa;
     struct storage_area_s area;
 
-    ret = storage_init();
+    ret = storage_init(&test_area, FIXED_PARTITION_ID(storage_partition));
     zassert_equal(ret, RET_SUCCESS, "storage_init failed %d", ret);
 
     // check pointers after init
-    get_storage_area(&area);
+    get_storage_area(&test_area, &area);
     zassert_equal(area.wr_idx, area.rd_idx, "get_storage_area failed %d", ret);
     zassert_equal((off_t)area.wr_idx, 0,
                   "indexes must be at the beginning of the flash area");
@@ -63,7 +66,7 @@ ZTEST(storage, test_dummy_records)
 {
     struct storage_area_s area;
 
-    int ret = storage_init();
+    int ret = storage_init(&test_area, FIXED_PARTITION_ID(storage_partition));
     zassert_equal(ret, RET_SUCCESS, "storage_init failed %d", ret);
 
     // write tests
@@ -77,12 +80,12 @@ ZTEST(storage, test_dummy_records)
     for (size_t i = 0; i < sizeof(dummy_record); ++i) {
         dummy_record[i] = rand() % (UINT8_MAX + 1);
     }
-    ret = storage_push(dummy_record, sizeof(dummy_record));
+    ret = storage_push(&test_area, dummy_record, sizeof(dummy_record));
     zassert_equal(ret, RET_SUCCESS, "storage_push failed %d (aligned record)",
                   ret);
 
     // check area after successful writing
-    get_storage_area(&area);
+    get_storage_area(&test_area, &area);
     zassert_equal(
         area.wr_idx,
         (off_t)(area.rd_idx + sizeof(storage_header_t) + sizeof(dummy_record)),
@@ -97,11 +100,12 @@ ZTEST(storage, test_dummy_records)
     off_t wr_idx_copy = area.wr_idx;
     UNUSED(wr_idx_copy); // only used when FLASH_WRITE_BLOCK_SIZE != 1
 
-    ret = storage_push(dummy_record_padded, sizeof(dummy_record_padded));
+    ret = storage_push(&test_area, dummy_record_padded,
+                       sizeof(dummy_record_padded));
     zassert_equal(ret, RET_SUCCESS, "storage_push failed %d (padded)", ret);
 
     // check area after successful writing
-    get_storage_area(&area);
+    get_storage_area(&test_area, &area);
 #if FLASH_WRITE_BLOCK_SIZE != 1
     zassert_equal((off_t)(wr_idx_copy + sizeof(storage_header_t) +
                           (FLASH_WRITE_BLOCK_SIZE * 3)),
@@ -118,13 +122,13 @@ ZTEST(storage, test_dummy_records)
     char read_record[record_size * 3];
     memset(read_record, 0x00, sizeof(read_record));
     size_t size = 0;
-    ret = storage_peek(read_record, &size);
+    ret = storage_peek(&test_area, read_record, &size);
     zassert_equal(
         ret, RET_ERROR_NO_MEM,
         "storage_peek must fail because size is too small to fit record", ret);
 
     size = sizeof(read_record);
-    ret = storage_peek(read_record, &size);
+    ret = storage_peek(&test_area, read_record, &size);
     zassert_equal(ret, RET_SUCCESS, "storage_peek failed %d (aligned record)",
                   ret);
     zassert_equal(size, sizeof(dummy_record),
@@ -135,13 +139,13 @@ ZTEST(storage, test_dummy_records)
     }
 
     // free aligned record
-    ret = storage_free();
+    ret = storage_free(&test_area);
     zassert_equal(ret, RET_SUCCESS);
 
     // read back padded record
     memset(read_record, 0x00, sizeof(read_record));
     size = sizeof(read_record);
-    ret = storage_peek(read_record, &size);
+    ret = storage_peek(&test_area, read_record, &size);
     zassert_equal(ret, RET_SUCCESS, "storage_peek failed %d (padded record)",
                   ret);
     zassert_equal(size, sizeof(dummy_record_padded),
@@ -151,15 +155,15 @@ ZTEST(storage, test_dummy_records)
                       "Contents must match");
     }
 
-    get_storage_area(&area);
+    get_storage_area(&test_area, &area);
     zassert_not_equal((off_t)area.rd_idx, 0,
                       "read index must not be at the beginning of the area");
 
     // free padded record
-    ret = storage_free();
+    ret = storage_free(&test_area);
     zassert_equal(ret, RET_SUCCESS);
 
-    get_storage_area(&area);
+    get_storage_area(&test_area, &area);
     zassert_equal(
         area.rd_idx, area.wr_idx,
         "write and read index must be identical after freeing the only "
@@ -168,13 +172,13 @@ ZTEST(storage, test_dummy_records)
     LOG_INF("Add one record and re-initialize area to ensure correct "
             "initialization");
     // set initial content with 1 record not at the beginning of the area
-    ret = storage_push(dummy_record, sizeof(dummy_record));
+    ret = storage_push(&test_area, dummy_record, sizeof(dummy_record));
     zassert_equal(ret, RET_SUCCESS, "storage_push failed %d (aligned record)",
                   ret);
 
     // read back entire flash area and check pointers
-    ret = storage_init();
-    get_storage_area(&area);
+    ret = storage_init(&test_area, FIXED_PARTITION_ID(storage_partition));
+    get_storage_area(&test_area, &area);
     zassert_equal(ret, RET_SUCCESS);
     zassert_equal(
         area.wr_idx,
@@ -186,11 +190,11 @@ ZTEST(storage, test_free_empty)
 {
     int ret;
 
-    ret = storage_init();
+    ret = storage_init(&test_area, FIXED_PARTITION_ID(storage_partition));
     zassert_equal(ret, RET_SUCCESS, "storage_init failed %d", ret);
 
     // free empty storage must result in failure
-    ret = storage_free();
+    ret = storage_free(&test_area);
     zassert_not_equal(ret, RET_SUCCESS);
 }
 
@@ -201,7 +205,7 @@ ZTEST(storage, test_full_storage)
     // fill storage entirely
     LOG_INF("Fill storage entirely, start from erased content");
 
-    ret = storage_init();
+    ret = storage_init(&test_area, FIXED_PARTITION_ID(storage_partition));
     zassert_equal(ret, RET_SUCCESS, "storage_init failed %d", ret);
 
 #if FLASH_WRITE_BLOCK_SIZE == 1
@@ -215,7 +219,7 @@ ZTEST(storage, test_full_storage)
     }
     uint32_t count = 0;
     do {
-        ret = storage_push(dummy_record, sizeof(dummy_record));
+        ret = storage_push(&test_area, dummy_record, sizeof(dummy_record));
         if (ret == RET_SUCCESS) {
             ++count;
         }
@@ -234,23 +238,23 @@ ZTEST(storage, test_full_storage)
 
     // make sure we are able to initialize a full area
     LOG_INF("Initializing a full area");
-    ret = storage_init();
+    ret = storage_init(&test_area, FIXED_PARTITION_ID(storage_partition));
     zassert_equal(ret, RET_SUCCESS);
 
     struct storage_area_s area;
-    get_storage_area(&area);
+    get_storage_area(&test_area, &area);
     size_t bytes_used = (size_t)area.wr_idx - (size_t)area.rd_idx;
     zassert_equal(bytes_used, area.fa->fa_size, "area must be full now");
 
     for (uint32_t i = 0; i < count; ++i) {
-        ret = storage_free();
+        ret = storage_free(&test_area);
         if (ret) {
             LOG_ERR("Unable to free area completely: %d", ret);
             break;
         }
     }
 
-    get_storage_area(&area);
+    get_storage_area(&test_area, &area);
     zassert_equal((off_t)area.wr_idx, 0, "storage area must be reset");
     zassert_equal(area.wr_idx, area.rd_idx, "storage area should be reset");
 

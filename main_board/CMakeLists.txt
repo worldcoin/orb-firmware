@@ -114,6 +114,7 @@ list(APPEND SOURCES_FILES
     src/pubsub/pubsub.c
     src/runner/runner.c
 
+    src/system/config/config.c
     src/system/diag.c
     src/system/logs.c
     src/system/ping_sec.c

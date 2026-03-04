@@ -2,7 +2,9 @@
 #include "app_assert.h"
 #include "app_config.h"
 #include "can_messaging.h"
+#include "common.pb.h"
 #include "dfu.h"
+#include "errors.h"
 #include "mcu.pb.h"
 #include "mcu_ping.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
@@ -14,6 +16,7 @@
 #include "pubsub/pubsub.h"
 #include "storage.h"
 #include "system/backup_regs.h"
+#include "system/config/config.h"
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "temperature/sensors/temperature.h"
@@ -386,38 +389,68 @@ handle_reboot_orb(job_t *job)
     MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_reboot_orb_tag);
 
     uint32_t delay = msg->payload.reboot_orb.force_reboot_timeout_s;
+    orb_mcu_main_RebootOrb_BootBehavior behavior =
+        msg->payload.reboot_orb.reboot_behavior;
 
     if (delay != 0 && (delay > 60 || delay < 10)) {
         job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
         LOG_ERR("Reboot with delay > 60s or < 10s: %u", delay);
     } else {
-        int ret =
-            backup_regs_write_byte(REBOOT_FLAG_OFFSET_BYTE, REBOOT_INSTABOOT);
-        if (ret == 0) {
-            if (delay != 0) {
-                // force reboot after `delay` seconds,
-                // but a shutdown request from the Jetson is preferred
-                // (SHUTDOWN_REQ gpio)
-                ret = reboot(delay);
-            } else {
-                LOG_INF("waiting for reboot request from Jetson");
+        int ret = RET_SUCCESS;
+        // Persist the requested reboot behavior if explicitly set
+        // BOOT_REBOOT_NEXT (0 / default) means no change to the boot config
+        if (behavior ==
+            orb_mcu_main_RebootOrb_BootBehavior_BOOT_BUTTON_PRESS_ALWAYS) {
+            ret = config_set_reboot_behavior(BOOT_BUTTON);
+            if (ret != RET_SUCCESS) {
+                LOG_ERR("Failed to persist reboot behavior: %d", ret);
             }
-
+        } else if (behavior ==
+                   orb_mcu_main_RebootOrb_BootBehavior_BOOT_AUTO_ALWAYS_ON) {
+            ret = config_set_reboot_behavior(BOOT_ALWAYS);
+            if (ret != RET_SUCCESS) {
+                LOG_ERR("Failed to persist reboot behavior: %d", ret);
+            }
+        } else if (behavior ==
+                   orb_mcu_main_RebootOrb_BootBehavior_BOOT_REBOOT_NEXT) {
+            // on BOOT_REBOOT_NEXT, we keep the next reboot state in bbram
+            // (won't persist in case of power loss)
+            ret = backup_regs_write_byte(REBOOT_FLAG_OFFSET_BYTE,
+                                         REBOOT_INSTABOOT);
             if (ret == 0) {
+                if (delay != 0) {
+                    // force reboot after `delay` seconds,
+                    // but a shutdown request from the Jetson is preferred
+                    // (SHUTDOWN_REQ gpio)
+                    ret = reboot(delay);
+                } else {
+                    LOG_INF("waiting for reboot request from Jetson");
+                }
+
+                if (ret == 0) {
 #ifdef CONFIG_MEMFAULT
-                MEMFAULT_REBOOT_MARK_RESET_IMMINENT(
-                    kMfltRebootReason_JetsonRequestedRebootOrb);
+                    MEMFAULT_REBOOT_MARK_RESET_IMMINENT(
+                        kMfltRebootReason_JetsonRequestedRebootOrb);
 #endif
-                job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
-                return;
+                    job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+                    return;
+                }
             }
+            // failure setting flag or initiating reboot
+            // reset flag
+            backup_regs_write_byte(REBOOT_FLAG_OFFSET_BYTE, 0);
+        } else {
+            ret = RET_ERROR_INVALID_PARAM;
+        }
+
+        if (ret == 0) {
+            job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+        } else if (ret == RET_ERROR_INVALID_PARAM) {
+            job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
+        } else {
+            job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
         }
     }
-
-    // failure setting flag or initiating reboot
-    // reset flag
-    backup_regs_write_byte(REBOOT_FLAG_OFFSET_BYTE, 0);
-    job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
 }
 
 static void

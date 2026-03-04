@@ -4,6 +4,7 @@
 #include "orb_state.h"
 #include "sysflash/sysflash.h"
 #include "system/backup_regs.h"
+#include "system/config/config.h"
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "ui/button/button.h"
@@ -37,6 +38,7 @@ ORB_STATE_REGISTER_MULTIPLE(jetson);
 
 static bool post_update = false;
 static bool latched_reboot_cmd = false;
+static bool config_auto_boot = false;
 
 // Power supplies turned on in two phases:
 // - Phase 1 initializes just enough power supplies to use the button and
@@ -807,6 +809,16 @@ app_init_state(void)
     ret = backup_regs_read_byte(REBOOT_FLAG_OFFSET_BYTE, &boot_flag);
     latched_reboot_cmd = (ret == 0 && boot_flag == REBOOT_INSTABOOT);
 
+    /* read persistent boot behavior from flash config */
+    ret = config_init();
+    ASSERT_SOFT(ret);
+    config_auto_boot = (config_get_reboot_behavior() == BOOT_ALWAYS);
+
+    LOG_INF_IMM("insta-boot: %d, post ota: %d, auto-boot: %d, "
+                "config-auto: %d",
+                IS_ENABLED(CONFIG_INSTA_BOOT), post_update, latched_reboot_cmd,
+                config_auto_boot);
+
     // if any of the following is true:
     // - the application has been updated (image not confirmed),
     // - the flag to automatically (re)boot is set
@@ -814,11 +826,8 @@ app_init_state(void)
     //  -> boot jetson
     // otherwise:
     // -> nominal behaviour: wait for button press to boot
-    if (post_update || latched_reboot_cmd || IS_ENABLED(CONFIG_INSTA_BOOT)) {
-        LOG_INF_IMM("insta-boot: %d, post ota: %d, auto-boot: %d",
-                    IS_ENABLED(CONFIG_INSTA_BOOT), post_update,
-                    latched_reboot_cmd);
-
+    if (post_update || latched_reboot_cmd || config_auto_boot ||
+        IS_ENABLED(CONFIG_INSTA_BOOT)) {
         optics_self_test_skip();
         power_vbat_5v_3v3_supplies_on();
 

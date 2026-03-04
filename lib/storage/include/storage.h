@@ -53,6 +53,8 @@ struct storage_area_s {
  * @note Writing into Flash is done per-block meaning the returned record
  *       might be larger than the stored record.
  *
+ * @param area Storage area context, must have been initialized with
+ *  storage_init()
  * @param record Pointer to record to be stored in Flash. /!\ Array is re-used
  *  internally to verify flash content, so consider it as garbage after the call
  * @param size Size of the record
@@ -66,11 +68,13 @@ struct storage_area_s {
  * @retval RET_ERROR_NOT_INITIALIZED storage area not initialized
  */
 int
-storage_push(char *record, size_t size);
+storage_push(struct storage_area_s *area, char *record, size_t size);
 
 /**
  * Peek oldest record without invalidating it.
  * Record is copied into buffer given its maximum size passed as a parameter.
+ * @param area Storage area context, must have been initialized with
+ *  storage_init()
  * @param buffer Buffer to hold the oldest stored record
  * @param size To be set to \c buffer size and is modified to the read record
  *             size for the caller to correctly use the buffer
@@ -84,7 +88,7 @@ storage_push(char *record, size_t size);
  * @retval RET_ERROR_NOT_INITIALIZED storage area not initialized
  */
 int
-storage_peek(char *buffer, size_t *size);
+storage_peek(struct storage_area_s *area, char *buffer, size_t *size);
 
 /**
  * Invalidate oldest record. The record will then be considered stale.
@@ -92,30 +96,50 @@ storage_peek(char *buffer, size_t *size);
  * @note Data header is zeroed but the record isn't modified to reduce flash
  *       wear
  *
+ * @param area Storage area context, must have been initialized with
+ *  storage_init()
  * @retval RET_SUCCESS record invalidated and read index pushed to next record
  * @retval RET_ERROR_NOT_FOUND record pointed by read index isn't valid
  * @retval RET_ERROR_INTERNAL error invalidating record in Flash
  * @retval RET_ERROR_NOT_INITIALIZED storage area not initialized
  */
 int
-storage_free(void);
+storage_free(struct storage_area_s *area);
+
+/**
+ * Check if the record at the read index is the last (only) valid record
+ * in the storage area.
+ *
+ * @param area Storage area context, must have been initialized with
+ *  storage_init()
+ * @retval true if there is exactly one valid record
+ * @retval false if there are zero or more than one records
+ */
+bool
+storage_is_last_record(struct storage_area_s *area);
 
 /**
  * Check if storage has content to be used
+ * @param area Storage area context, must have been initialized with
+ *  storage_init()
  * @retval true if storage contains data
  * @retval false otherwise
  */
 bool
-storage_has_data(void);
+storage_has_data(struct storage_area_s *area);
 
 /**
  * Initialize storage area by looking for contiguous valid records in the Flash
  * area
+ * @param area Storage area context to initialize. Caller must allocate the
+ *  struct and keep it alive for the duration of the storage usage.
+ * @param partition_id Flash partition ID, e.g.
+ *  FIXED_PARTITION_ID(storage_partition)
  * @retval RET_SUCCESS Storage correctly initialized and ready to use
  * @retval RET_ERROR_NOT_INITIALIZED Unable to open flash area
  */
 int
-storage_init(void);
+storage_init(struct storage_area_s *area, uint8_t partition_id);
 
 #ifdef CONFIG_BBRAM
 int
@@ -127,5 +151,5 @@ backup_regs_write_byte(const size_t offset, const uint8_t data);
 #if CONFIG_ORB_LIB_STORAGE_TESTS
 /// Tests
 void
-get_storage_area(struct storage_area_s *area);
+get_storage_area(struct storage_area_s *area, struct storage_area_s *out);
 #endif
