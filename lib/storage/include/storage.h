@@ -147,9 +147,3 @@ backup_regs_read_byte(const size_t offset, uint8_t *data);
 int
 backup_regs_write_byte(const size_t offset, const uint8_t data);
 #endif
-
-#if CONFIG_ORB_LIB_STORAGE_TESTS
-/// Tests
-void
-get_storage_area(struct storage_area_s *area, struct storage_area_s *out);
-#endif

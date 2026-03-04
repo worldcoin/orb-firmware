@@ -471,11 +471,3 @@ exit:
 
     return ret;
 }
-
-#if CONFIG_ORB_LIB_STORAGE_TESTS
-void
-get_storage_area(struct storage_area_s *area, struct storage_area_s *out)
-{
-    memcpy((void *)out, (void *)area, sizeof(*area));
-}
-#endif
