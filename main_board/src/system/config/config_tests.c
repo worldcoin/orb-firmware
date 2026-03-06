@@ -1,4 +1,5 @@
 #include "config.h"
+#include "main.pb.h"
 #include "orb_logs.h"
 #include <errors.h>
 #include <storage.h>
@@ -31,41 +32,67 @@ clean_config(void *fixture)
 
 ZTEST(config, test_defaults_after_init)
 {
-    /* After a clean init on erased flash, boot behavior must be BOOT_BUTTON */
-    reboot_behavior_t behavior = config_get_reboot_behavior();
-    zassert_equal(behavior, BOOT_BUTTON, "expected BOOT_BUTTON (0), got %d",
-                  behavior);
+    /* After a clean init on erased flash, boot behavior must be
+     * orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS */
+    orb_mcu_main_SetConfig_RebootBehavior behavior =
+        config_get_reboot_behavior();
+    zassert_equal(
+        behavior, orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS,
+        "expected orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS (0), "
+        "got %d",
+        behavior);
 }
 
 ZTEST(config, test_set_get_boot_always)
 {
-    int ret = config_set_reboot_behavior(BOOT_ALWAYS);
+    int ret = config_set_reboot_behavior(
+        orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON);
     zassert_equal(ret, RET_SUCCESS, "config_set_reboot_behavior failed %d",
                   ret);
 
-    reboot_behavior_t behavior = config_get_reboot_behavior();
-    zassert_equal(behavior, BOOT_ALWAYS, "expected BOOT_ALWAYS (1), got %d",
-                  behavior);
+    orb_mcu_main_SetConfig_RebootBehavior behavior =
+        config_get_reboot_behavior();
+    zassert_equal(
+        behavior, orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON,
+        "expected orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON "
+        "(1), got %d",
+        behavior);
 }
 
 ZTEST(config, test_set_get_boot_button)
 {
-    /* First set to BOOT_ALWAYS, then back to BOOT_BUTTON */
-    int ret = config_set_reboot_behavior(BOOT_ALWAYS);
-    zassert_equal(ret, RET_SUCCESS, "set BOOT_ALWAYS failed %d", ret);
+    /* First set to orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON,
+     * then back to orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS */
+    int ret = config_set_reboot_behavior(
+        orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON);
+    zassert_equal(
+        ret, RET_SUCCESS,
+        "set orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON failed "
+        "%d",
+        ret);
 
-    ret = config_set_reboot_behavior(BOOT_BUTTON);
-    zassert_equal(ret, RET_SUCCESS, "set BOOT_BUTTON failed %d", ret);
+    ret = config_set_reboot_behavior(
+        orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS);
+    zassert_equal(
+        ret, RET_SUCCESS,
+        "set orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS failed %d",
+        ret);
 
-    reboot_behavior_t behavior = config_get_reboot_behavior();
-    zassert_equal(behavior, BOOT_BUTTON, "expected BOOT_BUTTON (0), got %d",
-                  behavior);
+    orb_mcu_main_SetConfig_RebootBehavior behavior =
+        config_get_reboot_behavior();
+    zassert_equal(
+        behavior, orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS,
+        "expected orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS (0), "
+        "got %d",
+        behavior);
 }
 
 ZTEST(config, test_persistence_across_reinit)
 {
-    /* Write BOOT_ALWAYS, re-init, verify it was loaded from flash */
-    int ret = config_set_reboot_behavior(BOOT_ALWAYS);
+    /* Write orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON, re-init,
+     * verify it was loaded from flash */
+    int ret = config_set_reboot_behavior(
+        orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON);
     zassert_equal(ret, RET_SUCCESS, "config_set_reboot_behavior failed %d",
                   ret);
 
@@ -73,31 +100,45 @@ ZTEST(config, test_persistence_across_reinit)
     ret = config_init();
     zassert_equal(ret, RET_SUCCESS, "config_init failed %d", ret);
 
-    reboot_behavior_t behavior = config_get_reboot_behavior();
-    zassert_equal(behavior, BOOT_ALWAYS,
-                  "expected BOOT_ALWAYS after re-init, got %d", behavior);
+    orb_mcu_main_SetConfig_RebootBehavior behavior =
+        config_get_reboot_behavior();
+    zassert_equal(
+        behavior, orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON,
+        "expected orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON "
+        "after re-init, got %d",
+        behavior);
 }
 
 ZTEST(config, test_no_op_same_value)
 {
-    /* Set BOOT_ALWAYS twice — second call should be a no-op (no flash write) */
-    int ret = config_set_reboot_behavior(BOOT_ALWAYS);
+    /* Set orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON twice —
+     * second call should be a no-op (no flash write) */
+    int ret = config_set_reboot_behavior(
+        orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON);
     zassert_equal(ret, RET_SUCCESS, "first set failed %d", ret);
 
-    ret = config_set_reboot_behavior(BOOT_ALWAYS);
+    ret = config_set_reboot_behavior(
+        orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON);
     zassert_equal(ret, RET_SUCCESS, "second set (same value) failed %d", ret);
 
-    reboot_behavior_t behavior = config_get_reboot_behavior();
-    zassert_equal(behavior, BOOT_ALWAYS, "expected BOOT_ALWAYS, got %d",
-                  behavior);
+    orb_mcu_main_SetConfig_RebootBehavior behavior =
+        config_get_reboot_behavior();
+    zassert_equal(
+        behavior, orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON,
+        "expected orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON, "
+        "got %d",
+        behavior);
 
     /* Re-init to confirm flash still has the correct single record */
     ret = config_init();
     zassert_equal(ret, RET_SUCCESS, "config_init failed %d", ret);
 
     behavior = config_get_reboot_behavior();
-    zassert_equal(behavior, BOOT_ALWAYS,
-                  "expected BOOT_ALWAYS after re-init, got %d", behavior);
+    zassert_equal(
+        behavior, orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON,
+        "expected orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON "
+        "after re-init, got %d",
+        behavior);
 }
 
 ZTEST(config, test_drain_multiple_records)
@@ -119,18 +160,20 @@ ZTEST(config, test_drain_multiple_records)
     ret = storage_init(&raw_area, FIXED_PARTITION_ID(config_partition));
     zassert_equal(ret, RET_SUCCESS, "storage_init failed %d", ret);
 
-    /* Record 1: BOOT_BUTTON */
-    reboot_behavior_t val = BOOT_BUTTON;
+    /* Record 1: orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS */
+    orb_mcu_main_SetConfig_RebootBehavior val =
+        orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS;
     ret = storage_push(&raw_area, (char *)&val, sizeof(val));
     zassert_equal(ret, RET_SUCCESS, "push record 1 failed %d", ret);
 
-    /* Record 2: BOOT_ALWAYS */
-    val = BOOT_ALWAYS;
+    /* Record 2: orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON */
+    val = orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON;
     ret = storage_push(&raw_area, (char *)&val, sizeof(val));
     zassert_equal(ret, RET_SUCCESS, "push record 2 failed %d", ret);
 
-    /* Record 3: BOOT_BUTTON (this should be the one that wins) */
-    val = BOOT_BUTTON;
+    /* Record 3: orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS (this
+     * should be the one that wins) */
+    val = orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS;
     ret = storage_push(&raw_area, (char *)&val, sizeof(val));
     zassert_equal(ret, RET_SUCCESS, "push record 3 failed %d", ret);
 
@@ -138,32 +181,43 @@ ZTEST(config, test_drain_multiple_records)
     ret = config_init();
     zassert_equal(ret, RET_SUCCESS, "config_init failed %d", ret);
 
-    reboot_behavior_t behavior = config_get_reboot_behavior();
-    zassert_equal(behavior, BOOT_BUTTON,
-                  "expected BOOT_BUTTON (last record), got %d", behavior);
+    orb_mcu_main_SetConfig_RebootBehavior behavior =
+        config_get_reboot_behavior();
+    zassert_equal(
+        behavior, orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS,
+        "expected orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS "
+        "(last record), got %d",
+        behavior);
 
     /* Verify only one record remains by re-initializing again */
     ret = config_init();
     zassert_equal(ret, RET_SUCCESS, "second config_init failed %d", ret);
 
     behavior = config_get_reboot_behavior();
-    zassert_equal(behavior, BOOT_BUTTON,
-                  "expected BOOT_BUTTON after second re-init, got %d",
-                  behavior);
+    zassert_equal(
+        behavior, orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS,
+        "expected orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS "
+        "after second re-init, got %d",
+        behavior);
 }
 
 ZTEST(config, test_multiple_transitions)
 {
     /* Toggle between values several times, verify persistence each time */
-    reboot_behavior_t values[] = {BOOT_ALWAYS, BOOT_BUTTON, BOOT_ALWAYS,
-                                  BOOT_BUTTON, BOOT_ALWAYS};
+    orb_mcu_main_SetConfig_RebootBehavior values[] = {
+        orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON,
+        orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS,
+        orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON,
+        orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS,
+        orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON};
 
     for (size_t i = 0; i < ARRAY_SIZE(values); ++i) {
         int ret = config_set_reboot_behavior(values[i]);
         zassert_equal(ret, RET_SUCCESS, "set failed at iteration %zu: %d", i,
                       ret);
 
-        reboot_behavior_t behavior = config_get_reboot_behavior();
+        orb_mcu_main_SetConfig_RebootBehavior behavior =
+            config_get_reboot_behavior();
         zassert_equal(behavior, values[i],
                       "get mismatch at iteration %zu: expected %d, got %d", i,
                       values[i], behavior);
@@ -173,7 +227,11 @@ ZTEST(config, test_multiple_transitions)
     int ret = config_init();
     zassert_equal(ret, RET_SUCCESS, "config_init failed %d", ret);
 
-    reboot_behavior_t behavior = config_get_reboot_behavior();
-    zassert_equal(behavior, BOOT_ALWAYS,
-                  "expected BOOT_ALWAYS after re-init, got %d", behavior);
+    orb_mcu_main_SetConfig_RebootBehavior behavior =
+        config_get_reboot_behavior();
+    zassert_equal(
+        behavior, orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON,
+        "expected orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON "
+        "after re-init, got %d",
+        behavior);
 }

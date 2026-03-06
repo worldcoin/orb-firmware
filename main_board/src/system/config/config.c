@@ -1,5 +1,6 @@
 #include "config.h"
 #include "orb_logs.h"
+#include "zephyr/toolchain.h"
 #include <errors.h>
 #include <storage.h>
 #include <string.h>
@@ -18,9 +19,13 @@ LOG_MODULE_REGISTER(config, CONFIG_CONFIG_LOG_LEVEL);
  * maintain backward compatibility. New fields in a larger record will
  * be zero-initialized when reading an older (smaller) config.
  */
-typedef struct {
-    reboot_behavior_t boot;
+typedef struct __PACKED {
+    orb_mcu_main_SetConfig_RebootBehavior boot;
+    uint8_t _pad[7]; /* padding to ensure memory alignment */
 } persistent_config_t;
+
+BUILD_ASSERT(sizeof(persistent_config_t) % FLASH_WRITE_BLOCK_SIZE == 0,
+             "persistent_config_t not aligned to flash write block size: ");
 
 static struct storage_area_s config_storage_area;
 static persistent_config_t current_config;
@@ -125,7 +130,7 @@ out:
     return ret;
 }
 
-reboot_behavior_t
+orb_mcu_main_SetConfig_RebootBehavior
 config_get_reboot_behavior(void)
 {
     __ASSERT(initialized, "config module not initialized");
@@ -133,7 +138,7 @@ config_get_reboot_behavior(void)
 }
 
 int
-config_set_reboot_behavior(reboot_behavior_t behavior)
+config_set_reboot_behavior(orb_mcu_main_SetConfig_RebootBehavior behavior)
 {
     k_mutex_lock(&config_mutex, K_FOREVER);
 

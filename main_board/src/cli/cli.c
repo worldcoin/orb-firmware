@@ -807,17 +807,22 @@ execute_boot_config(const struct shell *sh, size_t argc, char **argv)
 {
     if (argc < 2) {
         /* No argument: print current config */
-        reboot_behavior_t behavior = config_get_reboot_behavior();
-        shell_print(sh, "boot config: %s",
-                    behavior == BOOT_ALWAYS ? "always_on" : "button");
+        orb_mcu_main_SetConfig_RebootBehavior behavior =
+            config_get_reboot_behavior();
+        shell_print(
+            sh, "boot config: %s",
+            behavior ==
+                    orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON
+                ? "always_on"
+                : "button");
         return 0;
     }
 
-    reboot_behavior_t behavior;
+    orb_mcu_main_SetConfig_RebootBehavior behavior;
     if (strcmp(argv[1], "always_on") == 0) {
-        behavior = BOOT_ALWAYS;
+        behavior = orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON;
     } else if (strcmp(argv[1], "button") == 0) {
-        behavior = BOOT_BUTTON;
+        behavior = orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS;
     } else {
         shell_error(sh, "Usage: orb boot_config [button|always_on]");
         return -EINVAL;
