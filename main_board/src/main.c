@@ -28,7 +28,7 @@
 #include <orb_fatal.h>
 #include <orb_state.h>
 #include <pb_encode.h>
-#include <storage.h>
+
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
 
@@ -78,6 +78,11 @@ ZTEST_SUITE(ir_camera, NULL, NULL, ir_camera_test_reset, ir_camera_test_reset,
 #if CONFIG_ORB_LIB_STORAGE_TESTS
 #include "storage_tests.h"
 ZTEST_SUITE(storage, NULL, NULL, clean_storage, NULL, clean_storage);
+#endif
+
+#if CONFIG_TEST_CONFIG
+#include "system/config/config_tests.h"
+ZTEST_SUITE(config, NULL, NULL, clean_config, NULL, clean_config);
 #endif
 
 #if CONFIG_TEST_POLARIZER_WHEEL
@@ -273,7 +278,7 @@ initialize(void)
 
     fatal_init();
 
-    err_code = storage_init();
+    err_code = pubsub_storage_init();
     ASSERT_SOFT(err_code);
 
     // initialize runner before communication modules

@@ -95,6 +95,9 @@ config TEST_POLARIZER_WHEEL
       Test polarizer wheel homing and positioning.
       Requires Diamond hardware with polarizer wheel installed.
 
+config TEST_CONFIG
+    bool "Test persistent config module"
+
 config APP_TESTS_ALL
     bool "Enable all integration tests"
     select TEST_VOLTAGE_MEASUREMENT
@@ -105,6 +108,7 @@ config APP_TESTS_ALL
     select TEST_GNSS
     select TEST_POLARIZER_WHEEL if BOARD_DIAMOND_MAIN
     select ORB_LIB_STORAGE_TESTS
+    select TEST_CONFIG
 
 config CI_INTEGRATION_TESTS
 	bool "Send specific string in logs when testing UART with mcu-util"

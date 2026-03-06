@@ -9,6 +9,9 @@
 #include <storage.h>
 #include <utils.h>
 #include <zephyr/kernel.h>
+#include <zephyr/storage/flash_map.h>
+
+static struct storage_area_s pubsub_storage_area;
 
 LOG_MODULE_REGISTER(pubsub, CONFIG_PUBSUB_LOG_LEVEL);
 
@@ -128,6 +131,13 @@ publish_is_started(uint32_t remote)
     return false;
 }
 
+int
+pubsub_storage_init(void)
+{
+    return storage_init(&pubsub_storage_area,
+                        FIXED_PARTITION_ID(storage_partition));
+}
+
 static void
 pub_stored_thread()
 {
@@ -138,7 +148,7 @@ pub_stored_thread()
 
     while (true) {
         size_t size = sizeof(record);
-        err_code = storage_peek((char *)&record, &size);
+        err_code = storage_peek(&pubsub_storage_area, (char *)&record, &size);
         switch (err_code) {
         case RET_SUCCESS:
             // do nothing
@@ -148,7 +158,7 @@ pub_stored_thread()
             // no more records, terminate thread
             return;
         case RET_ERROR_NO_MEM:
-            storage_free();
+            storage_free(&pubsub_storage_area);
             continue;
 
         case RET_ERROR_INVALID_STATE:
@@ -191,7 +201,7 @@ pub_stored_thread()
         switch (err_code) {
         case RET_SUCCESS:
         case RET_ERROR_INVALID_PARAM: // record cannot be sent, free it
-            err_code = storage_free();
+            err_code = storage_free(&pubsub_storage_area);
             ASSERT_SOFT(err_code);
             break;
         case RET_ERROR_INVALID_STATE:
@@ -320,9 +330,9 @@ publish(void *payload, size_t size, uint32_t which_payload,
                 entry.destination = remote_addr;
 
                 // store message to be sent later
-                err_code =
-                    storage_push((char *)&entry, stream.bytes_written +
-                                                     sizeof(entry.destination));
+                err_code = storage_push(&pubsub_storage_area, (char *)&entry,
+                                        stream.bytes_written +
+                                            sizeof(entry.destination));
                 if (err_code) {
                     LOG_INF("Unable to store message: %d", err_code);
                 } else {

@@ -16,6 +16,13 @@ static uint32_t mcu_to_jetson_payloads = 0;
 static K_SEM_DEFINE(pub_buffers_sem, 1, 1);
 
 int
+pubsub_storage_init(void)
+{
+    /* no-op in test mode — tests don't use the pubsub storage FIFO */
+    return RET_SUCCESS;
+}
+
+int
 subscribe_add(uint32_t remote_addr)
 {
     ARG_UNUSED(remote_addr);

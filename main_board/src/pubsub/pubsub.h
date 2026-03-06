@@ -7,6 +7,18 @@
 #include <stdint.h>
 
 /**
+ * @brief Initialize the storage area used by pubsub for buffering messages
+ *
+ * Must be called before any publish_new() or publish_store() call.
+ *
+ * @retval RET_SUCCESS storage area initialized
+ * @retval RET_ERROR_NOT_INITIALIZED unable to open flash area
+ * @retval RET_ERROR_INTERNAL unable to erase flash area
+ */
+int
+pubsub_storage_init(void);
+
+/**
  * @brief Starts publishing messages addressed to `remote_addr`
  *
  * @details In case some buffered messages are ready, a thread is spawned
