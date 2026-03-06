@@ -812,9 +812,13 @@ app_init_state(void)
     /* read persistent boot behavior from flash config */
     ret = config_init();
     ASSERT_SOFT(ret);
-    config_auto_boot =
-        (config_get_reboot_behavior() ==
-         orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON);
+    if (ret == 0) {
+        config_auto_boot =
+            (config_get_reboot_behavior() ==
+             orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON);
+    } else {
+        config_auto_boot = false;
+    }
 
     LOG_INF_IMM("insta-boot: %d, post ota: %d, auto-boot: %d, "
                 "config-auto: %d",

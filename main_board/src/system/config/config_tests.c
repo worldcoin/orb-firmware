@@ -16,15 +16,12 @@ clean_config(void *fixture)
     const struct flash_area *fa;
 
     int ret = flash_area_open(FIXED_PARTITION_ID(config_partition), &fa);
-    if (ret == 0) {
-        ret = flash_area_erase(fa, 0, fa->fa_size);
-        zassert_equal(ret, 0, "flash_area_erase failed %d", ret);
-        flash_area_close(fa);
-    }
+    zassert_equal(ret, 0, "flash_area_open failed %d", ret);
 
-    if (ret != 0) {
-        LOG_ERR("Unable to erase config partition for unit tests");
-    }
+    ret = flash_area_erase(fa, 0, fa->fa_size);
+    zassert_equal(ret, 0, "flash_area_erase failed %d", ret);
+
+    flash_area_close(fa);
 
     ret = config_init();
     zassert_equal(ret, RET_SUCCESS, "config_init failed %d", ret);

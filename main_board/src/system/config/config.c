@@ -138,7 +138,7 @@ config_get_reboot_behavior(void)
 }
 
 int
-config_set_reboot_behavior(orb_mcu_main_SetConfig_RebootBehavior behavior)
+config_set_reboot_behavior(const orb_mcu_main_SetConfig_RebootBehavior behavior)
 {
     k_mutex_lock(&config_mutex, K_FOREVER);
 
@@ -150,6 +150,12 @@ config_set_reboot_behavior(orb_mcu_main_SetConfig_RebootBehavior behavior)
     if (current_config.boot == behavior) {
         k_mutex_unlock(&config_mutex);
         return RET_SUCCESS;
+    }
+
+    if (behavior != orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS &&
+        behavior != orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON) {
+        k_mutex_unlock(&config_mutex);
+        return RET_ERROR_INVALID_PARAM;
     }
 
     current_config.boot = behavior;
