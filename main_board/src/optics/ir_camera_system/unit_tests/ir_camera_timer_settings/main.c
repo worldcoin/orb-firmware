@@ -4,6 +4,17 @@
 ZTEST_SUITE(timer_settings_on_time, NULL, NULL, NULL, NULL, NULL);
 ZTEST_SUITE(timer_settings_fps, NULL, NULL, NULL, NULL, NULL);
 
+#if !defined(CONFIG_BOARD_PEARL_MAIN)
+ZTEST(timer_settings_on_time,
+      test_face_camera_ir_cap_applies_only_without_eye_camera)
+{
+    zassert_equal(ir_camera_system_face_camera_max_ir_led_on_time_us(false),
+                  IR_CAMERA_SYSTEM_FACE_CAMERA_MAX_IR_LED_ON_TIME_US, "");
+    zassert_equal(ir_camera_system_face_camera_max_ir_led_on_time_us(true),
+                  IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US, "");
+}
+#endif
+
 ZTEST(timer_settings_on_time, test_on_time_set_0us_with_0_fps)
 {
     struct ir_camera_timer_settings settings = {0};
