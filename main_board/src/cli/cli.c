@@ -4,6 +4,7 @@
 #include "dfu.h"
 #include "mcu_ping.h"
 #include "orb_logs.h"
+#include "system/config/config.h"
 
 #include <bootutil/image.h>
 #include <compilers.h>
@@ -801,6 +802,41 @@ execute_dfu_secondary_activate(const struct shell *sh, size_t argc, char **argv)
     return ret;
 }
 
+static int
+execute_boot_config(const struct shell *sh, size_t argc, char **argv)
+{
+    if (argc < 2) {
+        /* No argument: print current config */
+        orb_mcu_main_SetConfig_RebootBehavior behavior =
+            config_get_reboot_behavior();
+        shell_print(
+            sh, "boot config: %s",
+            behavior ==
+                    orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON
+                ? "always_on"
+                : "button");
+        return 0;
+    }
+
+    orb_mcu_main_SetConfig_RebootBehavior behavior;
+    if (strcmp(argv[1], "always_on") == 0) {
+        behavior = orb_mcu_main_SetConfig_RebootBehavior_BOOT_AUTO_ALWAYS_ON;
+    } else if (strcmp(argv[1], "button") == 0) {
+        behavior = orb_mcu_main_SetConfig_RebootBehavior_BOOT_BUTTON_PRESS;
+    } else {
+        shell_error(sh, "Usage: orb boot_config [button|always_on]");
+        return -EINVAL;
+    }
+
+    int ret = config_set_reboot_behavior(behavior);
+    if (ret == RET_SUCCESS) {
+        shell_print(sh, "boot config set to: %s", argv[1]);
+    } else {
+        shell_error(sh, "failed to set boot config: %d", ret);
+    }
+    return ret;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(
     sub_orb,
     SHELL_CMD(reboot, NULL, "Reboot system with optional delay",
@@ -826,6 +862,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
     SHELL_CMD(white_leds, NULL, "Control white LEDs", execute_white_leds),
     SHELL_CMD(polarizer, NULL, "Control polarizer wheel", execute_polarizer),
 #endif
+    SHELL_CMD(boot_config, NULL, "Get/set boot behavior (button|always_on)",
+              execute_boot_config),
     SHELL_CMD(stats, NULL, "Show runner statistics", execute_runner_stats),
     SHELL_CMD(ping_sec, NULL, "Send ping to security MCU", execute_ping_sec),
     SHELL_CMD(dfu_secondary_activate, NULL,

@@ -114,6 +114,7 @@ list(APPEND SOURCES_FILES
     src/pubsub/pubsub.c
     src/runner/runner.c
 
+    src/system/config/config.c
     src/system/diag.c
     src/system/logs.c
     src/system/ping_sec.c
@@ -173,6 +174,9 @@ if (CONFIG_ZTEST)
         src/temperature/fan/fan_tests.c
         src/ui/rgb_leds/front_leds/front_leds_tests.c
         )
+    if (CONFIG_TEST_CONFIG)
+        list(APPEND SOURCES_FILES src/system/config/config_tests.c)
+    endif()
     if (CONFIG_NO_JETSON_BOOT)
         list(REMOVE_ITEM SOURCES_FILES src/pubsub/pubsub.c)
         list(APPEND SOURCES_FILES src/pubsub/pubsub_tests.c)

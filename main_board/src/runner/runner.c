@@ -2,7 +2,9 @@
 #include "app_assert.h"
 #include "app_config.h"
 #include "can_messaging.h"
+#include "common.pb.h"
 #include "dfu.h"
+#include "errors.h"
 #include "mcu.pb.h"
 #include "mcu_ping.h"
 #include "optics/ir_camera_system/ir_camera_system.h"
@@ -14,6 +16,7 @@
 #include "pubsub/pubsub.h"
 #include "storage.h"
 #include "system/backup_regs.h"
+#include "system/config/config.h"
 #include "system/version/version.h"
 #include "temperature/fan/fan.h"
 #include "temperature/sensors/temperature.h"
@@ -418,6 +421,32 @@ handle_reboot_orb(job_t *job)
     // reset flag
     backup_regs_write_byte(REBOOT_FLAG_OFFSET_BYTE, 0);
     job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+}
+
+static void
+handle_set_config(job_t *job)
+{
+    orb_mcu_main_JetsonToMcu *msg = &job->message.jetson_cmd;
+    MAKE_ASSERTS(orb_mcu_main_JetsonToMcu_set_config_tag);
+
+    switch (msg->payload.set_config.which_config) {
+    case orb_mcu_main_SetConfig_reboot_behavior_tag: {
+        int ret = config_set_reboot_behavior(
+            msg->payload.set_config.config.reboot_behavior);
+        if (ret == RET_SUCCESS) {
+            job_ack(orb_mcu_Ack_ErrorCode_SUCCESS, job);
+        } else {
+            LOG_ERR("Failed to persist reboot behavior: %d", ret);
+            job_ack(orb_mcu_Ack_ErrorCode_FAIL, job);
+        }
+        break;
+    }
+    default:
+        LOG_WRN("Unknown config field: %u",
+                msg->payload.set_config.which_config);
+        job_ack(orb_mcu_Ack_ErrorCode_RANGE, job);
+        break;
+    }
 }
 
 static void
@@ -1791,6 +1820,7 @@ static const hm_callback handle_message_callbacks[] = {
     [orb_mcu_main_JetsonToMcu_set_time_tag] = handle_set_time,
     [orb_mcu_main_JetsonToMcu_reboot_orb_tag] = handle_reboot_orb,
     [orb_mcu_main_JetsonToMcu_boot_complete_tag] = handle_boot_complete,
+    [orb_mcu_main_JetsonToMcu_set_config_tag] = handle_set_config,
     [orb_mcu_main_JetsonToMcu_start_triggering_rgb_face_camera_tag] =
         handle_start_triggering_rgb_face_camera_message,
     [orb_mcu_main_JetsonToMcu_stop_triggering_rgb_face_camera_tag] =
@@ -1813,7 +1843,7 @@ static const hm_callback handle_message_callbacks[] = {
 #endif
 };
 
-BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 56),
+BUILD_ASSERT((ARRAY_SIZE(handle_message_callbacks) <= 57),
              "It seems like the `handle_message_callbacks` array is too large");
 
 _Noreturn static void
