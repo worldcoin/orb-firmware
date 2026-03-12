@@ -1277,6 +1277,19 @@ ir_camera_system_get_time_until_update_us_internal(void)
     return time_until_update_us;
 }
 
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+static uint32_t
+face_camera_max_ir_led_duration_ticks_from_settings(void)
+{
+    const uint32_t face_camera_max_ir_led_on_time_us =
+        ir_camera_system_face_camera_max_ir_led_on_time_us(
+            ir_camera_system_ir_eye_camera_is_enabled());
+
+    return ((uint64_t)face_camera_max_ir_led_on_time_us * TIMER_CLOCK_FREQ_HZ) /
+           ((uint64_t)(global_timer_settings.master_psc + 1) * 1000000ULL);
+}
+#endif
+
 ret_code_t
 ir_camera_system_set_fps_hw(uint16_t fps)
 {
@@ -1428,6 +1441,11 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
         // Rising edge: Turn on IR LEDs for RGB-IR camera illumination
         // if it occurs before the scheduled ir led pulse.
         // otherwise, pulse is already ongoing, so do nothing.
+        const uint32_t face_camera_max_ir_led_on_time_us =
+            ir_camera_system_face_camera_max_ir_led_on_time_us(
+                ir_camera_system_ir_eye_camera_is_enabled());
+        const uint32_t face_camera_max_ir_led_duration_ticks =
+            face_camera_max_ir_led_duration_ticks_from_settings();
 
         // Calculate remaining time until MASTER_TIMER reaches ARR
         const uint32_t current_counter = LL_TIM_GetCounter(MASTER_TIMER);
@@ -1449,33 +1467,39 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
                                       TIMER_CLOCK_FREQ_MHZ;
 
         if (remaining_us + global_timer_settings.on_time_in_us >
-            IR_CAMERA_SYSTEM_FACE_CAMERA_MAX_IR_LED_ON_TIME_US) {
+            face_camera_max_ir_led_on_time_us) {
             // More than max IR duration time left: reconfigure MASTER_TIMER to
             // trigger before expected time and set IR LEDs pulse to last max
             // duration time
+            //
+            // Keep the pre-434 timing whenever the IR eye camera is enabled:
+            // face illumination may still be capped in face-only mode, but the
+            // LED pulse must remain long enough for the configured eye
+            // exposure, otherwise some units lose the eye image entirely.
 
             // Set master timer counter so UPDATE occurs
-            // `master_max_ir_leds_tick` before the end of the strobe
+            // `face_camera_max_ir_led_duration_ticks` before the scheduled
+            // pulse.
             LL_TIM_SetCounter(
                 MASTER_TIMER,
                 global_timer_settings.master_arr -
                     (remaining_ticks -
-                     global_timer_settings.master_max_ir_leds_tick));
+                     face_camera_max_ir_led_duration_ticks));
 
             LL_TIM_SetAutoReload(
                 LED_850NM_TIMER,
-                IR_CAMERA_SYSTEM_FACE_CAMERA_MAX_IR_LED_ON_TIME_US);
+                face_camera_max_ir_led_on_time_us);
             LL_TIM_SetAutoReload(
                 LED_940NM_TIMER,
-                IR_CAMERA_SYSTEM_FACE_CAMERA_MAX_IR_LED_ON_TIME_US);
+                face_camera_max_ir_led_on_time_us);
         } else {
-            // Less than IR_CAMERA_SYSTEM_FACE_CAMERA_MAX_IR_LED_ON_TIME_US
-            // left: set IR LEDs to last until end of period + on_time_in_us
+            // Less than the active face-camera limit left: set IR LEDs to last
+            // until end of period + on_time_in_us
 
             // Total duration = remaining time to ARR + configured on_time
             // /!\ we assume:
             // remaining_us + global_timer_settings.on_time_in_us
-            //          < IR_CAMERA_SYSTEM_FACE_CAMERA_MAX_IR_LED_ON_TIME_US
+            //          < face_camera_max_ir_led_on_time_us
             // as checked above
             uint32_t total_duration_us =
                 remaining_us + global_timer_settings.on_time_in_us;

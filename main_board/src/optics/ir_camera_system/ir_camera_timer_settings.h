@@ -1,6 +1,7 @@
 #pragma once
 
 #include <errors.h>
+#include <stdbool.h>
 #include <stdint.h>
 #ifndef CONFIG_ZTEST
 #include <zephyr/devicetree.h>
@@ -18,8 +19,10 @@ BUILD_ASSERT(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US == 5000 &&
 #endif // !defined(CONFIG_ZTEST)
 #else
 #define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US             7500
-// face cam ir duration is capped to 2000us to avoid weird cosmetic issues in
-// case rgb/ir cam exposure is fixed & doesn't respond to ir light
+// When only the face camera is active, cap IR duration to 2000us to avoid
+// cosmetic issues in case rgb/ir cam exposure is fixed & doesn't respond to
+// ir light. If the IR eye camera is active, keep the original Diamond limit so
+// the eye exposure continues to use the configured on-time.
 #define IR_CAMERA_SYSTEM_FACE_CAMERA_MAX_IR_LED_ON_TIME_US 2000
 #define IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE             0.25
 // when computing the next rgb/ir strobe falling edge, keep a 50us margin
@@ -35,6 +38,20 @@ BUILD_ASSERT(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US <= 8000 &&
              "to ensure hardware safty circuit is not triggered.");
 #endif // !defined(CONFIG_ZTEST)
 #endif
+
+#if !defined(CONFIG_BOARD_PEARL_MAIN)
+static inline uint16_t
+ir_camera_system_face_camera_max_ir_led_on_time_us(
+    bool ir_eye_camera_enabled)
+{
+    if (ir_eye_camera_enabled) {
+        return IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US;
+    }
+
+    return IR_CAMERA_SYSTEM_FACE_CAMERA_MAX_IR_LED_ON_TIME_US;
+}
+#endif
+
 #define IR_CAMERA_SYSTEM_MAX_FPS 60
 #if defined(CONFIG_ZTEST)
 #define TIMER_CLOCK_FREQ_MHZ 170L
