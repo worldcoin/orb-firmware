@@ -468,6 +468,17 @@ polarizer_halt(void)
     return ret;
 }
 
+static void
+polarizer_disable_outputs(void)
+{
+    g_polarizer_wheel_instance.idle_current_scale_down_time_ms = 0;
+
+    const int ret = drv8434s_disable();
+    if (ret != RET_SUCCESS) {
+        LOG_WRN("Failed to disable motor outputs: %d", ret);
+    }
+}
+
 /* Enable encoder hardware and interrupt */
 static int
 enable_encoder(void)
@@ -537,7 +548,13 @@ polarizer_rotate(const uint32_t frequency)
     /* Cancel any pending idle current scale-down */
     g_polarizer_wheel_instance.idle_current_scale_down_time_ms = 0;
 
-    const int ret = drv8434s_scale_current(DRV8434S_TRQ_DAC_100);
+    int ret = drv8434s_enable();
+    if (ret) {
+        ASSERT_SOFT(ret);
+        return ret;
+    }
+
+    ret = drv8434s_scale_current(DRV8434S_TRQ_DAC_100);
     if (ret) {
         ASSERT_SOFT(ret);
         return ret;
@@ -1014,6 +1031,7 @@ execute_homing(void)
                 g_polarizer_wheel_instance.homing.success = false;
                 polarizer_halt();
                 disable_encoder();
+                polarizer_disable_outputs();
                 ORB_STATE_SET_CURRENT(RET_ERROR_INTERNAL, "unable to spin");
                 g_polarizer_wheel_instance.state = STATE_UNINITIALIZED;
                 return;
@@ -1039,6 +1057,7 @@ execute_homing(void)
                 g_polarizer_wheel_instance.state = STATE_UNINITIALIZED;
                 polarizer_halt();
                 disable_encoder();
+                polarizer_disable_outputs();
                 LOG_WRN(
                     "Encoder not detected, is there a wheel? is it moving?");
                 return;
@@ -1136,9 +1155,11 @@ execute_homing(void)
         g_polarizer_wheel_instance.homing.success = false;
         g_polarizer_wheel_instance.state = STATE_UNINITIALIZED;
         polarizer_halt();
+        polarizer_disable_outputs();
 
         ORB_STATE_SET_CURRENT(RET_ERROR_NOT_INITIALIZED,
                               "bumps not correctly detected");
+        return;
     }
 
     /* Schedule idle current scale-down */
