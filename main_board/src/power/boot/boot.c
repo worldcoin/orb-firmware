@@ -438,18 +438,8 @@ static K_WORK_DELAYABLE_DEFINE(power_cycle_heatcam_2v8_line_work,
                                power_cycle_heatcam_2v8_line_work_handler);
 #endif
 
-#ifdef CONFIG_DEBUG
-
-static void
-power_cycle_wifi_3v3_line_work_handler(struct k_work *item)
-{
-    UNUSED_PARAMETER(item);
-
-    int ret = gpio_pin_configure_dt(&supply_3v3_wifi_enable_gpio_spec,
-                                    GPIO_OUTPUT_ACTIVE);
-    ASSERT_SOFT(ret);
-}
-
+#if defined(CONFIG_DEBUG) ||                                                   \
+    defined(CONFIG_BOARD_DIAMOND_MAIN) /* debug or prod diamond */
 static void
 power_cycle_lte_3v3_line_work_handler(struct k_work *item)
 {
@@ -465,6 +455,22 @@ power_cycle_lte_3v3_line_work_handler(struct k_work *item)
     ASSERT_SOFT(ret);
 }
 
+static K_WORK_DELAYABLE_DEFINE(power_cycle_lte_3v3_line_work,
+                               power_cycle_lte_3v3_line_work_handler);
+#endif
+
+#ifdef CONFIG_DEBUG
+
+static void
+power_cycle_wifi_3v3_line_work_handler(struct k_work *item)
+{
+    UNUSED_PARAMETER(item);
+
+    int ret = gpio_pin_configure_dt(&supply_3v3_wifi_enable_gpio_spec,
+                                    GPIO_OUTPUT_ACTIVE);
+    ASSERT_SOFT(ret);
+}
+
 static void
 power_cycle_ssd_3v3_line_work_handler(struct k_work *item)
 {
@@ -477,8 +483,7 @@ power_cycle_ssd_3v3_line_work_handler(struct k_work *item)
 
 static K_WORK_DELAYABLE_DEFINE(power_cycle_wifi_3v3_line_work,
                                power_cycle_wifi_3v3_line_work_handler);
-static K_WORK_DELAYABLE_DEFINE(power_cycle_lte_3v3_line_work,
-                               power_cycle_lte_3v3_line_work_handler);
+
 static K_WORK_DELAYABLE_DEFINE(power_cycle_ssd_3v3_line_work,
                                power_cycle_ssd_3v3_line_work_handler);
 #endif
@@ -503,19 +508,16 @@ power_cycle_supply(const orb_mcu_main_PowerCycle_Line line,
                         duration_off_ms != 0 ? K_MSEC(duration_off_ms)
                                              : K_MSEC(3000));
         break;
-    case orb_mcu_main_PowerCycle_Line_LTE_3V3:
 #if defined(CONFIG_BOARD_PEARL_MAIN)
+    case orb_mcu_main_PowerCycle_Line_LTE_3V3:
         ret = gpio_pin_configure_dt(&lte_gps_usb_reset_gpio_spec,
                                     GPIO_OUTPUT_INACTIVE);
-#elif defined(CONFIG_BOARD_DIAMOND_MAIN)
-        ret = gpio_pin_configure_dt(&supply_3v3_lte_enable_gpio_spec,
-                                    GPIO_OUTPUT_INACTIVE);
-#endif
         ASSERT_SOFT(ret);
         k_work_schedule(&power_cycle_lte_3v3_line_work,
                         duration_off_ms != 0 ? K_MSEC(duration_off_ms)
                                              : K_MSEC(3000));
         break;
+#endif
     case orb_mcu_main_PowerCycle_Line_SD_SSD_3V3:
         ret = gpio_pin_configure_dt(&supply_3v3_ssd_enable_gpio_spec,
                                     GPIO_OUTPUT_INACTIVE);
@@ -525,7 +527,17 @@ power_cycle_supply(const orb_mcu_main_PowerCycle_Line line,
                                              : K_MSEC(3000));
         break;
 #endif
+
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
+    case orb_mcu_main_PowerCycle_Line_LTE_3V3:
+        ret = gpio_pin_configure_dt(&supply_3v3_lte_enable_gpio_spec,
+                                    GPIO_OUTPUT_INACTIVE);
+        ASSERT_SOFT(ret);
+        k_work_schedule(&power_cycle_lte_3v3_line_work,
+                        duration_off_ms != 0 ? K_MSEC(duration_off_ms)
+                                             : K_MSEC(3000));
+        break;
+
     case orb_mcu_main_PowerCycle_Line_HEAT_CAMERA_2V8:
         ret = gpio_pin_configure_dt(&supply_2v8_enable_gpio_spec,
                                     GPIO_OUTPUT_INACTIVE);
@@ -534,7 +546,7 @@ power_cycle_supply(const orb_mcu_main_PowerCycle_Line line,
                         duration_off_ms != 0 ? K_MSEC(duration_off_ms)
                                              : K_MSEC(3000));
         break;
-#else
+#else /* Pearl */
     case orb_mcu_main_PowerCycle_Line_HEAT_CAMERA_2V8:
         ret = RET_ERROR_NOT_FOUND;
         break;
