@@ -1000,7 +1000,12 @@ static void
 execute_homing(void)
 {
     clear_step_interrupt();
-    drv8434s_enable();
+    int ret = drv8434s_enable();
+    if (ret != RET_SUCCESS) {
+        POLARIZER_HOMING_FAIL(RET_ERROR_INTERNAL, "failed to enable motor driver");
+        LOG_ERR("Failed to enable motor driver: %d", ret);
+        return;
+    }
 
     g_polarizer_wheel_instance.state = STATE_HOMING;
     g_polarizer_wheel_instance.acceleration.state = ACCELERATION_IDLE;
