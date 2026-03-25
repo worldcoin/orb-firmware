@@ -166,6 +166,16 @@ static K_MUTEX_DEFINE(cmd_mutex);
 /* Delay before scaling down motor current after idle (ms) */
 #define POLARIZER_IDLE_CURRENT_DELAY_MS 2000
 
+#define POLARIZER_HOMING_FAIL(ret_code, msg)                                   \
+    do {                                                                       \
+        ORB_STATE_SET_CURRENT(ret_code, msg);                                  \
+        g_polarizer_wheel_instance.homing.success = false;                     \
+        g_polarizer_wheel_instance.state = STATE_UNINITIALIZED;                \
+        polarizer_halt();                                                      \
+        disable_encoder();                                                     \
+        disable_drv();                                                         \
+    } while (0)
+
 /**
  * Calculate timeout for the next k_poll iteration.
  * Returns K_FOREVER if no timeout is pending, otherwise returns
@@ -469,7 +479,7 @@ polarizer_halt(void)
 }
 
 static void
-polarizer_disable_outputs(void)
+disable_drv(void)
 {
     g_polarizer_wheel_instance.idle_current_scale_down_time_ms = 0;
 
@@ -548,13 +558,7 @@ polarizer_rotate(const uint32_t frequency)
     /* Cancel any pending idle current scale-down */
     g_polarizer_wheel_instance.idle_current_scale_down_time_ms = 0;
 
-    int ret = drv8434s_enable();
-    if (ret) {
-        ASSERT_SOFT(ret);
-        return ret;
-    }
-
-    ret = drv8434s_scale_current(DRV8434S_TRQ_DAC_100);
+    int ret = drv8434s_scale_current(DRV8434S_TRQ_DAC_100);
     if (ret) {
         ASSERT_SOFT(ret);
         return ret;
@@ -996,6 +1000,8 @@ static void
 execute_homing(void)
 {
     clear_step_interrupt();
+    int ret = drv8434s_enable();
+    ASSERT_SOFT(ret);
 
     g_polarizer_wheel_instance.state = STATE_HOMING;
     g_polarizer_wheel_instance.acceleration.state = ACCELERATION_IDLE;
@@ -1022,18 +1028,13 @@ execute_homing(void)
             k_sem_reset(&encoder_sem);
 
             /* Spin the wheel 240 degrees */
-            int ret = polarizer_wheel_step_relative(
+            ret = polarizer_wheel_step_relative(
                 POLARIZER_WHEEL_SPIN_PWM_FREQUENCY_DEFAULT,
                 POLARIZER_WHEEL_MICROSTEPS_120_DEGREES * 2);
             if (ret != RET_SUCCESS) {
+                POLARIZER_HOMING_FAIL(RET_ERROR_INTERNAL, "unable to spin");
                 LOG_ERR("Unable to spin polarizer wheel: %d, attempt %u", ret,
                         spin_attempt);
-                g_polarizer_wheel_instance.homing.success = false;
-                polarizer_halt();
-                disable_encoder();
-                polarizer_disable_outputs();
-                ORB_STATE_SET_CURRENT(RET_ERROR_INTERNAL, "unable to spin");
-                g_polarizer_wheel_instance.state = STATE_UNINITIALIZED;
                 return;
             }
 
@@ -1051,13 +1052,8 @@ execute_homing(void)
             LOG_WRN("Spin attempt %u, current step counter: %ld", spin_attempt,
                     atomic_get(&g_polarizer_wheel_instance.step_count.current));
             if (spin_attempt == POLARIZER_WHEEL_HOMING_SPIN_ATTEMPTS) {
-                ORB_STATE_SET_CURRENT(RET_ERROR_NOT_INITIALIZED,
+                POLARIZER_HOMING_FAIL(RET_ERROR_NOT_INITIALIZED,
                                       "no encoder: no wheel? stalled?");
-                g_polarizer_wheel_instance.homing.success = false;
-                g_polarizer_wheel_instance.state = STATE_UNINITIALIZED;
-                polarizer_halt();
-                disable_encoder();
-                polarizer_disable_outputs();
                 LOG_WRN(
                     "Encoder not detected, is there a wheel? is it moving?");
                 return;
@@ -1151,13 +1147,7 @@ execute_homing(void)
             return; /* execute_calibration will call execute_homing again */
         }
     } else {
-        disable_encoder();
-        g_polarizer_wheel_instance.homing.success = false;
-        g_polarizer_wheel_instance.state = STATE_UNINITIALIZED;
-        polarizer_halt();
-        polarizer_disable_outputs();
-
-        ORB_STATE_SET_CURRENT(RET_ERROR_NOT_INITIALIZED,
+        POLARIZER_HOMING_FAIL(RET_ERROR_NOT_INITIALIZED,
                               "bumps not correctly detected");
         return;
     }
