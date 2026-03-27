@@ -10,9 +10,8 @@
 #include <math.h>
 #include <stdlib.h>
 #include <utils.h>
-#include <zephyr/drivers/spi.h>
+#include <zephyr/drivers/stepper.h>
 #include <zephyr/kernel.h>
-#include <zephyr/sys/byteorder.h>
 
 LOG_MODULE_REGISTER(mirror, CONFIG_MIRROR_LOG_LEVEL);
 
@@ -30,20 +29,9 @@ static struct async_mirror_command {
 // close from the first end
 #define AUTOHOMING_AWAY_FROM_BARRIER_STEPS ((int32_t)20000)
 
-#define TMC5041_IC_VERSION 0x10
-
-#define TMC5041_REG_GCONF 0x00
-#define REG_INPUT         0x04
-
 const double motors_arm_length_mm[MOTORS_COUNT] = {
     [MOTOR_THETA_ANGLE] = MOTOR_THETA_ARM_LENGTH_MM,
     [MOTOR_PHI_ANGLE] = MOTOR_PHI_ARM_LENGTH_MM};
-
-// initial values [IRUN, SGT]
-const uint8_t motor_irun_sgt[MOTORS_COUNT][2] = {
-    [MOTOR_THETA_ANGLE] = {0x13, 6},
-    [MOTOR_PHI_ANGLE] = {0x13, 6},
-};
 
 /** Motor at Xactual = 0 steps is:
  *      - looking upwards, steps increase when going down
@@ -65,8 +53,7 @@ static motors_refs_t motors_refs[MOTORS_COUNT] = {
 static void
 mirror_set_stepper_position(int32_t position_steps, motor_t mirror)
 {
-    motor_controller_spi_write(TMC5041_REGISTERS[REG_IDX_XTARGET][mirror],
-                               position_steps);
+    stepper_move_to(mirror_get_stepper_dev(mirror), position_steps);
 }
 
 /**
@@ -160,9 +147,13 @@ mirror_check_angle(uint32_t angle_millidegrees, motor_t motor)
 static ret_code_t
 mirror_set_angle_relative(const int32_t angle_millidegrees, const motor_t motor)
 {
-    const int32_t stepper_position_absolute_microsteps =
-        (int32_t)motor_controller_spi_read(
-            TMC5041_REGISTERS[REG_IDX_XACTUAL][motor]);
+    int32_t stepper_position_absolute_microsteps;
+    int err = stepper_get_actual_position(
+        mirror_get_stepper_dev(motor), &stepper_position_absolute_microsteps);
+    if (err) {
+        LOG_ERR("Failed to read actual position for motor %u", motor);
+        return RET_ERROR_INVALID_STATE;
+    }
 
     int32_t stepper_position_from_center_microsteps =
         stepper_position_absolute_microsteps -
@@ -363,40 +354,27 @@ mirror_go_home(void)
 ret_code_t
 mirror_init(void)
 {
-    uint32_t read_value;
+    const struct device *theta_dev = mirror_get_stepper_dev(MOTOR_THETA_ANGLE);
+    const struct device *phi_dev = mirror_get_stepper_dev(MOTOR_PHI_ANGLE);
 
-    if (!motor_spi_ready()) {
-        LOG_ERR("motion controller SPI device not ready");
+    if (!device_is_ready(theta_dev) || !device_is_ready(phi_dev)) {
+        LOG_ERR("Stepper motor devices not ready");
         return RET_ERROR_INVALID_STATE;
-    } else {
-        LOG_INF("Motion controller SPI ready");
     }
+    LOG_INF("Stepper motor devices ready");
 
-#if defined(CONFIG_BOARD_DIAMOND_MAIN)
-    // write TMC5041_REG_GCONF to 0x300 to invert motor direction (bit 8 & 9)
-    motor_controller_spi_write(TMC5041_REG_GCONF, 0x300);
-#endif
-
-    read_value = motor_controller_spi_read(TMC5041_REG_GCONF);
-    LOG_INF("GCONF: 0x%08x", read_value);
-    k_msleep(10);
-
-    read_value = motor_controller_spi_read(REG_INPUT);
-    LOG_INF("Input: 0x%08x", read_value);
-    uint8_t ic_version = (read_value >> 24 & 0xFF);
-
-    if (ic_version != TMC5041_IC_VERSION) {
-        LOG_ERR("Error reading TMC5041");
-        return RET_ERROR_OFFLINE;
+    /* Enable both motors (sets TOFF in CHOPCONF) */
+    int err;
+    err = stepper_enable(theta_dev, true);
+    if (err) {
+        LOG_ERR("Failed to enable theta stepper: %d", err);
+        return RET_ERROR_INVALID_STATE;
     }
-
-    // Set motor in positioning mode
-    motor_controller_spi_send_commands(
-        position_mode_full_speed[MOTOR_PHI_ANGLE],
-        ARRAY_SIZE(position_mode_full_speed[MOTOR_PHI_ANGLE]));
-    motor_controller_spi_send_commands(
-        position_mode_full_speed[MOTOR_THETA_ANGLE],
-        ARRAY_SIZE(position_mode_full_speed[MOTOR_THETA_ANGLE]));
+    err = stepper_enable(phi_dev, true);
+    if (err) {
+        LOG_ERR("Failed to enable phi stepper: %d", err);
+        return RET_ERROR_INVALID_STATE;
+    }
 
     ret_code_t err_code = mirror_homing_overreach_ends_async(motors_refs);
     if (err_code) {
