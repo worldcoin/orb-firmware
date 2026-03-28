@@ -121,6 +121,9 @@
 
         // for gpio based tachometer (coarse estimation)
         fan-main-tach-gpios = <&gpiod 7 GPIO_ACTIVE_HIGH>;
+
+        // request security MCU reboot
+        exp-mcu-rst-rqst-gpios = <&gpio_exp1 11 GPIO_ACTIVE_HIGH>;
     };
 
     buttons {
