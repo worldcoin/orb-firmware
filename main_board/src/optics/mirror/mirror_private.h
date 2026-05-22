@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <zephyr/device.h>
 
 #define MIRROR_ANGLE_PHI_CENTER_MILLIDEGREES   (45000)
 #define MIRROR_ANGLE_THETA_CENTER_MILLIDEGREES (90000)
@@ -102,28 +103,7 @@ typedef enum { MOTOR_PHI_ANGLE = 0, MOTOR_THETA_ANGLE, MOTORS_COUNT } motor_t;
 #endif
 
 // Motors configuration
-#define MOTOR_INIT_VMAX             100000
-#define MOTOR_INIT_AMAX             (MOTOR_INIT_VMAX / 20)
-#define MOTOR_FS_VMAX               800000
-#define IHOLDDELAY                  (1 << 16)
-#define MOTOR_DRV_STATUS_STALLGUARD (1 << 24)
-#define MOTOR_DRV_STATUS_STANDSTILL (1 << 31)
-#define MOTOR_DRV_SW_MODE_SG_STOP   (1 << 10)
-
-typedef enum tmc5041_registers_e {
-    REG_IDX_RAMPMODE,
-    REG_IDX_XACTUAL,
-    REG_IDX_VACTUAL,
-    REG_IDX_VSTART,
-    REG_IDX_VMAX,
-    REG_IDX_XTARGET,
-    REG_IDX_IHOLD_IRUN,
-    REG_IDX_SW_MODE,
-    REG_IDX_RAMP_STAT,
-    REG_IDX_COOLCONF,
-    REG_IDX_DRV_STATUS,
-    REG_IDX_COUNT
-} tmc5041_registers_t;
+#define MOTOR_FS_VMAX 800000
 
 typedef struct {
     int32_t steps_at_center_position; //!< Xtarget (in microsteps) to center
@@ -136,8 +116,6 @@ typedef struct {
     uint32_t angle_millidegrees;
 } motors_refs_t;
 
-extern const uint8_t TMC5041_REGISTERS[REG_IDX_COUNT][MOTORS_COUNT];
-extern const uint64_t position_mode_full_speed[MOTORS_COUNT][10];
 extern const int32_t mirror_center_angles[MOTORS_COUNT];
 
 int32_t
@@ -148,14 +126,10 @@ int32_t
 calculate_microsteps_from_center_position(
     int32_t angle_from_center_millidegrees, const double motors_arm_length_mm);
 
-void
-motor_controller_spi_send_commands(const uint64_t *cmds, size_t num_cmds);
-
-int
-motor_controller_spi_write(uint8_t reg, int32_t value);
-
-uint32_t
-motor_controller_spi_read(uint8_t reg);
-
-bool
-motor_spi_ready();
+/**
+ * Get the Zephyr stepper device for a motor
+ * @param motor MOTOR_THETA_ANGLE or MOTOR_PHI_ANGLE
+ * @return pointer to the stepper device
+ */
+const struct device *
+mirror_get_stepper_dev(motor_t motor);
