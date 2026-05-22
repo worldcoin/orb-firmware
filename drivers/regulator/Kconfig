@@ -1,0 +1,21 @@
+config LM51XX_REGULATOR
+	bool "LM51xx boost converter regulator driver"
+	default y
+	depends on DT_HAS_TFH_LM51XX_ENABLED
+	depends on GPIO
+	depends on REGULATOR
+	help
+	  Enable the driver for LM51xx-family boost converters
+	  (LM5176, LM5144, etc.) controlled via an enable GPIO
+	  and an optional mode GPIO.
+
+if LM51XX_REGULATOR
+
+config LM51XX_REGULATOR_INIT_PRIORITY
+	int "Init priority"
+	default 49
+	help
+	  Device driver initialization priority.
+	  Must be after GPIO expander init on Diamond (PCA95xx = 48).
+
+endif # LM51XX_REGULATOR
