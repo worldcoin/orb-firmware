@@ -10,6 +10,7 @@ This repository contains the MCU firmware for the Worldcoin Orb, built with Zeph
 
 - Keep changes small and compiling.
 - Prefer existing patterns; do not introduce new dependencies without asking.
+- When design intent is unclear, inspect commit history before changing behavior.
 - If unsure, propose 2 options with tradeoffs (don't guess).
 
 ## Path Discovery
@@ -198,6 +199,44 @@ See [Twister documentation](https://docs.zephyrproject.org/latest/develop/test/t
 
 - If the repo defines formatting/lint scripts, run them.
 - Don't reformat unrelated code.
+
+## Design Decision Archaeology
+
+When a requested change touches behavior whose rationale is unclear, treat git history as part of the documentation. Commit messages, old diffs, and PR references often explain why the current design exists.
+
+Use this workflow before changing behavior in non-trivial paths:
+
+1. Identify the relevant files, symbols, Kconfig options, devicetree nodes, and log messages with `rg`.
+2. Inspect file history in the owning repo:
+   ```bash
+   git log --follow --oneline -- <path>
+   git log --follow -p -- <path>
+   ```
+3. Inspect line or symbol history when the relevant code is localized:
+   ```bash
+   git blame -L <start>,<end> -- <path>
+   git log -S'<symbol-or-string>' -- <path>
+   git log -G'<regex>' -- <path>
+   ```
+4. Search commit messages for the design concept and nearby terms:
+   ```bash
+   git log --all --oneline --grep='<keyword>'
+   git log --all --format='%h %ad %s' --date=short --grep='<keyword>'
+   ```
+5. Open the most relevant commits:
+   ```bash
+   git show --stat --find-renames <commit>
+   git show --format=fuller <commit> -- <path>
+   ```
+6. If a commit references a PR, issue, ticket, or design document, inspect it when available. Prefer primary sources over guessing.
+
+Rules:
+
+- Run history commands from the repo that owns the file (`<PUBLIC_REPO>`, `<PRIVATE_REPO>`, Zephyr, or a module repo).
+- If the checkout is shallow or missing older history, say so and ask before fetching deeper history.
+- Do not cargo-cult old behavior. Use history to understand constraints, then compare against the current code and current request.
+- In the final answer, cite any history that affected the implementation: commit hash, date, subject, and what design constraint it revealed.
+- Clearly separate "confirmed by history" from "inferred from current code". If no useful history is found, say that explicitly.
 
 ## Output Expectations
 
