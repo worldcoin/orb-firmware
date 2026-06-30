@@ -99,21 +99,57 @@ runner_successful_jobs_count(void)
     return job_counter;
 }
 
+static bool
+send_ack_to_jetson(uint32_t remote_addr, uint32_t ack_number,
+                   orb_mcu_Ack_ErrorCode error)
+{
+    orb_mcu_Ack ack = {.ack_number = ack_number, .error = error};
+    orb_mcu_McuMessage message = {
+        .version = orb_mcu_Version_VERSION_0,
+        .which_message = orb_mcu_McuMessage_m_message_tag,
+        .message.m_message.which_payload = orb_mcu_main_McuToJetson_ack_tag,
+        .message.m_message.payload.ack = ack,
+    };
+    uint8_t buffer[CAN_FRAME_MAX_SIZE];
+    pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
+    bool encoded = pb_encode_ex(&stream, orb_mcu_McuMessage_fields, &message,
+                                PB_ENCODE_DELIMITED);
+    if (!encoded) {
+        LOG_ERR("Failed to encode ACK #%u: %s", ack_number, stream.errmsg);
+        return false;
+    }
+
+    can_message_t to_send = {
+        .destination = remote_addr,
+        .bytes = buffer,
+        .size = stream.bytes_written,
+    };
+    ret_code_t ret = (remote_addr & CAN_ADDR_IS_ISOTP)
+                         ? can_isotp_messaging_async_tx(&to_send)
+                         : can_messaging_blocking_tx(&to_send);
+    if (ret != RET_SUCCESS) {
+        LOG_ERR("Failed to send ACK #%u to 0x%x: %d", ack_number, remote_addr,
+                ret);
+        return false;
+    }
+
+    return true;
+}
+
 static void
 job_ack(orb_mcu_Ack_ErrorCode error, job_t *job)
 {
+    bool ack_sent = true;
+
     // ack only messages sent using CAN
     if (job->remote == CAN_JETSON_MESSAGING) {
         // get ack number from job
         uint32_t ack_number = job->ack_number;
 
-        orb_mcu_Ack ack = {.ack_number = ack_number, .error = error};
-
-        publish_new(&ack, sizeof(ack), orb_mcu_main_McuToJetson_ack_tag,
-                    job->remote_addr);
+        ack_sent = send_ack_to_jetson(job->remote_addr, ack_number, error);
     }
 
-    if (error == orb_mcu_Ack_ErrorCode_SUCCESS) {
+    if (ack_sent && error == orb_mcu_Ack_ErrorCode_SUCCESS) {
         ++job_counter;
     }
 }
@@ -153,8 +189,10 @@ handle_err_code(void *ctx, int err)
             break;
         }
 
-        publish_new(&ack, sizeof(ack), orb_mcu_main_McuToJetson_ack_tag,
-                    context->remote_addr);
+        if (!send_ack_to_jetson(context->remote_addr, ack.ack_number,
+                                ack.error)) {
+            return;
+        }
     }
 
     if (err == RET_SUCCESS) {
