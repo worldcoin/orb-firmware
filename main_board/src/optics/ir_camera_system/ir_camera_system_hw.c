@@ -1380,7 +1380,7 @@ ir_camera_system_get_fps_hw(void)
 //   * Configure LED timers to last:
 //     remaining time (MASTER_TIMER) + on_time_in_us
 // - Enable IR LEDs (if safe) for RGB-IR camera illumination
-// - Generate MASTER_TIMER UPDATE event to start LED pulse
+// - Start the LED pulse with a TIM4 overflow TRGO (ARR-1), not software UG
 
 static void
 rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
@@ -1481,7 +1481,15 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
             LL_TIM_SetAutoReload(LED_850NM_TIMER, total_duration_us);
             LL_TIM_SetAutoReload(LED_940NM_TIMER, total_duration_us);
 
-            LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
+            // Start the LED one-shots via a real TIM4 overflow TRGO.
+            // Software UG (LL_TIM_GenerateEvent_UPDATE) does not start the
+            // combined-reset-trigger one-pulse slaves, so IR-face stays dark
+            // for mid-length STROBE windows. Overflow is the same path used
+            // on falling-edge park and on the 7500us cap branch.
+            if (global_timer_settings.master_arr > 0) {
+                LL_TIM_SetCounter(MASTER_TIMER,
+                                  global_timer_settings.master_arr - 1);
+            }
         }
     } else {
         ASSERT_SOFT(strobe_level);
