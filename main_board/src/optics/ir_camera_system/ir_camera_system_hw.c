@@ -1372,15 +1372,14 @@ ir_camera_system_get_fps_hw(void)
 // triggering all slaves (TIM15, TIM3, TIM20) to fire one-pulse.
 //
 // On RISING edge (strobe_level == 1):
-// - Calculate remaining time until MASTER_TIMER reaches ARR
-// - If > MAX_IR_LED_ON_TIME_US remaining:
-//   * Adjust MASTER_TIMER counter to trigger earlier by MAX_IR_LED_ON_TIME_US
-//   * Configure LED timers for MAX_IR_LED_ON_TIME_US pulse duration
-// - If <= MAX_IR_LED_ON_TIME_US remaining:
-//   * Configure LED timers to last:
-//     remaining time (MASTER_TIMER) + on_time_in_us
-// - Enable IR LEDs (if safe) for RGB-IR camera illumination
-// - Generate MASTER_TIMER UPDATE event to start LED pulse
+// - Calculate remaining time until the parked MASTER_TIMER overflow
+// - If remaining + on_time > MAX_IR_LED_ON_TIME_US:
+//   * Delay overflow so a 7500us pulse ends 50us before falling
+//     (delay = remaining + on_time - 7500, not remaining - 7500)
+//   * Configure LED timers for MAX_IR_LED_ON_TIME_US
+// - If remaining + on_time <= MAX_IR_LED_ON_TIME_US:
+//   * Configure LED timers to last remaining + on_time
+//   * Start now with CNT = ARR-1 (real overflow TRGO, not software UG)
 
 static void
 rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
@@ -1450,17 +1449,31 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
 
         if (remaining_us + global_timer_settings.on_time_in_us >
             IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US) {
-            // More than max IR duration time left: reconfigure MASTER_TIMER to
-            // trigger before expected time and set IR LEDs pulse to last max
-            // duration time
+            // More than max IR duration left in this IR-face window: run a
+            // 7500us pulse that ends 50us before falling (same RGB guard as
+            // the parked eye pulse).
+            // remaining_us is time until the parked overflow, which is already
+            // (on_time + 50us) before falling. Subtracting 7500us from
+            // remaining_us underflows when on_time is large or the window is
+            // only slightly longer than 7500us (unsigned wrap, dark frames).
+            // Delay from now until that start:
+            //   remaining + on_time - 7500
+            const uint32_t delay_us = remaining_us +
+                                      global_timer_settings.on_time_in_us -
+                                      IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US;
+            const uint32_t delay_ticks =
+                ((uint64_t)delay_us * TIMER_CLOCK_FREQ_MHZ) /
+                (global_timer_settings.master_psc + 1);
 
-            // Set master timer counter so UPDATE occurs
-            // `master_max_ir_leds_tick` before the end of the strobe
-            LL_TIM_SetCounter(
-                MASTER_TIMER,
-                global_timer_settings.master_arr -
-                    (remaining_ticks -
-                     global_timer_settings.master_max_ir_leds_tick));
+            if (delay_ticks > 0 &&
+                delay_ticks < global_timer_settings.master_arr) {
+                LL_TIM_SetCounter(MASTER_TIMER,
+                                  global_timer_settings.master_arr -
+                                      delay_ticks);
+            } else if (global_timer_settings.master_arr > 0) {
+                LL_TIM_SetCounter(MASTER_TIMER,
+                                  global_timer_settings.master_arr - 1);
+            }
 
             LL_TIM_SetAutoReload(LED_850NM_TIMER,
                                  IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US);
@@ -1481,7 +1494,15 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
             LL_TIM_SetAutoReload(LED_850NM_TIMER, total_duration_us);
             LL_TIM_SetAutoReload(LED_940NM_TIMER, total_duration_us);
 
-            LL_TIM_GenerateEvent_UPDATE(MASTER_TIMER);
+            // Start the LED one-shots via a real TIM4 overflow TRGO.
+            // Software UG (LL_TIM_GenerateEvent_UPDATE) does not start the
+            // combined-reset-trigger one-pulse slaves, so IR-face stays dark
+            // for mid-length STROBE windows. Overflow is the same path used
+            // on falling-edge park and on the 7500us cap branch.
+            if (global_timer_settings.master_arr > 0) {
+                LL_TIM_SetCounter(MASTER_TIMER,
+                                  global_timer_settings.master_arr - 1);
+            }
         }
     } else {
         ASSERT_SOFT(strobe_level);
