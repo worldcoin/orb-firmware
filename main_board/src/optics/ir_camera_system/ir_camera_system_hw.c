@@ -1458,18 +1458,18 @@ rgb_ir_strobe_isr(const struct device *port, struct gpio_callback *cb,
             // only slightly longer than 7500us (unsigned wrap, dark frames).
             // Delay from now until that start:
             //   remaining + on_time - 7500
-            const uint32_t delay_us =
-                remaining_us + global_timer_settings.on_time_in_us -
-                IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US;
+            const uint32_t delay_us = remaining_us +
+                                      global_timer_settings.on_time_in_us -
+                                      IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US;
             const uint32_t delay_ticks =
                 ((uint64_t)delay_us * TIMER_CLOCK_FREQ_MHZ) /
                 (global_timer_settings.master_psc + 1);
 
             if (delay_ticks > 0 &&
                 delay_ticks < global_timer_settings.master_arr) {
-                LL_TIM_SetCounter(
-                    MASTER_TIMER,
-                    global_timer_settings.master_arr - delay_ticks);
+                LL_TIM_SetCounter(MASTER_TIMER,
+                                  global_timer_settings.master_arr -
+                                      delay_ticks);
             } else if (global_timer_settings.master_arr > 0) {
                 LL_TIM_SetCounter(MASTER_TIMER,
                                   global_timer_settings.master_arr - 1);
