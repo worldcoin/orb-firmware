@@ -63,6 +63,7 @@
         user-led0-3v3-gpios = <&gpio_exp2 0 GPIO_ACTIVE_LOW>;
         user-led1-3v3-gpios = <&gpio_exp2 1 GPIO_ACTIVE_LOW>;
 
+        power-supply-connected-gpios = <&gpio_exp_pwr_brd 0 GPIO_ACTIVE_HIGH>;
         supply-3v3-ssd-enable-gpios = <&gpio_exp_pwr_brd 2 GPIO_ACTIVE_HIGH>;
         supply-3v3-wifi-enable-gpios = <&gpio_exp1 10 GPIO_ACTIVE_HIGH>;
         supply-5v-enable-gpios = <&gpio_exp_pwr_brd 1 GPIO_ACTIVE_LOW>;
