@@ -40,7 +40,6 @@
     };
 
     zephyr,user {
-        front-unit-pvcc-pwm-mode-gpios = <&gpiof 9 GPIO_ACTIVE_LOW>;
         // This is a mux for who controls the audio amp
         // 1 == MCU
 
@@ -69,8 +68,6 @@
         supply-5v-enable-gpios = <&gpiob 1 GPIO_ACTIVE_LOW>;
         supply-3v3-enable-gpios = <&gpiod 15 GPIO_ACTIVE_HIGH>;
         supply-1v8-enable-gpios = <&gpioe 8 GPIO_ACTIVE_HIGH>;
-        supply-pvcc-enable-gpios = <&gpioe 6 GPIO_ACTIVE_HIGH>;
-        supply-super-cap-enable-gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>;
         supply-vbat-sw-enable-gpios = <&gpiof 10 GPIO_ACTIVE_HIGH>;
 
         // used by boot.c when voltage measurements module is not available yet
@@ -90,6 +87,19 @@
 
         // VREF+ is connected to VDD on EV1...4
         ev1-vref-mv = <3300>;
+    };
+
+    super_cap_charger: super-cap-charger {
+        compatible = "tfh,lm51xx";
+        enable-gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>;
+        regulator-name = "super-cap-charger";
+    };
+
+    pvcc_regulator: pvcc-regulator {
+        compatible = "tfh,lm51xx";
+        enable-gpios = <&gpioe 6 GPIO_ACTIVE_HIGH>;
+        mode-gpios = <&gpiof 9 GPIO_ACTIVE_LOW>;
+        regulator-name = "pvcc";
     };
 
     buttons {
