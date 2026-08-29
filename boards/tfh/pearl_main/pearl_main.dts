@@ -8,6 +8,8 @@
 #define DMAMUX_REQ_USART1_TX 0x19
 #define DMAMUX_REQ_USART3_RX 0x1C
 #define DMAMUX_REQ_USART3_TX 0x1D
+#define DMAMUX_REQ_TIM1_UP   0x2E
+#define DMAMUX_REQ_TIM20_UP  0x5A
 
 #define DMA_CONFIG_DIR_SHIFT 6
 #define DMA_DIR_MEM_TO_PERIPH 1
@@ -456,8 +458,10 @@
         pinctrl-0 = <&tim1_ch1_pc0>;
         pinctrl-names = "default";
         timer-channel = <1>;
-        timer-number = <1>;
-        dma-channel = <1>;
+        dmas = <&dmamux1 1 DMAMUX_REQ_TIM1_UP
+                (STM32_DMA_PERIPH_TX | STM32_DMA_PERIPH_16BITS |
+                 STM32_DMA_PRIORITY_HIGH)>;
+        dma-names = "tx";
         num-leds = <5>;
     };
 };
@@ -563,8 +567,10 @@
         pinctrl-0 = <&tim20_ch2_pe3>;
         pinctrl-names = "default";
         timer-channel = <2>;
-        timer-number = <20>;
-        dma-channel = <2>;
+        dmas = <&dmamux1 2 DMAMUX_REQ_TIM20_UP
+                (STM32_DMA_PERIPH_TX | STM32_DMA_PERIPH_16BITS |
+                 STM32_DMA_PRIORITY_HIGH)>;
+        dma-names = "tx";
         num-leds = <233>;
     };
 };

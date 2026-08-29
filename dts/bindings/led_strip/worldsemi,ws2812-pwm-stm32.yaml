@@ -12,16 +12,17 @@ properties:
     required: true
     description: PWM timer output channel
 
-  timer-number:
-    type: int
+  dmas:
+    type: phandle-array
     required: true
-    description: PWM timer number
+    description: |
+      DMA specifier with channel, slot (DMAMUX request), and config.
+      Example: dmas = <&dmamux1 1 46 (STM32_DMA_PERIPH_TX | STM32_DMA_PERIPH_16BITS | STM32_DMA_PRIORITY_HIGH)>;
 
-  # We are using DMA channel 1 hard coded for now
-  dma-channel:
-    type: int
+  dma-names:
+    type: string-array
     required: true
-    description: DMA Channel to use
+    description: DMA channel name, must be "tx"
 
   num-leds:
     type: int
