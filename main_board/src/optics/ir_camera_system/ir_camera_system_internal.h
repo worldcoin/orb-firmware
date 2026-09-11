@@ -6,6 +6,10 @@
 
 #include <stdbool.h>
 
+/* Diamond shares one STROBE source between the RGB and IR face streams. */
+bool
+ir_camera_system_strobe_sync_is_required(void);
+
 bool
 get_focus_sweep_in_progress(void);
 void

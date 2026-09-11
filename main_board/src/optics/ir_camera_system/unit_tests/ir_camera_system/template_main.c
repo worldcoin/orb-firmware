@@ -38,6 +38,7 @@ extern bool ir_camera_system_initialized;
 extern atomic_t focus_sweep_in_progress;
 extern bool enabled_ir_eye_camera;
 extern bool enabled_ir_face_camera;
+extern bool enabled_rgb_face_camera;
 extern bool enabled_2d_tof_camera;
 extern orb_mcu_main_InfraredLEDs_Wavelength enabled_led_wavelength;
 
@@ -51,6 +52,7 @@ before_each_test(void *fixture)
     atomic_set(&focus_sweep_in_progress, 0);
     enabled_ir_eye_camera = false;
     enabled_ir_face_camera = false;
+    enabled_rgb_face_camera = false;
     enabled_2d_tof_camera = false;
     enabled_led_wavelength =
         orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_NONE;
@@ -63,6 +65,9 @@ before_each_test(void *fixture)
 
     RESET_FAKE(ir_camera_system_enable_ir_face_camera_hw);
     RESET_FAKE(ir_camera_system_disable_ir_face_camera_hw);
+
+    RESET_FAKE(ir_camera_system_enable_rgb_face_camera_hw);
+    RESET_FAKE(ir_camera_system_disable_rgb_face_camera_hw);
 
     RESET_FAKE(ir_camera_system_enable_2d_tof_camera_hw);
     RESET_FAKE(ir_camera_system_disable_2d_tof_camera_hw);
@@ -80,6 +85,39 @@ before_each_test(void *fixture)
 ZTEST_SUITE(ir_camera_system_api, NULL, NULL, before_each_test, NULL, NULL);
 
 ZTEST(ir_camera_system_api, test_empty) { zassert_true(1 == 1); }
+
+ZTEST(ir_camera_system_api, test_rgb_keeps_sync_after_ir_face_stops)
+{
+    zassert_equal(ir_camera_system_init(), RET_SUCCESS);
+    zassert_false(ir_camera_system_strobe_sync_is_required());
+
+    zassert_equal(ir_camera_system_enable_ir_eye_camera(), RET_SUCCESS);
+    zassert_false(ir_camera_system_strobe_sync_is_required());
+
+    zassert_equal(ir_camera_system_enable_rgb_face_camera(), RET_SUCCESS);
+    zassert_true(ir_camera_system_strobe_sync_is_required());
+    zassert_equal(ir_camera_system_enable_ir_face_camera(), RET_SUCCESS);
+    zassert_equal(ir_camera_system_disable_ir_face_camera(), RET_SUCCESS);
+    zassert_true(ir_camera_system_strobe_sync_is_required());
+    zassert_true(ir_camera_system_ir_eye_camera_is_enabled());
+
+    zassert_equal(ir_camera_system_disable_rgb_face_camera(), RET_SUCCESS);
+    zassert_false(ir_camera_system_strobe_sync_is_required());
+}
+
+ZTEST(ir_camera_system_api, test_ir_face_keeps_sync_after_rgb_stops)
+{
+    zassert_equal(ir_camera_system_init(), RET_SUCCESS);
+    zassert_equal(ir_camera_system_enable_ir_face_camera(), RET_SUCCESS);
+    zassert_true(ir_camera_system_strobe_sync_is_required());
+
+    zassert_equal(ir_camera_system_enable_rgb_face_camera(), RET_SUCCESS);
+    zassert_equal(ir_camera_system_disable_rgb_face_camera(), RET_SUCCESS);
+    zassert_true(ir_camera_system_strobe_sync_is_required());
+
+    zassert_equal(ir_camera_system_disable_ir_face_camera(), RET_SUCCESS);
+    zassert_false(ir_camera_system_strobe_sync_is_required());
+}
 
 ZTEST(ir_camera_system_api, test_init_fail)
 {

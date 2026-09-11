@@ -182,6 +182,12 @@ MAKE_CAMERA_ENABLE_DISABLE_GET_FUNCTIONS(ir_face)
 MAKE_CAMERA_ENABLE_DISABLE_GET_FUNCTIONS(2d_tof)
 MAKE_CAMERA_ENABLE_DISABLE_GET_FUNCTIONS(rgb_face)
 
+bool
+ir_camera_system_strobe_sync_is_required(void)
+{
+    return enabled_ir_face_camera || enabled_rgb_face_camera;
+}
+
 ret_code_t
 ir_camera_system_enable_leds(orb_mcu_main_InfraredLEDs_Wavelength wavelength)
 {

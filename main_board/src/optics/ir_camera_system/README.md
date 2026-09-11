@@ -60,6 +60,23 @@ On the Diamond Orb, the start delay of the camera triggers (CAMERA_TRIGGER_TIMER
 larger value than the start delay of the IR LEDs (IR_LED_TIMER_START_DELAY_US). This is done because the constant
 current sources need approximately 50us to ramp up the LED current (measured 36 to 44us).
 
+### Diamond face-stream synchronization
+
+The RGB and IR face streams share the RGB/IR camera's STROBE signal. Either stream being enabled requires strobe
+synchronization, including when IR-eye capture continues after the IR face stream is stopped. Starting RGB alone
+enables both-edge STROBE interrupts; stopping one face stream leaves them enabled while the other stream is active.
+FPS, on-time, and wavelength changes must preserve this ownership and defer LED activation to a strobe boundary.
+Only when both face streams are disabled does the MCU resume free-running IR timing.
+
+The MCU's face start pulse starts autonomous capture; userspace is responsible for stopping the actual streams before
+sending their stop notifications. STROBE must remain available while either face stream runs. This module currently
+has no missing-STROBE watchdog, so interrupt ownership does not by itself prove synchronization is healthy.
+
+For regression testing, `test_face_streams_share_strobe_interrupt` checks Diamond EXTI ownership for both stop orders.
+On a camera-equipped Diamond, also scope PC0 (STROBE), PF2 (IR-eye trigger), and the selected IR LED gate while toggling
+IR face with RGB and IR eye active. Repeat while updating FPS, on-time, and wavelength; pulses must retain their phase
+relative to STROBE. Verify that PC0 continues toggling when userspace stops the IR face stream.
+
 ### Timer Configuration:
 
 - Master Timer (Timer 4):

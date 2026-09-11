@@ -963,10 +963,8 @@ apply_new_timer_settings()
     LL_TIM_SetAutoReload(MASTER_TIMER, global_timer_settings.master_arr);
 
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
-    // explicitly disable the ir eye camera trigger when applying new settings
-    // in case face camera is enabled, since it's gonna synchronize with
-    // the strobe signal
-    if (!ir_camera_system_ir_face_camera_is_enabled()) {
+    // Apply eye timing at the strobe boundary while either face stream runs.
+    if (!ir_camera_system_strobe_sync_is_required()) {
         camera_enable_trigger(ir_camera_system_ir_eye_camera_is_enabled(),
                               IR_EYE_CAMERA_TRIGGER_TIMER_CHANNEL);
     }
@@ -981,8 +979,8 @@ apply_new_timer_settings()
 
     ir_leds_set_pulse_length();
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
-    // in case face camera is enabled, wait for interrupt to enable the IR LEDs
-    if (!ir_camera_system_ir_face_camera_is_enabled()) {
+    // Wait for STROBE even when only the RGB face stream is running.
+    if (!ir_camera_system_strobe_sync_is_required()) {
         ir_leds_enable_pulse();
         ir_camera_triggered = true;
     }
@@ -1183,6 +1181,28 @@ ir_camera_system_disable_ir_eye_camera_hw(void)
 
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
 static void
+enable_face_strobe(void)
+{
+    // Suppress any free-running illumination until the next strobe boundary.
+    ir_leds_disable_all();
+    const int ret = gpio_pin_interrupt_configure_dt(&rgb_ir_face_strobe,
+                                                    GPIO_INT_EDGE_BOTH);
+    ASSERT_SOFT(ret);
+}
+
+static void
+disable_face_strobe_if_unused(void)
+{
+    // Public camera state is updated before the hardware callback runs.
+    if (!ir_camera_system_strobe_sync_is_required()) {
+        const int ret = gpio_pin_interrupt_configure_dt(&rgb_ir_face_strobe,
+                                                        GPIO_INT_DISABLE);
+        ASSERT_SOFT(ret);
+        apply_new_timer_settings();
+    }
+}
+
+static void
 camera_trigger_rgb_ir_face_cam(void)
 {
     // send a pulse to trigger the rgb-ir camera
@@ -1205,12 +1225,7 @@ ir_camera_system_enable_ir_face_camera_hw(void)
      * to be used to trigger the ir eye camera and ir leds from the strobe isr.
      */
 
-    // enable isr
-    int ret;
-    ret = gpio_pin_interrupt_configure_dt(&rgb_ir_face_strobe,
-                                          GPIO_INT_EDGE_BOTH);
-    ASSERT_SOFT(ret);
-
+    enable_face_strobe();
     camera_trigger_rgb_ir_face_cam();
 #else
     camera_enable_trigger(true, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
@@ -1224,6 +1239,7 @@ void
 ir_camera_system_enable_rgb_face_camera_hw(void)
 {
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
+    enable_face_strobe();
     camera_trigger_rgb_ir_face_cam();
 #endif
     /* nothing to do on pearl */
@@ -1232,16 +1248,17 @@ ir_camera_system_enable_rgb_face_camera_hw(void)
 void
 ir_camera_system_disable_rgb_face_camera_hw(void)
 {
-    /* cannot disable from mcu */
+    /* Capture is stopped by userspace; retain sync if IR face still runs. */
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+    disable_face_strobe_if_unused();
+#endif
 }
 
 void
 ir_camera_system_disable_ir_face_camera_hw(void)
 {
 #if CONFIG_BOARD_DIAMOND_MAIN
-    const int err_code =
-        gpio_pin_interrupt_configure_dt(&rgb_ir_face_strobe, GPIO_INT_DISABLE);
-    ASSERT_SOFT(err_code);
+    disable_face_strobe_if_unused();
 #else
     camera_enable_trigger(false, IR_FACE_CAMERA_TRIGGER_TIMER_CHANNEL);
 #endif
@@ -1305,7 +1322,7 @@ ir_camera_system_set_on_time_us_hw(uint16_t on_time_us)
         LOG_ERR("Error setting new on-time");
     } else {
 #ifdef CONFIG_BOARD_DIAMOND_MAIN
-        if (!ir_camera_system_ir_face_camera_is_enabled()) {
+        if (!ir_camera_system_strobe_sync_is_required()) {
             apply_new_timer_settings();
         }
 #else
@@ -1327,7 +1344,13 @@ ir_camera_system_enable_leds_hw(void)
     CRITICAL_SECTION_ENTER(k);
 
     ir_leds_set_pulse_length();
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+    if (!ir_camera_system_strobe_sync_is_required()) {
+        ir_leds_enable_pulse();
+    }
+#else
     ir_leds_enable_pulse();
+#endif
 
     CRITICAL_SECTION_EXIT(k);
 

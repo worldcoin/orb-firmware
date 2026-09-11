@@ -7,6 +7,9 @@
 #include <can_messaging.h>
 #include <pb_encode.h>
 #include <runner/runner.h>
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+#include <soc.h>
+#endif
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 
@@ -18,6 +21,36 @@
 LOG_MODULE_REGISTER(ir_camera_system_tests_init);
 
 static const uint16_t low_fps = 20;
+
+#ifdef CONFIG_BOARD_DIAMOND_MAIN
+ZTEST(ir_camera, test_face_streams_share_strobe_interrupt)
+{
+    const uint32_t strobe_line =
+        BIT(DT_GPIO_PIN(DT_PATH(zephyr_user), rgb_ir_face_strobe_gpios));
+
+    zassert_equal(ir_camera_system_disable_ir_face_camera(), RET_SUCCESS);
+    zassert_equal(ir_camera_system_disable_rgb_face_camera(), RET_SUCCESS);
+    zassert_equal(EXTI->IMR1 & strobe_line, 0);
+
+    zassert_equal(ir_camera_system_enable_rgb_face_camera(), RET_SUCCESS);
+    zassert_not_equal(EXTI->IMR1 & strobe_line, 0);
+    zassert_equal(ir_camera_system_enable_ir_face_camera(), RET_SUCCESS);
+    zassert_equal(ir_camera_system_disable_ir_face_camera(), RET_SUCCESS);
+    zassert_not_equal(EXTI->IMR1 & strobe_line, 0,
+                      "Stopping IR face must preserve RGB synchronization");
+    zassert_equal(ir_camera_system_disable_rgb_face_camera(), RET_SUCCESS);
+    zassert_equal(EXTI->IMR1 & strobe_line, 0);
+
+    zassert_equal(ir_camera_system_enable_ir_face_camera(), RET_SUCCESS);
+    zassert_not_equal(EXTI->IMR1 & strobe_line, 0);
+    zassert_equal(ir_camera_system_enable_rgb_face_camera(), RET_SUCCESS);
+    zassert_equal(ir_camera_system_disable_rgb_face_camera(), RET_SUCCESS);
+    zassert_not_equal(EXTI->IMR1 & strobe_line, 0,
+                      "Stopping RGB must preserve IR face synchronization");
+    zassert_equal(ir_camera_system_disable_ir_face_camera(), RET_SUCCESS);
+    zassert_equal(EXTI->IMR1 & strobe_line, 0);
+}
+#endif
 
 // These tests are intended to be observed with a logic analyzer
 
