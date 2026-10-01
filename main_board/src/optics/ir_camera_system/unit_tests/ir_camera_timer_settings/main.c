@@ -4,6 +4,66 @@
 ZTEST_SUITE(timer_settings_on_time, NULL, NULL, NULL, NULL, NULL);
 ZTEST_SUITE(timer_settings_fps, NULL, NULL, NULL, NULL, NULL);
 
+ZTEST(timer_settings_on_time, test_strobe_delay_precision_all_valid_settings)
+{
+    struct ir_camera_timer_settings settings = {0};
+
+    for (uint16_t fps = 1; fps <= IR_CAMERA_SYSTEM_MAX_FPS; ++fps) {
+        settings = (struct ir_camera_timer_settings){0};
+        zassert_equal(RET_SUCCESS,
+                      timer_settings_from_fps(fps, &settings, &settings), "");
+        const uint16_t max_on_time =
+            MIN(250000UL / fps, IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US);
+
+        for (uint16_t on_time = 0; on_time <= max_on_time; ++on_time) {
+            zassert_equal(
+                RET_SUCCESS,
+                timer_settings_from_on_time_us(on_time, &settings, &settings),
+                "");
+            const uint32_t delay_us =
+                1000000UL / fps - on_time -
+                IR_CAMERA_SYSTEM_NEXT_STROBE_END_MARGIN_US;
+            const uint64_t tick_scaled =
+                (uint64_t)(settings.master_psc + 1) * 1000000UL;
+            const uint64_t programmed_scaled =
+                (settings.master_arr - settings.master_initial_counter) *
+                tick_scaled;
+            const uint64_t target_scaled =
+                (uint64_t)delay_us * TIMER_CLOCK_FREQ_HZ;
+
+            zassert_true(programmed_scaled <= target_scaled &&
+                             target_scaled - programmed_scaled < tick_scaled,
+                         "Delay error exceeds one tick at %u fps, %u us", fps,
+                         on_time);
+        }
+    }
+}
+
+ZTEST(timer_settings_on_time, test_strobe_delay_has_no_100us_jump)
+{
+    struct ir_camera_timer_settings settings = {0};
+    zassert_equal(RET_SUCCESS,
+                  timer_settings_from_fps(30, &settings, &settings), "");
+    zassert_equal(RET_SUCCESS,
+                  timer_settings_from_on_time_us(383, &settings, &settings),
+                  "");
+    const uint32_t previous_ticks =
+        settings.master_arr - settings.master_initial_counter;
+
+    zassert_equal(RET_SUCCESS,
+                  timer_settings_from_on_time_us(384, &settings, &settings),
+                  "");
+    const uint32_t ticks =
+        settings.master_arr - settings.master_initial_counter;
+    // A 1us increase in requested on-time must advance the trigger by less
+    // than 2us at 30fps, rather than jumping across a 100us boundary.
+    zassert_true(previous_ticks > ticks, "Trigger must move earlier");
+    zassert_true((uint64_t)(previous_ticks - ticks) *
+                         (settings.master_psc + 1) * 1000000UL <
+                     2ULL * TIMER_CLOCK_FREQ_HZ,
+                 "A 1us adjustment caused a large trigger jump");
+}
+
 ZTEST(timer_settings_on_time, test_on_time_set_0us_with_0_fps)
 {
     struct ir_camera_timer_settings settings = {0};
