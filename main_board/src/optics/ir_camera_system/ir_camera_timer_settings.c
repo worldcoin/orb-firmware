@@ -35,10 +35,8 @@ compute_master_timer_durations(struct ir_camera_timer_settings *settings)
                               settings->on_time_in_us -
                               IR_CAMERA_SYSTEM_NEXT_STROBE_END_MARGIN_US;
 
-    // Keep microsecond precision until the final conversion to master ticks.
-    // Dividing delay_us first would move the pulse up to 99us early, reducing
-    // illumination during short IR-face exposures. Use 64 bits for the product
-    // to avoid overflow without introducing 100us scheduling steps.
+    // Convert delay to timer ticks
+    // Timer ticks = delay_us * TIMER_CLOCK_FREQ_HZ / (prescaler + 1) / 1000000
     const uint64_t tick_divisor =
         (uint64_t)(settings->master_psc + 1) * 1000000UL;
     const uint32_t delay_ticks =
