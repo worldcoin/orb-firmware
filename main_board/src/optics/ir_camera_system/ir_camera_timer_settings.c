@@ -37,10 +37,10 @@ compute_master_timer_durations(struct ir_camera_timer_settings *settings)
 
     // Convert delay to timer ticks
     // Timer ticks = delay_us * TIMER_CLOCK_FREQ_HZ / (prescaler + 1) / 1000000
-    // several steps needed to avoid overflow
-    uint32_t delay_ticks = TIMER_CLOCK_FREQ_HZ / (settings->master_psc + 1);
-    delay_ticks *= (delay_us / 100);
-    delay_ticks /= 10000;
+    const uint64_t tick_divisor =
+        (uint64_t)(settings->master_psc + 1) * 1000000UL;
+    const uint32_t delay_ticks =
+        ((uint64_t)delay_us * TIMER_CLOCK_FREQ_HZ) / tick_divisor;
 
     if (delay_ticks < settings->master_arr) {
         settings->master_initial_counter = settings->master_arr - delay_ticks;
@@ -49,11 +49,10 @@ compute_master_timer_durations(struct ir_camera_timer_settings *settings)
     }
 
     // compute max IR LED pulse length in master timer ticks
-    uint32_t max_ir_led_duration_ticks =
-        TIMER_CLOCK_FREQ_HZ / (settings->master_psc + 1);
-    max_ir_led_duration_ticks *=
-        ((IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US) / 100);
-    max_ir_led_duration_ticks /= 10000;
+    const uint32_t max_ir_led_duration_ticks =
+        ((uint64_t)IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US *
+         TIMER_CLOCK_FREQ_HZ) /
+        tick_divisor;
     settings->master_max_ir_leds_tick = max_ir_led_duration_ticks;
 }
 #endif

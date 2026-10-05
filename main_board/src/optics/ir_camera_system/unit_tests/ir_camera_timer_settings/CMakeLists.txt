@@ -13,6 +13,8 @@ get_filename_component(APP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../.." ABSO
 get_filename_component(ORB_DIR "${APP_DIR}/.." ABSOLUTE)
 
 add_compile_definitions(IR_CAMERA_UNIT_TESTS=1)
+# Exercise Diamond's STROBE scheduling as well as the common timer settings.
+target_compile_definitions(testbinary PRIVATE CONFIG_BOARD_DIAMOND_MAIN=1)
 
 target_include_directories(testbinary PRIVATE
     mock_include

@@ -4,6 +4,31 @@
 ZTEST_SUITE(timer_settings_on_time, NULL, NULL, NULL, NULL, NULL);
 ZTEST_SUITE(timer_settings_fps, NULL, NULL, NULL, NULL, NULL);
 
+ZTEST(timer_settings_on_time, test_strobe_delay_has_no_100us_jump)
+{
+    struct ir_camera_timer_settings settings = {0};
+    zassert_equal(RET_SUCCESS,
+                  timer_settings_from_fps(30, &settings, &settings), "");
+    zassert_equal(RET_SUCCESS,
+                  timer_settings_from_on_time_us(383, &settings, &settings),
+                  "");
+    const uint32_t previous_ticks =
+        settings.master_arr - settings.master_initial_counter;
+
+    zassert_equal(RET_SUCCESS,
+                  timer_settings_from_on_time_us(384, &settings, &settings),
+                  "");
+    const uint32_t ticks =
+        settings.master_arr - settings.master_initial_counter;
+    // A 1us increase in requested on-time must advance the trigger by less
+    // than 2us at 30fps, rather than jumping across a 100us boundary.
+    zassert_true(previous_ticks > ticks, "Trigger must move earlier");
+    zassert_true((uint64_t)(previous_ticks - ticks) *
+                         (settings.master_psc + 1) * 1000000UL <
+                     2ULL * TIMER_CLOCK_FREQ_HZ,
+                 "A 1us adjustment caused a large trigger jump");
+}
+
 ZTEST(timer_settings_on_time, test_on_time_set_0us_with_0_fps)
 {
     struct ir_camera_timer_settings settings = {0};
