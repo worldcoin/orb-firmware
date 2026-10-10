@@ -13,6 +13,13 @@ uint32_t
 runner_successful_jobs_count(void);
 
 /**
+ * @brief Get the number of received Jetson messages
+ * @return number of received Jetson messages
+ */
+uint32_t
+runner_jetson_messages_count(void);
+
+/**
  * Queue new message to be processed, from CAN bus
  *
  * @note The function blocks 5ms if the queue is full.
