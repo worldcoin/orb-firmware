@@ -22,6 +22,12 @@ static struct k_mutex *als_i2c_mux_mutex;
 
 #define ERROR_STATE_COUNT 3
 
+#if defined(CONFIG_BOARD_DIAMOND_MAIN)
+#define ALS_SAMPLE_INTERVAL_MS 105
+#else
+#define ALS_SAMPLE_INTERVAL_MS 1000
+#endif
+
 static void
 als_thread()
 {
@@ -31,7 +37,7 @@ als_thread()
     size_t error_count = 0;
 
     while (1) {
-        k_msleep(1000);
+        k_msleep(ALS_SAMPLE_INTERVAL_MS);
 
         if (k_mutex_lock(als_i2c_mux_mutex, K_MSEC(100)) == 0) {
             als.flag = orb_mcu_main_AmbientLight_Flags_ALS_OK;
@@ -73,7 +79,7 @@ als_thread()
                 als.ambient_light_lux = als_value.val1;
             }
 
-            LOG_INF("Ambient light: %s %u.%06u lux",
+            LOG_DBG("Ambient light: %s %u.%06u lux",
                     als.flag == orb_mcu_main_AmbientLight_Flags_ALS_ERR_RANGE
                         ? "out of range"
                         : "",
