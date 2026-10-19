@@ -27,6 +27,25 @@ config DT_HAS_DIAMOND_CONE_ENABLED
 	def_bool $(dt_nodelabel_enabled,cone_spi_bridge)
 	select SC18IS606
 
+config JETSON_FIRST_MESSAGE_TIMEOUT
+    bool "Reset the Orb if Jetson never sends a message after boot"
+    depends on BOARD_DIAMOND_MAIN
+    default y
+    help
+      If no Jetson message is received within
+      CONFIG_JETSON_FIRST_MESSAGE_TIMEOUT_S of the Jetson being powered on,
+      assume it's dead/unresponsive and reset the MCU (NVIC_SystemReset),
+      which power-cycles the whole Orb.
+
+config JETSON_FIRST_MESSAGE_TIMEOUT_S
+    int "Timeout before JETSON_FIRST_MESSAGE_TIMEOUT resets the Orb"
+    depends on JETSON_FIRST_MESSAGE_TIMEOUT
+    default 600
+    help
+      Number of seconds after the Jetson is powered on to wait for the
+      first Jetson message before resetting the Orb. Overridable per build
+      (e.g. for bench/HIL verification without waiting 10 minutes).
+
 comment "Developer options"
 
 config HIL_TESTS

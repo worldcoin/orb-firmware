@@ -33,6 +33,7 @@
 #include <uart_messaging.h>
 #include <ui/rgb_leds/front_leds/front_leds.h>
 #include <zephyr/kernel.h>
+#include <zephyr/sys/atomic.h>
 
 #if defined(CONFIG_BOARD_DIAMOND_MAIN)
 #include "ui/rgb_leds/cone_leds/cone_leds.h"
@@ -56,6 +57,7 @@ static k_tid_t runner_tid = NULL;
 #define MAKE_ASSERTS(tag) ASSERT_SOFT_BOOL(msg->which_payload == tag)
 
 static uint32_t job_counter = 0;
+static atomic_t jetson_message_counter = ATOMIC_INIT(0);
 
 enum remote_type_e {
     CAN_JETSON_MESSAGING,
@@ -97,6 +99,12 @@ uint32_t
 runner_successful_jobs_count(void)
 {
     return job_counter;
+}
+
+uint32_t
+runner_jetson_messages_count(void)
+{
+    return (uint32_t)atomic_get(&jetson_message_counter);
 }
 
 static void
@@ -1952,6 +1960,7 @@ runner_handle_new_can(can_message_t *msg)
         if (decoded) {
             if (mcu_message.which_message == orb_mcu_McuMessage_j_message_tag) {
                 // Handle Jetson messages
+                atomic_inc(&jetson_message_counter);
                 new.remote = CAN_JETSON_MESSAGING;
                 new.message.jetson_cmd = mcu_message.message.j_message;
                 new.ack_number = mcu_message.message.j_message.ack_number;

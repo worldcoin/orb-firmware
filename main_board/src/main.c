@@ -199,6 +199,35 @@ heartbeat_timeout_handler(void)
     return 0;
 }
 
+#if defined(CONFIG_JETSON_FIRST_MESSAGE_TIMEOUT)
+static int
+jetson_first_message_timeout_handler(void)
+{
+    if (runner_jetson_messages_count() > 0) {
+        return 0;
+    }
+
+    const int32_t shutdown_delay_ms = 5000;
+    const orb_mcu_main_ShutdownScheduled shutdown = {
+        .shutdown_reason =
+            orb_mcu_main_ShutdownScheduled_ShutdownReason_HEARTBEAT_TIMEOUT,
+        .ms_until_shutdown = shutdown_delay_ms};
+    publish_new((void *)&shutdown, sizeof(shutdown),
+                orb_mcu_main_McuToJetson_shutdown_tag,
+                CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
+
+    k_msleep(shutdown_delay_ms);
+
+#ifdef CONFIG_MEMFAULT
+    MEMFAULT_REBOOT_MARK_RESET_IMMINENT(
+        kMfltRebootReason_JetsonFirstMessageTimeout);
+#endif
+
+    NVIC_SystemReset();
+    return 0;
+}
+#endif
+
 static void
 send_reset_reason(void)
 {
@@ -243,12 +272,19 @@ __maybe_unused static void
 wait_jetson_up(void)
 {
     LOG_INF("Waiting for messages from the Jetson...");
+#if defined(CONFIG_JETSON_FIRST_MESSAGE_TIMEOUT)
+    const int64_t wait_started_ms = k_uptime_get();
+    const int64_t timeout_ms =
+        (int64_t)CONFIG_JETSON_FIRST_MESSAGE_TIMEOUT_S * MSEC_PER_SEC;
+#endif
+
     // wait for Jetson to show activity before sending our version
     while (!jetson_up_and_running) {
         k_msleep(5000);
+        const uint32_t jetson_messages_count = runner_jetson_messages_count();
 
         // as soon as the Jetson sends the first message, send firmware version
-        if (runner_successful_jobs_count() > 0) {
+        if (jetson_messages_count > 0) {
             version_fw_send(CONFIG_CAN_ADDRESS_MCU_TO_JETSON_TX);
 
             uint32_t error_count = app_assert_soft_count();
@@ -260,6 +296,15 @@ wait_jetson_up(void)
 
             jetson_up_and_running = true;
         }
+
+#if defined(CONFIG_JETSON_FIRST_MESSAGE_TIMEOUT)
+        if (jetson_messages_count == 0 &&
+            (k_uptime_get() - wait_started_ms) > timeout_ms) {
+            LOG_ERR("No message received from Jetson within %us, resetting Orb",
+                    CONFIG_JETSON_FIRST_MESSAGE_TIMEOUT_S);
+            jetson_first_message_timeout_handler();
+        }
+#endif
     }
 }
 
