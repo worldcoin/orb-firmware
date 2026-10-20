@@ -7,6 +7,8 @@
 #include <app_assert.h>
 #include <app_config.h>
 #include <pubsub/pubsub.h>
+#include <zephyr/drivers/stepper.h>
+#include <zephyr/drivers/stepper/stepper_trinamic.h>
 #include <zephyr/kernel/thread.h>
 #include <zephyr/logging/log.h>
 
@@ -38,6 +40,28 @@ const uint32_t motors_full_stroke_steps_maximum_steps[MOTORS_COUNT] = {
 #define AUTOHOMING_TIMEOUT_LOOP_COUNT                                          \
     (AUTOHOMING_TIMEOUT_MS / AUTOHOMING_POLL_DELAY_MS)
 
+static const struct tmc_ramp_generator_data full_speed_ramp = {
+    .a1 = 32768,
+    .v1 = 600000,
+    .amax = 4096,
+    .vmax = MOTOR_FS_VMAX,
+    .dmax = 4096,
+    .d1 = 32768,
+    .vstop = 16,
+    .iholdrun = (16 << 8) | (0 << 0) | (1 << 16),
+};
+
+static const struct tmc_ramp_generator_data homing_ramp = {
+    .a1 = 32768,
+    .v1 = 300000,
+    .amax = 4096,
+    .vmax = MOTOR_FS_VMAX / 2,
+    .dmax = 4096,
+    .d1 = 32768,
+    .vstop = 16,
+    .iholdrun = (16 << 8) | (0 << 0) | (1 << 16),
+};
+
 void
 mirror_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
 {
@@ -46,38 +70,36 @@ mirror_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
 
     motors_refs_t *motor_handle = p1;
     uint32_t motor = (uint32_t)p2;
-    uint32_t status = 0;
     int32_t timeout = AUTOHOMING_TIMEOUT_LOOP_COUNT;
+    const struct device *dev = mirror_get_stepper_dev(motor);
 
     motor_handle->auto_homing_state = AH_UNINIT;
     while (motor_handle->auto_homing_state != AH_SUCCESS && timeout) {
-        status = motor_controller_spi_read(
-            TMC5041_REGISTERS[REG_IDX_DRV_STATUS][motor]);
+        bool is_moving = true;
+        stepper_is_moving(dev, &is_moving);
 
-        LOG_DBG("Status %d 0x%08x, state %u", motor, status,
+        LOG_DBG("Motor %d %s, state %u", motor,
+                is_moving ? "moving" : "standing",
                 motor_handle->auto_homing_state);
 
         switch (motor_handle->auto_homing_state) {
         case AH_UNINIT: {
-            // write xactual = 0
-            motor_controller_spi_write(
-                TMC5041_REGISTERS[REG_IDX_XACTUAL][motor], 0x0);
+            // set reference position to 0
+            stepper_set_reference_position(dev, 0);
 
-            motor_controller_spi_send_commands(
-                position_mode_full_speed[motor],
-                ARRAY_SIZE(position_mode_full_speed[motor]));
+            // set homing ramp (reduced speed)
+            tmc50xx_stepper_set_ramp(dev, &homing_ramp);
+
             int32_t steps = -motors_full_stroke_steps_maximum_steps[motor];
             LOG_INF("Steps to one end: %i", steps);
-            motor_controller_spi_write(
-                TMC5041_REGISTERS[REG_IDX_XTARGET][motor], steps);
+            stepper_move_to(dev, steps);
             motor_handle->auto_homing_state = AH_GO_HOME;
         } break;
 
         case AH_GO_HOME: {
-            if (status & MOTOR_DRV_STATUS_STANDSTILL) {
-                // write xactual = 0
-                motor_controller_spi_write(
-                    TMC5041_REGISTERS[REG_IDX_XACTUAL][motor], 0x0);
+            if (!is_moving) {
+                // set reference position to 0 at end stop
+                stepper_set_reference_position(dev, 0);
 
                 motor_handle->steps_at_center_position =
                     (int32_t)motors_center_from_end_steps[motor];
@@ -85,15 +107,13 @@ mirror_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
                     motors_full_range_steps[motor];
 
                 // go to middle position
-                motor_controller_spi_write(
-                    TMC5041_REGISTERS[REG_IDX_XTARGET][motor],
-                    motor_handle->steps_at_center_position);
+                stepper_move_to(dev, motor_handle->steps_at_center_position);
 
                 motor_handle->auto_homing_state = AH_WAIT_STANDSTILL;
             }
         } break;
         case AH_WAIT_STANDSTILL: {
-            if (status & MOTOR_DRV_STATUS_STANDSTILL) {
+            if (!is_moving) {
                 uint32_t angle_range_millidegrees =
                     2 *
                     calculate_millidegrees_from_center_position(
@@ -127,10 +147,8 @@ mirror_auto_homing_one_end_thread(void *p1, void *p2, void *p3)
         k_msleep(AUTOHOMING_POLL_DELAY_MS);
     }
 
-    // in any case, we want the motor to be in positioning mode
-    motor_controller_spi_send_commands(
-        position_mode_full_speed[motor],
-        ARRAY_SIZE(position_mode_full_speed[motor]));
+    // restore full-speed ramp
+    tmc50xx_stepper_set_ramp(dev, &full_speed_ramp);
 
     // keep auto-homing state
     if (timeout == 0) {
