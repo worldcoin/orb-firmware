@@ -1,0 +1,41 @@
+# Copyright (c) 2025 Tools for Humanity Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  LM51xx-family boost converter (LM5176, LM5144, etc.) controlled via
+  an enable GPIO and an optional mode GPIO.
+
+  Unlike regulator-fixed, this driver configures GPIOs as
+  GPIO_OUTPUT_INACTIVE at init so PCA95xx expanders (whose output
+  register defaults to all-1s) do not briefly enable the converter
+  at boot.
+
+  The optional mode-gpios pin (FPWM / diode-emulation select) is
+  initialised to inactive (diode-emulation) and may be toggled at
+  runtime by other subsystems via its gpio_dt_spec.
+
+include:
+  - name: base.yaml
+  - name: regulator.yaml
+    property-allowlist:
+      - regulator-name
+      - regulator-boot-on
+      - regulator-always-on
+
+compatible: "tfh,lm51xx"
+
+properties:
+  regulator-name:
+    required: true
+
+  enable-gpios:
+    type: phandle-array
+    required: true
+    description: GPIO to enable/disable the converter.
+
+  mode-gpios:
+    type: phandle-array
+    description: |
+      Optional GPIO for FPWM / diode-emulation mode select.
+      Configured as GPIO_OUTPUT_INACTIVE at init (diode-emulation).
+      May be toggled at runtime by other subsystems.
