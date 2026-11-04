@@ -114,7 +114,8 @@ ZTEST(timer_settings_on_time, test_on_time_with_corresponding_max_fps)
 
     fps = 59;
     duty_cycle = IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE;
-    on_time_us = (1000000.0 / fps) * duty_cycle;
+    on_time_us = MIN(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US,
+                     (1000000.0 / fps) * duty_cycle);
 
     ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
@@ -141,9 +142,10 @@ ZTEST(timer_settings_on_time, test_on_time_with_corresponding_max_fps_plus_1)
     ret_code_t ret;
     double duty_cycle;
 
-    fps = 59;
+    fps = IR_CAMERA_SYSTEM_MAX_FPS;
     duty_cycle = IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE;
-    on_time_us = (1000000.0 / fps) * duty_cycle;
+    on_time_us = MIN(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US,
+                     (1000000.0 / fps) * duty_cycle);
     fps++; // too high
 
     ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
@@ -302,7 +304,8 @@ ZTEST(timer_settings_on_time,
 
     fps = 60;
     duty_cycle = IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE;
-    on_time_us = (1000000.0 / fps) * duty_cycle;
+    on_time_us = MIN(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US,
+                     (1000000.0 / fps) * duty_cycle);
 
     ret = timer_settings_from_on_time_us(on_time_us, &settings, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
@@ -311,8 +314,7 @@ ZTEST(timer_settings_on_time,
     zassert_equal(0, ts.master_psc, "must be 0, actual %u", ts.master_psc);
     zassert_equal(0, ts.master_arr, "must be 0, actual %u", ts.master_arr);
 
-    // 60 fps is the minimum FPS which is valid for an on-time of 2500 (Pearl),
-    // 4166 (Diamond)
+    // Use the tighter of the pulse-duration and duty-cycle limits at 60fps.
     ret = timer_settings_from_fps(fps, &ts, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, on_time_us, "must be on_time_us");
@@ -403,10 +405,10 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_increase_to_an_invalid_fps)
 
     fps = 60;
     duty_cycle = IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE;
-    on_time_us = (1000000.0 / fps) * duty_cycle;
+    on_time_us = MIN(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US,
+                     (1000000.0 / fps) * duty_cycle);
 
-    // 60 fps is the minimum FPS which is valid for an on-time of 2500 (Pearl),
-    // 4166 (Diamond)
+    // Use the tighter of the pulse-duration and duty-cycle limits at 60fps.
     ret = timer_settings_from_fps(fps, &settings, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
     zassert_equal(ts.on_time_in_us, 0, "must be 0");
@@ -489,7 +491,8 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_lower_fps)
 
     fps = 60;
     duty_cycle = IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE;
-    on_time_us = (1000000.0 / fps) * duty_cycle;
+    on_time_us = MIN(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US,
+                     (1000000.0 / fps) * duty_cycle);
 
     ret = timer_settings_from_fps(fps, &settings, &ts);
     zassert_equal(RET_SUCCESS, ret, "");
@@ -559,4 +562,25 @@ ZTEST(timer_settings_fps, test_fps_set_valid_then_invalid_on_time)
     zassert_equal(settings.master_arr, ts.master_arr,
                   "must not have changed. Was %u, now %u", settings.master_arr,
                   ts.master_arr);
+}
+
+ZTEST(timer_settings_on_time, test_diamond_ir_eye_limit)
+{
+    struct ir_camera_timer_settings settings = {0};
+    const uint16_t rejected[] = {3334, 7500};
+
+    zassert_equal(RET_SUCCESS,
+                  timer_settings_from_fps(30, &settings, &settings), "");
+    zassert_equal(RET_SUCCESS,
+                  timer_settings_from_on_time_us(3333, &settings, &settings),
+                  "Maximum orb-core IR-eye exposure must remain valid");
+    const struct ir_camera_timer_settings previous = settings;
+    for (size_t i = 0; i < ARRAY_SIZE(rejected); ++i) {
+        zassert_equal(
+            RET_ERROR_INVALID_PARAM,
+            timer_settings_from_on_time_us(rejected[i], &settings, &settings),
+            "Overlong LED request must be rejected");
+        zassert_mem_equal(&settings, &previous, sizeof(settings),
+                          "Rejected request must preserve timer settings");
+    }
 }

@@ -27,7 +27,11 @@ See `IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US`:
 
     Diamond Orb:
         Max Duty Cycle: 25%
-        Max On-time: 8000us (theorically), set by software to 7500us
+        Max On-time: 3333us (maximum IR-eye exposure requested by orb-core)
+
+The Diamond limit applies both to Jetson on-time requests and face-STROBE pulse extensions. It limits heating from
+erroneously long STROBE windows or incorrect IR-face auto-exposure settings. The normal eye pulse retains its
+existing 50us LED-current ramp-up lead-in; this is not a change to camera-trigger timing.
 
 ## Timer Structure and Settings
 
@@ -51,7 +55,7 @@ The timer structure ensures synchronization of IR LEDs and camera triggers acros
         Diamond: Timer 20 - Channels 1 (TOF), 3 (IR_EYE), 4 (IR_FACE)
 
 All slave timers are configured in single-shot mode, triggered by the master timer, with pulses ranging from 0us to the
-max on-time of each configuration (5000us for Pearl, 8000us for Diamond). Timers operate with a prescaler such that 1
+max on-time of each configuration (5000us for Pearl, 3333us for Diamond). Timers operate with a prescaler such that 1
 tick equals 1us, and are set in PWM mode 2 (output transitions from 0 to 1 t Compare-Capture events). The Capture
 Compare Register (CCR) is set to the start delay value, and the Auto Reload Register (ARR) is configured to on_time_us +
 start_delay.
