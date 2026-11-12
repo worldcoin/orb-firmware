@@ -434,7 +434,7 @@ ZTEST(ir_camera, test_ir_camera_valid_on_time_and_duty_limits)
                       wavelength);
     }
 
-    // set limit values different fps with max duty cycle
+    // Exercise the tighter of the on-time and duty-cycle limits.
     for (orb_mcu_main_InfraredLEDs_Wavelength wavelength =
              orb_mcu_main_InfraredLEDs_Wavelength_WAVELENGTH_740NM;
          wavelength <=
@@ -460,8 +460,11 @@ ZTEST(ir_camera, test_ir_camera_valid_on_time_and_duty_limits)
         for (uint16_t fps = 30; fps <= IR_CAMERA_SYSTEM_MAX_FPS; fps += 10) {
             ir_camera_system_enable_leds(wavelength);
             ir_camera_system_set_fps(20);
-            ir_camera_system_set_on_time_us(
-                1e6 / fps * IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE);
+            const uint16_t on_time_us =
+                MIN(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US,
+                    1e6 / fps * IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE);
+            ret = ir_camera_system_set_on_time_us(on_time_us);
+            zassert_equal(ret, RET_SUCCESS, "Failed to set maximum on-time");
             ir_camera_system_set_fps(fps);
             k_msleep(100);
 
@@ -473,9 +476,7 @@ ZTEST(ir_camera, test_ir_camera_valid_on_time_and_duty_limits)
             zassert_false(safety_circuit_tripped,
                           "safety circuit tripped but shouldn't at %d fps with "
                           "%d us on-time, wavelength %d",
-                          fps,
-                          1e6 / fps * IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE,
-                          wavelength);
+                          fps, on_time_us, wavelength);
         }
     }
 }
