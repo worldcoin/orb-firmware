@@ -18,6 +18,9 @@ BUILD_ASSERT(IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US == 5000 &&
 #endif // !defined(CONFIG_ZTEST)
 #else
 // Match orb-core's maximum IR-eye exposure; also bound face-STROBE extensions.
+// The current cap is a precaution following polarizer film melting, not a
+// measured thermal threshold. Eye-safety certification covers 8000us on-time
+// at 25% duty cycle.
 #define IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US     3333
 #define IR_CAMERA_SYSTEM_MAX_IR_LED_DUTY_CYCLE     0.25
 // when computing the next rgb/ir strobe falling edge, keep a 50us margin
