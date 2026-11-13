@@ -29,9 +29,11 @@ See `IR_CAMERA_SYSTEM_MAX_IR_LED_ON_TIME_US`:
         Max Duty Cycle: 25%
         Max On-time: 3333us (maximum IR-eye exposure requested by orb-core)
 
-The Diamond limit applies both to Jetson on-time requests and face-STROBE pulse extensions. It limits heating from
-erroneously long STROBE windows or incorrect IR-face auto-exposure settings. The normal eye pulse retains its
-existing 50us LED-current ramp-up lead-in; this is not a change to camera-trigger timing.
+The Diamond limit applies both to Jetson on-time requests and face-STROBE pulse extensions. The 3333us cap is a
+precaution following polarizer film melting.
+This value is not a measured thermal threshold. Diamond was designed and certified for eye safety at 8000us on-time
+and 25% duty cycle. The normal eye pulse retains its existing 50us LED-current ramp-up lead-in; this is not a change
+to camera-trigger timing.
 
 ## Timer Structure and Settings
 
